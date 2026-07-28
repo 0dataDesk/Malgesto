@@ -1,0 +1,166 @@
+"use client";
+
+import type { Evento } from "@/lib/malgestoEventos";
+import { COLOR_TIPO, ETIQUETA_TIPO, colorConAlpha } from "@/lib/eventoUI";
+import { diaDelMes, diaSemanaAbrev, hora, nombreMes, mismoMesAno } from "@/lib/fechas";
+
+function formatoMoneda(n: number) {
+  return `$${n.toLocaleString("es-MX")}`;
+}
+
+function TarjetaEvento({ evento, onClick }: { evento: Evento; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full gap-3 rounded-2xl p-3.5 text-left"
+      style={{
+        background: "oklch(0.99 0.008 82)",
+        border: "1px solid oklch(0.89 0.013 78)",
+        borderLeft: `3px solid ${COLOR_TIPO[evento.tipo]}`,
+      }}
+    >
+      <div className="min-w-[38px] text-center">
+        <div className="font-mono text-lg font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+          {diaDelMes(evento.fechaInicio)}
+        </div>
+        <div className="text-[10px]" style={{ color: "oklch(0.5 0.02 55)" }}>
+          {diaSemanaAbrev(evento.fechaInicio)}
+        </div>
+      </div>
+      <div className="flex-1">
+        <div className="flex items-center justify-between">
+          <span
+            className="font-mono text-[10px] font-bold tracking-wide uppercase"
+            style={{ color: COLOR_TIPO[evento.tipo] }}
+          >
+            {ETIQUETA_TIPO[evento.tipo]}
+          </span>
+          {evento.tipo !== "cumpleanos" && (
+            <span className="font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+              {hora(evento.fechaInicio)}
+            </span>
+          )}
+        </div>
+        <div className="my-0.5 text-[17px] font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+          {evento.titulo}
+        </div>
+        <div className="flex flex-wrap gap-2.5 text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <span>{evento.bandaNombre}</span>
+          {evento.ubicacion && <span>· {evento.ubicacion}</span>}
+          {evento.ingresoEsperado !== null && <span>· {formatoMoneda(evento.ingresoEsperado)} esperado</span>}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function TarjetaGira({
+  gira,
+  shows,
+  onClick,
+  onClickShow,
+}: {
+  gira: Evento;
+  shows: Evento[];
+  onClick: () => void;
+  onClickShow: (e: Evento) => void;
+}) {
+  const inicio = diaDelMes(gira.fechaInicio);
+  const fin = gira.fechaFin ? diaDelMes(gira.fechaFin) : inicio;
+
+  return (
+    <div className="overflow-hidden rounded-2xl" style={{ border: `1px solid ${COLOR_TIPO.gira}` }}>
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full items-center gap-2 px-3.5 py-2.5 text-left"
+        style={{ background: colorConAlpha(COLOR_TIPO.gira, 0.16) }}
+      >
+        <span className="font-mono text-[10px] font-bold tracking-wide uppercase" style={{ color: "oklch(0.5 0.06 72)" }}>
+          Gira
+        </span>
+        <span className="flex-1 text-[16px] font-bold" style={{ color: "oklch(0.28 0.03 60)" }}>
+          {gira.titulo}
+        </span>
+        <span className="font-mono text-[11px]" style={{ color: "oklch(0.5 0.05 70)" }}>
+          {inicio}–{fin} {nombreMes(gira.fechaInicio)}
+        </span>
+      </button>
+      <div className="px-3.5 pb-2 pt-1">
+        {shows.map((s) => (
+          <button
+            type="button"
+            key={s.id}
+            onClick={() => onClickShow(s)}
+            className="flex w-full gap-2.5 border-b py-2 text-left last:border-b-0"
+            style={{ borderColor: "oklch(0.9 0.012 78)" }}
+          >
+            <span className="min-w-[34px] font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+              {diaDelMes(s.fechaInicio)}
+            </span>
+            <span className="flex-1 text-[13px]" style={{ color: "oklch(0.3 0.02 55)" }}>
+              Show · {s.ubicacion ?? s.titulo}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AgendaView({
+  eventos,
+  onEventoClick,
+}: {
+  eventos: Evento[];
+  onEventoClick: (evento: Evento) => void;
+}) {
+  const giras = eventos.filter((e) => e.tipo === "gira");
+  const showsAgrupados = new Set(eventos.filter((e) => e.giraId).map((e) => e.id));
+  const items = [...giras, ...eventos.filter((e) => e.tipo !== "gira" && !showsAgrupados.has(e.id))].sort(
+    (a, b) => new Date(a.fechaInicio).getTime() - new Date(b.fechaInicio).getTime()
+  );
+
+  if (items.length === 0) {
+    return (
+      <p className="mt-8 text-center text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+        Sin eventos próximos.
+      </p>
+    );
+  }
+
+  const itemsConMes = items.map((item, i) => ({
+    item,
+    mostrarMes: i === 0 || !mismoMesAno(new Date(items[i - 1].fechaInicio), new Date(item.fechaInicio)),
+  }));
+
+  return (
+    <div className="flex flex-col gap-3">
+      {itemsConMes.map(({ item, mostrarMes }) => {
+        return (
+          <div key={item.id}>
+            {mostrarMes && (
+              <div
+                className="mb-2.5 mt-1 font-mono text-[10px] font-bold tracking-widest uppercase"
+                style={{ color: "oklch(0.55 0.02 55)" }}
+              >
+                {nombreMes(item.fechaInicio)}
+              </div>
+            )}
+            {item.tipo === "gira" ? (
+              <TarjetaGira
+                gira={item}
+                shows={eventos.filter((e) => e.giraId === item.id)}
+                onClick={() => onEventoClick(item)}
+                onClickShow={onEventoClick}
+              />
+            ) : (
+              <TarjetaEvento evento={item} onClick={() => onEventoClick(item)} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
