@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+:root {
+  --background: oklch(0.16 0.01 260);
+  --foreground: oklch(0.95 0.005 260);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-manrope);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-manrope), sans-serif;
+}
+
+a {
+  color: oklch(0.7 0.12 250);
+}
+a:hover {
+  color: oklch(0.78 0.12 250);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.32 0.01 260);
+  border-radius: 8px;
+}
