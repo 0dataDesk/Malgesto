@@ -20,6 +20,7 @@ export type Evento = {
   ubicacion: string | null;
   ingresoEsperado: number | null;
   giraId: string | null;
+  setlistId: string | null;
 };
 
 type BandaEmbebida = { id: string; nombre: string } | null;
@@ -54,7 +55,9 @@ export async function obtenerEventos(bandaIds: string[]): Promise<Evento[]> {
   const admin = supabaseMalgesto();
   const { data } = await admin
     .from("eventos")
-    .select("id, banda_id, tipo, titulo, fecha_inicio, fecha_fin, ubicacion, ingreso_esperado, gira_id, bandas(nombre)")
+    .select(
+      "id, banda_id, tipo, titulo, fecha_inicio, fecha_fin, ubicacion, ingreso_esperado, gira_id, setlist_id, bandas(nombre)"
+    )
     .in("banda_id", bandaIds)
     .order("fecha_inicio", { ascending: true });
 
@@ -69,6 +72,7 @@ export async function obtenerEventos(bandaIds: string[]): Promise<Evento[]> {
     ubicacion: e.ubicacion,
     ingresoEsperado: e.ingreso_esperado === null ? null : Number(e.ingreso_esperado),
     giraId: e.gira_id,
+    setlistId: e.setlist_id,
   }));
 }
 
@@ -80,6 +84,7 @@ export type NuevoEventoInput = {
   fechaFin: string | null;
   ubicacion: string | null;
   ingresoEsperado: number | null;
+  giraId: string | null;
 };
 
 export async function crearEvento(input: NuevoEventoInput) {
@@ -92,6 +97,39 @@ export async function crearEvento(input: NuevoEventoInput) {
     fecha_fin: input.fechaFin,
     ubicacion: input.ubicacion,
     ingreso_esperado: input.tipo === "show" ? input.ingresoEsperado : null,
+    gira_id: input.tipo === "show" ? input.giraId : null,
   });
+  if (error) throw new Error(error.message);
+}
+
+export async function actualizarEvento(eventoId: string, input: NuevoEventoInput) {
+  const admin = supabaseMalgesto();
+  const { error } = await admin
+    .from("eventos")
+    .update({
+      banda_id: input.bandaId,
+      tipo: input.tipo,
+      titulo: input.titulo,
+      fecha_inicio: input.fechaInicio,
+      fecha_fin: input.fechaFin,
+      ubicacion: input.ubicacion,
+      ingreso_esperado: input.tipo === "show" ? input.ingresoEsperado : null,
+      gira_id: input.tipo === "show" ? input.giraId : null,
+    })
+    .eq("id", eventoId);
+  if (error) throw new Error(error.message);
+}
+
+export async function eliminarEvento(eventoId: string) {
+  const admin = supabaseMalgesto();
+  const { error } = await admin.from("eventos").delete().eq("id", eventoId);
+  if (error) throw new Error(error.message);
+}
+
+// Reasignación puntual de gira desde el panel de detalle (sin pasar por el
+// formulario de edición completo).
+export async function asignarGiraEvento(eventoId: string, giraId: string | null) {
+  const admin = supabaseMalgesto();
+  const { error } = await admin.from("eventos").update({ gira_id: giraId }).eq("id", eventoId);
   if (error) throw new Error(error.message);
 }

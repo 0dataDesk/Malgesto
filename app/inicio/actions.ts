@@ -2,9 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
-import { obtenerMembresias, crearEvento, type NuevoEventoInput } from "@/lib/malgestoEventos";
+import {
+  obtenerMembresias,
+  crearEvento,
+  actualizarEvento,
+  eliminarEvento,
+  asignarGiraEvento,
+  type NuevoEventoInput,
+} from "@/lib/malgestoEventos";
 
-export async function crearEventoAction(input: NuevoEventoInput) {
+async function requerirMembresia(bandaId: string) {
   const supabase = await supabaseServerAuth();
   const {
     data: { user },
@@ -12,11 +19,31 @@ export async function crearEventoAction(input: NuevoEventoInput) {
 
   if (!user) throw new Error("No hay sesión activa.");
 
-  // El usuario solo puede crear eventos para una banda de la que es miembro.
   const membresias = await obtenerMembresias(user.id);
-  const esMiembro = membresias.some((m) => m.bandaId === input.bandaId);
+  const esMiembro = membresias.some((m) => m.bandaId === bandaId);
   if (!esMiembro) throw new Error("No pertenecés a esa banda.");
+}
 
+export async function crearEventoAction(input: NuevoEventoInput) {
+  await requerirMembresia(input.bandaId);
   await crearEvento(input);
+  revalidatePath("/inicio");
+}
+
+export async function actualizarEventoAction(eventoId: string, input: NuevoEventoInput) {
+  await requerirMembresia(input.bandaId);
+  await actualizarEvento(eventoId, input);
+  revalidatePath("/inicio");
+}
+
+export async function eliminarEventoAction(eventoId: string, bandaId: string) {
+  await requerirMembresia(bandaId);
+  await eliminarEvento(eventoId);
+  revalidatePath("/inicio");
+}
+
+export async function asignarGiraAction(eventoId: string, bandaId: string, giraId: string | null) {
+  await requerirMembresia(bandaId);
+  await asignarGiraEvento(eventoId, giraId);
   revalidatePath("/inicio");
 }

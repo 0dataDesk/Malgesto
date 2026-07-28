@@ -51,11 +51,25 @@ export function CalendarioShell({
   const [bandaFiltro, setBandaFiltro] = useState<string | "todas">("todas");
   const [eventoSeleccionado, setEventoSeleccionado] = useState<Evento | null>(null);
   const [mostrarForm, setMostrarForm] = useState(false);
+  const [eventoEnEdicion, setEventoEnEdicion] = useState<Evento | undefined>(undefined);
 
   const eventosFiltrados = useMemo(
     () => (bandaFiltro === "todas" ? eventos : eventos.filter((e) => e.bandaId === bandaFiltro)),
     [eventos, bandaFiltro]
   );
+
+  const giras = useMemo(() => eventos.filter((e) => e.tipo === "gira"), [eventos]);
+
+  const abrirNuevo = () => {
+    setEventoEnEdicion(undefined);
+    setMostrarForm(true);
+  };
+
+  const abrirEdicion = (evento: Evento) => {
+    setEventoSeleccionado(null);
+    setEventoEnEdicion(evento);
+    setMostrarForm(true);
+  };
 
   return (
     <div className="min-h-screen pb-32" style={{ background: "oklch(0.965 0.012 82)" }}>
@@ -135,7 +149,7 @@ export function CalendarioShell({
 
       <button
         type="button"
-        onClick={() => setMostrarForm(true)}
+        onClick={abrirNuevo}
         className="fixed bottom-24 right-6 flex h-14 w-14 items-center justify-center rounded-full text-2xl"
         style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)", boxShadow: "0 14px 26px -12px rgba(0,0,0,0.5)" }}
       >
@@ -145,12 +159,23 @@ export function CalendarioShell({
       <TabBar activa="calendario" />
 
       {eventoSeleccionado && (
-        <EventoDetalle evento={eventoSeleccionado} onCerrar={() => setEventoSeleccionado(null)} />
+        <EventoDetalle
+          evento={eventoSeleccionado}
+          giras={giras.filter((g) => g.bandaId === eventoSeleccionado.bandaId)}
+          onCerrar={() => setEventoSeleccionado(null)}
+          onEditar={abrirEdicion}
+          onEliminado={() => {
+            setEventoSeleccionado(null);
+            router.refresh();
+          }}
+        />
       )}
 
       {mostrarForm && (
         <NuevoEventoForm
           membresias={membresias}
+          giras={giras}
+          eventoExistente={eventoEnEdicion}
           onCancelar={() => setMostrarForm(false)}
           onCreado={() => {
             setMostrarForm(false);

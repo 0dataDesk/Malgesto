@@ -1,11 +1,10 @@
 "use client";
 
 // Barra de navegación inferior — Design líneas 104-110. Siempre visible en
-// esta vista y en las que sigan. Canciones enlaza al módulo ya existente
-// (repo/URL separados hasta el Brief 4 de integración); Set List y Seteos
-// todavía no existen, quedan como texto no interactivo.
-const URL_CANCIONES = "https://malgesto-repertorio.vercel.app";
-
+// esta vista y en las que sigan. Malgesto App se construye desde cero: nada
+// depende de malgesto-repertorio ni de ningún otro repo existente, así que
+// Canciones, Set List y Seteos son texto no interactivo hasta que cada uno
+// se construya acá mismo.
 export function TabBar({ activa }: { activa: "calendario" | "canciones" | "setlist" | "seteos" }) {
   return (
     <div
@@ -28,17 +27,9 @@ export function TabBar({ activa }: { activa: "calendario" | "canciones" | "setli
           )}
         </div>
 
-        <a
-          href={URL_CANCIONES}
-          className="text-[11px] no-underline"
-          style={{
-            fontWeight: activa === "canciones" ? 600 : 400,
-            color: activa === "canciones" ? "oklch(0.24 0.02 55)" : "oklch(0.55 0.02 55)",
-          }}
-        >
+        <span className="text-[11px]" style={{ color: "oklch(0.55 0.02 55)" }} title="Próximamente">
           Canciones
-        </a>
-
+        </span>
         <span className="text-[11px]" style={{ color: "oklch(0.55 0.02 55)" }} title="Próximamente">
           Set List
         </span>

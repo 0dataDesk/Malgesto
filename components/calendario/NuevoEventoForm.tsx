@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { Membresia, TipoEvento } from "@/lib/malgestoEventos";
+import type { Membresia, TipoEvento, Evento, NuevoEventoInput } from "@/lib/malgestoEventos";
 import { COLOR_TIPO, ETIQUETA_TIPO } from "@/lib/eventoUI";
-import { crearEventoAction } from "@/app/inicio/actions";
+import { crearEventoAction, actualizarEventoAction } from "@/app/inicio/actions";
 
 const TIPOS: TipoEvento[] = ["show", "ensayo", "cumpleanos", "gira"];
 
@@ -12,25 +12,44 @@ const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.8
 const labelCls = "mb-1.5 block font-mono text-[10px] font-bold tracking-wide uppercase";
 const labelStyle = { color: "oklch(0.55 0.02 55)" };
 
+function aFechaHora(iso: string) {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    fecha: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    hora: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+}
+
 export function NuevoEventoForm({
   membresias,
+  giras,
+  eventoExistente,
   onCreado,
   onCancelar,
 }: {
   membresias: Membresia[];
+  giras: Evento[];
+  eventoExistente?: Evento;
   onCreado: () => void;
   onCancelar: () => void;
 }) {
-  const [tipo, setTipo] = useState<TipoEvento>("show");
-  const [titulo, setTitulo] = useState("");
-  const [ubicacion, setUbicacion] = useState("");
-  const [fecha, setFecha] = useState("");
-  const [horaValor, setHoraValor] = useState("");
-  const [fechaFin, setFechaFin] = useState("");
-  const [ingreso, setIngreso] = useState("");
-  const [bandaId, setBandaId] = useState(membresias[0]?.bandaId ?? "");
+  const inicial = eventoExistente ? aFechaHora(eventoExistente.fechaInicio) : null;
+  const inicialFin = eventoExistente?.fechaFin ? aFechaHora(eventoExistente.fechaFin) : null;
+
+  const [tipo, setTipo] = useState<TipoEvento>(eventoExistente?.tipo ?? "show");
+  const [titulo, setTitulo] = useState(eventoExistente?.titulo ?? "");
+  const [ubicacion, setUbicacion] = useState(eventoExistente?.ubicacion ?? "");
+  const [fecha, setFecha] = useState(inicial?.fecha ?? "");
+  const [horaValor, setHoraValor] = useState(inicial?.hora ?? "");
+  const [fechaFin, setFechaFin] = useState(inicialFin?.fecha ?? "");
+  const [ingreso, setIngreso] = useState(eventoExistente?.ingresoEsperado?.toString() ?? "");
+  const [bandaId, setBandaId] = useState(eventoExistente?.bandaId ?? membresias[0]?.bandaId ?? "");
+  const [giraId, setGiraId] = useState(eventoExistente?.giraId ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const girasDeLaBanda = giras.filter((g) => g.bandaId === bandaId);
 
   const onSubmit = () => {
     setError(null);
@@ -50,20 +69,27 @@ export function NuevoEventoForm({
     const fechaInicio = new Date(`${fecha}T${tipo === "cumpleanos" ? "00:00" : horaValor || "00:00"}`).toISOString();
     const fechaFinIso = tipo === "gira" && fechaFin ? new Date(`${fechaFin}T00:00`).toISOString() : null;
 
+    const input: NuevoEventoInput = {
+      bandaId,
+      tipo,
+      titulo: titulo.trim(),
+      fechaInicio,
+      fechaFin: fechaFinIso,
+      ubicacion: tipo === "cumpleanos" ? null : ubicacion.trim() || null,
+      ingresoEsperado: ingreso ? Number(ingreso) : null,
+      giraId: tipo === "show" && giraId ? giraId : null,
+    };
+
     startTransition(async () => {
       try {
-        await crearEventoAction({
-          bandaId,
-          tipo,
-          titulo: titulo.trim(),
-          fechaInicio,
-          fechaFin: fechaFinIso,
-          ubicacion: tipo === "cumpleanos" ? null : ubicacion.trim() || null,
-          ingresoEsperado: ingreso ? Number(ingreso) : null,
-        });
+        if (eventoExistente) {
+          await actualizarEventoAction(eventoExistente.id, input);
+        } else {
+          await crearEventoAction(input);
+        }
         onCreado();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "No se pudo crear el evento.");
+        setError(e instanceof Error ? e.message : "No se pudo guardar el evento.");
       }
     });
   };
@@ -86,7 +112,7 @@ export function NuevoEventoForm({
             className="font-mono text-[11px] font-bold tracking-wide uppercase"
             style={{ color: "oklch(0.5 0.02 55)" }}
           >
-            Nuevo evento
+            {eventoExistente ? "Editar evento" : "Nuevo evento"}
           </div>
           <button
             type="button"
@@ -95,7 +121,7 @@ export function NuevoEventoForm({
             className="text-sm font-bold disabled:opacity-50"
             style={{ color: "oklch(0.64 0.15 34)" }}
           >
-            {pending ? "Creando…" : "Crear"}
+            {pending ? "Guardando…" : eventoExistente ? "Guardar" : "Crear"}
           </button>
         </div>
 
@@ -174,13 +200,48 @@ export function NuevoEventoForm({
               <span className={labelCls} style={labelStyle}>
                 Banda
               </span>
-              <select className={inputCls} style={inputStyle} value={bandaId} onChange={(e) => setBandaId(e.target.value)}>
+              <select
+                className={inputCls}
+                style={inputStyle}
+                value={bandaId}
+                onChange={(e) => {
+                  setBandaId(e.target.value);
+                  setGiraId("");
+                }}
+              >
                 {membresias.map((m) => (
                   <option key={m.bandaId} value={m.bandaId}>
                     {m.bandaNombre}
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {tipo === "show" && (
+            <div>
+              <span className={labelCls} style={labelStyle}>
+                Gira
+              </span>
+              <select className={inputCls} style={inputStyle} value={giraId} onChange={(e) => setGiraId(e.target.value)}>
+                <option value="">Sin gira</option>
+                {girasDeLaBanda.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.titulo}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {(tipo === "show" || tipo === "ensayo") && (
+            <div>
+              <span className={labelCls} style={labelStyle}>
+                Set List
+              </span>
+              <div className={inputCls} style={{ ...inputStyle, color: "oklch(0.5 0.02 55)" }}>
+                Asignar… (próximamente)
+              </div>
             </div>
           )}
 

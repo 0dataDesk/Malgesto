@@ -1,20 +1,17 @@
 import type { TipoEvento } from "@/lib/malgestoEventos";
 
-// Color e identidad visual por tipo de evento, tomado literal del HTML de
-// Design. Cumpleaños y Gira son ambos dorados y casi idénticos — no es un
-// descuido: la leyenda del board (línea 40) redondea a oklch(0.74 0.12 78),
-// pero las pantallas 05/06 en uso real (dot línea 472, borde de tarjeta
-// línea 555) usan consistentemente oklch(0.72 0.12 78) para Cumpleaños —
-// se sigue esa fuente por ser la que corresponde a las pantallas de este
-// brief. Gira usa oklch(0.74 0.12 78) (marcador línea 502, tarjeta 564-565).
-// Se revierte acá el violeta distinto que se había usado en el Brief 2 para
-// diferenciarlos — quedan visualmente casi idénticos en el calendario real
-// (ver nota en el reporte de este brief).
+// Color e identidad visual por tipo de evento. Show/Ensayo/Cumpleaños
+// siguen el HTML de Design literal (Cumpleaños: oklch(0.72 0.12 78), tomado
+// de las pantallas 05/06 en uso real — ver detalle en el commit de la
+// corrección de fidelidad anterior). Gira es la única excepción deliberada:
+// Design lo deja casi idéntico a Cumpleaños, pero eso confunde ambos tipos
+// en el calendario con datos reales, así que mantiene el violeta propio del
+// Brief 2 en vez de seguir la fidelidad literal en este punto.
 export const COLOR_TIPO: Record<TipoEvento, string> = {
   show: "oklch(0.64 0.15 34)",
   ensayo: "oklch(0.64 0.13 195)",
   cumpleanos: "oklch(0.72 0.12 78)",
-  gira: "oklch(0.74 0.12 78)",
+  gira: "oklch(0.58 0.14 300)",
 };
 
 // Color por banda, para los chips de filtro (Design línea 449-452): cada
