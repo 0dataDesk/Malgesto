@@ -45,12 +45,15 @@ export function MesView({
           let bg = "transparent";
           let radius = "0";
           if (giraDelDia) {
-            bg = colorConAlpha(COLOR_TIPO.gira, 0.16);
+            bg = colorConAlpha(COLOR_TIPO.gira, 0.22);
+            // Design redondea solo en el día exacto de inicio/fin de la gira,
+            // nunca en los bordes de fila del calendario (ver líneas 481-485
+            // del HTML: el día 17, fin de semana, queda cuadrado igual).
             const inicio = new Date(giraDelDia.fechaInicio);
             const fin = giraDelDia.fechaFin ? new Date(giraDelDia.fechaFin) : inicio;
-            const esInicioVisual = esMismoDia(dia, inicio) || dia.getDay() === 1;
-            const esFinVisual = esMismoDia(dia, fin) || dia.getDay() === 0;
-            radius = `${esInicioVisual ? "9px" : "0"} ${esFinVisual ? "9px" : "0"} ${esFinVisual ? "9px" : "0"} ${esInicioVisual ? "9px" : "0"}`;
+            const esInicio = esMismoDia(dia, inicio);
+            const esFin = esMismoDia(dia, fin);
+            radius = `${esInicio ? "9px" : "0"} ${esFin ? "9px" : "0"} ${esFin ? "9px" : "0"} ${esInicio ? "9px" : "0"}`;
           }
 
           return (
@@ -59,8 +62,10 @@ export function MesView({
               type="button"
               disabled={eventosDelDia.length === 0}
               onClick={() => eventosDelDia.length > 0 && onEventoClick(eventosDelDia[0])}
-              className="flex flex-col items-center py-1.5 text-[13px]"
+              className="flex flex-col items-center text-[13px]"
               style={{
+                paddingTop: 7,
+                paddingBottom: 7,
                 background: esHoy ? "oklch(0.24 0.02 55)" : bg,
                 borderRadius: esHoy ? 9 : radius,
                 color: esHoy
@@ -96,8 +101,13 @@ export function MesView({
               key={g.id}
               type="button"
               onClick={() => onEventoClick(g)}
-              className="mt-3.5 flex w-full items-center gap-2.5 rounded-[13px] px-3.5 py-2.5"
-              style={{ background: colorConAlpha(COLOR_TIPO.gira, 0.14), border: `1px solid ${COLOR_TIPO.gira}` }}
+              className="mt-3.5 flex w-full items-center gap-2.5 rounded-[13px] px-3.5"
+              style={{
+                paddingTop: 11,
+                paddingBottom: 11,
+                background: colorConAlpha(COLOR_TIPO.gira, 0.16),
+                border: `1px solid ${COLOR_TIPO.gira}`,
+              }}
             >
               <span className="font-mono text-[11px]" style={{ color: "oklch(0.5 0.05 70)" }}>
                 {new Date(g.fechaInicio).getDate()}–{g.fechaFin ? new Date(g.fechaFin).getDate() : new Date(g.fechaInicio).getDate()}

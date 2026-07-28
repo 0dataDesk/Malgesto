@@ -13,7 +13,7 @@ function TarjetaEvento({ evento, onClick }: { evento: Evento; onClick: () => voi
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full gap-3 rounded-2xl p-3.5 text-left"
+      className="flex w-full gap-3 rounded-[14px] p-3.5 text-left"
       style={{
         background: "oklch(0.99 0.008 82)",
         border: "1px solid oklch(0.89 0.013 78)",
@@ -31,8 +31,8 @@ function TarjetaEvento({ evento, onClick }: { evento: Evento; onClick: () => voi
       <div className="flex-1">
         <div className="flex items-center justify-between">
           <span
-            className="font-mono text-[10px] font-bold tracking-wide uppercase"
-            style={{ color: COLOR_TIPO[evento.tipo] }}
+            className="font-mono text-[10px] font-bold uppercase"
+            style={{ color: COLOR_TIPO[evento.tipo], letterSpacing: "0.12em" }}
           >
             {ETIQUETA_TIPO[evento.tipo]}
           </span>
@@ -42,7 +42,10 @@ function TarjetaEvento({ evento, onClick }: { evento: Evento; onClick: () => voi
             </span>
           )}
         </div>
-        <div className="my-0.5 text-[17px] font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+        <div
+          className="my-0.5 text-[17px] font-bold"
+          style={{ color: "oklch(0.24 0.02 55)", fontFamily: "var(--font-bricolage), sans-serif" }}
+        >
           {evento.titulo}
         </div>
         <div className="flex flex-wrap gap-2.5 text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
@@ -70,24 +73,30 @@ function TarjetaGira({
   const fin = gira.fechaFin ? diaDelMes(gira.fechaFin) : inicio;
 
   return (
-    <div className="overflow-hidden rounded-2xl" style={{ border: `1px solid ${COLOR_TIPO.gira}` }}>
+    <div className="overflow-hidden rounded-[14px]" style={{ border: `1px solid ${COLOR_TIPO.gira}` }}>
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full items-center gap-2 px-3.5 py-2.5 text-left"
-        style={{ background: colorConAlpha(COLOR_TIPO.gira, 0.16) }}
+        className="flex w-full items-center gap-2 px-3.5 text-left"
+        style={{ paddingTop: 11, paddingBottom: 11, background: colorConAlpha(COLOR_TIPO.gira, 0.16) }}
       >
-        <span className="font-mono text-[10px] font-bold tracking-wide uppercase" style={{ color: "oklch(0.5 0.06 72)" }}>
+        <span
+          className="font-mono text-[10px] font-bold uppercase"
+          style={{ color: "oklch(0.5 0.06 72)", letterSpacing: "0.1em" }}
+        >
           Gira
         </span>
-        <span className="flex-1 text-[16px] font-bold" style={{ color: "oklch(0.28 0.03 60)" }}>
+        <span
+          className="flex-1 text-[16px] font-bold"
+          style={{ color: "oklch(0.28 0.03 60)", fontFamily: "var(--font-bricolage), sans-serif" }}
+        >
           {gira.titulo}
         </span>
         <span className="font-mono text-[11px]" style={{ color: "oklch(0.5 0.05 70)" }}>
           {inicio}–{fin} {nombreMes(gira.fechaInicio)}
         </span>
       </button>
-      <div className="px-3.5 pb-2 pt-1">
+      <div className="px-3.5 pt-1" style={{ paddingBottom: 10 }}>
         {shows.map((s) => (
           <button
             type="button"

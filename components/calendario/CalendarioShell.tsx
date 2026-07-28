@@ -9,7 +9,32 @@ import { AgendaView } from "./AgendaView";
 import { EventoDetalle } from "./EventoDetalle";
 import { NuevoEventoForm } from "./NuevoEventoForm";
 import { BandaSelectorCards } from "./BandaSelectorCards";
+import { BandaFilterChips } from "./BandaFilterChips";
+import { TabBar } from "@/components/shell/TabBar";
 import { cerrarSesion } from "@/app/auth/actions";
+
+const fuenteEncabezado = { fontFamily: "var(--font-bricolage), sans-serif" };
+
+function VistaToggle({ vista, onVista }: { vista: "mes" | "agenda"; onVista: (v: "mes" | "agenda") => void }) {
+  return (
+    <div className="flex shrink-0 gap-1 rounded-[10px] p-[3px]" style={{ background: "oklch(0.93 0.016 78)" }}>
+      {(["mes", "agenda"] as const).map((v) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onVista(v)}
+          className="rounded-lg px-3 py-1.5 text-xs font-semibold"
+          style={{
+            background: vista === v ? "oklch(0.24 0.02 55)" : "transparent",
+            color: vista === v ? "oklch(0.96 0.012 82)" : "oklch(0.45 0.02 55)",
+          }}
+        >
+          {v === "mes" ? "Mes" : "Lista"}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function CalendarioShell({
   membresias,
@@ -32,91 +57,92 @@ export function CalendarioShell({
     [eventos, bandaFiltro]
   );
 
-  const tituloEncabezado = membresias.length === 1 ? membresias[0].bandaNombre : "Todas tus bandas";
-
   return (
-    <div className="mx-auto min-h-screen max-w-2xl px-5 pb-28 pt-6">
-      <div className="mb-1 flex items-center justify-between">
-        <div>
-          <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
-            {tituloEncabezado}
-          </div>
-          <h1 className="text-[28px] font-extrabold tracking-tight" style={{ color: "oklch(0.95 0.005 260)" }}>
-            {vista === "mes" ? "Calendario" : "Próximas"}
-          </h1>
-        </div>
-        <form action={cerrarSesion}>
-          <button type="submit" className="text-xs" style={{ color: "oklch(0.55 0.01 260)" }} title={userEmail}>
-            Cerrar sesión
-          </button>
-        </form>
-      </div>
-
-      {membresias.length > 1 && (
-        <BandaSelectorCards membresias={membresias} filtro={bandaFiltro} onFiltro={setBandaFiltro} />
-      )}
-
-      <div className="mt-4 flex items-center justify-between">
-        {vista === "mes" ? (
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => setMes((m) => sumarMeses(m, -1))} className="text-lg" style={{ color: "oklch(0.6 0.02 55)" }}>
-              ‹
+    <div className="min-h-screen pb-32" style={{ background: "oklch(0.965 0.012 82)" }}>
+      <div className="mx-auto max-w-2xl px-5 pt-5">
+        <div className="mb-2 flex justify-end">
+          <form action={cerrarSesion}>
+            <button type="submit" className="text-xs" style={{ color: "oklch(0.5 0.02 55)" }} title={userEmail}>
+              Cerrar sesión
             </button>
-            <span className="text-sm font-bold" style={{ color: "oklch(0.9 0.005 260)" }}>
-              {nombreMesAno(mes)}
-            </span>
-            <button type="button" onClick={() => setMes((m) => sumarMeses(m, 1))} className="text-lg" style={{ color: "oklch(0.6 0.02 55)" }}>
-              ›
-            </button>
-          </div>
-        ) : (
-          <span />
-        )}
-        <div className="flex gap-1 rounded-[10px] p-[3px]" style={{ background: "oklch(0.24 0.015 260)" }}>
-          <button
-            type="button"
-            onClick={() => setVista("mes")}
-            className="rounded-lg px-3 py-1.5 text-xs font-semibold"
-            style={{
-              background: vista === "mes" ? "oklch(0.96 0.012 82)" : "transparent",
-              color: vista === "mes" ? "oklch(0.24 0.02 55)" : "oklch(0.7 0.01 260)",
-            }}
-          >
-            Mes
-          </button>
-          <button
-            type="button"
-            onClick={() => setVista("agenda")}
-            className="rounded-lg px-3 py-1.5 text-xs font-semibold"
-            style={{
-              background: vista === "agenda" ? "oklch(0.96 0.012 82)" : "transparent",
-              color: vista === "agenda" ? "oklch(0.24 0.02 55)" : "oklch(0.7 0.01 260)",
-            }}
-          >
-            Agenda
-          </button>
+          </form>
         </div>
-      </div>
 
-      <div
-        className="mt-4 rounded-3xl p-4"
-        style={{ background: "oklch(0.965 0.012 82)" }}
-      >
         {vista === "mes" ? (
-          <MesView mes={mes} eventos={eventosFiltrados} onEventoClick={setEventoSeleccionado} />
+          <>
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <div
+                  className="font-mono text-[10px] tracking-[0.14em] uppercase"
+                  style={{ color: "oklch(0.5 0.02 55)" }}
+                >
+                  Todas tus bandas
+                </div>
+                <h2
+                  className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
+                  style={{ ...fuenteEncabezado, color: "oklch(0.24 0.02 55)" }}
+                >
+                  {nombreMesAno(mes)}
+                </h2>
+              </div>
+              <VistaToggle vista={vista} onVista={setVista} />
+            </div>
+            <BandaFilterChips membresias={membresias} />
+            <div className="mt-3 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setMes((m) => sumarMeses(m, -1))}
+                className="text-lg"
+                style={{ color: "oklch(0.6 0.02 55)" }}
+                aria-label="Mes anterior"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={() => setMes((m) => sumarMeses(m, 1))}
+                className="text-lg"
+                style={{ color: "oklch(0.6 0.02 55)" }}
+                aria-label="Mes siguiente"
+              >
+                ›
+              </button>
+            </div>
+          </>
         ) : (
-          <AgendaView eventos={eventosFiltrados} onEventoClick={setEventoSeleccionado} />
+          <div className="flex items-end justify-between gap-3">
+            <h2 className="text-[30px] font-extrabold tracking-[-0.02em]" style={{ ...fuenteEncabezado, color: "oklch(0.24 0.02 55)" }}>
+              Próximas
+            </h2>
+            <VistaToggle vista={vista} onVista={setVista} />
+          </div>
         )}
+
+        {membresias.length > 1 && (
+          <div className="mt-4">
+            <BandaSelectorCards membresias={membresias} filtro={bandaFiltro} onFiltro={setBandaFiltro} />
+          </div>
+        )}
+
+        <div className="mt-4">
+          {vista === "mes" ? (
+            <MesView mes={mes} eventos={eventosFiltrados} onEventoClick={setEventoSeleccionado} />
+          ) : (
+            <AgendaView eventos={eventosFiltrados} onEventoClick={setEventoSeleccionado} />
+          )}
+        </div>
       </div>
 
       <button
         type="button"
         onClick={() => setMostrarForm(true)}
-        className="fixed bottom-8 right-6 flex h-14 w-14 items-center justify-center rounded-full text-2xl"
+        className="fixed bottom-24 right-6 flex h-14 w-14 items-center justify-center rounded-full text-2xl"
         style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)", boxShadow: "0 14px 26px -12px rgba(0,0,0,0.5)" }}
       >
         +
       </button>
+
+      <TabBar activa="calendario" />
 
       {eventoSeleccionado && (
         <EventoDetalle evento={eventoSeleccionado} onCerrar={() => setEventoSeleccionado(null)} />
