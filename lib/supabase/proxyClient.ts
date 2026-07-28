@@ -2,8 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Refresca la sesión de auth en cada request a una ruta del shell y protege
-// /inicio. No toca el módulo de Canciones (proxy.ts solo hace match sobre
-// las rutas nuevas, ver el matcher ahí).
+// /inicio y /canciones (ver matcher en proxy.ts).
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -34,6 +33,7 @@ export async function updateSession(request: NextRequest) {
 
   const rutaProtegida =
     request.nextUrl.pathname.startsWith("/inicio") ||
+    request.nextUrl.pathname.startsWith("/canciones") ||
     request.nextUrl.pathname.startsWith("/sin-acceso");
 
   if (!user && rutaProtegida) {

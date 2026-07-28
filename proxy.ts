@@ -1,13 +1,16 @@
 import type { NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/proxyClient";
 
-// Solo corre sobre las rutas nuevas del shell (login/invitaciones). El
-// módulo de Canciones (/, /artistas/*) no pasa por acá — sigue sin auth,
-// tal como estaba antes de este brief.
+// Corre sobre todas las rutas autenticadas del shell — Calendario y
+// Canciones, ambas construidas desde cero dentro de este mismo repo.
 export default async function proxy(request: NextRequest) {
   return await updateSession(request);
 }
 
 export const config = {
-  matcher: ["/inicio", "/inicio/:path*", "/login", "/sin-acceso", "/auth/callback"],
+  matcher: [
+    "/inicio", "/inicio/:path*",
+    "/canciones", "/canciones/:path*",
+    "/login", "/sin-acceso", "/auth/callback",
+  ],
 };

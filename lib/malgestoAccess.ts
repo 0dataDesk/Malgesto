@@ -1,5 +1,28 @@
 import "server-only";
 import { supabaseMalgesto } from "@/lib/supabase/malgesto";
+import { supabaseServerAuth } from "@/lib/supabase/serverClient";
+
+// Verifica que el usuario autenticado sea miembro de la banda dada — usado
+// por los server actions de cualquier módulo (Calendario, Canciones...)
+// antes de mutar datos de esa banda.
+export async function requerirMembresia(bandaId: string) {
+  const supabase = await supabaseServerAuth();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("No hay sesión activa.");
+
+  const admin = supabaseMalgesto();
+  const { data } = await admin
+    .from("miembros_banda")
+    .select("id")
+    .eq("usuario_id", user.id)
+    .eq("banda_id", bandaId)
+    .limit(1);
+
+  if (!data || data.length === 0) throw new Error("No pertenecés a esa banda.");
+}
 
 // Resuelve a dónde debe ir un usuario recién autenticado: si ya es miembro
 // de alguna banda pasa directo, si tiene invitación(es) pendiente(s) las
