@@ -3,6 +3,7 @@ import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias } from "@/lib/malgestoEventos";
 import { obtenerCancionCompleta, obtenerCanciones } from "@/lib/cancionesData";
 import { obtenerSetlistCompleto } from "@/lib/setlistsData";
+import { obtenerSeteosParaCancion } from "@/lib/dispositivosData";
 import { VistaFinal } from "@/components/canciones/VistaFinal";
 
 export default async function CancionPage({
@@ -56,12 +57,15 @@ export default async function CancionPage({
     nextId = indice >= 0 && indice < canciones.length - 1 ? canciones[indice + 1].id : null;
   }
 
+  const seteosContexto = await obtenerSeteosParaCancion(cancion.bandaId, cancionId);
+
   return (
     <VistaFinal
       cancion={cancion}
       prevId={prevId}
       nextId={nextId}
       setlist={setlistValido}
+      seteosContexto={seteosContexto}
     />
   );
 }
