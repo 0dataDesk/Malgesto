@@ -17,26 +17,76 @@ function Tab({ activo, children }: { activo: boolean; children: React.ReactNode 
   );
 }
 
-export function TabBar({ activa }: { activa: "calendario" | "canciones" | "setlist" | "seteos" }) {
+// Botón flotante discreto a Gestión (Brief 8 §1) — vive acá porque TabBar es
+// el único componente compartido por las 4 vistas principales (Calendario,
+// Canciones, Set List, Seteos) y nunca se monta en vistas de edición o
+// inmersivas (editor de canción, vista final, armar/vivo de set list,
+// detalle de dispositivo), así que ponerlo acá alcanza para cumplir "en
+// todas las principales, en ninguna inmersiva" sin lógica extra por página.
+function GestionFab() {
   return (
-    <div
-      className="fixed inset-x-0 bottom-0 z-20"
-      style={{ background: "oklch(0.99 0.008 82)", borderTop: "1px solid oklch(0.89 0.013 78)" }}
+    <Link
+      href="/gestion"
+      aria-label="Gestión"
+      title="Gestión"
+      className="fixed z-20 flex h-9 w-9 items-center justify-center rounded-full no-underline"
+      style={{
+        top: 14,
+        right: 14,
+        background: "oklch(0.93 0.016 78 / 0.9)",
+        color: "oklch(0.45 0.02 55)",
+        border: "1px solid oklch(0.85 0.016 78)",
+      }}
     >
-      <div className="mx-auto flex max-w-2xl items-center justify-around px-3" style={{ paddingTop: 14, paddingBottom: 26 }}>
-        <Link href="/inicio" className="no-underline">
-          <Tab activo={activa === "calendario"}>Calendario</Tab>
-        </Link>
-        <Link href="/canciones" className="no-underline">
-          <Tab activo={activa === "canciones"}>Canciones</Tab>
-        </Link>
-        <Link href="/set-list" className="no-underline">
-          <Tab activo={activa === "setlist"}>Set List</Tab>
-        </Link>
-        <Link href="/seteos" className="no-underline">
-          <Tab activo={activa === "seteos"}>Seteos</Tab>
-        </Link>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h.02a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h.02a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v.02a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" />
+      </svg>
+    </Link>
+  );
+}
+
+export function TabBar({
+  activa,
+  esSuperadmin = false,
+  mostrarCanciones = true,
+  mostrarSetlist = true,
+  mostrarSeteos = true,
+}: {
+  activa: "calendario" | "canciones" | "setlist" | "seteos";
+  esSuperadmin?: boolean;
+  mostrarCanciones?: boolean;
+  mostrarSetlist?: boolean;
+  mostrarSeteos?: boolean;
+}) {
+  return (
+    <>
+      {esSuperadmin && <GestionFab />}
+      <div
+        className="fixed inset-x-0 bottom-0 z-20"
+        style={{ background: "oklch(0.99 0.008 82)", borderTop: "1px solid oklch(0.89 0.013 78)" }}
+      >
+        <div className="mx-auto flex max-w-2xl items-center justify-around px-3" style={{ paddingTop: 14, paddingBottom: 26 }}>
+          <Link href="/inicio" className="no-underline">
+            <Tab activo={activa === "calendario"}>Calendario</Tab>
+          </Link>
+          {mostrarCanciones && (
+            <Link href="/canciones" className="no-underline">
+              <Tab activo={activa === "canciones"}>Canciones</Tab>
+            </Link>
+          )}
+          {mostrarSetlist && (
+            <Link href="/set-list" className="no-underline">
+              <Tab activo={activa === "setlist"}>Set List</Tab>
+            </Link>
+          )}
+          {mostrarSeteos && (
+            <Link href="/seteos" className="no-underline">
+              <Tab activo={activa === "seteos"}>Seteos</Tab>
+            </Link>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -19,6 +19,7 @@ export async function requerirMembresia(bandaId: string) {
     .select("id")
     .eq("usuario_id", user.id)
     .eq("banda_id", bandaId)
+    .eq("activo", true)
     .limit(1);
 
   if (!data || data.length === 0) throw new Error("No pertenecés a esa banda.");
@@ -42,6 +43,7 @@ export async function requerirSuperadmin(): Promise<string> {
     .select("id")
     .eq("usuario_id", user.id)
     .eq("rol", "superadmin")
+    .eq("activo", true)
     .limit(1);
 
   if (!data || data.length === 0) throw new Error("No tenés permisos de superadmin.");
@@ -60,6 +62,7 @@ export async function resolverAccesoUsuario(usuarioId: string, email: string): P
     .from("miembros_banda")
     .select("id")
     .eq("usuario_id", usuarioId)
+    .eq("activo", true)
     .limit(1);
 
   if (yaMiembro && yaMiembro.length > 0) {

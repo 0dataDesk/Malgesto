@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
-import { obtenerMembresias } from "@/lib/malgestoEventos";
+import { obtenerMembresias, esSuperadminDeMembresias } from "@/lib/malgestoEventos";
 import { obtenerSetlists } from "@/lib/setlistsData";
 import { crearSetlistAction } from "@/app/set-list/actions";
 import { TabBar } from "@/components/shell/TabBar";
@@ -24,9 +24,12 @@ export default async function SetListPage({
   const membresias = await obtenerMembresias(user.id);
   if (membresias.length === 0) redirect("/sin-acceso");
 
-  const bandaValida = membresias.some((m) => m.bandaId === bandaParam);
-  const bandaActiva = bandaValida ? bandaParam! : membresias[0].bandaId;
-  const nombreBandaActiva = membresias.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
+  const membresiasConBloque = membresias.filter((m) => m.setlistHabilitado);
+  if (membresiasConBloque.length === 0) redirect("/inicio");
+
+  const bandaValida = membresiasConBloque.some((m) => m.bandaId === bandaParam);
+  const bandaActiva = bandaValida ? bandaParam! : membresiasConBloque[0].bandaId;
+  const nombreBandaActiva = membresiasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
 
   const setlists = await obtenerSetlists([bandaActiva]);
   const crear = crearSetlistAction.bind(null, bandaActiva);
@@ -49,9 +52,9 @@ export default async function SetListPage({
           </span>
         </div>
 
-        {membresias.length > 1 && (
+        {membresiasConBloque.length > 1 && (
           <div className="mt-3.5 flex flex-wrap gap-2">
-            {membresias.map((m) => (
+            {membresiasConBloque.map((m) => (
               <Link
                 key={m.bandaId}
                 href={`/set-list?banda=${m.bandaId}`}
@@ -111,7 +114,12 @@ export default async function SetListPage({
         </form>
       </div>
 
-      <TabBar activa="setlist" />
+      <TabBar
+        activa="setlist"
+        esSuperadmin={esSuperadminDeMembresias(membresias)}
+        mostrarCanciones={membresias.some((m) => m.cancionesHabilitado)}
+        mostrarSeteos={membresias.some((m) => m.seteosHabilitado)}
+      />
     </div>
   );
 }

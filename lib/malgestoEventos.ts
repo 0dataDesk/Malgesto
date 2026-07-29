@@ -7,6 +7,9 @@ export type Membresia = {
   bandaId: string;
   bandaNombre: string;
   rol: string;
+  cancionesHabilitado: boolean;
+  setlistHabilitado: boolean;
+  seteosHabilitado: boolean;
 };
 
 export type Evento = {
@@ -21,21 +24,35 @@ export type Evento = {
   ingresoEsperado: number | null;
   giraId: string | null;
   setlistId: string | null;
+  cuartoEnsayoId: string | null;
+  cuartoEnsayoNombre: string | null;
+  cuartoEnsayoLinkMaps: string | null;
 };
 
-type BandaEmbebida = { id: string; nombre: string } | null;
+type BandaEmbebida = {
+  id: string;
+  nombre: string;
+  canciones_habilitado: boolean;
+  setlist_habilitado: boolean;
+  seteos_habilitado: boolean;
+} | null;
+
+type CuartoEmbebido = { nombre: string; link_maps: string } | null;
 
 // Bandas del usuario, con su rol — determina si va directo al calendario de
 // su única banda o si necesita el selector (más de una). banda_id es
 // muchos-a-uno, así que el embed de supabase-js llega como objeto único, no
 // como arreglo (el tipo inferido sin Database generado dice array; en
-// runtime es objeto — de ahí el cast).
+// runtime es objeto — de ahí el cast). Solo membresías activas (Brief 8):
+// una fila con activo=false es un integrante removido, no debe seguir
+// entrando a las bandas ni contar para superadmin/accesos.
 export async function obtenerMembresias(usuarioId: string): Promise<Membresia[]> {
   const admin = supabaseMalgesto();
   const { data } = await admin
     .from("miembros_banda")
-    .select("rol, bandas(id, nombre)")
-    .eq("usuario_id", usuarioId);
+    .select("rol, bandas(id, nombre, canciones_habilitado, setlist_habilitado, seteos_habilitado)")
+    .eq("usuario_id", usuarioId)
+    .eq("activo", true);
 
   return (data ?? []).map((m) => {
     const banda = m.bandas as unknown as BandaEmbebida;
@@ -43,8 +60,18 @@ export async function obtenerMembresias(usuarioId: string): Promise<Membresia[]>
       bandaId: banda?.id ?? "",
       bandaNombre: banda?.nombre ?? "Banda",
       rol: m.rol,
+      cancionesHabilitado: banda?.canciones_habilitado ?? true,
+      setlistHabilitado: banda?.setlist_habilitado ?? true,
+      seteosHabilitado: banda?.seteos_habilitado ?? true,
     };
   });
+}
+
+// Superadmin es global en esta consola (ver malgestoAccess.requerirSuperadmin)
+// — calculado acá desde las membresías ya cargadas para no repetir el
+// query en cada pantalla que ya tiene `membresias` a mano.
+export function esSuperadminDeMembresias(membresias: Membresia[]): boolean {
+  return membresias.some((m) => m.rol === "superadmin");
 }
 
 // Todos los eventos de las bandas dadas, con el nombre de banda ya resuelto
@@ -56,24 +83,30 @@ export async function obtenerEventos(bandaIds: string[]): Promise<Evento[]> {
   const { data } = await admin
     .from("eventos")
     .select(
-      "id, banda_id, tipo, titulo, fecha_inicio, fecha_fin, ubicacion, ingreso_esperado, gira_id, setlist_id, bandas(nombre)"
+      "id, banda_id, tipo, titulo, fecha_inicio, fecha_fin, ubicacion, ingreso_esperado, gira_id, setlist_id, cuarto_ensayo_id, bandas(nombre), cuartos_ensayo(nombre, link_maps)"
     )
     .in("banda_id", bandaIds)
     .order("fecha_inicio", { ascending: true });
 
-  return (data ?? []).map((e) => ({
-    id: e.id,
-    bandaId: e.banda_id,
-    bandaNombre: (e.bandas as unknown as BandaEmbebida)?.nombre ?? "Banda",
-    tipo: e.tipo as TipoEvento,
-    titulo: e.titulo,
-    fechaInicio: e.fecha_inicio,
-    fechaFin: e.fecha_fin,
-    ubicacion: e.ubicacion,
-    ingresoEsperado: e.ingreso_esperado === null ? null : Number(e.ingreso_esperado),
-    giraId: e.gira_id,
-    setlistId: e.setlist_id,
-  }));
+  return (data ?? []).map((e) => {
+    const cuarto = e.cuartos_ensayo as unknown as CuartoEmbebido;
+    return {
+      id: e.id,
+      bandaId: e.banda_id,
+      bandaNombre: (e.bandas as unknown as BandaEmbebida)?.nombre ?? "Banda",
+      tipo: e.tipo as TipoEvento,
+      titulo: e.titulo,
+      fechaInicio: e.fecha_inicio,
+      fechaFin: e.fecha_fin,
+      ubicacion: e.ubicacion,
+      ingresoEsperado: e.ingreso_esperado === null ? null : Number(e.ingreso_esperado),
+      giraId: e.gira_id,
+      setlistId: e.setlist_id,
+      cuartoEnsayoId: e.cuarto_ensayo_id,
+      cuartoEnsayoNombre: cuarto?.nombre ?? null,
+      cuartoEnsayoLinkMaps: cuarto?.link_maps ?? null,
+    };
+  });
 }
 
 export type NuevoEventoInput = {
@@ -85,7 +118,11 @@ export type NuevoEventoInput = {
   ubicacion: string | null;
   ingresoEsperado: number | null;
   giraId: string | null;
+  setlistId: string | null;
+  cuartoEnsayoId: string | null;
 };
+
+const puedeTenerSetlist = (tipo: TipoEvento) => tipo === "show" || tipo === "ensayo";
 
 export async function crearEvento(input: NuevoEventoInput) {
   const admin = supabaseMalgesto();
@@ -98,6 +135,8 @@ export async function crearEvento(input: NuevoEventoInput) {
     ubicacion: input.ubicacion,
     ingreso_esperado: input.tipo === "show" ? input.ingresoEsperado : null,
     gira_id: input.tipo === "show" ? input.giraId : null,
+    setlist_id: puedeTenerSetlist(input.tipo) ? input.setlistId : null,
+    cuarto_ensayo_id: input.tipo === "ensayo" ? input.cuartoEnsayoId : null,
   });
   if (error) throw new Error(error.message);
 }
@@ -115,9 +154,41 @@ export async function actualizarEvento(eventoId: string, input: NuevoEventoInput
       ubicacion: input.ubicacion,
       ingreso_esperado: input.tipo === "show" ? input.ingresoEsperado : null,
       gira_id: input.tipo === "show" ? input.giraId : null,
+      setlist_id: puedeTenerSetlist(input.tipo) ? input.setlistId : null,
+      cuarto_ensayo_id: input.tipo === "ensayo" ? input.cuartoEnsayoId : null,
     })
     .eq("id", eventoId);
   if (error) throw new Error(error.message);
+}
+
+// Alta rápida de gira (Brief 8 §7) — una gira es simplemente un evento con
+// tipo "gira" (sin tabla propia, ver comentario de giraId más abajo), así
+// que esto es un insert directo sin pasar por el formulario completo.
+export async function crearGira(bandaId: string, nombre: string, desde: string, hasta: string): Promise<Evento> {
+  const admin = supabaseMalgesto();
+  const { data, error } = await admin
+    .from("eventos")
+    .insert({ banda_id: bandaId, tipo: "gira", titulo: nombre, fecha_inicio: desde, fecha_fin: hasta })
+    .select("id, banda_id, tipo, titulo, fecha_inicio, fecha_fin, ubicacion, ingreso_esperado, gira_id, setlist_id, cuarto_ensayo_id, bandas(nombre)")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "No se pudo crear la gira.");
+
+  return {
+    id: data.id,
+    bandaId: data.banda_id,
+    bandaNombre: (data.bandas as unknown as BandaEmbebida)?.nombre ?? "Banda",
+    tipo: data.tipo as TipoEvento,
+    titulo: data.titulo,
+    fechaInicio: data.fecha_inicio,
+    fechaFin: data.fecha_fin,
+    ubicacion: data.ubicacion,
+    ingresoEsperado: data.ingreso_esperado === null ? null : Number(data.ingreso_esperado),
+    giraId: data.gira_id,
+    setlistId: data.setlist_id,
+    cuartoEnsayoId: data.cuarto_ensayo_id,
+    cuartoEnsayoNombre: null,
+    cuartoEnsayoLinkMaps: null,
+  };
 }
 
 export async function eliminarEvento(eventoId: string) {

@@ -16,10 +16,14 @@ function estaEnRangoGira(dia: Date, gira: Evento): boolean {
 export function MesView({
   mes,
   eventos,
+  diaSeleccionado,
+  onDiaClick,
   onEventoClick,
 }: {
   mes: Date;
   eventos: Evento[];
+  diaSeleccionado: Date | null;
+  onDiaClick: (dia: Date) => void;
   onEventoClick: (evento: Evento) => void;
 }) {
   const hoy = new Date();
@@ -37,6 +41,7 @@ export function MesView({
         {celdas.map((dia, i) => {
           const fueraDeMes = !mismoMesAno(dia, mes);
           const esHoy = esMismoDia(dia, hoy);
+          const esSeleccionado = !!diaSeleccionado && esMismoDia(dia, diaSeleccionado);
           const eventosDelDia = eventos.filter(
             (e) => e.tipo !== "gira" && esMismoDia(new Date(e.fechaInicio), dia)
           );
@@ -60,14 +65,14 @@ export function MesView({
             <button
               key={i}
               type="button"
-              disabled={eventosDelDia.length === 0}
-              onClick={() => eventosDelDia.length > 0 && onEventoClick(eventosDelDia[0])}
+              onClick={() => onDiaClick(dia)}
               className="flex flex-col items-center text-[13px]"
               style={{
                 paddingTop: 7,
                 paddingBottom: 7,
                 background: esHoy ? "oklch(0.24 0.02 55)" : bg,
                 borderRadius: esHoy ? 9 : radius,
+                boxShadow: esSeleccionado ? "inset 0 0 0 2px oklch(0.64 0.15 34)" : "none",
                 color: esHoy
                   ? "oklch(0.99 0.01 82)"
                   : fueraDeMes

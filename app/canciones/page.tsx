@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
-import { obtenerMembresias } from "@/lib/malgestoEventos";
+import { obtenerMembresias, esSuperadminDeMembresias } from "@/lib/malgestoEventos";
 import { obtenerCanciones } from "@/lib/cancionesData";
 import { TabBar } from "@/components/shell/TabBar";
 
@@ -25,9 +25,15 @@ export default async function CancionesPage({
   const membresias = await obtenerMembresias(user.id);
   if (membresias.length === 0) redirect("/sin-acceso");
 
-  const bandaValida = membresias.some((m) => m.bandaId === bandaParam);
-  const bandaActiva = bandaValida ? bandaParam! : membresias[0].bandaId;
-  const nombreBandaActiva = membresias.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
+  // El bloque Canciones puede estar desactivado por banda (Brief 8 §2) — si
+  // ninguna de las bandas del usuario lo tiene habilitado, la sección entera
+  // no es accesible.
+  const membresiasConBloque = membresias.filter((m) => m.cancionesHabilitado);
+  if (membresiasConBloque.length === 0) redirect("/inicio");
+
+  const bandaValida = membresiasConBloque.some((m) => m.bandaId === bandaParam);
+  const bandaActiva = bandaValida ? bandaParam! : membresiasConBloque[0].bandaId;
+  const nombreBandaActiva = membresiasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
 
   const canciones = await obtenerCanciones([bandaActiva]);
 
@@ -52,9 +58,9 @@ export default async function CancionesPage({
           </span>
         </div>
 
-        {membresias.length > 1 && (
+        {membresiasConBloque.length > 1 && (
           <div className="mt-3.5 flex flex-wrap gap-2">
-            {membresias.map((m) => (
+            {membresiasConBloque.map((m) => (
               <Link
                 key={m.bandaId}
                 href={`/canciones?banda=${m.bandaId}`}
@@ -118,7 +124,12 @@ export default async function CancionesPage({
         +
       </Link>
 
-      <TabBar activa="canciones" />
+      <TabBar
+        activa="canciones"
+        esSuperadmin={esSuperadminDeMembresias(membresias)}
+        mostrarSetlist={membresias.some((m) => m.setlistHabilitado)}
+        mostrarSeteos={membresias.some((m) => m.seteosHabilitado)}
+      />
     </div>
   );
 }

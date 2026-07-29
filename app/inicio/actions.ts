@@ -9,7 +9,9 @@ import {
   eliminarEvento,
   asignarGiraEvento,
   asignarSetlistEvento,
+  crearGira,
   type NuevoEventoInput,
+  type Evento,
 } from "@/lib/malgestoEventos";
 
 async function requerirMembresia(bandaId: string) {
@@ -53,4 +55,11 @@ export async function asignarSetlistAction(eventoId: string, bandaId: string, se
   await requerirMembresia(bandaId);
   await asignarSetlistEvento(eventoId, setlistId);
   revalidatePath("/inicio");
+}
+
+export async function crearGiraRapidaAction(bandaId: string, nombre: string, desde: string, hasta: string): Promise<Evento> {
+  await requerirMembresia(bandaId);
+  const gira = await crearGira(bandaId, nombre, desde, hasta);
+  revalidatePath("/inicio");
+  return gira;
 }

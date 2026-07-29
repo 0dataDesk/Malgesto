@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
-import { esSuperadmin, obtenerBandasTodas, obtenerPersonasPendientes, obtenerMiembrosDeBandas } from "@/lib/gestionData";
+import { esSuperadmin, obtenerBandasTodas, obtenerPersonasPendientes, obtenerIntegrantes } from "@/lib/gestionData";
+import { obtenerCuartosEnsayo } from "@/lib/cuartosEnsayoData";
 import { GestionShell } from "@/components/gestion/GestionShell";
 
-// Pantalla 15 "Escritorio · Gestión" (Brief 7) — solo accesible para
-// usuarios con rol superadmin en al menos una banda. Cualquier otro
-// usuario autenticado se manda de vuelta a /inicio (no 404: no es un
-// recurso que no existe, es una sección a la que no tiene acceso).
+// Pantalla 15 "Escritorio · Gestión" (Brief 7, reseccionada en Brief 8) —
+// solo accesible para usuarios con rol superadmin en al menos una banda.
+// Cualquier otro usuario autenticado se manda de vuelta a /inicio (no 404:
+// no es un recurso que no existe, es una sección a la que no tiene acceso).
 export default async function GestionPage() {
   const supabase = await supabaseServerAuth();
   const {
@@ -18,11 +19,19 @@ export default async function GestionPage() {
   const puedeAcceder = await esSuperadmin(user.id);
   if (!puedeAcceder) redirect("/inicio");
 
-  const [bandas, personasPendientes, bandasConMiembros] = await Promise.all([
+  const [bandas, personasPendientes, integrantes] = await Promise.all([
     obtenerBandasTodas(),
     obtenerPersonasPendientes(),
-    obtenerMiembrosDeBandas(),
+    obtenerIntegrantes(),
   ]);
+  const cuartosEnsayo = await obtenerCuartosEnsayo(bandas.map((b) => b.id));
 
-  return <GestionShell bandas={bandas} personasPendientes={personasPendientes} bandasConMiembros={bandasConMiembros} />;
+  return (
+    <GestionShell
+      bandas={bandas}
+      personasPendientes={personasPendientes}
+      integrantes={integrantes}
+      cuartosEnsayo={cuartosEnsayo}
+    />
+  );
 }
