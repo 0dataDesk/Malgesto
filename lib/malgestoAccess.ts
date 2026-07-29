@@ -24,6 +24,31 @@ export async function requerirMembresia(bandaId: string) {
   if (!data || data.length === 0) throw new Error("No pertenecés a esa banda.");
 }
 
+// Verifica que el usuario autenticado tenga rol superadmin en al menos una
+// banda — usado por los server actions de /gestion (Brief 7). Superadmin es
+// global en esta consola: alcanza con serlo de una banda para administrar
+// todas.
+export async function requerirSuperadmin(): Promise<string> {
+  const supabase = await supabaseServerAuth();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("No hay sesión activa.");
+
+  const admin = supabaseMalgesto();
+  const { data } = await admin
+    .from("miembros_banda")
+    .select("id")
+    .eq("usuario_id", user.id)
+    .eq("rol", "superadmin")
+    .limit(1);
+
+  if (!data || data.length === 0) throw new Error("No tenés permisos de superadmin.");
+
+  return user.id;
+}
+
 // Resuelve a dónde debe ir un usuario recién autenticado: si ya es miembro
 // de alguna banda pasa directo, si tiene invitación(es) pendiente(s) las
 // acepta y crea la membresía, y si no hay nada queda sin acceso (registrado

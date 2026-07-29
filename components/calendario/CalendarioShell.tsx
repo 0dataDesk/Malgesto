@@ -12,6 +12,7 @@ import { BandaSelectorCards } from "./BandaSelectorCards";
 import { BandaFilterChips } from "./BandaFilterChips";
 import { TabBar } from "@/components/shell/TabBar";
 import { cerrarSesion } from "@/app/auth/actions";
+import Link from "next/link";
 
 const fuenteEncabezado = { fontFamily: "var(--font-bricolage), sans-serif" };
 
@@ -63,6 +64,7 @@ export function CalendarioShell({
   );
 
   const giras = useMemo(() => eventos.filter((e) => e.tipo === "gira"), [eventos]);
+  const esSuperadmin = membresias.some((m) => m.rol === "superadmin");
 
   const abrirNuevo = () => {
     setEventoEnEdicion(undefined);
@@ -78,7 +80,12 @@ export function CalendarioShell({
   return (
     <div className="min-h-screen pb-32" style={{ background: "oklch(0.965 0.012 82)" }}>
       <div className="mx-auto max-w-2xl px-5 pt-5">
-        <div className="mb-2 flex justify-end">
+        <div className="mb-2 flex items-center justify-end gap-3">
+          {esSuperadmin && (
+            <Link href="/gestion" className="text-xs font-semibold no-underline" style={{ color: "oklch(0.64 0.15 34)" }}>
+              Gestión
+            </Link>
+          )}
           <form action={cerrarSesion}>
             <button type="submit" className="text-xs" style={{ color: "oklch(0.5 0.02 55)" }} title={userEmail}>
               Cerrar sesión
