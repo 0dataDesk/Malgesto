@@ -8,6 +8,7 @@ import {
   actualizarEvento,
   eliminarEvento,
   asignarGiraEvento,
+  asignarSetlistEvento,
   type NuevoEventoInput,
 } from "@/lib/malgestoEventos";
 
@@ -45,5 +46,11 @@ export async function eliminarEventoAction(eventoId: string, bandaId: string) {
 export async function asignarGiraAction(eventoId: string, bandaId: string, giraId: string | null) {
   await requerirMembresia(bandaId);
   await asignarGiraEvento(eventoId, giraId);
+  revalidatePath("/inicio");
+}
+
+export async function asignarSetlistAction(eventoId: string, bandaId: string, setlistId: string | null) {
+  await requerirMembresia(bandaId);
+  await asignarSetlistEvento(eventoId, setlistId);
   revalidatePath("/inicio");
 }

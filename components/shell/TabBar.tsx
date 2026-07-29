@@ -2,9 +2,8 @@ import Link from "next/link";
 
 // Barra de navegación inferior — Design líneas 104-110. Siempre visible en
 // esta vista y en las que sigan. Malgesto App se construye desde cero: nada
-// depende de malgesto-repertorio ni de ningún otro repo existente. Set List
-// y Seteos siguen sin construirse — texto no interactivo hasta que les
-// toque su brief.
+// depende de malgesto-repertorio ni de ningún otro repo existente. Seteos
+// sigue sin construirse — texto no interactivo hasta que le toque su brief.
 function Tab({ activo, children }: { activo: boolean; children: React.ReactNode }) {
   return (
     <div className="text-center">
@@ -32,9 +31,9 @@ export function TabBar({ activa }: { activa: "calendario" | "canciones" | "setli
         <Link href="/canciones" className="no-underline">
           <Tab activo={activa === "canciones"}>Canciones</Tab>
         </Link>
-        <span className="text-[11px]" style={{ color: "oklch(0.55 0.02 55)" }} title="Próximamente">
-          Set List
-        </span>
+        <Link href="/set-list" className="no-underline">
+          <Tab activo={activa === "setlist"}>Set List</Tab>
+        </Link>
         <span className="text-[11px]" style={{ color: "oklch(0.55 0.02 55)" }} title="Próximamente">
           Seteos
         </span>

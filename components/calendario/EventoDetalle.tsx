@@ -3,7 +3,9 @@
 import { useState, useTransition } from "react";
 import type { Evento } from "@/lib/malgestoEventos";
 import { COLOR_TIPO, ETIQUETA_TIPO } from "@/lib/eventoUI";
-import { asignarGiraAction, eliminarEventoAction } from "@/app/inicio/actions";
+import { asignarGiraAction, asignarSetlistAction, eliminarEventoAction } from "@/app/inicio/actions";
+
+type SetlistOpcion = { id: string; nombre: string };
 
 // Detalle de evento (pantalla 07). El peek de mapa de Design es decorativo
 // (no hay integración de mapas ni datos de ubicación geográfica todavía) —
@@ -11,17 +13,20 @@ import { asignarGiraAction, eliminarEventoAction } from "@/app/inicio/actions";
 export function EventoDetalle({
   evento,
   giras,
+  setlists,
   onCerrar,
   onEditar,
   onEliminado,
 }: {
   evento: Evento;
   giras: Evento[];
+  setlists: SetlistOpcion[];
   onCerrar: () => void;
   onEditar: (evento: Evento) => void;
   onEliminado: () => void;
 }) {
   const [pendienteGira, startGira] = useTransition();
+  const [pendienteSetlist, startSetlist] = useTransition();
   const [pendienteEliminar, startEliminar] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -42,6 +47,17 @@ export function EventoDetalle({
         await asignarGiraAction(evento.id, evento.bandaId, giraId || null);
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo asignar la gira.");
+      }
+    });
+  };
+
+  const cambiarSetlist = (setlistId: string) => {
+    setError(null);
+    startSetlist(async () => {
+      try {
+        await asignarSetlistAction(evento.id, evento.bandaId, setlistId || null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "No se pudo asignar el Set List.");
       }
     });
   };
@@ -136,9 +152,26 @@ export function EventoDetalle({
             <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
               Set List
             </div>
-            <div className="mt-1 text-[15px]" style={{ color: "oklch(0.5 0.02 55)" }}>
-              {evento.setlistId ?? "Sin Set List asignado"}
-            </div>
+            {setlists.length === 0 ? (
+              <div className="mt-1 text-[15px]" style={{ color: "oklch(0.5 0.02 55)" }}>
+                Sin Set Lists todavía para esta banda
+              </div>
+            ) : (
+              <select
+                className="mt-1.5 w-full rounded-lg border px-2.5 py-2 text-sm"
+                style={{ background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" }}
+                value={evento.setlistId ?? ""}
+                disabled={pendienteSetlist}
+                onChange={(e) => cambiarSetlist(e.target.value)}
+              >
+                <option value="">Sin Set List asignado</option>
+                {setlists.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nombre}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         )}
 

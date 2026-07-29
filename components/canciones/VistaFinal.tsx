@@ -2,29 +2,33 @@ import Link from "next/link";
 import type { CancionCompleta } from "@/lib/cancionesData";
 import { ChordBlock } from "./ChordBlock";
 
-// Vista final / tocar (brief §7): nombre arriba, cada sección es su propia
-// pantalla de scroll con hasta 8 bloques de acordes. Los botones flotantes
-// pasan a la canción siguiente/anterior de la banda (no hay Set List
-// todavía — el orden es alfabético, igual que la lista), se apagan en los
-// extremos.
+// Vista final / tocar (brief §7 del Brief 4). Los botones flotantes pasan a
+// la canción siguiente/anterior de la banda por orden alfabético — salvo
+// que se entre acá desde un Set List (Brief 5), en cuyo caso el orden del
+// Set List tiene prioridad, y el link de volver apunta a su vista "En vivo"
+// en vez de al catálogo general de Canciones.
 export function VistaFinal({
   cancion,
   prevId,
   nextId,
+  setlist,
 }: {
   cancion: CancionCompleta;
   prevId: string | null;
   nextId: string | null;
+  setlist: { id: string; nombre: string } | null;
 }) {
+  const sufijo = setlist ? `?setlist=${setlist.id}` : "";
+
   return (
     <div className="min-h-screen pb-28" style={{ background: "oklch(0.22 0.02 52)" }}>
       <div className="mx-auto max-w-2xl px-5 pt-6 text-center">
         <Link
-          href="/canciones"
+          href={setlist ? `/set-list/${setlist.id}/vivo` : "/canciones"}
           className="mb-3 inline-block text-sm no-underline"
           style={{ color: "oklch(0.7 0.03 60)" }}
         >
-          ‹ Canciones
+          ‹ {setlist ? setlist.nombre : "Canciones"}
         </Link>
         <div
           className="font-mono text-[11px] tracking-[0.14em] uppercase"
@@ -55,7 +59,7 @@ export function VistaFinal({
 
       <div className="fixed bottom-8 left-0 right-0 flex justify-between px-6">
         <Link
-          href={prevId ? `/canciones/${prevId}` : "#"}
+          href={prevId ? `/canciones/${prevId}${sufijo}` : "#"}
           aria-disabled={!prevId}
           className="flex h-14 w-14 items-center justify-center rounded-full text-2xl no-underline"
           style={{
@@ -69,7 +73,7 @@ export function VistaFinal({
           ‹
         </Link>
         <Link
-          href={nextId ? `/canciones/${nextId}` : "#"}
+          href={nextId ? `/canciones/${nextId}${sufijo}` : "#"}
           aria-disabled={!nextId}
           className="flex h-14 w-14 items-center justify-center rounded-full text-2xl no-underline"
           style={{

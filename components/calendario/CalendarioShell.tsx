@@ -36,13 +36,17 @@ function VistaToggle({ vista, onVista }: { vista: "mes" | "agenda"; onVista: (v:
   );
 }
 
+type SetlistOpcion = { id: string; bandaId: string; nombre: string };
+
 export function CalendarioShell({
   membresias,
   eventos,
+  setlists,
   userEmail,
 }: {
   membresias: Membresia[];
   eventos: Evento[];
+  setlists: SetlistOpcion[];
   userEmail: string;
 }) {
   const router = useRouter();
@@ -162,6 +166,7 @@ export function CalendarioShell({
         <EventoDetalle
           evento={eventoSeleccionado}
           giras={giras.filter((g) => g.bandaId === eventoSeleccionado.bandaId)}
+          setlists={setlists.filter((s) => s.bandaId === eventoSeleccionado.bandaId)}
           onCerrar={() => setEventoSeleccionado(null)}
           onEditar={abrirEdicion}
           onEliminado={() => {

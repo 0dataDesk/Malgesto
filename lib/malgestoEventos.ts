@@ -133,3 +133,11 @@ export async function asignarGiraEvento(eventoId: string, giraId: string | null)
   const { error } = await admin.from("eventos").update({ gira_id: giraId }).eq("id", eventoId);
   if (error) throw new Error(error.message);
 }
+
+// Igual, pero para el Set List asignado (Brief 5) — el mismo patrón de
+// reasignación puntual desde el detalle.
+export async function asignarSetlistEvento(eventoId: string, setlistId: string | null) {
+  const admin = supabaseMalgesto();
+  const { error } = await admin.from("eventos").update({ setlist_id: setlistId }).eq("id", eventoId);
+  if (error) throw new Error(error.message);
+}
