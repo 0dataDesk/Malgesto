@@ -37,6 +37,18 @@ export const ETIQUETA_TIPO: Record<TipoEvento, string> = {
   gira: "Gira",
 };
 
+// MXN con separador de miles y 2 decimales, ej. $18,000.00 (Brief 9 §14).
+const FORMATO_MONEDA = new Intl.NumberFormat("es-MX", {
+  style: "currency",
+  currency: "MXN",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+export function formatoMoneda(n: number): string {
+  return FORMATO_MONEDA.format(n);
+}
+
 export const MESES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",

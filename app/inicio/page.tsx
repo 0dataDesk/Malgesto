@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, obtenerEventos } from "@/lib/malgestoEventos";
 import { obtenerSetlists } from "@/lib/setlistsData";
-import { obtenerCuartosEnsayo } from "@/lib/cuartosEnsayoData";
+import { obtenerLugares } from "@/lib/lugaresData";
+import { obtenerCumpleanosDeMisBandas } from "@/lib/cumpleanos";
 import { CalendarioShell } from "@/components/calendario/CalendarioShell";
 
 // 1 banda -> directo al calendario de esa banda (hoy el único bloque que
@@ -25,10 +26,11 @@ export default async function InicioPage() {
   }
 
   const bandaIds = membresias.map((m) => m.bandaId);
-  const [eventos, setlists, cuartosEnsayo] = await Promise.all([
+  const [eventos, setlists, lugares, cumpleanos] = await Promise.all([
     obtenerEventos(bandaIds),
     obtenerSetlists(bandaIds),
-    obtenerCuartosEnsayo(bandaIds),
+    obtenerLugares(bandaIds),
+    obtenerCumpleanosDeMisBandas(bandaIds),
   ]);
 
   return (
@@ -36,7 +38,8 @@ export default async function InicioPage() {
       membresias={membresias}
       eventos={eventos}
       setlists={setlists.map((s) => ({ id: s.id, bandaId: s.bandaId, nombre: s.nombre }))}
-      cuartosEnsayo={cuartosEnsayo}
+      lugares={lugares}
+      cumpleanos={cumpleanos}
       userEmail={user.email}
     />
   );

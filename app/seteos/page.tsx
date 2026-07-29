@@ -111,6 +111,7 @@ export default async function SeteosPage({
 
       <TabBar
         activa="seteos"
+        userEmail={user.email}
         esSuperadmin={esSuperadminDeMembresias(membresias)}
         mostrarCanciones={membresias.some((m) => m.cancionesHabilitado)}
         mostrarSetlist={membresias.some((m) => m.setlistHabilitado)}

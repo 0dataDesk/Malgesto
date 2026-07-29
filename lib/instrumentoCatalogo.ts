@@ -1,15 +1,28 @@
-// Catálogo cerrado de instrumentos (Brief 8 §2) — sin "server-only": lo usa
-// tanto el editor de integrantes (cliente) como la data layer (servidor).
-// Es un text[] en miembros_banda, validado solo acá (no con check constraint
-// de Postgres, a diferencia de secciones.nombre, porque es un arreglo).
-export const INSTRUMENTOS = ["bajo", "guitarra", "bateria", "voz", "teclado", "otro"] as const;
+// Catálogo cerrado de instrumentos para "plazas" (Brief 9 §9) — sin
+// "server-only": lo usa tanto el editor de bandas/integrantes (cliente) como
+// la data layer (servidor), y debe coincidir exactamente con el check
+// constraint de malgesto.plazas.instrumento.
+export const INSTRUMENTOS = [
+  "bajo",
+  "guitarra_principal",
+  "guitarra_segunda",
+  "bateria",
+  "acordeon",
+  "teclado_piano",
+  "voz",
+  "coro",
+  "otro",
+] as const;
 export type Instrumento = (typeof INSTRUMENTOS)[number];
 
 export const ETIQUETA_INSTRUMENTO: Record<Instrumento, string> = {
   bajo: "Bajo",
-  guitarra: "Guitarra",
+  guitarra_principal: "Guitarra principal",
+  guitarra_segunda: "Guitarra segunda",
   bateria: "Batería",
+  acordeon: "Acordeón",
+  teclado_piano: "Teclado/Piano",
   voz: "Voz",
-  teclado: "Teclado/Piano",
+  coro: "Coro",
   otro: "Otro",
 };

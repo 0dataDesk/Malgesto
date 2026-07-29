@@ -1,12 +1,8 @@
 "use client";
 
 import type { Evento } from "@/lib/malgestoEventos";
-import { COLOR_TIPO, ETIQUETA_TIPO, colorConAlpha } from "@/lib/eventoUI";
+import { COLOR_TIPO, ETIQUETA_TIPO, colorConAlpha, formatoMoneda } from "@/lib/eventoUI";
 import { diaDelMes, diaSemanaAbrev, hora, nombreMes, mismoMesAno } from "@/lib/fechas";
-
-function formatoMoneda(n: number) {
-  return `$${n.toLocaleString("es-MX")}`;
-}
 
 function TarjetaEvento({ evento, onClick }: { evento: Evento; onClick: () => void }) {
   return (
@@ -50,7 +46,7 @@ function TarjetaEvento({ evento, onClick }: { evento: Evento; onClick: () => voi
         </div>
         <div className="flex flex-wrap gap-2.5 text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
           <span>{evento.bandaNombre}</span>
-          {evento.ubicacion && <span>· {evento.ubicacion}</span>}
+          {evento.lugarNombre && <span>· {evento.lugarNombre}</span>}
           {evento.ingresoEsperado !== null && <span>· {formatoMoneda(evento.ingresoEsperado)} esperado</span>}
         </div>
       </div>
@@ -109,7 +105,7 @@ function TarjetaGira({
               {diaDelMes(s.fechaInicio)}
             </span>
             <span className="flex-1 text-[13px]" style={{ color: "oklch(0.3 0.02 55)" }}>
-              Show · {s.ubicacion ?? s.titulo}
+              Show · {s.lugarNombre ?? s.titulo}
             </span>
           </button>
         ))}

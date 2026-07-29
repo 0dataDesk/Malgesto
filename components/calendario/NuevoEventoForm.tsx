@@ -2,14 +2,15 @@
 
 import { useState, useTransition } from "react";
 import type { Membresia, TipoEvento, Evento, NuevoEventoInput } from "@/lib/malgestoEventos";
-import type { CuartoEnsayo } from "@/lib/cuartosEnsayoData";
+import type { Lugar } from "@/lib/lugaresData";
 import { COLOR_TIPO, ETIQUETA_TIPO } from "@/lib/eventoUI";
+import { ToggleChip } from "@/components/ui/ToggleChip";
 import { crearEventoAction, actualizarEventoAction, crearGiraRapidaAction } from "@/app/inicio/actions";
 import { HoraRangoSlider } from "./HoraRangoSlider";
 
 type SetlistOpcion = { id: string; bandaId: string; nombre: string };
 
-const TIPOS: TipoEvento[] = ["show", "ensayo", "cumpleanos", "gira"];
+const TIPOS: TipoEvento[] = ["show", "ensayo", "gira"];
 
 const inputCls = "w-full rounded-xl border px-3.5 py-3 text-[15px] outline-none";
 const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
@@ -47,11 +48,18 @@ function Switch({ activo, onToggle }: { activo: boolean; onToggle: () => void })
   );
 }
 
+function toggleEnSet(set: Set<string>, valor: string): Set<string> {
+  const next = new Set(set);
+  if (next.has(valor)) next.delete(valor);
+  else next.add(valor);
+  return next;
+}
+
 export function NuevoEventoForm({
   membresias,
   giras,
   setlists,
-  cuartosEnsayo,
+  lugares,
   eventoExistente,
   fechaSeleccionada,
   onCreado,
@@ -60,7 +68,7 @@ export function NuevoEventoForm({
   membresias: Membresia[];
   giras: Evento[];
   setlists: SetlistOpcion[];
-  cuartosEnsayo: CuartoEnsayo[];
+  lugares: Lugar[];
   eventoExistente?: Evento;
   fechaSeleccionada: Date;
   onCreado: () => void;
@@ -73,15 +81,23 @@ export function NuevoEventoForm({
   const inicialGiraHasta = eventoExistente?.tipo === "gira" && eventoExistente.fechaFin ? aFechaHora(eventoExistente.fechaFin) : null;
 
   const [tipo, setTipo] = useState<TipoEvento>(eventoExistente?.tipo ?? "show");
-  const [titulo, setTitulo] = useState(eventoExistente?.titulo ?? "");
-  const [ubicacion, setUbicacion] = useState(eventoExistente?.ubicacion ?? "");
-  const [cuartoEnsayoId, setCuartoEnsayoId] = useState(eventoExistente?.cuartoEnsayoId ?? "");
+  const [titulo, setTitulo] = useState(eventoExistente && eventoExistente.tipo !== "ensayo" ? eventoExistente.titulo : "");
   const [horaInicio, setHoraInicio] = useState(inicial?.hora ?? "19:00");
   const [horaFin, setHoraFin] = useState(inicialFin?.hora ?? "22:00");
   const [giraDesde, setGiraDesde] = useState(inicialGiraDesde?.fecha ?? "");
   const [giraHasta, setGiraHasta] = useState(inicialGiraHasta?.fecha ?? "");
+  const [pais, setPais] = useState(eventoExistente?.pais ?? "");
+  const [ciudades, setCiudades] = useState(eventoExistente?.ciudades ?? "");
   const [ingreso, setIngreso] = useState(eventoExistente?.ingresoEsperado?.toString() ?? "");
   const [bandaId, setBandaId] = useState(eventoExistente?.bandaId ?? membresias[0]?.bandaId ?? "");
+  const [bandaIdsGira, setBandaIdsGira] = useState<Set<string>>(
+    () => new Set(eventoExistente?.tipo === "gira" ? eventoExistente.bandaIds : membresias.length === 1 ? [membresias[0]?.bandaId] : [])
+  );
+
+  const [lugarId, setLugarId] = useState(eventoExistente?.lugarId ?? "");
+  const [nuevoLugar, setNuevoLugar] = useState(false);
+  const [nuevoLugarNombre, setNuevoLugarNombre] = useState("");
+  const [nuevoLugarLink, setNuevoLugarLink] = useState("");
 
   const [setlistOn, setSetlistOn] = useState(!!eventoExistente?.setlistId);
   const [setlistId, setSetlistId] = useState(eventoExistente?.setlistId ?? "");
@@ -93,32 +109,46 @@ export function NuevoEventoForm({
   const [nuevaGiraNombre, setNuevaGiraNombre] = useState("");
   const [nuevaGiraDesde, setNuevaGiraDesde] = useState("");
   const [nuevaGiraHasta, setNuevaGiraHasta] = useState("");
+  const [nuevaGiraBandaIds, setNuevaGiraBandaIds] = useState<Set<string>>(() => new Set(bandaId ? [bandaId] : []));
+  const [nuevaGiraPais, setNuevaGiraPais] = useState("");
+  const [nuevaGiraCiudades, setNuevaGiraCiudades] = useState("");
   const [creandoGira, startCrearGira] = useTransition();
 
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const girasDeLaBanda = girasLocal.filter((g) => g.bandaId === bandaId);
+  const girasDeLaBanda = girasLocal.filter((g) => g.bandaIds.includes(bandaId));
   const setlistsDeLaBanda = setlists.filter((s) => s.bandaId === bandaId);
-  const cuartosDeLaBanda = cuartosEnsayo.filter((c) => c.bandaId === bandaId);
+  const lugaresDeLaBanda = lugares.filter((l) => l.bandaId === bandaId);
+  const bandaNombreActual = membresias.find((m) => m.bandaId === bandaId)?.bandaNombre ?? "";
 
   const crearGiraRapida = () => {
     setError(null);
-    if (!nuevaGiraNombre.trim() || !nuevaGiraDesde) {
-      setError("Completá nombre y fecha de inicio de la nueva gira.");
+    const bandaIds = Array.from(nuevaGiraBandaIds);
+    if (!nuevaGiraNombre.trim() || !nuevaGiraDesde || bandaIds.length === 0) {
+      setError("Completá nombre, al menos una banda y la fecha de inicio de la nueva gira.");
       return;
     }
     startCrearGira(async () => {
       try {
         const desdeIso = new Date(`${nuevaGiraDesde}T00:00`).toISOString();
         const hastaIso = new Date(`${nuevaGiraHasta || nuevaGiraDesde}T00:00`).toISOString();
-        const gira = await crearGiraRapidaAction(bandaId, nuevaGiraNombre.trim(), desdeIso, hastaIso);
+        const gira = await crearGiraRapidaAction(
+          bandaIds,
+          nuevaGiraNombre.trim(),
+          desdeIso,
+          hastaIso,
+          nuevaGiraPais.trim() || null,
+          nuevaGiraCiudades.trim() || null
+        );
         setGirasLocal((prev) => [...prev, gira]);
         setGiraId(gira.id);
         setNuevaGira(false);
         setNuevaGiraNombre("");
         setNuevaGiraDesde("");
         setNuevaGiraHasta("");
+        setNuevaGiraPais("");
+        setNuevaGiraCiudades("");
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo crear la gira.");
       }
@@ -127,19 +157,23 @@ export function NuevoEventoForm({
 
   const onSubmit = () => {
     setError(null);
-    if (!titulo.trim()) {
+
+    const tituloFinal = tipo === "ensayo" ? `Ensayo ${bandaNombreActual} — ${fechaLarga(fechaBase)}` : titulo.trim();
+    if (tipo !== "ensayo" && !tituloFinal) {
       setError("El título es obligatorio.");
-      return;
-    }
-    if (!bandaId) {
-      setError("Falta la banda.");
       return;
     }
 
     let fechaInicioIso: string;
     let fechaFinIso: string | null;
+    let bandaIdsFinal: string[] = [bandaId];
 
     if (tipo === "gira") {
+      bandaIdsFinal = Array.from(bandaIdsGira);
+      if (bandaIdsFinal.length === 0) {
+        setError("Elegí al menos una banda para la gira.");
+        return;
+      }
       if (!giraDesde) {
         setError("La fecha de inicio de la gira es obligatoria.");
         return;
@@ -147,23 +181,30 @@ export function NuevoEventoForm({
       fechaInicioIso = new Date(`${giraDesde}T00:00`).toISOString();
       fechaFinIso = giraHasta ? new Date(`${giraHasta}T00:00`).toISOString() : null;
     } else {
+      if (!bandaId) {
+        setError("Falta la banda.");
+        return;
+      }
       const pad = (n: number) => String(n).padStart(2, "0");
       const fechaStr = `${fechaBase.getFullYear()}-${pad(fechaBase.getMonth() + 1)}-${pad(fechaBase.getDate())}`;
-      fechaInicioIso = new Date(`${fechaStr}T${tipo === "cumpleanos" ? "00:00" : horaInicio}`).toISOString();
-      fechaFinIso = tipo === "cumpleanos" ? null : new Date(`${fechaStr}T${horaFin}`).toISOString();
+      fechaInicioIso = new Date(`${fechaStr}T${horaInicio}`).toISOString();
+      fechaFinIso = new Date(`${fechaStr}T${horaFin}`).toISOString();
     }
 
     const input: NuevoEventoInput = {
-      bandaId,
+      bandaId: bandaIdsFinal[0],
+      bandaIds: tipo === "gira" ? bandaIdsFinal : undefined,
       tipo,
-      titulo: titulo.trim(),
+      titulo: tituloFinal,
       fechaInicio: fechaInicioIso,
       fechaFin: fechaFinIso,
-      ubicacion: tipo === "show" ? ubicacion.trim() || null : null,
       ingresoEsperado: tipo === "show" && ingreso ? Number(ingreso) : null,
       giraId: tipo === "show" && giraOn && giraId ? giraId : null,
       setlistId: (tipo === "show" || tipo === "ensayo") && setlistOn && setlistId ? setlistId : null,
-      cuartoEnsayoId: tipo === "ensayo" ? cuartoEnsayoId || null : null,
+      lugarId: tipo !== "gira" && !nuevoLugar ? lugarId || null : null,
+      lugarNuevo: tipo !== "gira" && nuevoLugar && nuevoLugarNombre.trim() && nuevoLugarLink.trim() ? { nombre: nuevoLugarNombre.trim(), linkMaps: nuevoLugarLink.trim() } : null,
+      pais: tipo === "gira" ? pais.trim() || null : null,
+      ciudades: tipo === "gira" ? ciudades.trim() || null : null,
     };
 
     startTransition(async () => {
@@ -181,6 +222,74 @@ export function NuevoEventoForm({
   };
 
   const tituloForm = eventoExistente ? "Editar evento" : tipo === "gira" ? "Nueva gira" : `Nuevo evento · ${fechaLarga(fechaBase)}`;
+
+  const selectorBanda = membresias.length > 1 && (
+    <div>
+      <span className={labelCls} style={labelStyle}>
+        Banda
+      </span>
+      <select
+        className={inputCls}
+        style={inputStyle}
+        value={bandaId}
+        onChange={(e) => {
+          setBandaId(e.target.value);
+          setGiraId("");
+          setSetlistId("");
+          setLugarId("");
+        }}
+      >
+        {membresias.map((m) => (
+          <option key={m.bandaId} value={m.bandaId}>
+            {m.bandaNombre}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  const selectorLugar = (tipo === "ensayo" || tipo === "show") && (
+    <div>
+      <span className={labelCls} style={labelStyle}>
+        Lugar
+      </span>
+      {!nuevoLugar ? (
+        <>
+          {lugaresDeLaBanda.length === 0 ? (
+            <p className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+              Todavía no hay lugares guardados para esta banda.
+            </p>
+          ) : (
+            <select className={inputCls} style={inputStyle} value={lugarId} onChange={(e) => setLugarId(e.target.value)}>
+              <option value="">— elegí un lugar —</option>
+              {lugaresDeLaBanda.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.nombre}
+                </option>
+              ))}
+            </select>
+          )}
+          <button type="button" onClick={() => setNuevoLugar(true)} className="mt-1.5 text-left text-sm font-bold" style={{ color: "oklch(0.64 0.15 34)" }}>
+            + Nuevo lugar
+          </button>
+        </>
+      ) : (
+        <div className="rounded-xl p-3" style={{ background: "oklch(0.93 0.016 78)" }}>
+          <input className={inputCls} style={inputStyle} value={nuevoLugarNombre} onChange={(e) => setNuevoLugarNombre(e.target.value)} placeholder="Nombre del lugar" />
+          <input
+            className={`${inputCls} mt-2`}
+            style={inputStyle}
+            value={nuevoLugarLink}
+            onChange={(e) => setNuevoLugarLink(e.target.value)}
+            placeholder="Link de Google Maps"
+          />
+          <button type="button" onClick={() => setNuevoLugar(false)} className="mt-2 text-sm font-bold" style={{ color: "oklch(0.5 0.02 55)" }}>
+            Cancelar, elegir uno guardado
+          </button>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/50 sm:items-center" onClick={onCancelar}>
@@ -214,133 +323,94 @@ export function NuevoEventoForm({
             </span>
             <div className="flex flex-wrap gap-1.5">
               {TIPOS.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setTipo(t)}
-                  className="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold"
-                  style={{
-                    background: tipo === t ? COLOR_TIPO[t] : "oklch(0.93 0.016 78)",
-                    color: tipo === t ? "oklch(0.99 0.01 82)" : "oklch(0.4 0.02 55)",
-                  }}
-                >
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: tipo === t ? "oklch(0.99 0.01 82)" : COLOR_TIPO[t] }} />
-                  {ETIQUETA_TIPO[t]}
-                </button>
+                <ToggleChip key={t} label={ETIQUETA_TIPO[t]} active={tipo === t} onClick={() => setTipo(t)} color={COLOR_TIPO[t]} />
               ))}
             </div>
           </div>
 
-          <div>
-            <span className={labelCls} style={labelStyle}>
-              Título
-            </span>
-            <input
-              className={inputCls}
-              style={inputStyle}
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              placeholder={tipo === "cumpleanos" ? "Cumpleaños de…" : "Foro Escénico"}
-            />
-          </div>
+          {tipo === "ensayo" && selectorBanda}
 
-          {tipo === "ensayo" && (
+          {tipo === "ensayo" ? (
             <div>
               <span className={labelCls} style={labelStyle}>
-                Cuarto de ensayo
+                Título
               </span>
-              {cuartosDeLaBanda.length === 0 ? (
-                <p className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
-                  Todavía no hay cuartos de ensayo cargados para esta banda. Creá uno primero desde Gestión → Cuartos de ensayo.
-                </p>
-              ) : (
-                <select className={inputCls} style={inputStyle} value={cuartoEnsayoId} onChange={(e) => setCuartoEnsayoId(e.target.value)}>
-                  <option value="">— elegí un cuarto —</option>
-                  {cuartosDeLaBanda.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nombre}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
-
-          {tipo === "show" && (
-            <div>
-              <span className={labelCls} style={labelStyle}>
-                Link de Google Maps
-              </span>
-              <input
-                className={inputCls}
-                style={inputStyle}
-                value={ubicacion}
-                onChange={(e) => setUbicacion(e.target.value)}
-                placeholder="https://maps.app.goo.gl/…"
-              />
-            </div>
-          )}
-
-          {tipo === "gira" ? (
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <span className={labelCls} style={labelStyle}>
-                  Desde
-                </span>
-                <input type="date" className={inputCls} style={inputStyle} value={giraDesde} onChange={(e) => setGiraDesde(e.target.value)} />
-              </div>
-              <div className="flex-1">
-                <span className={labelCls} style={labelStyle}>
-                  Hasta
-                </span>
-                <input type="date" className={inputCls} style={inputStyle} value={giraHasta} onChange={(e) => setGiraHasta(e.target.value)} />
+              <div className="rounded-xl border px-3.5 py-3 text-[15px]" style={{ ...inputStyle, color: "oklch(0.5 0.02 55)" }}>
+                Ensayo {bandaNombreActual} — {fechaLarga(fechaBase)}
               </div>
             </div>
           ) : (
             <div>
               <span className={labelCls} style={labelStyle}>
-                {tipo === "cumpleanos" ? "Fecha" : "Horario"}
+                Título
+              </span>
+              <input className={inputCls} style={inputStyle} value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Foro Escénico" />
+            </div>
+          )}
+
+          {selectorLugar}
+
+          {tipo === "gira" ? (
+            <>
+              <div>
+                <span className={labelCls} style={labelStyle}>
+                  Bandas
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {membresias.map((m) => (
+                    <ToggleChip key={m.bandaId} label={m.bandaNombre} active={bandaIdsGira.has(m.bandaId)} onClick={() => setBandaIdsGira((prev) => toggleEnSet(prev, m.bandaId))} />
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <span className={labelCls} style={labelStyle}>
+                    Desde
+                  </span>
+                  <input type="date" className={inputCls} style={inputStyle} value={giraDesde} onChange={(e) => setGiraDesde(e.target.value)} />
+                </div>
+                <div className="flex-1">
+                  <span className={labelCls} style={labelStyle}>
+                    Hasta
+                  </span>
+                  <input type="date" className={inputCls} style={inputStyle} value={giraHasta} onChange={(e) => setGiraHasta(e.target.value)} />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <span className={labelCls} style={labelStyle}>
+                    País
+                  </span>
+                  <input className={inputCls} style={inputStyle} value={pais} onChange={(e) => setPais(e.target.value)} />
+                </div>
+                <div className="flex-1">
+                  <span className={labelCls} style={labelStyle}>
+                    Ciudades
+                  </span>
+                  <input className={inputCls} style={inputStyle} value={ciudades} onChange={(e) => setCiudades(e.target.value)} placeholder="Separadas por coma" />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div>
+              <span className={labelCls} style={labelStyle}>
+                Horario
               </span>
               <div className="rounded-xl border px-3.5 py-2.5" style={inputStyle}>
                 <span className="text-sm">{fechaLarga(fechaBase)}</span>
-                {tipo !== "cumpleanos" && (
-                  <HoraRangoSlider
-                    inicio={horaInicio}
-                    fin={horaFin}
-                    onChange={(i, f) => {
-                      setHoraInicio(i);
-                      setHoraFin(f);
-                    }}
-                  />
-                )}
+                <HoraRangoSlider
+                  inicio={horaInicio}
+                  fin={horaFin}
+                  onChange={(i, f) => {
+                    setHoraInicio(i);
+                    setHoraFin(f);
+                  }}
+                />
               </div>
             </div>
           )}
 
-          {membresias.length > 1 && (
-            <div>
-              <span className={labelCls} style={labelStyle}>
-                Banda
-              </span>
-              <select
-                className={inputCls}
-                style={inputStyle}
-                value={bandaId}
-                onChange={(e) => {
-                  setBandaId(e.target.value);
-                  setGiraId("");
-                  setSetlistId("");
-                  setCuartoEnsayoId("");
-                }}
-              >
-                {membresias.map((m) => (
-                  <option key={m.bandaId} value={m.bandaId}>
-                    {m.bandaNombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          {tipo !== "ensayo" && tipo !== "gira" && selectorBanda}
 
           {(tipo === "show" || tipo === "ensayo") && (
             <div>
@@ -397,6 +467,16 @@ export function NuevoEventoForm({
                         onChange={(e) => setNuevaGiraNombre(e.target.value)}
                         placeholder="Nombre de la gira"
                       />
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {membresias.map((m) => (
+                          <ToggleChip
+                            key={m.bandaId}
+                            label={m.bandaNombre}
+                            active={nuevaGiraBandaIds.has(m.bandaId)}
+                            onClick={() => setNuevaGiraBandaIds((prev) => toggleEnSet(prev, m.bandaId))}
+                          />
+                        ))}
+                      </div>
                       <div className="mt-2 flex gap-2">
                         <input
                           type="date"
@@ -411,6 +491,22 @@ export function NuevoEventoForm({
                           style={inputStyle}
                           value={nuevaGiraHasta}
                           onChange={(e) => setNuevaGiraHasta(e.target.value)}
+                        />
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <input
+                          className={`${inputCls} flex-1`}
+                          style={inputStyle}
+                          value={nuevaGiraPais}
+                          onChange={(e) => setNuevaGiraPais(e.target.value)}
+                          placeholder="País"
+                        />
+                        <input
+                          className={`${inputCls} flex-1`}
+                          style={inputStyle}
+                          value={nuevaGiraCiudades}
+                          onChange={(e) => setNuevaGiraCiudades(e.target.value)}
+                          placeholder="Ciudades"
                         />
                       </div>
                       <div className="mt-2 flex gap-2">

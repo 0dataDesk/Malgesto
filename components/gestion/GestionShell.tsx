@@ -2,28 +2,31 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { BandaSimple, PersonaPendiente, Integrante } from "@/lib/gestionData";
-import type { CuartoEnsayo } from "@/lib/cuartosEnsayoData";
+import type { BandaSimple, PersonaPendiente, Integrante, Plaza } from "@/lib/gestionData";
+import type { Lugar } from "@/lib/lugaresData";
 import { BandasPanel } from "./BandasPanel";
 import { IntegrantesPanel } from "./IntegrantesPanel";
-import { CuartosEnsayoPanel } from "./CuartosEnsayoPanel";
+import { LugaresPanel } from "./LugaresPanel";
 
-const SECCIONES = ["bandas", "integrantes", "cuartos"] as const;
+const SECCIONES = ["bandas", "integrantes", "lugares"] as const;
 type Seccion = (typeof SECCIONES)[number];
-const ETIQUETA_SECCION: Record<Seccion, string> = { bandas: "Bandas", integrantes: "Integrantes", cuartos: "Cuartos de ensayo" };
+const ETIQUETA_SECCION: Record<Seccion, string> = { bandas: "Bandas", integrantes: "Integrantes", lugares: "Lugares" };
 
-// Pantalla 15 "Escritorio · Gestión" (Brief 7, reseccionada en Brief 8 §2):
-// tres secciones en vez de una sola pantalla scrolleable.
+// Pantalla 15 "Escritorio · Gestión" (Brief 7, reseccionada en Brief 8 §2,
+// "Cuartos de ensayo" renombrado a "Lugares" en Brief 9 §12): tres secciones
+// en vez de una sola pantalla scrolleable.
 export function GestionShell({
   bandas,
   personasPendientes,
   integrantes,
-  cuartosEnsayo,
+  lugares,
+  plazas,
 }: {
   bandas: BandaSimple[];
   personasPendientes: PersonaPendiente[];
   integrantes: Integrante[];
-  cuartosEnsayo: CuartoEnsayo[];
+  lugares: Lugar[];
+  plazas: Plaza[];
 }) {
   const [seccion, setSeccion] = useState<Seccion>("bandas");
 
@@ -60,9 +63,11 @@ export function GestionShell({
         </div>
 
         <div className="mt-4">
-          {seccion === "bandas" && <BandasPanel bandas={bandas} />}
-          {seccion === "integrantes" && <IntegrantesPanel bandas={bandas} personasPendientes={personasPendientes} integrantes={integrantes} />}
-          {seccion === "cuartos" && <CuartosEnsayoPanel bandas={bandas} cuartosEnsayo={cuartosEnsayo} />}
+          {seccion === "bandas" && <BandasPanel bandas={bandas} plazas={plazas} />}
+          {seccion === "integrantes" && (
+            <IntegrantesPanel bandas={bandas} personasPendientes={personasPendientes} integrantes={integrantes} plazas={plazas} />
+          )}
+          {seccion === "lugares" && <LugaresPanel bandas={bandas} lugares={lugares} />}
         </div>
       </div>
     </div>

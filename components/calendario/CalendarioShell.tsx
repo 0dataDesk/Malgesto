@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Evento, Membresia } from "@/lib/malgestoEventos";
-import type { CuartoEnsayo } from "@/lib/cuartosEnsayoData";
+import type { Lugar } from "@/lib/lugaresData";
+import type { PersonaConCumple } from "@/lib/cumpleanosVirtual";
+import { generarCumpleanosVirtuales } from "@/lib/cumpleanosVirtual";
 import { nombreMesAno, sumarMeses, esMismoDia, hora } from "@/lib/fechas";
 import { COLOR_TIPO, ETIQUETA_TIPO } from "@/lib/eventoUI";
 import { MesView } from "./MesView";
@@ -12,7 +14,6 @@ import { EventoDetalle } from "./EventoDetalle";
 import { NuevoEventoForm } from "./NuevoEventoForm";
 import { BandaFilterChips } from "./BandaFilterChips";
 import { TabBar } from "@/components/shell/TabBar";
-import { cerrarSesion } from "@/app/auth/actions";
 
 const fuenteEncabezado = { fontFamily: "var(--font-bricolage), sans-serif" };
 
@@ -22,18 +23,20 @@ export function CalendarioShell({
   membresias,
   eventos,
   setlists,
-  cuartosEnsayo,
+  lugares,
+  cumpleanos,
   userEmail,
 }: {
   membresias: Membresia[];
   eventos: Evento[];
   setlists: SetlistOpcion[];
-  cuartosEnsayo: CuartoEnsayo[];
+  lugares: Lugar[];
+  cumpleanos: PersonaConCumple[];
   userEmail: string;
 }) {
   const router = useRouter();
   const [mes, setMes] = useState(() => new Date());
-  const [seleccionadas, setSeleccionadas] = useState<Set<string>>(new Set());
+  const [activas, setActivas] = useState<Set<string>>(() => new Set(membresias.map((m) => m.bandaId)));
   const [diaSeleccionado, setDiaSeleccionado] = useState<Date | null>(null);
   const [eventoDelDiaElegido, setEventoDelDiaElegido] = useState<Evento | null>(null);
   const [eventoSeleccionado, setEventoSeleccionado] = useState<Evento | null>(null);
@@ -41,12 +44,21 @@ export function CalendarioShell({
   const [eventoEnEdicion, setEventoEnEdicion] = useState<Evento | undefined>(undefined);
   const [fechaParaForm, setFechaParaForm] = useState<Date>(() => new Date());
 
-  const eventosFiltrados = useMemo(() => {
-    if (seleccionadas.size === 0 || seleccionadas.size === membresias.length) return eventos;
-    return eventos.filter((e) => seleccionadas.has(e.bandaId));
-  }, [eventos, seleccionadas, membresias.length]);
+  const eventosConCumple = useMemo(
+    () => [...eventos, ...generarCumpleanosVirtuales(cumpleanos, mes)],
+    [eventos, cumpleanos, mes]
+  );
 
-  const giras = useMemo(() => eventos.filter((e) => e.tipo === "gira"), [eventos]);
+  // Brief 9 §2: cada chip prende/apaga SOLO ese chip (el set arranca con
+  // TODAS las bandas activas, no vacío) — con todas apagadas o todas
+  // prendidas se ve todo, igual que antes, pero sin que tocar una banda
+  // afecte visualmente a las demás.
+  const eventosFiltrados = useMemo(() => {
+    if (activas.size === 0 || activas.size === membresias.length) return eventosConCumple;
+    return eventosConCumple.filter((e) => e.bandaIds.some((id) => activas.has(id)));
+  }, [eventosConCumple, activas, membresias.length]);
+
+  const giras = useMemo(() => eventosConCumple.filter((e) => e.tipo === "gira"), [eventosConCumple]);
   const esSuperadmin = membresias.some((m) => m.rol === "superadmin");
   const mostrarCanciones = membresias.some((m) => m.cancionesHabilitado);
   const mostrarSetlist = membresias.some((m) => m.setlistHabilitado);
@@ -57,7 +69,7 @@ export function CalendarioShell({
     : [];
 
   const toggleBanda = (bandaId: string) => {
-    setSeleccionadas((prev) => {
+    setActivas((prev) => {
       const next = new Set(prev);
       if (next.has(bandaId)) next.delete(bandaId);
       else next.add(bandaId);
@@ -78,12 +90,6 @@ export function CalendarioShell({
   const quitarSeleccionDia = () => {
     setDiaSeleccionado(null);
     setEventoDelDiaElegido(null);
-  };
-
-  const abrirNuevo = () => {
-    setEventoEnEdicion(undefined);
-    setFechaParaForm(diaSeleccionado ?? new Date());
-    setMostrarForm(true);
   };
 
   const abrirNuevoEnDia = (dia: Date) => {
@@ -125,7 +131,7 @@ export function CalendarioShell({
       <EventoDetalle
         inline
         evento={eventoAMostrar}
-        giras={giras.filter((g) => g.bandaId === eventoAMostrar.bandaId)}
+        giras={giras.filter((g) => g.bandaIds.some((id) => eventoAMostrar.bandaIds.includes(id)))}
         setlists={setlists.filter((s) => s.bandaId === eventoAMostrar.bandaId)}
         onCerrar={() => (eventosDelDia.length > 1 ? setEventoDelDiaElegido(null) : quitarSeleccionDia())}
         onEditar={abrirEdicion}
@@ -170,14 +176,6 @@ export function CalendarioShell({
   return (
     <div className="flex h-dvh flex-col overflow-hidden" style={{ background: "oklch(0.965 0.012 82)" }}>
       <div className="mx-auto w-full max-w-2xl shrink-0 px-5 pt-5">
-        <div className="mb-2 flex items-center justify-end gap-3">
-          <form action={cerrarSesion}>
-            <button type="submit" className="text-xs" style={{ color: "oklch(0.5 0.02 55)" }} title={userEmail}>
-              Cerrar sesión
-            </button>
-          </form>
-        </div>
-
         <div className="flex items-end justify-between gap-3">
           <div>
             <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
@@ -189,7 +187,7 @@ export function CalendarioShell({
           </div>
         </div>
 
-        <BandaFilterChips membresias={membresias} seleccionadas={seleccionadas} onToggle={toggleBanda} />
+        <BandaFilterChips membresias={membresias} activas={activas} onToggle={toggleBanda} />
 
         <div className="mt-3 flex items-center gap-3">
           <button type="button" onClick={() => setMes((m) => sumarMeses(m, -1))} className="text-lg" style={{ color: "oklch(0.6 0.02 55)" }} aria-label="Mes anterior">
@@ -219,21 +217,19 @@ export function CalendarioShell({
         {listaContenido}
       </div>
 
-      <button
-        type="button"
-        onClick={abrirNuevo}
-        className="fixed bottom-24 right-6 flex h-14 w-14 items-center justify-center rounded-full text-2xl"
-        style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)", boxShadow: "0 14px 26px -12px rgba(0,0,0,0.5)" }}
-      >
-        +
-      </button>
-
-      <TabBar activa="calendario" esSuperadmin={esSuperadmin} mostrarCanciones={mostrarCanciones} mostrarSetlist={mostrarSetlist} mostrarSeteos={mostrarSeteos} />
+      <TabBar
+        activa="calendario"
+        userEmail={userEmail}
+        esSuperadmin={esSuperadmin}
+        mostrarCanciones={mostrarCanciones}
+        mostrarSetlist={mostrarSetlist}
+        mostrarSeteos={mostrarSeteos}
+      />
 
       {eventoSeleccionado && (
         <EventoDetalle
           evento={eventoSeleccionado}
-          giras={giras.filter((g) => g.bandaId === eventoSeleccionado.bandaId)}
+          giras={giras.filter((g) => g.bandaIds.some((id) => eventoSeleccionado.bandaIds.includes(id)))}
           setlists={setlists.filter((s) => s.bandaId === eventoSeleccionado.bandaId)}
           onCerrar={() => setEventoSeleccionado(null)}
           onEditar={abrirEdicion}
@@ -247,9 +243,9 @@ export function CalendarioShell({
       {mostrarForm && (
         <NuevoEventoForm
           membresias={membresias}
-          giras={giras}
+          giras={giras.filter((g) => !g.id.startsWith("cumple-"))}
           setlists={setlists}
-          cuartosEnsayo={cuartosEnsayo}
+          lugares={lugares}
           eventoExistente={eventoEnEdicion}
           fechaSeleccionada={fechaParaForm}
           onCancelar={() => setMostrarForm(false)}

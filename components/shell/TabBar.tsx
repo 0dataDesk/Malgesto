@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cerrarSesion } from "@/app/auth/actions";
 
 // Barra de navegación inferior — Design líneas 104-110. Siempre visible en
 // esta vista y en las que sigan. Malgesto App se construye desde cero: nada
@@ -17,22 +18,45 @@ function Tab({ activo, children }: { activo: boolean; children: React.ReactNode 
   );
 }
 
+// Cerrar sesión, siempre visible (Brief 9 §3) — en rojo/advertencia con
+// ícono de "x" para no invitar a tocarlo sin querer, al lado del botón de
+// Gestión en el mismo cluster fijo arriba a la derecha.
+function CerrarSesionBoton({ userEmail }: { userEmail?: string }) {
+  return (
+    <form action={cerrarSesion}>
+      <button
+        type="submit"
+        aria-label="Cerrar sesión"
+        title={userEmail ? `Cerrar sesión (${userEmail})` : "Cerrar sesión"}
+        className="flex h-9 w-9 items-center justify-center rounded-full"
+        style={{
+          background: "oklch(0.6 0.15 25 / 0.12)",
+          color: "oklch(0.5 0.18 25)",
+          border: "1px solid oklch(0.6 0.15 25 / 0.35)",
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+          <path d="M18 6 6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </form>
+  );
+}
+
 // Botón flotante discreto a Gestión (Brief 8 §1) — vive acá porque TabBar es
 // el único componente compartido por las 4 vistas principales (Calendario,
 // Canciones, Set List, Seteos) y nunca se monta en vistas de edición o
 // inmersivas (editor de canción, vista final, armar/vivo de set list,
 // detalle de dispositivo), así que ponerlo acá alcanza para cumplir "en
 // todas las principales, en ninguna inmersiva" sin lógica extra por página.
-function GestionFab() {
+function GestionBoton() {
   return (
     <Link
       href="/gestion"
       aria-label="Gestión"
       title="Gestión"
-      className="fixed z-20 flex h-9 w-9 items-center justify-center rounded-full no-underline"
+      className="flex h-9 w-9 items-center justify-center rounded-full no-underline"
       style={{
-        top: 14,
-        right: 14,
         background: "oklch(0.93 0.016 78 / 0.9)",
         color: "oklch(0.45 0.02 55)",
         border: "1px solid oklch(0.85 0.016 78)",
@@ -48,12 +72,14 @@ function GestionFab() {
 
 export function TabBar({
   activa,
+  userEmail,
   esSuperadmin = false,
   mostrarCanciones = true,
   mostrarSetlist = true,
   mostrarSeteos = true,
 }: {
   activa: "calendario" | "canciones" | "setlist" | "seteos";
+  userEmail?: string;
   esSuperadmin?: boolean;
   mostrarCanciones?: boolean;
   mostrarSetlist?: boolean;
@@ -61,7 +87,10 @@ export function TabBar({
 }) {
   return (
     <>
-      {esSuperadmin && <GestionFab />}
+      <div className="fixed z-20 flex items-center gap-2" style={{ top: 14, right: 14 }}>
+        <CerrarSesionBoton userEmail={userEmail} />
+        {esSuperadmin && <GestionBoton />}
+      </div>
       <div
         className="fixed inset-x-0 bottom-0 z-20"
         style={{ background: "oklch(0.99 0.008 82)", borderTop: "1px solid oklch(0.89 0.013 78)" }}

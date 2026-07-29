@@ -15,18 +15,20 @@ export type Membresia = {
 export type Evento = {
   id: string;
   bandaId: string;
+  bandaIds: string[];
   bandaNombre: string;
   tipo: TipoEvento;
   titulo: string;
   fechaInicio: string;
   fechaFin: string | null;
-  ubicacion: string | null;
   ingresoEsperado: number | null;
   giraId: string | null;
   setlistId: string | null;
-  cuartoEnsayoId: string | null;
-  cuartoEnsayoNombre: string | null;
-  cuartoEnsayoLinkMaps: string | null;
+  lugarId: string | null;
+  lugarNombre: string | null;
+  lugarLinkMaps: string | null;
+  pais: string | null;
+  ciudades: string | null;
 };
 
 type BandaEmbebida = {
@@ -37,7 +39,13 @@ type BandaEmbebida = {
   seteos_habilitado: boolean;
 } | null;
 
-type CuartoEmbebido = { nombre: string; link_maps: string } | null;
+type LugarEmbebido = { nombre: string; link_maps: string } | null;
+
+const puedeTenerSetlist = (tipo: TipoEvento) => tipo === "show" || tipo === "ensayo";
+const puedeTenerLugar = (tipo: TipoEvento) => tipo === "ensayo" || tipo === "show";
+
+const COLUMNAS_EVENTO =
+  "id, banda_id, tipo, titulo, fecha_inicio, fecha_fin, ingreso_esperado, gira_id, setlist_id, lugar_id, pais, ciudades, bandas(nombre), lugares(nombre, link_maps)";
 
 // Bandas del usuario, con su rol — determina si va directo al calendario de
 // su única banda o si necesita el selector (más de una). banda_id es
@@ -74,75 +82,194 @@ export function esSuperadminDeMembresias(membresias: Membresia[]): boolean {
   return membresias.some((m) => m.rol === "superadmin");
 }
 
-// Todos los eventos de las bandas dadas, con el nombre de banda ya resuelto
-// (necesario para la vista mezclada de usuarios con más de una banda).
+function mapearEvento(
+  e: {
+    id: string;
+    banda_id: string;
+    tipo: string;
+    titulo: string;
+    fecha_inicio: string;
+    fecha_fin: string | null;
+    ingreso_esperado: number | string | null;
+    gira_id: string | null;
+    setlist_id: string | null;
+    lugar_id: string | null;
+    pais: string | null;
+    ciudades: string | null;
+    bandas: unknown;
+    lugares: unknown;
+  },
+  bandasGira?: { id: string; nombre: string }[]
+): Evento {
+  const lugar = e.lugares as unknown as LugarEmbebido;
+  return {
+    id: e.id,
+    bandaId: e.banda_id,
+    bandaIds: bandasGira && bandasGira.length > 0 ? bandasGira.map((b) => b.id) : [e.banda_id],
+    bandaNombre:
+      bandasGira && bandasGira.length > 0 ? bandasGira.map((b) => b.nombre).join(" + ") : (e.bandas as unknown as BandaEmbebida)?.nombre ?? "Banda",
+    tipo: e.tipo as TipoEvento,
+    titulo: e.titulo,
+    fechaInicio: e.fecha_inicio,
+    fechaFin: e.fecha_fin,
+    ingresoEsperado: e.ingreso_esperado === null ? null : Number(e.ingreso_esperado),
+    giraId: e.gira_id,
+    setlistId: e.setlist_id,
+    lugarId: e.lugar_id,
+    lugarNombre: lugar?.nombre ?? null,
+    lugarLinkMaps: lugar?.link_maps ?? null,
+    pais: e.pais,
+    ciudades: e.ciudades,
+  };
+}
+
+// Todos los eventos de las bandas dadas. Una gira puede involucrar bandas
+// además de la "primaria" (eventos.banda_id, Brief 9 §18) — así que además
+// del filtro directo por banda_id hay que traer también las giras donde el
+// usuario solo participa como banda secundaria (vía gira_bandas), y resolver
+// el conjunto completo de bandas de cada gira para el filtro de chips y el
+// nombre combinado.
 export async function obtenerEventos(bandaIds: string[]): Promise<Evento[]> {
   if (bandaIds.length === 0) return [];
-
   const admin = supabaseMalgesto();
-  const { data } = await admin
-    .from("eventos")
-    .select(
-      "id, banda_id, tipo, titulo, fecha_inicio, fecha_fin, ubicacion, ingreso_esperado, gira_id, setlist_id, cuarto_ensayo_id, bandas(nombre), cuartos_ensayo(nombre, link_maps)"
-    )
-    .in("banda_id", bandaIds)
-    .order("fecha_inicio", { ascending: true });
 
-  return (data ?? []).map((e) => {
-    const cuarto = e.cuartos_ensayo as unknown as CuartoEmbebido;
-    return {
-      id: e.id,
-      bandaId: e.banda_id,
-      bandaNombre: (e.bandas as unknown as BandaEmbebida)?.nombre ?? "Banda",
-      tipo: e.tipo as TipoEvento,
-      titulo: e.titulo,
-      fechaInicio: e.fecha_inicio,
-      fechaFin: e.fecha_fin,
-      ubicacion: e.ubicacion,
-      ingresoEsperado: e.ingreso_esperado === null ? null : Number(e.ingreso_esperado),
-      giraId: e.gira_id,
-      setlistId: e.setlist_id,
-      cuartoEnsayoId: e.cuarto_ensayo_id,
-      cuartoEnsayoNombre: cuarto?.nombre ?? null,
-      cuartoEnsayoLinkMaps: cuarto?.link_maps ?? null,
-    };
-  });
+  const { data: directos } = await admin.from("eventos").select(COLUMNAS_EVENTO).in("banda_id", bandaIds);
+
+  const { data: girasSecundarias } = await admin.from("gira_bandas").select("gira_evento_id").in("banda_id", bandaIds);
+
+  const idsDirectos = new Set((directos ?? []).map((e) => e.id));
+  const idsSecundarios = [...new Set((girasSecundarias ?? []).map((g) => g.gira_evento_id))].filter((id) => !idsDirectos.has(id));
+
+  let extra: NonNullable<typeof directos> = [];
+  if (idsSecundarios.length > 0) {
+    const { data } = await admin.from("eventos").select(COLUMNAS_EVENTO).in("id", idsSecundarios);
+    extra = data ?? [];
+  }
+
+  const todos = [...(directos ?? []), ...extra];
+  if (todos.length === 0) return [];
+
+  const giraIds = todos.filter((e) => e.tipo === "gira").map((e) => e.id);
+  const bandasPorGira = new Map<string, { id: string; nombre: string }[]>();
+  if (giraIds.length > 0) {
+    const { data: relaciones } = await admin.from("gira_bandas").select("gira_evento_id, bandas(id, nombre)").in("gira_evento_id", giraIds);
+    for (const r of relaciones ?? []) {
+      const banda = r.bandas as unknown as { id: string; nombre: string } | null;
+      if (!banda) continue;
+      const lista = bandasPorGira.get(r.gira_evento_id) ?? [];
+      lista.push(banda);
+      bandasPorGira.set(r.gira_evento_id, lista);
+    }
+  }
+
+  return todos
+    .sort((a, b) => new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime())
+    .map((e) => mapearEvento(e, e.tipo === "gira" ? bandasPorGira.get(e.id) : undefined));
 }
 
 export type NuevoEventoInput = {
   bandaId: string;
+  bandaIds?: string[];
   tipo: TipoEvento;
   titulo: string;
   fechaInicio: string;
   fechaFin: string | null;
-  ubicacion: string | null;
   ingresoEsperado: number | null;
   giraId: string | null;
   setlistId: string | null;
-  cuartoEnsayoId: string | null;
+  lugarId: string | null;
+  lugarNuevo: { nombre: string; linkMaps: string } | null;
+  pais: string | null;
+  ciudades: string | null;
 };
 
-const puedeTenerSetlist = (tipo: TipoEvento) => tipo === "show" || tipo === "ensayo";
+async function resolverLugarId(
+  admin: ReturnType<typeof supabaseMalgesto>,
+  bandaId: string,
+  lugarId: string | null,
+  lugarNuevo: { nombre: string; linkMaps: string } | null
+): Promise<string | null> {
+  if (lugarNuevo && lugarNuevo.nombre.trim() && lugarNuevo.linkMaps.trim()) {
+    const { data, error } = await admin
+      .from("lugares")
+      .insert({ banda_id: bandaId, nombre: lugarNuevo.nombre.trim(), link_maps: lugarNuevo.linkMaps.trim() })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(error?.message ?? "No se pudo guardar el lugar.");
+    return data.id;
+  }
+  return lugarId;
+}
 
 export async function crearEvento(input: NuevoEventoInput) {
   const admin = supabaseMalgesto();
+
+  if (input.tipo === "gira") {
+    const bandaIds = input.bandaIds && input.bandaIds.length > 0 ? input.bandaIds : [input.bandaId];
+    const { data, error } = await admin
+      .from("eventos")
+      .insert({
+        banda_id: bandaIds[0],
+        tipo: "gira",
+        titulo: input.titulo,
+        fecha_inicio: input.fechaInicio,
+        fecha_fin: input.fechaFin,
+        pais: input.pais,
+        ciudades: input.ciudades,
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(error?.message ?? "No se pudo crear la gira.");
+
+    const { error: errBandas } = await admin.from("gira_bandas").insert(bandaIds.map((id) => ({ gira_evento_id: data.id, banda_id: id })));
+    if (errBandas) throw new Error(errBandas.message);
+    return;
+  }
+
+  const lugarId = puedeTenerLugar(input.tipo) ? await resolverLugarId(admin, input.bandaId, input.lugarId, input.lugarNuevo) : null;
+
   const { error } = await admin.from("eventos").insert({
     banda_id: input.bandaId,
     tipo: input.tipo,
     titulo: input.titulo,
     fecha_inicio: input.fechaInicio,
     fecha_fin: input.fechaFin,
-    ubicacion: input.ubicacion,
     ingreso_esperado: input.tipo === "show" ? input.ingresoEsperado : null,
     gira_id: input.tipo === "show" ? input.giraId : null,
     setlist_id: puedeTenerSetlist(input.tipo) ? input.setlistId : null,
-    cuarto_ensayo_id: input.tipo === "ensayo" ? input.cuartoEnsayoId : null,
+    lugar_id: lugarId,
   });
   if (error) throw new Error(error.message);
 }
 
 export async function actualizarEvento(eventoId: string, input: NuevoEventoInput) {
   const admin = supabaseMalgesto();
+
+  if (input.tipo === "gira") {
+    const bandaIds = input.bandaIds && input.bandaIds.length > 0 ? input.bandaIds : [input.bandaId];
+    const { error } = await admin
+      .from("eventos")
+      .update({
+        banda_id: bandaIds[0],
+        tipo: "gira",
+        titulo: input.titulo,
+        fecha_inicio: input.fechaInicio,
+        fecha_fin: input.fechaFin,
+        pais: input.pais,
+        ciudades: input.ciudades,
+      })
+      .eq("id", eventoId);
+    if (error) throw new Error(error.message);
+
+    const { error: errDelete } = await admin.from("gira_bandas").delete().eq("gira_evento_id", eventoId);
+    if (errDelete) throw new Error(errDelete.message);
+    const { error: errInsert } = await admin.from("gira_bandas").insert(bandaIds.map((id) => ({ gira_evento_id: eventoId, banda_id: id })));
+    if (errInsert) throw new Error(errInsert.message);
+    return;
+  }
+
+  const lugarId = puedeTenerLugar(input.tipo) ? await resolverLugarId(admin, input.bandaId, input.lugarId, input.lugarNuevo) : null;
+
   const { error } = await admin
     .from("eventos")
     .update({
@@ -151,44 +278,42 @@ export async function actualizarEvento(eventoId: string, input: NuevoEventoInput
       titulo: input.titulo,
       fecha_inicio: input.fechaInicio,
       fecha_fin: input.fechaFin,
-      ubicacion: input.ubicacion,
       ingreso_esperado: input.tipo === "show" ? input.ingresoEsperado : null,
       gira_id: input.tipo === "show" ? input.giraId : null,
       setlist_id: puedeTenerSetlist(input.tipo) ? input.setlistId : null,
-      cuarto_ensayo_id: input.tipo === "ensayo" ? input.cuartoEnsayoId : null,
+      lugar_id: lugarId,
+      pais: null,
+      ciudades: null,
     })
     .eq("id", eventoId);
   if (error) throw new Error(error.message);
 }
 
-// Alta rápida de gira (Brief 8 §7) — una gira es simplemente un evento con
-// tipo "gira" (sin tabla propia, ver comentario de giraId más abajo), así
-// que esto es un insert directo sin pasar por el formulario completo.
-export async function crearGira(bandaId: string, nombre: string, desde: string, hasta: string): Promise<Evento> {
+// Alta rápida de gira (Brief 8 §7, multi-banda desde Brief 9 §18) — una gira
+// es simplemente un evento con tipo "gira" (sin tabla propia); las bandas
+// involucradas viven en gira_bandas, banda_id se queda con la primera como
+// "primaria" por la restricción NOT NULL ya existente en eventos.
+export async function crearGira(
+  bandaIds: string[],
+  nombre: string,
+  desde: string,
+  hasta: string,
+  pais: string | null,
+  ciudades: string | null
+): Promise<Evento> {
   const admin = supabaseMalgesto();
   const { data, error } = await admin
     .from("eventos")
-    .insert({ banda_id: bandaId, tipo: "gira", titulo: nombre, fecha_inicio: desde, fecha_fin: hasta })
-    .select("id, banda_id, tipo, titulo, fecha_inicio, fecha_fin, ubicacion, ingreso_esperado, gira_id, setlist_id, cuarto_ensayo_id, bandas(nombre)")
+    .insert({ banda_id: bandaIds[0], tipo: "gira", titulo: nombre, fecha_inicio: desde, fecha_fin: hasta, pais, ciudades })
+    .select(COLUMNAS_EVENTO)
     .single();
   if (error || !data) throw new Error(error?.message ?? "No se pudo crear la gira.");
 
-  return {
-    id: data.id,
-    bandaId: data.banda_id,
-    bandaNombre: (data.bandas as unknown as BandaEmbebida)?.nombre ?? "Banda",
-    tipo: data.tipo as TipoEvento,
-    titulo: data.titulo,
-    fechaInicio: data.fecha_inicio,
-    fechaFin: data.fecha_fin,
-    ubicacion: data.ubicacion,
-    ingresoEsperado: data.ingreso_esperado === null ? null : Number(data.ingreso_esperado),
-    giraId: data.gira_id,
-    setlistId: data.setlist_id,
-    cuartoEnsayoId: data.cuarto_ensayo_id,
-    cuartoEnsayoNombre: null,
-    cuartoEnsayoLinkMaps: null,
-  };
+  const { error: errBandas } = await admin.from("gira_bandas").insert(bandaIds.map((id) => ({ gira_evento_id: data.id, banda_id: id })));
+  if (errBandas) throw new Error(errBandas.message);
+
+  const { data: bandasInfo } = await admin.from("bandas").select("id, nombre").in("id", bandaIds);
+  return mapearEvento(data, bandasInfo ?? []);
 }
 
 export async function eliminarEvento(eventoId: string) {

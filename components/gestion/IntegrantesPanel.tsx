@@ -1,18 +1,21 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import type { BandaSimple, PersonaPendiente, Integrante } from "@/lib/gestionData";
-import { INSTRUMENTOS, ETIQUETA_INSTRUMENTO } from "@/lib/instrumentoCatalogo";
+import type { BandaSimple, PersonaPendiente, Integrante, Plaza } from "@/lib/gestionData";
+import { ETIQUETA_INSTRUMENTO } from "@/lib/instrumentoCatalogo";
+import { ToggleChip } from "@/components/ui/ToggleChip";
 import {
   invitarPersonaAction,
   ignorarPersonaPendienteAction,
   actualizarNombreMostrarAction,
+  actualizarFechaNacimientoAction,
   removerDeBandaAction,
   asignarABandaAction,
-  actualizarInstrumentosAction,
+  asignarPersonaAPlazaAction,
+  quitarPersonaDePlazaAction,
+  establecerSuperadminAction,
 } from "@/app/gestion/actions";
 
-const ROLES = ["miembro", "superadmin"] as const;
 const inputCls = "rounded-xl border px-3.5 py-2.5 text-sm outline-none";
 const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
 
@@ -27,13 +30,18 @@ const COLOR_ESTADO: Record<Integrante["estado"], string> = {
   inactivo: "oklch(0.55 0.02 55)",
 };
 
-function FilaIntegrante({ integrante, bandas }: { integrante: Integrante; bandas: BandaSimple[] }) {
+function FilaIntegrante({ integrante, bandas, plazas }: { integrante: Integrante; bandas: BandaSimple[]; plazas: Plaza[] }) {
   const [expandido, setExpandido] = useState(false);
   const [nombreMostrar, setNombreMostrar] = useState(integrante.nombreMostrar ?? "");
   const [pendingNombre, startNombre] = useTransition();
+  const [fechaNacimiento, setFechaNacimiento] = useState(integrante.fechaNacimiento ?? "");
+  const [pendingFecha, startFecha] = useTransition();
+  const [bandasLocal, setBandasLocal] = useState(integrante.bandas);
   const [pendingBanda, setPendingBanda] = useState<string | null>(null);
+  const [superadminLocal, setSuperadminLocal] = useState(integrante.esSuperadmin);
+  const [pendingSuperadmin, startSuperadmin] = useTransition();
 
-  const bandaAsignada = (bandaId: string) => integrante.bandas.find((b) => b.bandaId === bandaId && b.activo);
+  const bandaAsignada = (bandaId: string) => bandasLocal.find((b) => b.bandaId === bandaId && b.activo);
 
   const guardarNombre = () => {
     if (!integrante.usuarioId) return;
@@ -42,29 +50,71 @@ function FilaIntegrante({ integrante, bandas }: { integrante: Integrante; bandas
     });
   };
 
+  const guardarFecha = () => {
+    if (!integrante.usuarioId) return;
+    startFecha(async () => {
+      await actualizarFechaNacimientoAction(integrante.usuarioId!, fechaNacimiento || null);
+    });
+  };
+
   const toggleBanda = (bandaId: string) => {
     if (!integrante.usuarioId) return;
     const asignada = !!bandaAsignada(bandaId);
     setPendingBanda(bandaId);
-    const accion = asignada
-      ? removerDeBandaAction(integrante.usuarioId, bandaId)
-      : asignarABandaAction(integrante.usuarioId, bandaId);
-    accion.finally(() => setPendingBanda(null));
+    const accion = asignada ? removerDeBandaAction(integrante.usuarioId, bandaId) : asignarABandaAction(integrante.usuarioId, bandaId);
+    accion
+      .then(() => {
+        setBandasLocal((prev) => {
+          if (prev.some((b) => b.bandaId === bandaId)) {
+            return prev.map((b) => (b.bandaId === bandaId ? { ...b, activo: !asignada } : b));
+          }
+          const info = bandas.find((b) => b.id === bandaId);
+          return [...prev, { bandaId, bandaNombre: info?.nombre ?? "Banda", activo: true, plazas: [] }];
+        });
+      })
+      .finally(() => setPendingBanda(null));
   };
 
-  const toggleInstrumento = (bandaId: string, instrumento: string) => {
+  const togglePlaza = (bandaId: string, plazaId: string) => {
     if (!integrante.usuarioId) return;
-    const actuales = bandaAsignada(bandaId)?.instrumentos ?? [];
-    const nuevos = actuales.includes(instrumento) ? actuales.filter((i) => i !== instrumento) : [...actuales, instrumento];
-    actualizarInstrumentosAction(integrante.usuarioId, bandaId, nuevos);
+    const banda = bandasLocal.find((b) => b.bandaId === bandaId);
+    const tiene = banda?.plazas.some((p) => p.plazaId === plazaId);
+    const accion = tiene
+      ? quitarPersonaDePlazaAction(integrante.usuarioId, plazaId)
+      : asignarPersonaAPlazaAction(integrante.usuarioId, plazaId);
+    accion.then(() => {
+      setBandasLocal((prev) =>
+        prev.map((b) => {
+          if (b.bandaId !== bandaId) return b;
+          if (tiene) return { ...b, plazas: b.plazas.filter((p) => p.plazaId !== plazaId) };
+          const info = plazas.find((p) => p.id === plazaId);
+          return { ...b, plazas: [...b.plazas, { plazaId, instrumento: info?.instrumento ?? "otro", etiqueta: info?.etiqueta ?? null }] };
+        })
+      );
+    });
+  };
+
+  const toggleSuperadmin = () => {
+    if (!integrante.usuarioId) return;
+    startSuperadmin(async () => {
+      await establecerSuperadminAction(integrante.usuarioId!, !superadminLocal);
+      setSuperadminLocal((v) => !v);
+    });
   };
 
   return (
     <div className="rounded-2xl p-3.5" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
       <button type="button" onClick={() => setExpandido((v) => !v)} className="flex w-full items-center justify-between gap-3 text-left">
         <div className="min-w-0">
-          <div className="truncate text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
-            {integrante.nombreMostrar || integrante.email}
+          <div className="flex items-center gap-1.5">
+            <div className="truncate text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+              {integrante.nombreMostrar || integrante.email}
+            </div>
+            {superadminLocal && (
+              <span className="shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase" style={{ background: "oklch(0.64 0.15 34 / 0.15)", color: "oklch(0.64 0.15 34)" }}>
+                Superadmin
+              </span>
+            )}
           </div>
           <div className="truncate font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
             {integrante.email}
@@ -105,41 +155,64 @@ function FilaIntegrante({ integrante, bandas }: { integrante: Integrante; bandas
 
           <div>
             <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+              Fecha de nacimiento
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={fechaNacimiento}
+                onChange={(e) => setFechaNacimiento(e.target.value)}
+                className="flex-1 rounded-lg border px-2.5 py-1.5 text-sm outline-none"
+                style={inputStyle}
+              />
+              <button
+                type="button"
+                onClick={guardarFecha}
+                disabled={pendingFecha}
+                className="shrink-0 rounded-lg px-3 text-xs font-bold disabled:opacity-60"
+                style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
               Bandas asignadas
             </label>
             <div className="flex flex-col gap-2">
               {bandas.map((b) => {
                 const asignada = bandaAsignada(b.id);
+                const plazasDeLaBanda = plazas.filter((p) => p.bandaId === b.id);
                 return (
                   <div key={b.id}>
                     <label className="flex items-center gap-2 text-sm" style={{ color: "oklch(0.3 0.02 55)" }}>
-                      <input
-                        type="checkbox"
-                        checked={!!asignada}
-                        disabled={pendingBanda === b.id}
-                        onChange={() => toggleBanda(b.id)}
-                      />
+                      <input type="checkbox" checked={!!asignada} disabled={pendingBanda === b.id} onChange={() => toggleBanda(b.id)} />
                       {b.nombre}
                     </label>
                     {asignada && (
-                      <div className="ml-6 mt-1 flex flex-wrap gap-1.5">
-                        {INSTRUMENTOS.map((inst) => {
-                          const activo = asignada.instrumentos.includes(inst);
-                          return (
-                            <button
-                              key={inst}
-                              type="button"
-                              onClick={() => toggleInstrumento(b.id, inst)}
-                              className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
-                              style={{
-                                background: activo ? "oklch(0.64 0.15 34)" : "oklch(0.93 0.016 78)",
-                                color: activo ? "oklch(0.99 0.01 82)" : "oklch(0.4 0.02 55)",
-                              }}
-                            >
-                              {ETIQUETA_INSTRUMENTO[inst]}
-                            </button>
-                          );
-                        })}
+                      <div className="ml-6 mt-1.5">
+                        {plazasDeLaBanda.length === 0 ? (
+                          <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+                            Esta banda todavía no tiene plazas definidas.
+                          </p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {plazasDeLaBanda.map((p) => {
+                              const activo = asignada.plazas.some((ap) => ap.plazaId === p.id);
+                              const etiquetaBase = ETIQUETA_INSTRUMENTO[p.instrumento as keyof typeof ETIQUETA_INSTRUMENTO] ?? p.instrumento;
+                              return (
+                                <ToggleChip
+                                  key={p.id}
+                                  label={p.etiqueta ? `${etiquetaBase} — ${p.etiqueta}` : etiquetaBase}
+                                  active={activo}
+                                  onClick={() => togglePlaza(b.id, p.id)}
+                                />
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -147,6 +220,21 @@ function FilaIntegrante({ integrante, bandas }: { integrante: Integrante; bandas
               })}
             </div>
           </div>
+
+          {integrante.estado === "activo" && (
+            <button
+              type="button"
+              onClick={toggleSuperadmin}
+              disabled={pendingSuperadmin}
+              className="rounded-lg py-2 text-sm font-bold disabled:opacity-60"
+              style={{
+                background: superadminLocal ? "oklch(0.6 0.15 25 / 0.12)" : "oklch(0.64 0.15 34 / 0.12)",
+                color: superadminLocal ? "oklch(0.5 0.18 25)" : "oklch(0.64 0.15 34)",
+              }}
+            >
+              {pendingSuperadmin ? "…" : superadminLocal ? "Quitar superadmin" : "Hacer superadmin"}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -157,21 +245,31 @@ export function IntegrantesPanel({
   bandas,
   personasPendientes: personasPendientesIniciales,
   integrantes,
+  plazas,
 }: {
   bandas: BandaSimple[];
   personasPendientes: PersonaPendiente[];
   integrantes: Integrante[];
+  plazas: Plaza[];
 }) {
   const [personasPendientes, setPersonasPendientes] = useState(personasPendientesIniciales);
 
   const [email, setEmail] = useState("");
-  const [bandaIdInvitar, setBandaIdInvitar] = useState("");
-  const [rolInvitar, setRolInvitar] = useState<string>("miembro");
+  const [bandaIdsInvitar, setBandaIdsInvitar] = useState<Set<string>>(new Set());
   const [avisoInvitar, setAvisoInvitar] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
   const [pendingInvitar, startInvitarTransition] = useTransition();
   const [pendingIgnorar, setPendingIgnorar] = useState<string | null>(null);
 
   const formInvitarRef = useRef<HTMLDivElement>(null);
+
+  const toggleBandaInvitar = (bandaId: string) => {
+    setBandaIdsInvitar((prev) => {
+      const next = new Set(prev);
+      if (next.has(bandaId)) next.delete(bandaId);
+      else next.add(bandaId);
+      return next;
+    });
+  };
 
   const asignarDesdePendiente = (persona: PersonaPendiente) => {
     setEmail(persona.email);
@@ -189,13 +287,13 @@ export function IntegrantesPanel({
 
   const invitar = () => {
     setAvisoInvitar(null);
-    if (!email.trim() || !bandaIdInvitar) {
-      setAvisoInvitar({ tipo: "error", texto: "Completá correo y banda." });
+    if (!email.trim() || bandaIdsInvitar.size === 0) {
+      setAvisoInvitar({ tipo: "error", texto: "Completá correo y al menos una banda." });
       return;
     }
     startInvitarTransition(async () => {
       try {
-        const resultado = await invitarPersonaAction(email.trim(), bandaIdInvitar, rolInvitar);
+        const resultado = await invitarPersonaAction(email.trim(), Array.from(bandaIdsInvitar));
         if (!resultado.ok) {
           setAvisoInvitar({ tipo: "error", texto: resultado.motivo });
           return;
@@ -204,6 +302,7 @@ export function IntegrantesPanel({
         const emailInvitado = email.trim().toLowerCase();
         setPersonasPendientes((prev) => prev.filter((p) => p.email.toLowerCase() !== emailInvitado));
         setEmail("");
+        setBandaIdsInvitar(new Set());
       } catch (e) {
         setAvisoInvitar({ tipo: "error", texto: e instanceof Error ? e.message : "No se pudo invitar." });
       }
@@ -218,29 +317,15 @@ export function IntegrantesPanel({
         </h3>
         <div className="flex flex-col gap-2.5">
           <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@gmail.com" className={inputCls} style={inputStyle} />
-          <select value={bandaIdInvitar} onChange={(e) => setBandaIdInvitar(e.target.value)} className={inputCls} style={inputStyle}>
-            <option value="">— elegí una banda —</option>
-            {bandas.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.nombre}
-              </option>
-            ))}
-          </select>
-          <div className="flex gap-2">
-            {ROLES.map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setRolInvitar(r)}
-                className="flex-1 rounded-xl px-3 py-2 text-sm font-bold capitalize"
-                style={{
-                  background: rolInvitar === r ? "oklch(0.24 0.02 55)" : "oklch(0.93 0.016 78)",
-                  color: rolInvitar === r ? "oklch(0.96 0.012 82)" : "oklch(0.4 0.02 55)",
-                }}
-              >
-                {r}
-              </button>
-            ))}
+          <div>
+            <label className="mb-1.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+              Bandas
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {bandas.map((b) => (
+                <ToggleChip key={b.id} label={b.nombre} active={bandaIdsInvitar.has(b.id)} onClick={() => toggleBandaInvitar(b.id)} />
+              ))}
+            </div>
           </div>
           <button
             type="button"
@@ -319,7 +404,7 @@ export function IntegrantesPanel({
         ) : (
           <div className="flex flex-col gap-2">
             {integrantes.map((i) => (
-              <FilaIntegrante key={i.usuarioId ?? i.email} integrante={i} bandas={bandas} />
+              <FilaIntegrante key={i.usuarioId ?? i.email} integrante={i} bandas={bandas} plazas={plazas} />
             ))}
           </div>
         )}

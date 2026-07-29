@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { Evento } from "@/lib/malgestoEventos";
-import { COLOR_TIPO, ETIQUETA_TIPO } from "@/lib/eventoUI";
+import { COLOR_TIPO, ETIQUETA_TIPO, formatoMoneda } from "@/lib/eventoUI";
 import { asignarGiraAction, asignarSetlistAction, eliminarEventoAction } from "@/app/inicio/actions";
 
 type SetlistOpcion = { id: string; nombre: string };
@@ -48,8 +48,8 @@ export function EventoDetalle({
             }`
           : "");
 
-  const linkMaps = evento.tipo === "ensayo" ? evento.cuartoEnsayoLinkMaps : evento.tipo === "show" ? evento.ubicacion : null;
-  const nombreUbicacion = evento.tipo === "ensayo" ? evento.cuartoEnsayoNombre : evento.ubicacion;
+  const linkMaps = evento.lugarLinkMaps;
+  const nombreUbicacion = evento.lugarNombre;
 
   const cambiarGira = (giraId: string) => {
     setError(null);
@@ -100,9 +100,11 @@ export function EventoDetalle({
           {ETIQUETA_TIPO[evento.tipo]}
         </span>
         <div className="flex items-center gap-3">
-          <button type="button" onClick={() => onEditar(evento)} className="text-sm font-bold" style={{ color: "oklch(0.64 0.15 34)" }}>
-            Editar
-          </button>
+          {evento.tipo !== "cumpleanos" && (
+            <button type="button" onClick={() => onEditar(evento)} className="text-sm font-bold" style={{ color: "oklch(0.64 0.15 34)" }}>
+              Editar
+            </button>
+          )}
           <button type="button" onClick={onCerrar} className="text-xl" style={{ color: "oklch(0.5 0.02 55)" }} aria-label="Cerrar">
             ×
           </button>
@@ -194,7 +196,7 @@ export function EventoDetalle({
             Ingreso esperado
           </div>
           <div className="mt-1 font-mono text-2xl font-bold" style={{ color: "oklch(0.96 0.012 82)" }}>
-            ${evento.ingresoEsperado.toLocaleString("es-MX")}
+            {formatoMoneda(evento.ingresoEsperado)}
           </div>
         </div>
       )}
@@ -216,15 +218,17 @@ export function EventoDetalle({
         </button>
       )}
 
-      <button
-        type="button"
-        onClick={eliminar}
-        disabled={pendienteEliminar}
-        className="mt-3 w-full text-center text-sm font-semibold disabled:opacity-50"
-        style={{ color: "oklch(0.6 0.15 25)" }}
-      >
-        {pendienteEliminar ? "Eliminando…" : "Eliminar evento"}
-      </button>
+      {evento.tipo !== "cumpleanos" && (
+        <button
+          type="button"
+          onClick={eliminar}
+          disabled={pendienteEliminar}
+          className="mt-3 w-full text-center text-sm font-semibold disabled:opacity-50"
+          style={{ color: "oklch(0.6 0.15 25)" }}
+        >
+          {pendienteEliminar ? "Eliminando…" : "Eliminar evento"}
+        </button>
+      )}
     </div>
   );
 

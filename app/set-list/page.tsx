@@ -116,6 +116,7 @@ export default async function SetListPage({
 
       <TabBar
         activa="setlist"
+        userEmail={user.email}
         esSuperadmin={esSuperadminDeMembresias(membresias)}
         mostrarCanciones={membresias.some((m) => m.cancionesHabilitado)}
         mostrarSeteos={membresias.some((m) => m.seteosHabilitado)}

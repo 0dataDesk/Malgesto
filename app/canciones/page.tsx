@@ -126,6 +126,7 @@ export default async function CancionesPage({
 
       <TabBar
         activa="canciones"
+        userEmail={user.email}
         esSuperadmin={esSuperadminDeMembresias(membresias)}
         mostrarSetlist={membresias.some((m) => m.setlistHabilitado)}
         mostrarSeteos={membresias.some((m) => m.seteosHabilitado)}
