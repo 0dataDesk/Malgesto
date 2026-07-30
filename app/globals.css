@@ -17,6 +17,12 @@ body {
   font-family: var(--font-manrope), sans-serif;
 }
 
+/* Brief 12 §2: scroll suave para los accesos directos por sección de la
+   vista final de Canciones. */
+html {
+  scroll-behavior: smooth;
+}
+
 a {
   color: oklch(0.7 0.12 250);
 }

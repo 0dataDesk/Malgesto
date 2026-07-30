@@ -8,9 +8,11 @@ import { crearCancionAction, actualizarCancionAction } from "@/app/canciones/act
 import { AcordeSelector } from "./AcordeSelector";
 
 const inputCls = "w-full rounded-lg border px-3 py-2 text-sm outline-none";
-const inputStyle = { background: "oklch(0.21 0.01 260)", borderColor: "oklch(0.32 0.02 260)", color: "oklch(0.95 0.005 260)" };
+const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
 const labelCls = "flex flex-col gap-1 text-sm";
-const labelColor = { color: "oklch(0.75 0.01 260)" };
+const labelColor = { color: "oklch(0.5 0.02 55)" };
+const inactivoStyle = { background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" };
+const activoStyle = { background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" };
 
 type AcordeFS = { notaRaiz: Nota; calidad: Calidad; duracionCompases: number; incluirNovena: boolean };
 type SeccionFS = { nombre: NombreSeccion; acordes: AcordeFS[] };
@@ -23,18 +25,13 @@ function SeccionNombreSelector({ valor, onCambio }: { valor: NombreSeccion; onCa
   const [abierto, setAbierto] = useState(false);
   return (
     <div className="relative">
-      <button
-        type="button"
-        onClick={() => setAbierto((v) => !v)}
-        className="rounded-lg px-3 py-1.5 text-sm font-bold"
-        style={{ background: "oklch(0.5 0.13 148)", color: "white" }}
-      >
+      <button type="button" onClick={() => setAbierto((v) => !v)} className="rounded-lg px-3 py-1.5 text-sm font-bold" style={activoStyle}>
         {valor}
       </button>
       {abierto && (
         <div
           className="absolute z-20 mt-1 flex w-56 flex-wrap gap-1.5 rounded-xl p-2.5"
-          style={{ background: "oklch(0.16 0.008 260)", border: "1px solid oklch(0.32 0.02 260)" }}
+          style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", boxShadow: "0 16px 32px -16px rgba(0,0,0,0.25)" }}
         >
           {NOMBRES_SECCION.map((n) => (
             <button
@@ -45,10 +42,7 @@ function SeccionNombreSelector({ valor, onCambio }: { valor: NombreSeccion; onCa
                 setAbierto(false);
               }}
               className="rounded-lg px-2.5 py-1.5 text-xs font-bold"
-              style={{
-                background: n === valor ? "oklch(0.5 0.13 148)" : "oklch(0.24 0.015 260)",
-                color: n === valor ? "white" : "oklch(0.85 0.01 260)",
-              }}
+              style={n === valor ? activoStyle : inactivoStyle}
             >
               {n}
             </button>
@@ -100,6 +94,14 @@ export function CancionForm({
     });
 
   const quitarSeccion = (i: number) => setSecciones((prev) => prev.filter((_, idx) => idx !== i));
+
+  const duplicarSeccion = (i: number) =>
+    setSecciones((prev) => {
+      const copia = { nombre: prev[i].nombre, acordes: prev[i].acordes.map((a) => ({ ...a })) };
+      const siguiente = [...prev];
+      siguiente.splice(i + 1, 0, copia);
+      return siguiente;
+    });
 
   const agregarAcorde = (si: number) =>
     setSecciones((prev) =>
@@ -194,32 +196,14 @@ export function CancionForm({
           </div>
           <div className="mb-2 flex flex-wrap gap-1.5">
             {NOTAS.map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setRaiz(n)}
-                className="rounded-lg px-3 py-1.5 text-sm font-bold"
-                style={{
-                  background: n === raiz ? "oklch(0.5 0.13 148)" : "oklch(0.24 0.015 260)",
-                  color: n === raiz ? "white" : "oklch(0.85 0.01 260)",
-                }}
-              >
+              <button key={n} type="button" onClick={() => setRaiz(n)} className="rounded-lg px-3 py-1.5 text-sm font-bold" style={n === raiz ? activoStyle : inactivoStyle}>
                 {n}
               </button>
             ))}
           </div>
           <div className="flex gap-1.5">
             {(["mayor", "menor"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setModo(m)}
-                className="rounded-lg px-3 py-1.5 text-sm font-bold"
-                style={{
-                  background: m === modo ? "oklch(0.5 0.13 148)" : "oklch(0.24 0.015 260)",
-                  color: m === modo ? "white" : "oklch(0.85 0.01 260)",
-                }}
-              >
+              <button key={m} type="button" onClick={() => setModo(m)} className="rounded-lg px-3 py-1.5 text-sm font-bold" style={m === modo ? activoStyle : inactivoStyle}>
                 {m}
               </button>
             ))}
@@ -228,7 +212,7 @@ export function CancionForm({
 
         <div className="flex flex-col gap-4">
           {secciones.map((s, si) => (
-            <div key={si} className="rounded-xl p-4" style={{ background: "oklch(0.185 0.008 260)", border: "1px solid oklch(0.28 0.01 260)" }}>
+            <div key={si} className="rounded-xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
               <div className="mb-3 flex items-center gap-3">
                 <SeccionNombreSelector valor={s.nombre} onCambio={(nombre) => actualizarSeccion(si, { nombre })} />
                 <div className="flex gap-1">
@@ -245,6 +229,15 @@ export function CancionForm({
                     ↓
                   </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => duplicarSeccion(si)}
+                  className="rounded-lg px-3 py-1.5 text-sm font-bold"
+                  style={inactivoStyle}
+                  title="Crea una copia idéntica de esta sección justo después"
+                >
+                  Duplicar
+                </button>
                 {secciones.length > 1 && (
                   <button
                     type="button"
@@ -271,10 +264,7 @@ export function CancionForm({
                       title="Agrega la novena al acorde"
                       onClick={() => actualizarAcorde(si, ai, { incluirNovena: !a.incluirNovena })}
                       className="whitespace-nowrap rounded-lg px-2.5 py-2 text-xs font-bold"
-                      style={{
-                        background: a.incluirNovena ? "oklch(0.5 0.13 148)" : "oklch(0.24 0.015 260)",
-                        color: a.incluirNovena ? "white" : "oklch(0.7 0.01 260)",
-                      }}
+                      style={a.incluirNovena ? activoStyle : inactivoStyle}
                     >
                       Agregar 9ª
                     </button>
@@ -304,7 +294,7 @@ export function CancionForm({
                   type="button"
                   onClick={() => agregarAcorde(si)}
                   className="mt-1 w-fit rounded-lg px-3 py-1.5 text-sm font-bold"
-                  style={{ border: "1px dashed oklch(0.4 0.02 260)", color: "oklch(0.7 0.01 260)" }}
+                  style={{ border: "1px dashed oklch(0.75 0.02 78)", color: "oklch(0.5 0.02 55)" }}
                 >
                   + Agregar acorde
                 </button>
@@ -316,7 +306,7 @@ export function CancionForm({
             type="button"
             onClick={() => setSecciones((prev) => [...prev, nuevaSeccion()])}
             className="w-fit rounded-lg px-4 py-2 text-sm font-bold"
-            style={{ border: "1px dashed oklch(0.4 0.02 260)", color: "oklch(0.7 0.01 260)" }}
+            style={{ border: "1px dashed oklch(0.75 0.02 78)", color: "oklch(0.5 0.02 55)" }}
           >
             + Agregar sección
           </button>
@@ -329,13 +319,13 @@ export function CancionForm({
         )}
       </div>
 
-      <div className="shrink-0 pt-4" style={{ borderTop: "1px solid oklch(0.28 0.01 260)" }}>
+      <div className="shrink-0 pt-4" style={{ borderTop: "1px solid oklch(0.89 0.013 78)" }}>
         <button
           type="button"
           disabled={pending}
           onClick={onSubmit}
-          className="w-fit rounded-xl px-6 py-3 text-sm font-bold text-white disabled:opacity-50"
-          style={{ background: "oklch(0.5 0.13 148)" }}
+          className="w-fit rounded-xl px-6 py-3 text-sm font-bold disabled:opacity-50"
+          style={activoStyle}
         >
           {pending ? "Guardando..." : cancionExistente ? "Guardar cambios" : "Guardar canción"}
         </button>

@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias } from "@/lib/malgestoEventos";
 import { obtenerCanciones } from "@/lib/cancionesData";
 import { TabBar } from "@/components/shell/TabBar";
+import { RecordarBandaActiva } from "@/components/canciones/RecordarBandaActiva";
 
 // Lista de canciones filtrada por banda activa, igual que el Calendario. Con
 // más de una banda, el filtro es por link con ?banda=id (server-rendered,
@@ -31,14 +33,20 @@ export default async function CancionesPage({
   const membresiasConBloque = membresias.filter((m) => m.cancionesHabilitado);
   if (membresiasConBloque.length === 0) redirect("/inicio");
 
+  // Brief 12 §3: si no vino ?banda= en la URL, cae a la última banda que el
+  // navegador recuerde (cookie de sesión) antes de usar la primera por
+  // defecto — así volver desde el tab de abajo no reinicia siempre a ODR.
+  const bandaCookie = (await cookies()).get("malgesto_banda_canciones")?.value;
   const bandaValida = membresiasConBloque.some((m) => m.bandaId === bandaParam);
-  const bandaActiva = bandaValida ? bandaParam! : membresiasConBloque[0].bandaId;
+  const bandaCookieValida = membresiasConBloque.some((m) => m.bandaId === bandaCookie);
+  const bandaActiva = bandaValida ? bandaParam! : bandaCookieValida ? bandaCookie! : membresiasConBloque[0].bandaId;
   const nombreBandaActiva = membresiasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
 
   const canciones = await obtenerCanciones([bandaActiva]);
 
   return (
     <div className="min-h-screen pb-32" style={{ background: "oklch(0.965 0.012 82)" }}>
+      <RecordarBandaActiva bandaId={bandaActiva} />
       <div className="mx-auto max-w-2xl px-5 pt-5">
         <div
           className="font-mono text-[10px] tracking-[0.14em] uppercase"

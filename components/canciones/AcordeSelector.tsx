@@ -17,12 +17,14 @@ const ETIQUETA_CALIDAD: Record<Calidad, string> = {
   "7": "7", maj7: "maj7", m7: "m7", dim7: "dim7", m7b5: "m7b5", sus2: "sus2", sus4: "sus4",
 };
 
-const panelStyle = { background: "oklch(0.16 0.008 260)", border: "1px solid oklch(0.32 0.02 260)" };
-const etiquetaStyle = { color: "oklch(0.55 0.01 260)" };
+const panelStyle = { background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", boxShadow: "0 16px 32px -16px rgba(0,0,0,0.25)" };
+const etiquetaStyle = { color: "oklch(0.55 0.02 55)" };
+const inactivoStyle = { background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" };
+const activoStyle = { background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" };
 
-// Selector de acordes por botones (brief §6): arriba los 7 diatónicos de la
-// tonalidad, abajo construcción manual (nota + calidad) para lo que se sale
-// de la tonalidad. No hay dropdowns.
+// Selector de acordes por botones (Brief 4 §6, tema claro desde Brief 12
+// §6): arriba los 7 diatónicos de la tonalidad, abajo construcción manual
+// (nota + calidad) para lo que se sale de la tonalidad. No hay dropdowns.
 export function AcordeSelector({
   tonalidad,
   notaRaiz,
@@ -54,7 +56,7 @@ export function AcordeSelector({
         type="button"
         onClick={() => setAbierto((v) => !v)}
         className="rounded-lg px-3 py-2 text-sm font-bold"
-        style={{ background: colorRaizAcorde(notaRaiz, calidad), color: "oklch(0.18 0.01 260)", minWidth: 76 }}
+        style={{ background: colorRaizAcorde(notaRaiz, calidad), color: "oklch(0.99 0.01 82)", minWidth: 76 }}
       >
         {simboloAcorde(notaRaiz, calidad)}
       </button>
@@ -72,7 +74,7 @@ export function AcordeSelector({
                 title={d.romano}
                 onClick={() => elegir(d.raiz, d.calidad)}
                 className="rounded-lg px-2.5 py-1.5 text-xs font-bold"
-                style={{ background: colorRaizAcorde(d.raiz, d.calidad), color: "oklch(0.18 0.01 260)" }}
+                style={{ background: colorRaizAcorde(d.raiz, d.calidad), color: "oklch(0.99 0.01 82)" }}
               >
                 {d.simbolo}
               </button>
@@ -89,10 +91,7 @@ export function AcordeSelector({
                 type="button"
                 onClick={() => setNotaManual(n)}
                 className="rounded-lg px-2.5 py-1.5 text-xs font-bold"
-                style={{
-                  background: notaManual === n ? "oklch(0.5 0.13 148)" : "oklch(0.24 0.015 260)",
-                  color: notaManual === n ? "white" : "oklch(0.85 0.01 260)",
-                }}
+                style={notaManual === n ? activoStyle : inactivoStyle}
               >
                 {n}
               </button>
@@ -110,7 +109,7 @@ export function AcordeSelector({
                 disabled={!notaManual}
                 onClick={() => notaManual && elegir(notaManual, c)}
                 className="rounded-lg px-2.5 py-1.5 text-xs font-bold disabled:opacity-30"
-                style={{ background: "oklch(0.24 0.015 260)", color: "oklch(0.85 0.01 260)" }}
+                style={inactivoStyle}
               >
                 {ETIQUETA_CALIDAD[c]}
               </button>

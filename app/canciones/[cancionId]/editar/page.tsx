@@ -28,13 +28,18 @@ export default async function EditarCancionPage({
   if (!banda) notFound();
 
   return (
-    <div className="flex h-screen flex-col box-border px-6 py-8 md:px-16 md:py-11" style={{ color: "oklch(0.95 0.005 260)" }}>
+    <div
+      className="flex h-screen flex-col box-border px-6 py-8 md:px-16 md:py-11"
+      style={{ background: "oklch(0.965 0.012 82)", color: "oklch(0.24 0.02 55)" }}
+    >
       <Link href={`/canciones/${cancionId}`} className="mb-1.5 flex w-fit items-center gap-3.5 no-underline">
-        <span className="text-sm" style={{ color: "oklch(0.6 0.01 260)" }}>
+        <span className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
           ‹ {banda.bandaNombre} · {cancion.titulo}
         </span>
       </Link>
-      <div className="mb-8 text-[32px] font-extrabold">Editar canción</div>
+      <div className="mb-8 text-[32px] font-extrabold" style={{ fontFamily: "var(--font-bricolage), sans-serif" }}>
+        Editar canción
+      </div>
       <div className="min-h-0 flex-1">
         <CancionForm bandaId={banda.bandaId} cancionExistente={cancion} />
       </div>

@@ -6,6 +6,7 @@ export const NOMBRES_SECCION = [
   "Verso 1", "Verso 2", "Verso 3", "Verso 4", "Verso 5",
   "Coro 1", "Coro 2", "Coro 3",
   "Puente",
+  "Solo",
   "Outro",
   "Sección Única",
 ] as const;

@@ -122,11 +122,16 @@ const CATEGORIA_COLOR_POR_CALIDAD: Record<Calidad, CategoriaColor> = {
   disminuido: "tenue", dim7: "tenue", m7b5: "tenue", aumentado: "tenue", sus2: "tenue", sus4: "tenue",
 };
 
+// Brief 12 §6: intensidades recalibradas para tema claro (antes pensadas
+// para texto de color sobre fondo oscuro — "tenue" en particular con
+// l:82 quedaba invisible sobre una tarjeta clara). El hue por nota no
+// cambia, solo qué tan oscuro es el tono para que siga siendo legible como
+// texto sobre blanco/crema.
 const INTENSIDAD_POR_CATEGORIA: Record<CategoriaColor, { s: number; l: number }> = {
-  mayor: { s: 70, l: 50 },
-  dominante: { s: 60, l: 55 },
-  menor: { s: 45, l: 68 },
-  tenue: { s: 25, l: 82 },
+  mayor: { s: 65, l: 42 },
+  dominante: { s: 60, l: 40 },
+  menor: { s: 45, l: 45 },
+  tenue: { s: 30, l: 48 },
 };
 
 export function colorRaizAcorde(raiz: Nota, calidad: Calidad): string {
@@ -135,9 +140,15 @@ export function colorRaizAcorde(raiz: Nota, calidad: Calidad): string {
   return `hsl(${hue} ${s}% ${l}%)`;
 }
 
-const S_EXTENSION = 55;
-const L_EXTENSION = 60;
+const S_EXTENSION = 60;
+const L_EXTENSION = 40;
 
 export function colorExtension(nota: Nota): string {
   return `hsl(${huePorNota(nota)} ${S_EXTENSION}% ${L_EXTENSION}%)`;
+}
+
+// Inserta un canal alfa en un color hsl(...) ya armado — mismo truco que
+// colorConAlpha en lib/eventoUI.ts, pero para hsl en vez de oklch.
+export function colorConAlphaHSL(color: string, alpha: number): string {
+  return color.replace(/\)$/, ` / ${alpha})`);
 }
