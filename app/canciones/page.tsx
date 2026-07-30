@@ -45,7 +45,7 @@ export default async function CancionesPage({
   const canciones = await obtenerCanciones([bandaActiva]);
 
   return (
-    <div className="min-h-screen pb-32" style={{ background: "oklch(0.965 0.012 82)" }}>
+    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
       <RecordarBandaActiva bandaId={bandaActiva} />
       <div className="mx-auto max-w-2xl px-5 pt-5">
         <div

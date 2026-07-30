@@ -35,7 +35,7 @@ export default async function SetListPage({
   const crear = crearSetlistAction.bind(null, bandaActiva);
 
   return (
-    <div className="min-h-screen pb-32" style={{ background: "oklch(0.965 0.012 82)" }}>
+    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
       <div className="mx-auto max-w-2xl px-5 pt-5">
         <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
           {nombreBandaActiva}

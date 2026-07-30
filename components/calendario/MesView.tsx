@@ -1,7 +1,7 @@
 "use client";
 
-import type { Evento } from "@/lib/malgestoEventos";
-import { COLOR_TIPO, colorConAlpha } from "@/lib/eventoUI";
+import type { Evento, Membresia } from "@/lib/malgestoEventos";
+import { COLOR_TIPO, colorConAlpha, colorPorIndiceBanda } from "@/lib/eventoUI";
 import { celdasDelMes, esMismoDia, mismoMesAno } from "@/lib/fechas";
 import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 
@@ -17,12 +17,14 @@ function estaEnRangoGira(dia: Date, gira: Evento): boolean {
 export function MesView({
   mes,
   eventos,
+  membresias,
   diaSeleccionado,
   onDiaClick,
   onEventoClick,
 }: {
   mes: Date;
   eventos: Evento[];
+  membresias: Membresia[];
   diaSeleccionado: Date | null;
   onDiaClick: (dia: Date) => void;
   onEventoClick: (evento: Evento) => void;
@@ -30,6 +32,9 @@ export function MesView({
   const hoy = ahoraEnZonaApp();
   const celdas = celdasDelMes(mes);
   const giras = eventos.filter((e) => e.tipo === "gira");
+  // Brief 18 §6: mismo color por banda que BandaFilterChips (índice en
+  // `membresias`, no un color fijo por tipo de evento).
+  const colorPorBanda = new Map(membresias.map((m, i) => [m.bandaId, colorPorIndiceBanda(i)]));
 
   return (
     <div>
@@ -46,6 +51,9 @@ export function MesView({
           const eventosDelDia = eventos.filter(
             (e) => e.tipo !== "gira" && esMismoDia(enZonaApp(e.fechaInicio), dia)
           );
+          // Brief 18 §6: un punto por BANDA con evento ese día (no uno por
+          // evento) — los no-gira siempre tienen una sola bandaId propia.
+          const bandaIdsDelDia = [...new Set(eventosDelDia.map((e) => e.bandaId))];
           const giraDelDia = giras.find((g) => estaEnRangoGira(dia, g));
 
           let bg = "transparent";
@@ -85,11 +93,11 @@ export function MesView({
               {dia.getDate()}
               <div className="mt-0.5 flex h-[5px] gap-0.5">
                 {!fueraDeMes &&
-                  eventosDelDia.slice(0, 3).map((e) => (
+                  bandaIdsDelDia.slice(0, 3).map((bandaId) => (
                     <span
-                      key={e.id}
+                      key={bandaId}
                       className="h-[5px] w-[5px] rounded-full"
-                      style={{ background: COLOR_TIPO[e.tipo] }}
+                      style={{ background: colorPorBanda.get(bandaId) ?? colorPorIndiceBanda(0) }}
                     />
                   ))}
               </div>

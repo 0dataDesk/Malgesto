@@ -44,6 +44,11 @@ export function CalendarioShell({
   const [mostrarForm, setMostrarForm] = useState(false);
   const [eventoEnEdicion, setEventoEnEdicion] = useState<Evento | undefined>(undefined);
   const [fechaParaForm, setFechaParaForm] = useState<Date>(() => new Date());
+  // Brief 18 §5: la fila "Todas tus bandas" se colapsa al scrollear la lista
+  // de abajo, para darle más aire a "Próximos eventos" — el grid del mes y
+  // los chips ya son fijos (viven en el bloque `shrink-0` de arriba), así
+  // que al colapsar esa fila los chips quedan pegados debajo de "Mes/Año".
+  const [scrolleado, setScrolleado] = useState(false);
 
   // Para la grilla del mes / selección de día: ventana centro±1 año, así
   // navegar meses hacia atrás o adelante sigue mostrando el cumpleaños
@@ -123,19 +128,9 @@ export function CalendarioShell({
     listaContenido = <AgendaView eventos={eventosFiltradosAgenda} onEventoClick={setEventoSeleccionado} />;
   } else if (eventosDelDia.length === 0) {
     listaContenido = (
-      <div className="flex flex-col items-center gap-3 pt-10 text-center">
-        <p className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
-          Sin eventos este día.
-        </p>
-        <button
-          type="button"
-          onClick={() => abrirNuevoEnDia(diaSeleccionado)}
-          className="rounded-xl px-4 py-2.5 text-sm font-bold"
-          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
-        >
-          + Nuevo evento este día
-        </button>
-      </div>
+      <p className="pt-10 text-center text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+        Sin eventos este día.
+      </p>
     );
   } else if (eventosDelDia.length === 1 || eventoDelDiaElegido) {
     const eventoAMostrar = eventoDelDiaElegido ?? eventosDelDia[0];
@@ -145,6 +140,7 @@ export function CalendarioShell({
         evento={eventoAMostrar}
         giras={giras.filter((g) => g.bandaIds.some((id) => eventoAMostrar.bandaIds.includes(id)))}
         setlists={setlists.filter((s) => s.bandaId === eventoAMostrar.bandaId)}
+        puedeEditar={esSuperadmin}
         onCerrar={() => (eventosDelDia.length > 1 ? setEventoDelDiaElegido(null) : quitarSeleccionDia())}
         onEditar={abrirEdicion}
         onEliminado={() => {
@@ -152,7 +148,6 @@ export function CalendarioShell({
           setDiaSeleccionado(null);
           router.refresh();
         }}
-        onNuevoEnDia={() => abrirNuevoEnDia(diaSeleccionado)}
       />
     );
   } else {
@@ -188,16 +183,17 @@ export function CalendarioShell({
   return (
     <div className="flex h-dvh flex-col overflow-hidden" style={{ background: "oklch(0.965 0.012 82)" }}>
       <div className="mx-auto w-full max-w-2xl shrink-0 px-5 pt-5">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
-              Todas tus bandas
-            </div>
-            <h2 className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]" style={{ ...fuenteEncabezado, color: "oklch(0.24 0.02 55)" }}>
-              {nombreMesAno(mes)}
-            </h2>
+        <div
+          className="overflow-hidden transition-all duration-200"
+          style={{ maxHeight: scrolleado ? 0 : 40, opacity: scrolleado ? 0 : 1 }}
+        >
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+            Todas tus bandas
           </div>
         </div>
+        <h2 className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]" style={{ ...fuenteEncabezado, color: "oklch(0.24 0.02 55)" }}>
+          {nombreMesAno(mes)}
+        </h2>
 
         <BandaFilterChips membresias={membresias} activas={activas} onToggle={toggleBanda} />
 
@@ -211,11 +207,21 @@ export function CalendarioShell({
         </div>
 
         <div className="mt-4">
-          <MesView mes={mes} eventos={eventosFiltrados} diaSeleccionado={diaSeleccionado} onDiaClick={onDiaClick} onEventoClick={setEventoSeleccionado} />
+          <MesView
+            mes={mes}
+            eventos={eventosFiltrados}
+            membresias={membresias}
+            diaSeleccionado={diaSeleccionado}
+            onDiaClick={onDiaClick}
+            onEventoClick={setEventoSeleccionado}
+          />
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-2xl flex-1 overflow-y-auto px-5 pb-32 pt-4">
+      <div
+        className="mx-auto w-full max-w-2xl flex-1 overflow-y-auto px-5 pb-20 pt-4"
+        onScroll={(e) => setScrolleado(e.currentTarget.scrollTop > 8)}
+      >
         <div className="mb-2 flex items-center justify-between">
           <span className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
             {diaSeleccionado ? diaSeleccionado.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" }) : "Próximos eventos"}
@@ -227,6 +233,21 @@ export function CalendarioShell({
           )}
         </div>
         {listaContenido}
+
+        {/* Brief 18 §2: acción del DÍA, separada de las acciones del evento
+            (Editar/Eliminar viven dentro de la tarjeta de EventoDetalle) —
+            por eso va acá, después de todo el contenido del día, no dentro
+            de la tarjeta. Brief 18 §3: solo superadmin crea eventos. */}
+        {diaSeleccionado && esSuperadmin && (
+          <button
+            type="button"
+            onClick={() => abrirNuevoEnDia(diaSeleccionado)}
+            className="mt-5 w-full rounded-xl py-2.5 text-center text-sm font-bold"
+            style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+          >
+            + Nuevo evento este día
+          </button>
+        )}
       </div>
 
       <TabBar
@@ -243,6 +264,7 @@ export function CalendarioShell({
           evento={eventoSeleccionado}
           giras={giras.filter((g) => g.bandaIds.some((id) => eventoSeleccionado.bandaIds.includes(id)))}
           setlists={setlists.filter((s) => s.bandaId === eventoSeleccionado.bandaId)}
+          puedeEditar={esSuperadmin}
           onCerrar={() => setEventoSeleccionado(null)}
           onEditar={abrirEdicion}
           onEliminado={() => {

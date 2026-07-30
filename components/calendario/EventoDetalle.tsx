@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import type { Evento } from "@/lib/malgestoEventos";
 import { COLOR_TIPO, ETIQUETA_TIPO, formatoMoneda } from "@/lib/eventoUI";
 import { enZonaApp } from "@/lib/zonaHoraria";
-import { asignarGiraAction, asignarSetlistAction, eliminarEventoAction } from "@/app/inicio/actions";
+import { eliminarEventoAction } from "@/app/inicio/actions";
 
 type SetlistOpcion = { id: string; nombre: string };
 
@@ -17,22 +17,20 @@ export function EventoDetalle({
   giras,
   setlists,
   inline = false,
+  puedeEditar,
   onCerrar,
   onEditar,
   onEliminado,
-  onNuevoEnDia,
 }: {
   evento: Evento;
   giras: Evento[];
   setlists: SetlistOpcion[];
   inline?: boolean;
+  puedeEditar: boolean;
   onCerrar: () => void;
   onEditar: (evento: Evento) => void;
   onEliminado: () => void;
-  onNuevoEnDia?: () => void;
 }) {
-  const [pendienteGira, startGira] = useTransition();
-  const [pendienteSetlist, startSetlist] = useTransition();
   const [pendienteEliminar, startEliminar] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -52,27 +50,10 @@ export function EventoDetalle({
   const linkMaps = evento.lugarLinkMaps;
   const nombreUbicacion = evento.lugarNombre;
 
-  const cambiarGira = (giraId: string) => {
-    setError(null);
-    startGira(async () => {
-      try {
-        await asignarGiraAction(evento.id, evento.bandaId, giraId || null);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "No se pudo asignar la gira.");
-      }
-    });
-  };
-
-  const cambiarSetlist = (setlistId: string) => {
-    setError(null);
-    startSetlist(async () => {
-      try {
-        await asignarSetlistAction(evento.id, evento.bandaId, setlistId || null);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "No se pudo asignar el Set List.");
-      }
-    });
-  };
+  // Brief 18 §1: acá es solo lectura — asignar/cambiar gira o Set List se
+  // hace desde el modo de edición del evento (NuevoEventoForm).
+  const giraAsignada = evento.giraId ? giras.find((g) => g.id === evento.giraId) : null;
+  const setlistAsignado = evento.setlistId ? setlists.find((s) => s.id === evento.setlistId) : null;
 
   const eliminar = () => {
     if (!confirm(`¿Eliminar "${evento.titulo}"? Esta acción no se puede deshacer.`)) return;
@@ -101,7 +82,7 @@ export function EventoDetalle({
           {ETIQUETA_TIPO[evento.tipo]}
         </span>
         <div className="flex items-center gap-3">
-          {evento.tipo !== "cumpleanos" && (
+          {evento.tipo !== "cumpleanos" && puedeEditar && (
             <button type="button" onClick={() => onEditar(evento)} className="text-sm font-bold" style={{ color: "oklch(0.64 0.15 34)" }}>
               Editar
             </button>
@@ -141,53 +122,25 @@ export function EventoDetalle({
         </div>
       )}
 
-      {evento.tipo === "show" && (
+      {giraAsignada && (
         <div className="mt-3 rounded-2xl p-3.5" style={{ background: "oklch(0.93 0.016 78)" }}>
           <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
             Gira
           </div>
-          <select
-            className="mt-1.5 w-full rounded-lg border px-2.5 py-2 text-sm"
-            style={{ background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" }}
-            value={evento.giraId ?? ""}
-            disabled={pendienteGira}
-            onChange={(e) => cambiarGira(e.target.value)}
-          >
-            <option value="">Sin gira</option>
-            {giras.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.titulo}
-              </option>
-            ))}
-          </select>
+          <div className="mt-1 text-[15px]" style={{ color: "oklch(0.24 0.02 55)" }}>
+            {giraAsignada.titulo}
+          </div>
         </div>
       )}
 
-      {(evento.tipo === "show" || evento.tipo === "ensayo") && (
+      {setlistAsignado && (
         <div className="mt-3 rounded-2xl p-3.5" style={{ background: "oklch(0.93 0.016 78)" }}>
           <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
             Set List
           </div>
-          {setlists.length === 0 ? (
-            <div className="mt-1 text-[15px]" style={{ color: "oklch(0.5 0.02 55)" }}>
-              Sin Set Lists todavía para esta banda
-            </div>
-          ) : (
-            <select
-              className="mt-1.5 w-full rounded-lg border px-2.5 py-2 text-sm"
-              style={{ background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" }}
-              value={evento.setlistId ?? ""}
-              disabled={pendienteSetlist}
-              onChange={(e) => cambiarSetlist(e.target.value)}
-            >
-              <option value="">Sin Set List asignado</option>
-              {setlists.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nombre}
-                </option>
-              ))}
-            </select>
-          )}
+          <div className="mt-1 text-[15px]" style={{ color: "oklch(0.24 0.02 55)" }}>
+            {setlistAsignado.nombre}
+          </div>
         </div>
       )}
 
@@ -208,23 +161,12 @@ export function EventoDetalle({
         </p>
       )}
 
-      {onNuevoEnDia && (
-        <button
-          type="button"
-          onClick={onNuevoEnDia}
-          className="mt-5 w-full rounded-xl py-2.5 text-center text-sm font-bold"
-          style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
-        >
-          + Nuevo evento este día
-        </button>
-      )}
-
-      {evento.tipo !== "cumpleanos" && (
+      {evento.tipo !== "cumpleanos" && puedeEditar && (
         <button
           type="button"
           onClick={eliminar}
           disabled={pendienteEliminar}
-          className="mt-3 w-full text-center text-sm font-semibold disabled:opacity-50"
+          className="mt-5 w-full text-center text-sm font-semibold disabled:opacity-50"
           style={{ color: "oklch(0.6 0.15 25)" }}
         >
           {pendienteEliminar ? "Eliminando…" : "Eliminar evento"}
