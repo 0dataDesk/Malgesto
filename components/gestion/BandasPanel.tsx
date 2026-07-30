@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import type { BandaSimple, ActualizacionBanda, Plaza } from "@/lib/gestionData";
 import { INSTRUMENTOS, ETIQUETA_INSTRUMENTO, etiquetaPlaza, type Instrumento } from "@/lib/instrumentoCatalogo";
 import { ToggleChip } from "@/components/ui/ToggleChip";
-import { crearBandaAction, actualizarBandaAction, crearPlazasAction, eliminarPlazaAction } from "@/app/gestion/actions";
+import { crearBandaAction, actualizarBandaAction, crearPlazaAction, eliminarPlazaAction } from "@/app/gestion/actions";
 
 const inputCls = "w-full rounded-lg border px-3 py-2 text-sm outline-none";
 const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
@@ -70,9 +70,9 @@ function InstrumentoDropdown({
 }
 
 function InstrumentosDeLaBanda({ bandaId, plazas, onPlazas }: { bandaId: string; plazas: Plaza[]; onPlazas: (p: Plaza[]) => void }) {
-  // Brief 13 §3: un instrumento ya agregado desaparece de las opciones (la
-  // cantidad ya cubre "más de uno") — "otro" es la excepción, se puede
-  // repetir con etiquetas distintas cada vez.
+  // Brief 13 §3/Brief 14 §1: un instrumento del catálogo fijo se agrega una
+  // sola vez por banda, así que desaparece de las opciones una vez agregado
+  // — "otro" es la excepción, se puede repetir con etiquetas distintas.
   const usados = new Set(plazas.map((p) => p.instrumento));
   const opciones = INSTRUMENTOS.filter((i) => i === "otro" || !usados.has(i));
 
@@ -81,7 +81,6 @@ function InstrumentosDeLaBanda({ bandaId, plazas, onPlazas }: { bandaId: string;
   const esOtro = instrumento === "otro";
 
   const [etiqueta, setEtiqueta] = useState("");
-  const [cantidad, setCantidad] = useState(1);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -93,10 +92,9 @@ function InstrumentosDeLaBanda({ bandaId, plazas, onPlazas }: { bandaId: string;
     }
     startTransition(async () => {
       try {
-        const nuevas = await crearPlazasAction(bandaId, instrumento, esOtro ? etiqueta.trim() : null, esOtro ? 1 : cantidad);
-        onPlazas([...plazas, ...nuevas]);
+        const nueva = await crearPlazaAction(bandaId, instrumento, esOtro ? etiqueta.trim() : null);
+        onPlazas([...plazas, nueva]);
         setEtiqueta("");
-        setCantidad(1);
         setInstrumentoElegido(null);
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo agregar el instrumento.");
@@ -125,11 +123,11 @@ function InstrumentosDeLaBanda({ bandaId, plazas, onPlazas }: { bandaId: string;
           Todavía no hay instrumentos definidos para esta banda.
         </p>
       ) : (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2.5">
           {plazas.map((p) => (
             <span
               key={p.id}
-              className="flex items-center gap-1.5 rounded-full py-1 pl-3 pr-1.5 text-xs font-semibold"
+              className="flex items-center gap-2 rounded-full py-1.5 pl-4 pr-2 text-xs font-semibold"
               style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
             >
               {etiquetaPlaza(p.instrumento, p.etiqueta)}
@@ -148,25 +146,15 @@ function InstrumentosDeLaBanda({ bandaId, plazas, onPlazas }: { bandaId: string;
         </div>
       )}
 
-      <div className="mt-2 flex gap-1.5">
+      <div className="mt-2.5 flex gap-1.5">
         <InstrumentoDropdown value={instrumento} opciones={opciones} onSeleccionar={setInstrumentoElegido} />
-        {esOtro ? (
+        {esOtro && (
           <input
             value={etiqueta}
             onChange={(e) => setEtiqueta(e.target.value)}
             placeholder="Etiqueta"
             className={`${inputCls} flex-1`}
             style={inputStyle}
-          />
-        ) : (
-          <input
-            type="number"
-            min={1}
-            value={cantidad}
-            onChange={(e) => setCantidad(Math.max(1, Number(e.target.value) || 1))}
-            className={`${inputCls} w-20 shrink-0`}
-            style={inputStyle}
-            aria-label="Cantidad"
           />
         )}
         <button

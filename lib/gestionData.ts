@@ -124,20 +124,17 @@ export async function obtenerPlazas(bandaIds: string[]): Promise<Plaza[]> {
   return (data ?? []).map((p) => ({ id: p.id, bandaId: p.banda_id, instrumento: p.instrumento, etiqueta: p.etiqueta }));
 }
 
-// Brief 10 §3: "Otro" siempre crea una sola plaza con su etiqueta libre (cada
-// una probablemente significa algo distinto); cualquier otro instrumento del
-// catálogo fijo no lleva etiqueta y puede crear varias filas de una — la
-// cantidad no aplica a "otro".
-export async function crearPlazas(bandaId: string, instrumento: string, etiqueta: string | null, cantidad: number): Promise<Plaza[]> {
+// Brief 13 §1: cada instrumento del catálogo fijo se agrega una sola vez por
+// banda (ya se quita de las opciones una vez agregado, ver BandasPanel), así
+// que "cantidad" no tiene sentido — cada alta crea exactamente una plaza.
+// "Otro" sigue siendo la excepción con etiqueta libre.
+export async function crearPlaza(bandaId: string, instrumento: string, etiqueta: string | null): Promise<Plaza> {
   const admin = supabaseMalgesto();
-  const filas =
-    instrumento === "otro"
-      ? [{ banda_id: bandaId, instrumento, etiqueta }]
-      : Array.from({ length: Math.max(1, cantidad) }, () => ({ banda_id: bandaId, instrumento, etiqueta: null }));
+  const fila = { banda_id: bandaId, instrumento, etiqueta: instrumento === "otro" ? etiqueta : null };
 
-  const { data, error } = await admin.from("plazas").insert(filas).select("id, banda_id, instrumento, etiqueta");
-  if (error || !data) throw new Error(error?.message ?? "No se pudo crear la plaza.");
-  return data.map((p) => ({ id: p.id, bandaId: p.banda_id, instrumento: p.instrumento, etiqueta: p.etiqueta }));
+  const { data, error } = await admin.from("plazas").insert(fila).select("id, banda_id, instrumento, etiqueta").single();
+  if (error || !data) throw new Error(error?.message ?? "No se pudo crear el instrumento.");
+  return { id: data.id, bandaId: data.banda_id, instrumento: data.instrumento, etiqueta: data.etiqueta };
 }
 
 export async function eliminarPlaza(plazaId: string): Promise<void> {
@@ -146,10 +143,43 @@ export async function eliminarPlaza(plazaId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+// Brief 13 §3: una plaza solo puede ser ocupada por integrantes de la misma
+// banda (la UI ya filtra por membresía activa, esto es el resguardo de
+// servidor) y solo por una persona a la vez (garantizado por el constraint
+// UNIQUE(plaza_id) en la DB — acá solo traducimos el 23505 a un mensaje claro).
 export async function asignarPersonaAPlaza(usuarioId: string, plazaId: string): Promise<void> {
   const admin = supabaseMalgesto();
+
+  const { data: plaza, error: errorPlaza } = await admin.from("plazas").select("banda_id").eq("id", plazaId).single();
+  if (errorPlaza || !plaza) throw new Error("No se encontró el instrumento.");
+
+  const { data: miembro } = await admin
+    .from("miembros_banda")
+    .select("id")
+    .eq("usuario_id", usuarioId)
+    .eq("banda_id", plaza.banda_id)
+    .eq("activo", true)
+    .maybeSingle();
+  if (!miembro) throw new Error("Esta persona no pertenece a la banda de este instrumento.");
+
   const { error } = await admin.from("persona_plazas").upsert({ persona_id: usuarioId, plaza_id: plazaId }, { onConflict: "persona_id,plaza_id" });
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (error.code === "23505") {
+      const nombre = await nombreOcupantePlaza(plazaId);
+      throw new Error(nombre ? `Esta plaza ya está ocupada por ${nombre}.` : "Esta plaza ya está ocupada por otra persona.");
+    }
+    throw new Error(error.message);
+  }
+}
+
+async function nombreOcupantePlaza(plazaId: string): Promise<string | null> {
+  const admin = supabaseMalgesto();
+  const { data: fila } = await admin.from("persona_plazas").select("persona_id").eq("plaza_id", plazaId).maybeSingle();
+  if (!fila) return null;
+  const { data: persona } = await admin.from("personas").select("nombre_mostrar").eq("usuario_id", fila.persona_id).maybeSingle();
+  if (persona?.nombre_mostrar) return persona.nombre_mostrar;
+  const { data: usuario } = await admin.auth.admin.getUserById(fila.persona_id);
+  return usuario?.user?.email ?? null;
 }
 
 export async function quitarPersonaDePlaza(usuarioId: string, plazaId: string): Promise<void> {

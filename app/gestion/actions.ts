@@ -7,7 +7,7 @@ import {
   actualizarBanda,
   archivarBanda,
   eliminarBanda,
-  crearPlazas,
+  crearPlaza,
   eliminarPlaza,
   asignarPersonaAPlaza,
   quitarPersonaDePlaza,
@@ -48,11 +48,11 @@ export async function eliminarBandaAction(bandaId: string): Promise<void> {
   revalidatePath("/gestion");
 }
 
-export async function crearPlazasAction(bandaId: string, instrumento: string, etiqueta: string | null, cantidad: number) {
+export async function crearPlazaAction(bandaId: string, instrumento: string, etiqueta: string | null) {
   await requerirSuperadmin();
-  const plazas = await crearPlazas(bandaId, instrumento, etiqueta, cantidad);
+  const plaza = await crearPlaza(bandaId, instrumento, etiqueta);
   revalidatePath("/gestion");
-  return plazas;
+  return plaza;
 }
 
 export async function eliminarPlazaAction(plazaId: string): Promise<void> {
