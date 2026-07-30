@@ -7,8 +7,8 @@ export type PersonaConCumple = {
   usuarioId: string;
   nombre: string;
   fechaNacimiento: string; // "YYYY-MM-DD"
-  bandaId: string;
-  bandaNombre: string;
+  bandaIds: string[];
+  bandaNombre: string; // bandas que corresponde mostrarle a quien mira la lista, ya unidas con ", "
 };
 
 function construirEvento(p: PersonaConCumple, anio: number): Evento {
@@ -17,9 +17,9 @@ function construirEvento(p: PersonaConCumple, anio: number): Evento {
   const dia = Number(partes[2]);
   const fecha = new Date(anio, mes, dia, 0, 0, 0);
   return {
-    id: `cumple-${p.usuarioId}-${p.bandaId}-${anio}`,
-    bandaId: p.bandaId,
-    bandaIds: [p.bandaId],
+    id: `cumple-${p.usuarioId}-${anio}`,
+    bandaId: p.bandaIds[0],
+    bandaIds: p.bandaIds,
     bandaNombre: p.bandaNombre,
     tipo: "cumpleanos",
     titulo: `Cumpleaños de ${p.nombre}`,

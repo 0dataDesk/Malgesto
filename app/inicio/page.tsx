@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
-import { obtenerMembresias, obtenerEventos } from "@/lib/malgestoEventos";
+import { obtenerMembresias, obtenerEventos, esSuperadminDeMembresias } from "@/lib/malgestoEventos";
 import { obtenerSetlists } from "@/lib/setlistsData";
 import { obtenerLugares } from "@/lib/lugaresData";
 import { obtenerCumpleanosDeMisBandas } from "@/lib/cumpleanos";
@@ -30,7 +30,7 @@ export default async function InicioPage() {
     obtenerEventos(bandaIds),
     obtenerSetlists(bandaIds),
     obtenerLugares(bandaIds),
-    obtenerCumpleanosDeMisBandas(bandaIds),
+    obtenerCumpleanosDeMisBandas(bandaIds, esSuperadminDeMembresias(membresias)),
   ]);
 
   return (
