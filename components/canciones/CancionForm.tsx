@@ -268,15 +268,15 @@ export function CancionForm({
                     />
                     <button
                       type="button"
-                      title="Incluir 9ª"
+                      title="Agrega la novena al acorde"
                       onClick={() => actualizarAcorde(si, ai, { incluirNovena: !a.incluirNovena })}
-                      className="rounded-lg px-2.5 py-2 text-xs font-bold"
+                      className="whitespace-nowrap rounded-lg px-2.5 py-2 text-xs font-bold"
                       style={{
                         background: a.incluirNovena ? "oklch(0.5 0.13 148)" : "oklch(0.24 0.015 260)",
                         color: a.incluirNovena ? "white" : "oklch(0.7 0.01 260)",
                       }}
                     >
-                      9ª
+                      Agregar 9ª
                     </button>
                     <input
                       type="number"

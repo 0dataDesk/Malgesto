@@ -7,5 +7,6 @@ export const NOMBRES_SECCION = [
   "Coro 1", "Coro 2", "Coro 3",
   "Puente",
   "Outro",
+  "Sección Única",
 ] as const;
 export type NombreSeccion = (typeof NOMBRES_SECCION)[number];
