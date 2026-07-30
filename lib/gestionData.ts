@@ -5,6 +5,7 @@ export type BandaSimple = {
   id: string;
   nombre: string;
   genero: string | null;
+  numeroIntegrantes: number | null;
   archivada: boolean;
   cancionesHabilitado: boolean;
   setlistHabilitado: boolean;
@@ -41,12 +42,13 @@ export async function obtenerBandasTodas(): Promise<BandaSimple[]> {
   const admin = supabaseMalgesto();
   const { data } = await admin
     .from("bandas")
-    .select("id, nombre, genero, archivada, canciones_habilitado, setlist_habilitado, seteos_habilitado")
+    .select("id, nombre, genero, numero_integrantes, archivada, canciones_habilitado, setlist_habilitado, seteos_habilitado")
     .order("nombre", { ascending: true });
   return (data ?? []).map((b) => ({
     id: b.id,
     nombre: b.nombre,
     genero: b.genero,
+    numeroIntegrantes: b.numero_integrantes,
     archivada: b.archivada,
     cancionesHabilitado: b.canciones_habilitado,
     setlistHabilitado: b.setlist_habilitado,
@@ -70,6 +72,7 @@ export async function crearBanda(nombre: string, usuarioIdCreador: string): Prom
 export type ActualizacionBanda = {
   nombre: string;
   genero: string | null;
+  numeroIntegrantes: number | null;
   cancionesHabilitado: boolean;
   setlistHabilitado: boolean;
   seteosHabilitado: boolean;
@@ -82,6 +85,7 @@ export async function actualizarBanda(bandaId: string, cambios: ActualizacionBan
     .update({
       nombre: cambios.nombre,
       genero: cambios.genero,
+      numero_integrantes: cambios.numeroIntegrantes,
       canciones_habilitado: cambios.cancionesHabilitado,
       setlist_habilitado: cambios.setlistHabilitado,
       seteos_habilitado: cambios.seteosHabilitado,

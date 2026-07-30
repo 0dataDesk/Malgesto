@@ -208,7 +208,7 @@ function FilaIntegrante({
                       <div className="ml-6 mt-1.5">
                         {plazasDeLaBanda.length === 0 ? (
                           <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
-                            Esta banda todavía no tiene plazas definidas.
+                            Esta banda todavía no tiene instrumentos definidos.
                           </p>
                         ) : (
                           <div className="flex flex-wrap gap-1.5">
