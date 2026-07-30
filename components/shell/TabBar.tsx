@@ -88,8 +88,8 @@ export function TabBar({
   return (
     <>
       <div className="fixed z-20 flex items-center gap-2" style={{ top: 14, right: 14 }}>
-        <CerrarSesionBoton userEmail={userEmail} />
         {esSuperadmin && <GestionBoton />}
+        <CerrarSesionBoton userEmail={userEmail} />
       </div>
       <div
         className="fixed inset-x-0 bottom-0 z-20"

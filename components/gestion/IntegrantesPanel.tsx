@@ -2,13 +2,12 @@
 
 import { useRef, useState, useTransition } from "react";
 import type { BandaSimple, PersonaPendiente, Integrante, Plaza } from "@/lib/gestionData";
-import { ETIQUETA_INSTRUMENTO } from "@/lib/instrumentoCatalogo";
+import { etiquetaPlaza } from "@/lib/instrumentoCatalogo";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import {
   invitarPersonaAction,
   ignorarPersonaPendienteAction,
-  actualizarNombreMostrarAction,
-  actualizarFechaNacimientoAction,
+  actualizarDatosPersonaAction,
   removerDeBandaAction,
   asignarABandaAction,
   asignarPersonaAPlazaAction,
@@ -30,12 +29,23 @@ const COLOR_ESTADO: Record<Integrante["estado"], string> = {
   inactivo: "oklch(0.55 0.02 55)",
 };
 
-function FilaIntegrante({ integrante, bandas, plazas }: { integrante: Integrante; bandas: BandaSimple[]; plazas: Plaza[] }) {
+function FilaIntegrante({
+  integrante,
+  bandas,
+  plazas,
+  usuarioActualId,
+}: {
+  integrante: Integrante;
+  bandas: BandaSimple[];
+  plazas: Plaza[];
+  usuarioActualId: string;
+}) {
   const [expandido, setExpandido] = useState(false);
   const [nombreMostrar, setNombreMostrar] = useState(integrante.nombreMostrar ?? "");
-  const [pendingNombre, startNombre] = useTransition();
   const [fechaNacimiento, setFechaNacimiento] = useState(integrante.fechaNacimiento ?? "");
-  const [pendingFecha, startFecha] = useTransition();
+  const [datosGuardados, setDatosGuardados] = useState({ nombreMostrar: integrante.nombreMostrar ?? "", fechaNacimiento: integrante.fechaNacimiento ?? "" });
+  const [pendingDatos, startDatos] = useTransition();
+  const [errorDatos, setErrorDatos] = useState<string | null>(null);
   const [bandasLocal, setBandasLocal] = useState(integrante.bandas);
   const [pendingBanda, setPendingBanda] = useState<string | null>(null);
   const [superadminLocal, setSuperadminLocal] = useState(integrante.esSuperadmin);
@@ -43,17 +53,20 @@ function FilaIntegrante({ integrante, bandas, plazas }: { integrante: Integrante
 
   const bandaAsignada = (bandaId: string) => bandasLocal.find((b) => b.bandaId === bandaId && b.activo);
 
-  const guardarNombre = () => {
-    if (!integrante.usuarioId) return;
-    startNombre(async () => {
-      await actualizarNombreMostrarAction(integrante.usuarioId!, nombreMostrar);
-    });
-  };
+  const hayCambiosDatos = nombreMostrar !== datosGuardados.nombreMostrar || fechaNacimiento !== datosGuardados.fechaNacimiento;
 
-  const guardarFecha = () => {
+  // Brief 10 §5: nombre para mostrar y fecha de nacimiento comparten un solo
+  // botón "Guardar" en vez de dos sueltos sin relación visual entre sí.
+  const guardarDatos = () => {
     if (!integrante.usuarioId) return;
-    startFecha(async () => {
-      await actualizarFechaNacimientoAction(integrante.usuarioId!, fechaNacimiento || null);
+    setErrorDatos(null);
+    startDatos(async () => {
+      try {
+        await actualizarDatosPersonaAction(integrante.usuarioId!, nombreMostrar, fechaNacimiento || null);
+        setDatosGuardados({ nombreMostrar, fechaNacimiento });
+      } catch (e) {
+        setErrorDatos(e instanceof Error ? e.message : "No se pudo guardar.");
+      }
     });
   };
 
@@ -96,6 +109,13 @@ function FilaIntegrante({ integrante, bandas, plazas }: { integrante: Integrante
 
   const toggleSuperadmin = () => {
     if (!integrante.usuarioId) return;
+    const esUnoMismo = integrante.usuarioId === usuarioActualId;
+    const mensaje = superadminLocal
+      ? esUnoMismo
+        ? "¿Seguro que querés quitarte el rol de superadmin a vos mismo?"
+        : `¿Seguro que querés quitarle el rol de superadmin a ${integrante.nombreMostrar || integrante.email}?`
+      : `¿Seguro que querés hacer superadmin a ${integrante.nombreMostrar || integrante.email}?`;
+    if (!confirm(mensaje)) return;
     startSuperadmin(async () => {
       await establecerSuperadminAction(integrante.usuarioId!, !superadminLocal);
       setSuperadminLocal((v) => !v);
@@ -134,47 +154,40 @@ function FilaIntegrante({ integrante, bandas, plazas }: { integrante: Integrante
             <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
               Nombre para mostrar
             </label>
-            <div className="flex gap-2">
-              <input
-                value={nombreMostrar}
-                onChange={(e) => setNombreMostrar(e.target.value)}
-                className="flex-1 rounded-lg border px-2.5 py-1.5 text-sm outline-none"
-                style={inputStyle}
-              />
-              <button
-                type="button"
-                onClick={guardarNombre}
-                disabled={pendingNombre}
-                className="shrink-0 rounded-lg px-3 text-xs font-bold disabled:opacity-60"
-                style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
-              >
-                Guardar
-              </button>
-            </div>
-          </div>
+            <input
+              value={nombreMostrar}
+              onChange={(e) => setNombreMostrar(e.target.value)}
+              className="w-full rounded-lg border px-2.5 py-1.5 text-sm outline-none"
+              style={inputStyle}
+            />
 
-          <div>
-            <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+            <label className="mb-1 mt-2.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
               Fecha de nacimiento
             </label>
-            <div className="flex gap-2">
-              <input
-                type="date"
-                value={fechaNacimiento}
-                onChange={(e) => setFechaNacimiento(e.target.value)}
-                className="flex-1 rounded-lg border px-2.5 py-1.5 text-sm outline-none"
-                style={inputStyle}
-              />
+            <input
+              type="date"
+              value={fechaNacimiento}
+              onChange={(e) => setFechaNacimiento(e.target.value)}
+              className="w-full rounded-lg border px-2.5 py-1.5 text-sm outline-none"
+              style={inputStyle}
+            />
+
+            {hayCambiosDatos && (
               <button
                 type="button"
-                onClick={guardarFecha}
-                disabled={pendingFecha}
-                className="shrink-0 rounded-lg px-3 text-xs font-bold disabled:opacity-60"
-                style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+                onClick={guardarDatos}
+                disabled={pendingDatos}
+                className="mt-2.5 w-full rounded-lg py-2 text-sm font-bold disabled:opacity-60"
+                style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
               >
-                Guardar
+                {pendingDatos ? "Guardando…" : "Guardar"}
               </button>
-            </div>
+            )}
+            {errorDatos && (
+              <p className="mt-1.5 text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
+                {errorDatos}
+              </p>
+            )}
           </div>
 
           <div>
@@ -201,11 +214,10 @@ function FilaIntegrante({ integrante, bandas, plazas }: { integrante: Integrante
                           <div className="flex flex-wrap gap-1.5">
                             {plazasDeLaBanda.map((p) => {
                               const activo = asignada.plazas.some((ap) => ap.plazaId === p.id);
-                              const etiquetaBase = ETIQUETA_INSTRUMENTO[p.instrumento as keyof typeof ETIQUETA_INSTRUMENTO] ?? p.instrumento;
                               return (
                                 <ToggleChip
                                   key={p.id}
-                                  label={p.etiqueta ? `${etiquetaBase} — ${p.etiqueta}` : etiquetaBase}
+                                  label={etiquetaPlaza(p.instrumento, p.etiqueta)}
                                   active={activo}
                                   onClick={() => togglePlaza(b.id, p.id)}
                                 />
@@ -226,13 +238,10 @@ function FilaIntegrante({ integrante, bandas, plazas }: { integrante: Integrante
               type="button"
               onClick={toggleSuperadmin}
               disabled={pendingSuperadmin}
-              className="rounded-lg py-2 text-sm font-bold disabled:opacity-60"
-              style={{
-                background: superadminLocal ? "oklch(0.6 0.15 25 / 0.12)" : "oklch(0.64 0.15 34 / 0.12)",
-                color: superadminLocal ? "oklch(0.5 0.18 25)" : "oklch(0.64 0.15 34)",
-              }}
+              className="self-start text-xs font-semibold underline-offset-2 disabled:opacity-60"
+              style={{ color: "oklch(0.55 0.02 55)" }}
             >
-              {pendingSuperadmin ? "…" : superadminLocal ? "Quitar superadmin" : "Hacer superadmin"}
+              {pendingSuperadmin ? "…" : superadminLocal ? "Quitar rol de superadmin" : "Hacer superadmin"}
             </button>
           )}
         </div>
@@ -246,11 +255,13 @@ export function IntegrantesPanel({
   personasPendientes: personasPendientesIniciales,
   integrantes,
   plazas,
+  usuarioActualId,
 }: {
   bandas: BandaSimple[];
   personasPendientes: PersonaPendiente[];
   integrantes: Integrante[];
   plazas: Plaza[];
+  usuarioActualId: string;
 }) {
   const [personasPendientes, setPersonasPendientes] = useState(personasPendientesIniciales);
 
@@ -404,7 +415,7 @@ export function IntegrantesPanel({
         ) : (
           <div className="flex flex-col gap-2">
             {integrantes.map((i) => (
-              <FilaIntegrante key={i.usuarioId ?? i.email} integrante={i} bandas={bandas} plazas={plazas} />
+              <FilaIntegrante key={i.usuarioId ?? i.email} integrante={i} bandas={bandas} plazas={plazas} usuarioActualId={usuarioActualId} />
             ))}
           </div>
         )}

@@ -2,14 +2,14 @@
 
 import { useState, useTransition } from "react";
 import type { BandaSimple, ActualizacionBanda, Plaza } from "@/lib/gestionData";
-import { INSTRUMENTOS, ETIQUETA_INSTRUMENTO } from "@/lib/instrumentoCatalogo";
+import { INSTRUMENTOS, ETIQUETA_INSTRUMENTO, etiquetaPlaza } from "@/lib/instrumentoCatalogo";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import {
   crearBandaAction,
   actualizarBandaAction,
   archivarBandaAction,
   eliminarBandaAction,
-  crearPlazaAction,
+  crearPlazasAction,
   eliminarPlazaAction,
 } from "@/app/gestion/actions";
 
@@ -79,16 +79,23 @@ function EliminarBandaModal({ banda, onCerrar, onEliminada }: { banda: BandaSimp
 function PlazasDeLaBanda({ bandaId, plazas, onPlazas }: { bandaId: string; plazas: Plaza[]; onPlazas: (p: Plaza[]) => void }) {
   const [instrumento, setInstrumento] = useState<string>(INSTRUMENTOS[0]);
   const [etiqueta, setEtiqueta] = useState("");
+  const [cantidad, setCantidad] = useState(1);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const esOtro = instrumento === "otro";
 
   const agregar = () => {
     setError(null);
+    if (esOtro && !etiqueta.trim()) {
+      setError("Escribí una etiqueta para \"Otro\".");
+      return;
+    }
     startTransition(async () => {
       try {
-        const plaza = await crearPlazaAction(bandaId, instrumento, etiqueta.trim() || null);
-        onPlazas([...plazas, plaza]);
+        const nuevas = await crearPlazasAction(bandaId, instrumento, esOtro ? etiqueta.trim() : null, esOtro ? 1 : cantidad);
+        onPlazas([...plazas, ...nuevas]);
         setEtiqueta("");
+        setCantidad(1);
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo crear la plaza.");
       }
@@ -123,8 +130,7 @@ function PlazasDeLaBanda({ bandaId, plazas, onPlazas }: { bandaId: string; plaza
               className="flex items-center gap-1.5 rounded-full py-1 pl-3 pr-1.5 text-xs font-semibold"
               style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
             >
-              {ETIQUETA_INSTRUMENTO[p.instrumento as keyof typeof ETIQUETA_INSTRUMENTO] ?? p.instrumento}
-              {p.etiqueta ? ` — ${p.etiqueta}` : ""}
+              {etiquetaPlaza(p.instrumento, p.etiqueta)}
               <button
                 type="button"
                 onClick={() => quitar(p.id)}
@@ -148,13 +154,25 @@ function PlazasDeLaBanda({ bandaId, plazas, onPlazas }: { bandaId: string; plaza
             </option>
           ))}
         </select>
-        <input
-          value={etiqueta}
-          onChange={(e) => setEtiqueta(e.target.value)}
-          placeholder="Etiqueta (opcional)"
-          className={`${inputCls} flex-1`}
-          style={inputStyle}
-        />
+        {esOtro ? (
+          <input
+            value={etiqueta}
+            onChange={(e) => setEtiqueta(e.target.value)}
+            placeholder="Etiqueta"
+            className={`${inputCls} flex-1`}
+            style={inputStyle}
+          />
+        ) : (
+          <input
+            type="number"
+            min={1}
+            value={cantidad}
+            onChange={(e) => setCantidad(Math.max(1, Number(e.target.value) || 1))}
+            className={`${inputCls} w-20 shrink-0`}
+            style={inputStyle}
+            aria-label="Cantidad"
+          />
+        )}
         <button
           type="button"
           onClick={agregar}

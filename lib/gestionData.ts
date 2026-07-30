@@ -120,15 +120,20 @@ export async function obtenerPlazas(bandaIds: string[]): Promise<Plaza[]> {
   return (data ?? []).map((p) => ({ id: p.id, bandaId: p.banda_id, instrumento: p.instrumento, etiqueta: p.etiqueta }));
 }
 
-export async function crearPlaza(bandaId: string, instrumento: string, etiqueta: string | null): Promise<Plaza> {
+// Brief 10 §3: "Otro" siempre crea una sola plaza con su etiqueta libre (cada
+// una probablemente significa algo distinto); cualquier otro instrumento del
+// catálogo fijo no lleva etiqueta y puede crear varias filas de una — la
+// cantidad no aplica a "otro".
+export async function crearPlazas(bandaId: string, instrumento: string, etiqueta: string | null, cantidad: number): Promise<Plaza[]> {
   const admin = supabaseMalgesto();
-  const { data, error } = await admin
-    .from("plazas")
-    .insert({ banda_id: bandaId, instrumento, etiqueta })
-    .select("id, banda_id, instrumento, etiqueta")
-    .single();
+  const filas =
+    instrumento === "otro"
+      ? [{ banda_id: bandaId, instrumento, etiqueta }]
+      : Array.from({ length: Math.max(1, cantidad) }, () => ({ banda_id: bandaId, instrumento, etiqueta: null }));
+
+  const { data, error } = await admin.from("plazas").insert(filas).select("id, banda_id, instrumento, etiqueta");
   if (error || !data) throw new Error(error?.message ?? "No se pudo crear la plaza.");
-  return { id: data.id, bandaId: data.banda_id, instrumento: data.instrumento, etiqueta: data.etiqueta };
+  return data.map((p) => ({ id: p.id, bandaId: p.banda_id, instrumento: p.instrumento, etiqueta: p.etiqueta }));
 }
 
 export async function eliminarPlaza(plazaId: string): Promise<void> {

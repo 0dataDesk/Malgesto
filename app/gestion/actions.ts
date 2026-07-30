@@ -7,7 +7,7 @@ import {
   actualizarBanda,
   archivarBanda,
   eliminarBanda,
-  crearPlaza,
+  crearPlazas,
   eliminarPlaza,
   asignarPersonaAPlaza,
   quitarPersonaDePlaza,
@@ -48,11 +48,11 @@ export async function eliminarBandaAction(bandaId: string): Promise<void> {
   revalidatePath("/gestion");
 }
 
-export async function crearPlazaAction(bandaId: string, instrumento: string, etiqueta: string | null) {
+export async function crearPlazasAction(bandaId: string, instrumento: string, etiqueta: string | null, cantidad: number) {
   await requerirSuperadmin();
-  const plaza = await crearPlaza(bandaId, instrumento, etiqueta);
+  const plazas = await crearPlazas(bandaId, instrumento, etiqueta, cantidad);
   revalidatePath("/gestion");
-  return plaza;
+  return plazas;
 }
 
 export async function eliminarPlazaAction(plazaId: string): Promise<void> {
@@ -95,6 +95,15 @@ export async function actualizarNombreMostrarAction(usuarioId: string, nombreMos
 export async function actualizarFechaNacimientoAction(usuarioId: string, fecha: string | null): Promise<void> {
   await requerirSuperadmin();
   await actualizarFechaNacimiento(usuarioId, fecha);
+  revalidatePath("/gestion");
+}
+
+// Brief 10 §5: nombre para mostrar y fecha de nacimiento comparten un único
+// botón "Guardar" en la ficha del integrante en vez de dos sueltos.
+export async function actualizarDatosPersonaAction(usuarioId: string, nombreMostrar: string, fechaNacimiento: string | null): Promise<void> {
+  await requerirSuperadmin();
+  await actualizarNombreMostrar(usuarioId, nombreMostrar);
+  await actualizarFechaNacimiento(usuarioId, fechaNacimiento);
   revalidatePath("/gestion");
 }
 

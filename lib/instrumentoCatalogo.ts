@@ -26,3 +26,11 @@ export const ETIQUETA_INSTRUMENTO: Record<Instrumento, string> = {
   coro: "Coro",
   otro: "Otro",
 };
+
+// Brief 10 §2: "Otro" se muestra SOLO con su etiqueta libre (sin anteponer
+// la palabra "Otro"); cualquier instrumento del catálogo fijo se muestra
+// solo con su nombre (nunca lleva etiqueta).
+export function etiquetaPlaza(instrumento: string, etiqueta: string | null): string {
+  if (instrumento === "otro") return etiqueta || "Otro";
+  return ETIQUETA_INSTRUMENTO[instrumento as Instrumento] ?? instrumento;
+}

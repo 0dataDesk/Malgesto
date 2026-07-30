@@ -21,12 +21,14 @@ export function GestionShell({
   integrantes,
   lugares,
   plazas,
+  usuarioActualId,
 }: {
   bandas: BandaSimple[];
   personasPendientes: PersonaPendiente[];
   integrantes: Integrante[];
   lugares: Lugar[];
   plazas: Plaza[];
+  usuarioActualId: string;
 }) {
   const [seccion, setSeccion] = useState<Seccion>("bandas");
 
@@ -65,7 +67,13 @@ export function GestionShell({
         <div className="mt-4">
           {seccion === "bandas" && <BandasPanel bandas={bandas} plazas={plazas} />}
           {seccion === "integrantes" && (
-            <IntegrantesPanel bandas={bandas} personasPendientes={personasPendientes} integrantes={integrantes} plazas={plazas} />
+            <IntegrantesPanel
+              bandas={bandas}
+              personasPendientes={personasPendientes}
+              integrantes={integrantes}
+              plazas={plazas}
+              usuarioActualId={usuarioActualId}
+            />
           )}
           {seccion === "lugares" && <LugaresPanel bandas={bandas} lugares={lugares} />}
         </div>

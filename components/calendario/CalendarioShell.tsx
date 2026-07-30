@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Evento, Membresia } from "@/lib/malgestoEventos";
 import type { Lugar } from "@/lib/lugaresData";
 import type { PersonaConCumple } from "@/lib/cumpleanosVirtual";
-import { generarCumpleanosVirtuales } from "@/lib/cumpleanosVirtual";
+import { generarCumpleanosVirtuales, proximosCumpleanos } from "@/lib/cumpleanosVirtual";
 import { nombreMesAno, sumarMeses, esMismoDia, hora } from "@/lib/fechas";
 import { COLOR_TIPO, ETIQUETA_TIPO } from "@/lib/eventoUI";
 import { MesView } from "./MesView";
@@ -44,19 +44,35 @@ export function CalendarioShell({
   const [eventoEnEdicion, setEventoEnEdicion] = useState<Evento | undefined>(undefined);
   const [fechaParaForm, setFechaParaForm] = useState<Date>(() => new Date());
 
+  // Para la grilla del mes / selección de día: ventana centro±1 año, así
+  // navegar meses hacia atrás o adelante sigue mostrando el cumpleaños
+  // correcto de cada año visitado.
   const eventosConCumple = useMemo(
     () => [...eventos, ...generarCumpleanosVirtuales(cumpleanos, mes)],
     [eventos, cumpleanos, mes]
+  );
+
+  // Para "Próximos eventos": exactamente la próxima ocurrencia futura de
+  // cada cumpleaños (nunca una fecha ya pasada, Brief 10 §6) — recalculado
+  // contra "hoy", no contra el mes que esté paginado en la grilla.
+  const eventosConCumpleAgenda = useMemo(
+    () => [...eventos, ...proximosCumpleanos(cumpleanos, new Date())],
+    [eventos, cumpleanos]
   );
 
   // Brief 9 §2: cada chip prende/apaga SOLO ese chip (el set arranca con
   // TODAS las bandas activas, no vacío) — con todas apagadas o todas
   // prendidas se ve todo, igual que antes, pero sin que tocar una banda
   // afecte visualmente a las demás.
-  const eventosFiltrados = useMemo(() => {
-    if (activas.size === 0 || activas.size === membresias.length) return eventosConCumple;
-    return eventosConCumple.filter((e) => e.bandaIds.some((id) => activas.has(id)));
-  }, [eventosConCumple, activas, membresias.length]);
+  const todasONinguna = activas.size === 0 || activas.size === membresias.length;
+  const eventosFiltrados = useMemo(
+    () => (todasONinguna ? eventosConCumple : eventosConCumple.filter((e) => e.bandaIds.some((id) => activas.has(id)))),
+    [eventosConCumple, activas, todasONinguna]
+  );
+  const eventosFiltradosAgenda = useMemo(
+    () => (todasONinguna ? eventosConCumpleAgenda : eventosConCumpleAgenda.filter((e) => e.bandaIds.some((id) => activas.has(id)))),
+    [eventosConCumpleAgenda, activas, todasONinguna]
+  );
 
   const giras = useMemo(() => eventosConCumple.filter((e) => e.tipo === "gira"), [eventosConCumple]);
   const esSuperadmin = membresias.some((m) => m.rol === "superadmin");
@@ -108,7 +124,7 @@ export function CalendarioShell({
 
   let listaContenido: React.ReactNode;
   if (!diaSeleccionado) {
-    listaContenido = <AgendaView eventos={eventosFiltrados} onEventoClick={setEventoSeleccionado} />;
+    listaContenido = <AgendaView eventos={eventosFiltradosAgenda} onEventoClick={setEventoSeleccionado} />;
   } else if (eventosDelDia.length === 0) {
     listaContenido = (
       <div className="flex flex-col items-center gap-3 pt-10 text-center">
