@@ -34,7 +34,6 @@ export default async function GestionPage() {
       integrantes={integrantes}
       lugares={lugares}
       plazas={plazas}
-      usuarioActualId={user.id}
     />
   );
 }

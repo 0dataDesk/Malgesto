@@ -12,7 +12,6 @@ import {
   asignarABandaAction,
   asignarPersonaAPlazaAction,
   quitarPersonaDePlazaAction,
-  establecerSuperadminAction,
 } from "@/app/gestion/actions";
 
 const inputCls = "rounded-xl border px-3.5 py-2.5 text-sm outline-none";
@@ -33,12 +32,10 @@ function FilaIntegrante({
   integrante,
   bandas,
   plazas,
-  usuarioActualId,
 }: {
   integrante: Integrante;
   bandas: BandaSimple[];
   plazas: Plaza[];
-  usuarioActualId: string;
 }) {
   const [expandido, setExpandido] = useState(false);
   const [nombreMostrar, setNombreMostrar] = useState(integrante.nombreMostrar ?? "");
@@ -48,8 +45,6 @@ function FilaIntegrante({
   const [errorDatos, setErrorDatos] = useState<string | null>(null);
   const [bandasLocal, setBandasLocal] = useState(integrante.bandas);
   const [pendingBanda, setPendingBanda] = useState<string | null>(null);
-  const [superadminLocal, setSuperadminLocal] = useState(integrante.esSuperadmin);
-  const [pendingSuperadmin, startSuperadmin] = useTransition();
 
   const bandaAsignada = (bandaId: string) => bandasLocal.find((b) => b.bandaId === bandaId && b.activo);
 
@@ -107,21 +102,6 @@ function FilaIntegrante({
     });
   };
 
-  const toggleSuperadmin = () => {
-    if (!integrante.usuarioId) return;
-    const esUnoMismo = integrante.usuarioId === usuarioActualId;
-    const mensaje = superadminLocal
-      ? esUnoMismo
-        ? "¿Seguro que querés quitarte el rol de superadmin a vos mismo?"
-        : `¿Seguro que querés quitarle el rol de superadmin a ${integrante.nombreMostrar || integrante.email}?`
-      : `¿Seguro que querés hacer superadmin a ${integrante.nombreMostrar || integrante.email}?`;
-    if (!confirm(mensaje)) return;
-    startSuperadmin(async () => {
-      await establecerSuperadminAction(integrante.usuarioId!, !superadminLocal);
-      setSuperadminLocal((v) => !v);
-    });
-  };
-
   return (
     <div className="rounded-2xl p-3.5" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
       <button type="button" onClick={() => setExpandido((v) => !v)} className="flex w-full items-center justify-between gap-3 text-left">
@@ -130,7 +110,7 @@ function FilaIntegrante({
             <div className="truncate text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
               {integrante.nombreMostrar || integrante.email}
             </div>
-            {superadminLocal && (
+            {integrante.esSuperadmin && (
               <span className="shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase" style={{ background: "oklch(0.64 0.15 34 / 0.15)", color: "oklch(0.64 0.15 34)" }}>
                 Superadmin
               </span>
@@ -232,18 +212,6 @@ function FilaIntegrante({
               })}
             </div>
           </div>
-
-          {integrante.estado === "activo" && (
-            <button
-              type="button"
-              onClick={toggleSuperadmin}
-              disabled={pendingSuperadmin}
-              className="self-start text-xs font-semibold underline-offset-2 disabled:opacity-60"
-              style={{ color: "oklch(0.55 0.02 55)" }}
-            >
-              {pendingSuperadmin ? "…" : superadminLocal ? "Quitar rol de superadmin" : "Hacer superadmin"}
-            </button>
-          )}
         </div>
       )}
     </div>
@@ -255,13 +223,11 @@ export function IntegrantesPanel({
   personasPendientes: personasPendientesIniciales,
   integrantes,
   plazas,
-  usuarioActualId,
 }: {
   bandas: BandaSimple[];
   personasPendientes: PersonaPendiente[];
   integrantes: Integrante[];
   plazas: Plaza[];
-  usuarioActualId: string;
 }) {
   const [personasPendientes, setPersonasPendientes] = useState(personasPendientesIniciales);
 
@@ -415,7 +381,7 @@ export function IntegrantesPanel({
         ) : (
           <div className="flex flex-col gap-2">
             {integrantes.map((i) => (
-              <FilaIntegrante key={i.usuarioId ?? i.email} integrante={i} bandas={bandas} plazas={plazas} usuarioActualId={usuarioActualId} />
+              <FilaIntegrante key={i.usuarioId ?? i.email} integrante={i} bandas={bandas} plazas={plazas} />
             ))}
           </div>
         )}

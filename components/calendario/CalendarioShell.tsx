@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Evento, Membresia } from "@/lib/malgestoEventos";
 import type { Lugar } from "@/lib/lugaresData";
 import type { PersonaConCumple } from "@/lib/cumpleanosVirtual";
-import { generarCumpleanosVirtuales, proximosCumpleanos } from "@/lib/cumpleanosVirtual";
+import { generarCumpleanosVirtuales } from "@/lib/cumpleanosVirtual";
 import { nombreMesAno, sumarMeses, esMismoDia, hora } from "@/lib/fechas";
 import { COLOR_TIPO, ETIQUETA_TIPO } from "@/lib/eventoUI";
 import { MesView } from "./MesView";
@@ -52,14 +52,6 @@ export function CalendarioShell({
     [eventos, cumpleanos, mes]
   );
 
-  // Para "Próximos eventos": exactamente la próxima ocurrencia futura de
-  // cada cumpleaños (nunca una fecha ya pasada, Brief 10 §6) — recalculado
-  // contra "hoy", no contra el mes que esté paginado en la grilla.
-  const eventosConCumpleAgenda = useMemo(
-    () => [...eventos, ...proximosCumpleanos(cumpleanos, new Date())],
-    [eventos, cumpleanos]
-  );
-
   // Brief 9 §2: cada chip prende/apaga SOLO ese chip (el set arranca con
   // TODAS las bandas activas, no vacío) — con todas apagadas o todas
   // prendidas se ve todo, igual que antes, pero sin que tocar una banda
@@ -69,9 +61,12 @@ export function CalendarioShell({
     () => (todasONinguna ? eventosConCumple : eventosConCumple.filter((e) => e.bandaIds.some((id) => activas.has(id)))),
     [eventosConCumple, activas, todasONinguna]
   );
+  // Brief 15 §2: los cumpleaños no van en "Próximos eventos" — solo en la
+  // grilla del mes y el detalle de día (eventosConCumple/eventosFiltrados
+  // arriba), así que la agenda se filtra sobre `eventos` a secas, sin merge.
   const eventosFiltradosAgenda = useMemo(
-    () => (todasONinguna ? eventosConCumpleAgenda : eventosConCumpleAgenda.filter((e) => e.bandaIds.some((id) => activas.has(id)))),
-    [eventosConCumpleAgenda, activas, todasONinguna]
+    () => (todasONinguna ? eventos : eventos.filter((e) => e.bandaIds.some((id) => activas.has(id)))),
+    [eventos, activas, todasONinguna]
   );
 
   const giras = useMemo(() => eventosConCumple.filter((e) => e.tipo === "gira"), [eventosConCumple]);

@@ -39,9 +39,9 @@ function construirEvento(p: PersonaConCumple, anio: number): Evento {
 // Cumpleaños (Brief 9 §17): ya no es una fila real en eventos, se calcula al
 // vuelo a partir de personas.fecha_nacimiento para cada año en la ventana
 // centro±1 (cubre navegar meses hacia atrás/adelante en la grilla del mes sin
-// recalcular en cada borde exacto de año). Úsese solo para MesView/selección
-// de día — para la lista de "Próximos eventos" usar proximosCumpleanos, que
-// no repite años ni muestra fechas ya pasadas (Brief 10 §6).
+// recalcular en cada borde exacto de año). Brief 15 §2: se usa SOLO para la
+// grilla del mes y el detalle de día seleccionado — nunca para "Próximos
+// eventos", de donde se quitaron por completo.
 export function generarCumpleanosVirtuales(personas: PersonaConCumple[], centro: Date): Evento[] {
   const anioBase = centro.getFullYear();
   const eventos: Evento[] = [];
@@ -51,19 +51,4 @@ export function generarCumpleanosVirtuales(personas: PersonaConCumple[], centro:
     }
   }
   return eventos;
-}
-
-// Exactamente una ocurrencia por persona: la próxima fecha de cumpleaños a
-// partir de "desde" (inclusive del día de hoy) — si ya pasó este año, la del
-// año siguiente. Nunca devuelve una fecha anterior a "desde" (Brief 10 §6).
-export function proximosCumpleanos(personas: PersonaConCumple[], desde: Date): Evento[] {
-  const inicioDeReferencia = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate());
-  return personas.map((p) => {
-    const partes = p.fechaNacimiento.split("-");
-    const mes = Number(partes[1]) - 1;
-    const dia = Number(partes[2]);
-    let anio = inicioDeReferencia.getFullYear();
-    if (new Date(anio, mes, dia, 0, 0, 0) < inicioDeReferencia) anio += 1;
-    return construirEvento(p, anio);
-  });
 }

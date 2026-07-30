@@ -21,14 +21,12 @@ export function GestionShell({
   integrantes,
   lugares,
   plazas,
-  usuarioActualId,
 }: {
   bandas: BandaSimple[];
   personasPendientes: PersonaPendiente[];
   integrantes: Integrante[];
   lugares: Lugar[];
   plazas: Plaza[];
-  usuarioActualId: string;
 }) {
   const [seccion, setSeccion] = useState<Seccion>("bandas");
 
@@ -72,7 +70,6 @@ export function GestionShell({
               personasPendientes={personasPendientes}
               integrantes={integrantes}
               plazas={plazas}
-              usuarioActualId={usuarioActualId}
             />
           )}
           {seccion === "lugares" && <LugaresPanel bandas={bandas} lugares={lugares} />}

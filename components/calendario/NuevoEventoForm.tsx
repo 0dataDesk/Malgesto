@@ -155,70 +155,85 @@ export function NuevoEventoForm({
     });
   };
 
+  // Brief 15 §3: todo el cuerpo de onSubmit va en try/catch — antes, un
+  // throw síncrono (p.ej. armando las fechas) escapaba del try/catch de
+  // startTransition (que solo cubre la llamada al server action) y quedaba
+  // sin mostrarle nada al usuario ni tocar `error`: clic en "Crear" y
+  // "no pasaba nada", sin pista de por qué.
   const onSubmit = () => {
     setError(null);
-
-    const tituloFinal = tipo === "ensayo" ? `Ensayo ${bandaNombreActual} — ${fechaLarga(fechaBase)}` : titulo.trim();
-    if (tipo !== "ensayo" && !tituloFinal) {
-      setError("El título es obligatorio.");
-      return;
-    }
-
-    let fechaInicioIso: string;
-    let fechaFinIso: string | null;
-    let bandaIdsFinal: string[] = [bandaId];
-
-    if (tipo === "gira") {
-      bandaIdsFinal = Array.from(bandaIdsGira);
-      if (bandaIdsFinal.length === 0) {
-        setError("Elegí al menos una banda para la gira.");
+    try {
+      const tituloFinal = tipo === "ensayo" ? `Ensayo ${bandaNombreActual} — ${fechaLarga(fechaBase)}` : titulo.trim();
+      if (tipo !== "ensayo" && !tituloFinal) {
+        setError("El título es obligatorio.");
         return;
       }
-      if (!giraDesde) {
-        setError("La fecha de inicio de la gira es obligatoria.");
-        return;
-      }
-      fechaInicioIso = new Date(`${giraDesde}T00:00`).toISOString();
-      fechaFinIso = giraHasta ? new Date(`${giraHasta}T00:00`).toISOString() : null;
-    } else {
-      if (!bandaId) {
-        setError("Falta la banda.");
-        return;
-      }
-      const pad = (n: number) => String(n).padStart(2, "0");
-      const fechaStr = `${fechaBase.getFullYear()}-${pad(fechaBase.getMonth() + 1)}-${pad(fechaBase.getDate())}`;
-      fechaInicioIso = new Date(`${fechaStr}T${horaInicio}`).toISOString();
-      fechaFinIso = new Date(`${fechaStr}T${horaFin}`).toISOString();
-    }
 
-    const input: NuevoEventoInput = {
-      bandaId: bandaIdsFinal[0],
-      bandaIds: tipo === "gira" ? bandaIdsFinal : undefined,
-      tipo,
-      titulo: tituloFinal,
-      fechaInicio: fechaInicioIso,
-      fechaFin: fechaFinIso,
-      ingresoEsperado: tipo === "show" && ingreso ? Number(ingreso) : null,
-      giraId: tipo === "show" && giraOn && giraId ? giraId : null,
-      setlistId: (tipo === "show" || tipo === "ensayo") && setlistOn && setlistId ? setlistId : null,
-      lugarId: tipo !== "gira" && !nuevoLugar ? lugarId || null : null,
-      lugarNuevo: tipo !== "gira" && nuevoLugar && nuevoLugarNombre.trim() && nuevoLugarLink.trim() ? { nombre: nuevoLugarNombre.trim(), linkMaps: nuevoLugarLink.trim() } : null,
-      pais: tipo === "gira" ? pais.trim() || null : null,
-      ciudades: tipo === "gira" ? ciudades.trim() || null : null,
-    };
+      let fechaInicioIso: string;
+      let fechaFinIso: string | null;
+      let bandaIdsFinal: string[] = [bandaId];
 
-    startTransition(async () => {
-      try {
-        if (eventoExistente) {
-          await actualizarEventoAction(eventoExistente.id, input);
-        } else {
-          await crearEventoAction(input);
+      if (tipo === "gira") {
+        bandaIdsFinal = Array.from(bandaIdsGira);
+        if (bandaIdsFinal.length === 0) {
+          setError("Elegí al menos una banda para la gira.");
+          return;
         }
-        onCreado();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "No se pudo guardar el evento.");
+        if (!giraDesde) {
+          setError("La fecha de inicio de la gira es obligatoria.");
+          return;
+        }
+        fechaInicioIso = new Date(`${giraDesde}T00:00`).toISOString();
+        fechaFinIso = giraHasta ? new Date(`${giraHasta}T00:00`).toISOString() : null;
+      } else {
+        if (!bandaId) {
+          setError("Falta la banda.");
+          return;
+        }
+        const pad = (n: number) => String(n).padStart(2, "0");
+        const aIso = (d: Date, hhmm: string) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${hhmm}`;
+        // Brief 15 §3: si la hora de fin es igual o anterior a la de inicio,
+        // el evento cruza medianoche — el fin cae al día siguiente. Sumar el
+        // día con setDate() (no con un +1 pegado al string) para que Date
+        // haga el acarreo de mes/año correctamente (31 jul + 1 día = 1 ago).
+        const fechaFinBase = new Date(fechaBase);
+        if (horaFin <= horaInicio) fechaFinBase.setDate(fechaFinBase.getDate() + 1);
+
+        fechaInicioIso = new Date(aIso(fechaBase, horaInicio)).toISOString();
+        fechaFinIso = new Date(aIso(fechaFinBase, horaFin)).toISOString();
       }
-    });
+
+      const input: NuevoEventoInput = {
+        bandaId: bandaIdsFinal[0],
+        bandaIds: tipo === "gira" ? bandaIdsFinal : undefined,
+        tipo,
+        titulo: tituloFinal,
+        fechaInicio: fechaInicioIso,
+        fechaFin: fechaFinIso,
+        ingresoEsperado: tipo === "show" && ingreso ? Number(ingreso) : null,
+        giraId: tipo === "show" && giraOn && giraId ? giraId : null,
+        setlistId: (tipo === "show" || tipo === "ensayo") && setlistOn && setlistId ? setlistId : null,
+        lugarId: tipo !== "gira" && !nuevoLugar ? lugarId || null : null,
+        lugarNuevo: tipo !== "gira" && nuevoLugar && nuevoLugarNombre.trim() && nuevoLugarLink.trim() ? { nombre: nuevoLugarNombre.trim(), linkMaps: nuevoLugarLink.trim() } : null,
+        pais: tipo === "gira" ? pais.trim() || null : null,
+        ciudades: tipo === "gira" ? ciudades.trim() || null : null,
+      };
+
+      startTransition(async () => {
+        try {
+          if (eventoExistente) {
+            await actualizarEventoAction(eventoExistente.id, input);
+          } else {
+            await crearEventoAction(input);
+          }
+          onCreado();
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "No se pudo guardar el evento.");
+        }
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo preparar el evento para guardar.");
+    }
   };
 
   const tituloForm = eventoExistente ? "Editar evento" : tipo === "gira" ? "Nueva gira" : `Nuevo evento · ${fechaLarga(fechaBase)}`;
