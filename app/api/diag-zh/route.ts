@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { enZonaApp, ahoraEnZonaApp, ZONA_HORARIA_APP } from "@/lib/zonaHoraria";
 import { esMismoDia } from "@/lib/fechas";
 import { supabaseMalgesto } from "@/lib/supabase/malgesto";
+import { obtenerEventos } from "@/lib/malgestoEventos";
+
+const BANDA_ID_LEOCADIO = "96cabfb5-451b-4682-ae09-6957de31a4bd";
 
 // DIAGNÓSTICO TEMPORAL — corre las funciones REALES de zona horaria (no una
 // reimplementación) contra el evento real de producción, para probar qué
@@ -42,11 +45,23 @@ export async function GET(request: Request) {
       }
     : { eventoEncontrado: false, error: error?.message ?? "sin fila" };
 
+  // Brief 17: además de la función pura, corremos el mismo camino que usa
+  // /inicio/page.tsx de verdad — obtenerEventos(bandaIds) — para descartar
+  // que el evento se pierda antes de llegar al cliente (filtro de banda,
+  // shape de datos, etc.), no solo que enZonaApp esté bien.
+  const eventosLeocadio = await obtenerEventos([BANDA_ID_LEOCADIO]);
+  const eventoEnListaReal = eventosLeocadio.find((e) => e.id === EVENTO_ID_PRUEBA);
+
   return NextResponse.json({
     commitDesplegado: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
     entornoVercel: process.env.VERCEL_ENV ?? null,
     zonaHorariaApp: ZONA_HORARIA_APP,
     ahoraEnZonaApp: partesDe(ahoraEnZonaApp()),
     resultado,
+    caminoRealObtenerEventos: {
+      totalEventosParaLeocadio: eventosLeocadio.length,
+      eventoDePruebaApareceEnLaLista: !!eventoEnListaReal,
+      eventoEnListaReal: eventoEnListaReal ?? null,
+    },
   });
 }
