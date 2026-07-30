@@ -1,4 +1,5 @@
 import type { Evento } from "@/lib/malgestoEventos";
+import { aUtcDesdeZonaApp } from "@/lib/zonaHoraria";
 
 // Sin "server-only" a propósito: CalendarioShell (cliente) necesita generar
 // estos eventos virtuales en cada cambio de mes, así que esta función pura
@@ -15,7 +16,9 @@ function construirEvento(p: PersonaConCumple, anio: number): Evento {
   const partes = p.fechaNacimiento.split("-");
   const mes = Number(partes[1]) - 1;
   const dia = Number(partes[2]);
-  const fecha = new Date(anio, mes, dia, 0, 0, 0);
+  // Brief 16: medianoche en ZONA_HORARIA_APP, no en la zona ambiente de quien
+  // mira el calendario — si no, para un usuario fuera de México este cumple
+  // "flotante" podría agruparse un día antes o después al leerlo de vuelta.
   return {
     id: `cumple-${p.usuarioId}-${anio}`,
     bandaId: p.bandaIds[0],
@@ -23,7 +26,7 @@ function construirEvento(p: PersonaConCumple, anio: number): Evento {
     bandaNombre: p.bandaNombre,
     tipo: "cumpleanos",
     titulo: `Cumpleaños de ${p.nombre}`,
-    fechaInicio: fecha.toISOString(),
+    fechaInicio: aUtcDesdeZonaApp(anio, mes, dia, 0, 0),
     fechaFin: null,
     ingresoEsperado: null,
     giraId: null,

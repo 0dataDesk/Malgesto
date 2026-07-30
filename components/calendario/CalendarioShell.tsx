@@ -7,6 +7,7 @@ import type { Lugar } from "@/lib/lugaresData";
 import type { PersonaConCumple } from "@/lib/cumpleanosVirtual";
 import { generarCumpleanosVirtuales } from "@/lib/cumpleanosVirtual";
 import { nombreMesAno, sumarMeses, esMismoDia, hora } from "@/lib/fechas";
+import { enZonaApp } from "@/lib/zonaHoraria";
 import { COLOR_TIPO, ETIQUETA_TIPO } from "@/lib/eventoUI";
 import { MesView } from "./MesView";
 import { AgendaView } from "./AgendaView";
@@ -76,7 +77,7 @@ export function CalendarioShell({
   const mostrarSeteos = membresias.some((m) => m.seteosHabilitado);
 
   const eventosDelDia = diaSeleccionado
-    ? eventosFiltrados.filter((e) => e.tipo !== "gira" && esMismoDia(new Date(e.fechaInicio), diaSeleccionado))
+    ? eventosFiltrados.filter((e) => e.tipo !== "gira" && esMismoDia(enZonaApp(e.fechaInicio), diaSeleccionado))
     : [];
 
   const toggleBanda = (bandaId: string) => {
@@ -113,7 +114,7 @@ export function CalendarioShell({
     setEventoSeleccionado(null);
     setEventoDelDiaElegido(null);
     setEventoEnEdicion(evento);
-    setFechaParaForm(new Date(evento.fechaInicio));
+    setFechaParaForm(enZonaApp(evento.fechaInicio));
     setMostrarForm(true);
   };
 

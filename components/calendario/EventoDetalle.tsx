@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import type { Evento } from "@/lib/malgestoEventos";
 import { COLOR_TIPO, ETIQUETA_TIPO, formatoMoneda } from "@/lib/eventoUI";
+import { enZonaApp } from "@/lib/zonaHoraria";
 import { asignarGiraAction, asignarSetlistAction, eliminarEventoAction } from "@/app/inicio/actions";
 
 type SetlistOpcion = { id: string; nombre: string };
@@ -35,8 +36,8 @@ export function EventoDetalle({
   const [pendienteEliminar, startEliminar] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const inicio = new Date(evento.fechaInicio);
-  const fin = evento.fechaFin ? new Date(evento.fechaFin) : null;
+  const inicio = enZonaApp(evento.fechaInicio);
+  const fin = evento.fechaFin ? enZonaApp(evento.fechaFin) : null;
 
   const fechaTexto =
     evento.tipo === "gira" && fin

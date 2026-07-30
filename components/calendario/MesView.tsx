@@ -3,10 +3,11 @@
 import type { Evento } from "@/lib/malgestoEventos";
 import { COLOR_TIPO, colorConAlpha } from "@/lib/eventoUI";
 import { celdasDelMes, esMismoDia, mismoMesAno } from "@/lib/fechas";
+import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 
 function estaEnRangoGira(dia: Date, gira: Evento): boolean {
-  const inicio = new Date(gira.fechaInicio);
-  const fin = gira.fechaFin ? new Date(gira.fechaFin) : inicio;
+  const inicio = enZonaApp(gira.fechaInicio);
+  const fin = gira.fechaFin ? enZonaApp(gira.fechaFin) : inicio;
   const d = new Date(dia.getFullYear(), dia.getMonth(), dia.getDate());
   const i = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
   const f = new Date(fin.getFullYear(), fin.getMonth(), fin.getDate());
@@ -26,7 +27,7 @@ export function MesView({
   onDiaClick: (dia: Date) => void;
   onEventoClick: (evento: Evento) => void;
 }) {
-  const hoy = new Date();
+  const hoy = ahoraEnZonaApp();
   const celdas = celdasDelMes(mes);
   const giras = eventos.filter((e) => e.tipo === "gira");
 
@@ -43,7 +44,7 @@ export function MesView({
           const esHoy = esMismoDia(dia, hoy);
           const esSeleccionado = !!diaSeleccionado && esMismoDia(dia, diaSeleccionado);
           const eventosDelDia = eventos.filter(
-            (e) => e.tipo !== "gira" && esMismoDia(new Date(e.fechaInicio), dia)
+            (e) => e.tipo !== "gira" && esMismoDia(enZonaApp(e.fechaInicio), dia)
           );
           const giraDelDia = giras.find((g) => estaEnRangoGira(dia, g));
 
@@ -54,8 +55,8 @@ export function MesView({
             // Design redondea solo en el día exacto de inicio/fin de la gira,
             // nunca en los bordes de fila del calendario (ver líneas 481-485
             // del HTML: el día 17, fin de semana, queda cuadrado igual).
-            const inicio = new Date(giraDelDia.fechaInicio);
-            const fin = giraDelDia.fechaFin ? new Date(giraDelDia.fechaFin) : inicio;
+            const inicio = enZonaApp(giraDelDia.fechaInicio);
+            const fin = giraDelDia.fechaFin ? enZonaApp(giraDelDia.fechaFin) : inicio;
             const esInicio = esMismoDia(dia, inicio);
             const esFin = esMismoDia(dia, fin);
             radius = `${esInicio ? "9px" : "0"} ${esFin ? "9px" : "0"} ${esFin ? "9px" : "0"} ${esInicio ? "9px" : "0"}`;
@@ -98,7 +99,7 @@ export function MesView({
       </div>
 
       {giras
-        .filter((g) => mismoMesAno(new Date(g.fechaInicio), mes) || (g.fechaFin && mismoMesAno(new Date(g.fechaFin), mes)))
+        .filter((g) => mismoMesAno(enZonaApp(g.fechaInicio), mes) || (g.fechaFin && mismoMesAno(enZonaApp(g.fechaFin), mes)))
         .map((g) => {
           const showsDeLaGira = eventos.filter((e) => e.giraId === g.id);
           return (
@@ -115,7 +116,7 @@ export function MesView({
               }}
             >
               <span className="font-mono text-[11px]" style={{ color: "oklch(0.5 0.05 70)" }}>
-                {new Date(g.fechaInicio).getDate()}–{g.fechaFin ? new Date(g.fechaFin).getDate() : new Date(g.fechaInicio).getDate()}
+                {enZonaApp(g.fechaInicio).getDate()}–{g.fechaFin ? enZonaApp(g.fechaFin).getDate() : enZonaApp(g.fechaInicio).getDate()}
               </span>
               <span className="flex-1 text-left text-sm font-bold" style={{ color: "oklch(0.28 0.03 60)" }}>
                 {g.titulo} · {g.bandaNombre}

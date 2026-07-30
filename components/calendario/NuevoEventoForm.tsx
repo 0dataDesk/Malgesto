@@ -6,6 +6,7 @@ import type { Lugar } from "@/lib/lugaresData";
 import { COLOR_TIPO, ETIQUETA_TIPO } from "@/lib/eventoUI";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import { crearEventoAction, actualizarEventoAction, crearGiraRapidaAction } from "@/app/inicio/actions";
+import { enZonaApp, aUtcDesdeZonaApp } from "@/lib/zonaHoraria";
 import { HoraRangoSlider } from "./HoraRangoSlider";
 
 type SetlistOpcion = { id: string; bandaId: string; nombre: string };
@@ -17,13 +18,25 @@ const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.8
 const labelCls = "mb-1.5 block font-mono text-[10px] font-bold tracking-wide uppercase";
 const labelStyle = { color: "oklch(0.55 0.02 55)" };
 
+// Brief 16: `iso` es UTC (fecha_inicio/fecha_fin) — hay que leerlo en
+// ZONA_HORARIA_APP, no en la zona ambiente del navegador, para precargar el
+// form de edición con la fecha/hora que el usuario realmente eligió.
 function aFechaHora(iso: string) {
-  const d = new Date(iso);
+  const d = enZonaApp(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
   return {
     fecha: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
     hora: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
   };
+}
+
+// Brief 16: los `<input type="date">` de gira entregan "YYYY-MM-DD" en texto
+// plano, sin hora ni zona — se toman como medianoche en ZONA_HORARIA_APP, no
+// en la zona ambiente del navegador.
+function fechaInputAUtc(fechaStr: string, hhmm = "00:00"): string {
+  const [anio, mes, dia] = fechaStr.split("-").map(Number);
+  const [hora, minuto] = hhmm.split(":").map(Number);
+  return aUtcDesdeZonaApp(anio, mes - 1, dia, hora, minuto);
 }
 
 function fechaLarga(d: Date): string {
@@ -74,7 +87,7 @@ export function NuevoEventoForm({
   onCreado: () => void;
   onCancelar: () => void;
 }) {
-  const fechaBase = eventoExistente ? new Date(eventoExistente.fechaInicio) : fechaSeleccionada;
+  const fechaBase = eventoExistente ? enZonaApp(eventoExistente.fechaInicio) : fechaSeleccionada;
   const inicial = eventoExistente && eventoExistente.tipo !== "gira" ? aFechaHora(eventoExistente.fechaInicio) : null;
   const inicialFin = eventoExistente?.fechaFin && eventoExistente.tipo !== "gira" ? aFechaHora(eventoExistente.fechaFin) : null;
   const inicialGiraDesde = eventoExistente?.tipo === "gira" ? aFechaHora(eventoExistente.fechaInicio) : null;
@@ -131,8 +144,8 @@ export function NuevoEventoForm({
     }
     startCrearGira(async () => {
       try {
-        const desdeIso = new Date(`${nuevaGiraDesde}T00:00`).toISOString();
-        const hastaIso = new Date(`${nuevaGiraHasta || nuevaGiraDesde}T00:00`).toISOString();
+        const desdeIso = fechaInputAUtc(nuevaGiraDesde);
+        const hastaIso = fechaInputAUtc(nuevaGiraHasta || nuevaGiraDesde);
         const gira = await crearGiraRapidaAction(
           bandaIds,
           nuevaGiraNombre.trim(),
@@ -183,15 +196,13 @@ export function NuevoEventoForm({
           setError("La fecha de inicio de la gira es obligatoria.");
           return;
         }
-        fechaInicioIso = new Date(`${giraDesde}T00:00`).toISOString();
-        fechaFinIso = giraHasta ? new Date(`${giraHasta}T00:00`).toISOString() : null;
+        fechaInicioIso = fechaInputAUtc(giraDesde);
+        fechaFinIso = giraHasta ? fechaInputAUtc(giraHasta) : null;
       } else {
         if (!bandaId) {
           setError("Falta la banda.");
           return;
         }
-        const pad = (n: number) => String(n).padStart(2, "0");
-        const aIso = (d: Date, hhmm: string) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${hhmm}`;
         // Brief 15 §3: si la hora de fin es igual o anterior a la de inicio,
         // el evento cruza medianoche — el fin cae al día siguiente. Sumar el
         // día con setDate() (no con un +1 pegado al string) para que Date
@@ -199,8 +210,13 @@ export function NuevoEventoForm({
         const fechaFinBase = new Date(fechaBase);
         if (horaFin <= horaInicio) fechaFinBase.setDate(fechaFinBase.getDate() + 1);
 
-        fechaInicioIso = new Date(aIso(fechaBase, horaInicio)).toISOString();
-        fechaFinIso = new Date(aIso(fechaFinBase, horaFin)).toISOString();
+        // Brief 16: horaInicio/horaFin son hora de pared en ZONA_HORARIA_APP
+        // (México) — aUtcDesdeZonaApp calcula el UTC real para esa zona en
+        // vez de asumir la zona ambiente del navegador/servidor.
+        const [hInicio, mInicio] = horaInicio.split(":").map(Number);
+        const [hFin, mFin] = horaFin.split(":").map(Number);
+        fechaInicioIso = aUtcDesdeZonaApp(fechaBase.getFullYear(), fechaBase.getMonth(), fechaBase.getDate(), hInicio, mInicio);
+        fechaFinIso = aUtcDesdeZonaApp(fechaFinBase.getFullYear(), fechaFinBase.getMonth(), fechaFinBase.getDate(), hFin, mFin);
       }
 
       const input: NuevoEventoInput = {

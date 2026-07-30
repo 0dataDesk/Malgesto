@@ -1,8 +1,13 @@
 import { DIAS_SEMANA_ABREV, MESES } from "@/lib/eventoUI";
+import { enZonaApp } from "@/lib/zonaHoraria";
 
-// Utilidades de fecha en hora local del navegador — suficiente para una app
-// de una sola zona horaria por banda, sin necesidad de manejo multi-zona.
-
+// Brief 16: estas utilidades ya NO asumen la zona horaria ambiente (la del
+// navegador o, en SSR, la del servidor) — los `iso` que reciben (fecha_inicio
+// / fecha_fin, siempre UTC) se convierten primero a hora de ZONA_HORARIA_APP
+// vía enZonaApp (lib/zonaHoraria.ts) antes de leer año/mes/día/hora. `esMismoDia`
+// y `mismoMesAno` siguen operando sobre los getters locales de un Date común:
+// lo que cambió es que quien las llama con un `iso` de evento debe pasarle
+// `enZonaApp(iso)`, no `new Date(iso)` crudo (ver CalendarioShell/MesView).
 export function esMismoDia(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
@@ -21,15 +26,16 @@ function diaSemanaLunesPrimero(fecha: Date): number {
 }
 
 export function diaDelMes(iso: string): string {
-  return String(new Date(iso).getDate()).padStart(2, "0");
+  return String(enZonaApp(iso).getDate()).padStart(2, "0");
 }
 
 export function diaSemanaAbrev(iso: string): string {
-  return DIAS_SEMANA_ABREV[new Date(iso).getDay()];
+  return DIAS_SEMANA_ABREV[enZonaApp(iso).getDay()];
 }
 
 export function hora(iso: string): string {
-  return new Date(iso).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false });
+  const d = enZonaApp(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 export function nombreMesAno(fecha: Date): string {
@@ -37,7 +43,7 @@ export function nombreMesAno(fecha: Date): string {
 }
 
 export function nombreMes(iso: string): string {
-  return MESES[new Date(iso).getMonth()];
+  return MESES[enZonaApp(iso).getMonth()];
 }
 
 export function mismoMesAno(a: Date, b: Date): boolean {

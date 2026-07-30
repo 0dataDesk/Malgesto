@@ -3,6 +3,7 @@
 import type { Evento } from "@/lib/malgestoEventos";
 import { COLOR_TIPO, ETIQUETA_TIPO, colorConAlpha, formatoMoneda } from "@/lib/eventoUI";
 import { diaDelMes, diaSemanaAbrev, hora, nombreMes, mismoMesAno } from "@/lib/fechas";
+import { enZonaApp } from "@/lib/zonaHoraria";
 
 function TarjetaEvento({ evento, onClick }: { evento: Evento; onClick: () => void }) {
   return (
@@ -137,7 +138,7 @@ export function AgendaView({
 
   const itemsConMes = items.map((item, i) => ({
     item,
-    mostrarMes: i === 0 || !mismoMesAno(new Date(items[i - 1].fechaInicio), new Date(item.fechaInicio)),
+    mostrarMes: i === 0 || !mismoMesAno(enZonaApp(items[i - 1].fechaInicio), enZonaApp(item.fechaInicio)),
   }));
 
   return (
