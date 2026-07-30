@@ -44,8 +44,15 @@ type LugarEmbebido = { nombre: string; link_maps: string } | null;
 const puedeTenerSetlist = (tipo: TipoEvento) => tipo === "show" || tipo === "ensayo";
 const puedeTenerLugar = (tipo: TipoEvento) => tipo === "ensayo" || tipo === "show";
 
+// Brief 17: `bandas(nombre)` sin calificar quedó ambiguo desde que existe
+// gira_bandas (Brief 9 §18) — PostgREST ve dos caminos posibles de eventos a
+// bandas (el FK directo eventos.banda_id, y el many-to-many vía gira_bandas)
+// y rechaza el embed con PGRST201 en vez de adivinar. Como el código no
+// revisaba `error` acá (ver obtenerEventos), esto rompía en silencio TODA
+// lectura de eventos — no solo los de fin de mes — devolviendo `[]` en vez
+// de fallar ruidosamente. Se califica con el nombre del FK para desambiguar.
 const COLUMNAS_EVENTO =
-  "id, banda_id, tipo, titulo, fecha_inicio, fecha_fin, ingreso_esperado, gira_id, setlist_id, lugar_id, pais, ciudades, bandas(nombre), lugares(nombre, link_maps)";
+  "id, banda_id, tipo, titulo, fecha_inicio, fecha_fin, ingreso_esperado, gira_id, setlist_id, lugar_id, pais, ciudades, bandas!eventos_banda_id_fkey(nombre), lugares(nombre, link_maps)";
 
 // Bandas del usuario, con su rol — determina si va directo al calendario de
 // su única banda o si necesita el selector (más de una). banda_id es
@@ -133,16 +140,21 @@ export async function obtenerEventos(bandaIds: string[]): Promise<Evento[]> {
   if (bandaIds.length === 0) return [];
   const admin = supabaseMalgesto();
 
-  const { data: directos } = await admin.from("eventos").select(COLUMNAS_EVENTO).in("banda_id", bandaIds);
+  // Brief 17: antes estos errores se tragaban con `?? []` — un embed
+  // ambiguo (u otro error real) quedaba indistinguible de "no hay eventos".
+  const { data: directos, error: errorDirectos } = await admin.from("eventos").select(COLUMNAS_EVENTO).in("banda_id", bandaIds);
+  if (errorDirectos) throw new Error(errorDirectos.message);
 
-  const { data: girasSecundarias } = await admin.from("gira_bandas").select("gira_evento_id").in("banda_id", bandaIds);
+  const { data: girasSecundarias, error: errorGiras } = await admin.from("gira_bandas").select("gira_evento_id").in("banda_id", bandaIds);
+  if (errorGiras) throw new Error(errorGiras.message);
 
   const idsDirectos = new Set((directos ?? []).map((e) => e.id));
   const idsSecundarios = [...new Set((girasSecundarias ?? []).map((g) => g.gira_evento_id))].filter((id) => !idsDirectos.has(id));
 
   let extra: NonNullable<typeof directos> = [];
   if (idsSecundarios.length > 0) {
-    const { data } = await admin.from("eventos").select(COLUMNAS_EVENTO).in("id", idsSecundarios);
+    const { data, error: errorExtra } = await admin.from("eventos").select(COLUMNAS_EVENTO).in("id", idsSecundarios);
+    if (errorExtra) throw new Error(errorExtra.message);
     extra = data ?? [];
   }
 
