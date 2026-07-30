@@ -52,6 +52,13 @@ export async function GET(request: Request) {
   const eventosLeocadio = await obtenerEventos([BANDA_ID_LEOCADIO]);
   const eventoEnListaReal = eventosLeocadio.find((e) => e.id === EVENTO_ID_PRUEBA);
 
+  // obtenerEventos traga el error con `?? []` — lo repetimos acá crudo, con
+  // el mismo select (columnas + embeds), para ver el error real si lo hay.
+  const COLUMNAS_EVENTO =
+    "id, banda_id, tipo, titulo, fecha_inicio, fecha_fin, ingreso_esperado, gira_id, setlist_id, lugar_id, pais, ciudades, bandas(nombre), lugares(nombre, link_maps)";
+  const directoCrudo = await admin.from("eventos").select(COLUMNAS_EVENTO).in("banda_id", [BANDA_ID_LEOCADIO]);
+  const sinEmbeds = await admin.from("eventos").select("id, banda_id, titulo").in("banda_id", [BANDA_ID_LEOCADIO]);
+
   return NextResponse.json({
     commitDesplegado: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
     entornoVercel: process.env.VERCEL_ENV ?? null,
@@ -62,6 +69,15 @@ export async function GET(request: Request) {
       totalEventosParaLeocadio: eventosLeocadio.length,
       eventoDePruebaApareceEnLaLista: !!eventoEnListaReal,
       eventoEnListaReal: eventoEnListaReal ?? null,
+    },
+    consultaConEmbedsCruda: {
+      error: directoCrudo.error ? { message: directoCrudo.error.message, code: directoCrudo.error.code, details: directoCrudo.error.details, hint: directoCrudo.error.hint } : null,
+      cantidadFilas: directoCrudo.data?.length ?? null,
+    },
+    consultaSinEmbeds: {
+      error: sinEmbeds.error ? { message: sinEmbeds.error.message, code: sinEmbeds.error.code } : null,
+      cantidadFilas: sinEmbeds.data?.length ?? null,
+      filas: sinEmbeds.data ?? null,
     },
   });
 }
