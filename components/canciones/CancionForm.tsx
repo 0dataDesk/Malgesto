@@ -328,13 +328,15 @@ export function CancionForm({
                       onSeleccionar={(notaRaiz, calidad) => actualizarAcorde(si, ai, { notaRaiz, calidad })}
                     />
                     <input
-                      type="number"
-                      min={0.5}
-                      step={0.5}
-                      className={inputCls}
-                      style={{ ...inputStyle, width: "3em" }}
+                      type="text"
+                      inputMode="numeric"
+                      className="rounded-lg border text-center text-sm outline-none"
+                      style={{ ...inputStyle, width: "2.75em", padding: "8px 2px" }}
                       value={a.duracionCompases}
-                      onChange={(e) => actualizarAcorde(si, ai, { duracionCompases: Number(e.target.value) || 1 })}
+                      onChange={(e) => {
+                        const limpio = e.target.value.replace(/[^0-9.]/g, "");
+                        actualizarAcorde(si, ai, { duracionCompases: Number(limpio) || 1 });
+                      }}
                     />
                     <span className="text-xs" style={labelColor}>
                       compases
