@@ -19,7 +19,6 @@ export type AcordeGuardado = {
   notaRaiz: Nota;
   calidad: Calidad;
   duracionCompases: number;
-  incluirNovena: boolean;
 };
 
 export type SeccionConAcordes = {
@@ -63,7 +62,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
 
   const { data: secciones } = await admin
     .from("secciones")
-    .select("id, orden, nombre, acordes(id, orden, nota_raiz, calidad, duracion_compases, incluir_novena)")
+    .select("id, orden, nombre, acordes(id, orden, nota_raiz, calidad, duracion_compases)")
     .eq("cancion_id", cancionId)
     .order("orden", { ascending: true })
     .order("orden", { ascending: true, foreignTable: "acordes" });
@@ -89,7 +88,6 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
           notaRaiz: a.nota_raiz as Nota,
           calidad: a.calidad as Calidad,
           duracionCompases: Number(a.duracion_compases),
-          incluirNovena: a.incluir_novena,
         })),
     })),
   };
@@ -99,7 +97,6 @@ export type AcordeInput = {
   notaRaiz: Nota;
   calidad: Calidad;
   duracionCompases: number;
-  incluirNovena: boolean;
 };
 
 export type SeccionInput = {
@@ -140,7 +137,6 @@ async function insertarSecciones(
           nota_raiz: a.notaRaiz,
           calidad: a.calidad,
           duracion_compases: a.duracionCompases || 1,
-          incluir_novena: a.incluirNovena,
         }))
       );
       if (errAcordes) throw new Error(errAcordes.message);

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { NOTAS, type Nota, type Modo, type Calidad } from "@/lib/cancionTeoria";
-import { NOMBRES_SECCION, type NombreSeccion } from "@/lib/seccionCatalogo";
+import { NOMBRES_SECCION, colorPorTipoSeccion, type NombreSeccion } from "@/lib/seccionCatalogo";
 import type { CancionCompleta, CancionInput } from "@/lib/cancionesData";
 import { crearCancionAction, actualizarCancionAction } from "@/app/canciones/actions";
 import { AcordeSelector } from "./AcordeSelector";
@@ -14,18 +14,53 @@ const labelColor = { color: "oklch(0.5 0.02 55)" };
 const inactivoStyle = { background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" };
 const activoStyle = { background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" };
 
-type AcordeFS = { notaRaiz: Nota; calidad: Calidad; duracionCompases: number; incluirNovena: boolean };
+// Brief 19 §3: 7 notas naturales para la lista desplegable de tonalidad — el
+// sostenido se decide aparte con el toggle "♯", no está en la lista.
+const NATURALES = NOTAS.filter((n) => !n.includes("#")) as Nota[];
+
+function esNota(natural: string, sostenido: boolean): Nota {
+  const candidata = `${natural}${sostenido ? "#" : ""}`;
+  return (NOTAS as readonly string[]).includes(candidata) ? (candidata as Nota) : (natural as Nota);
+}
+
+function puedeSostenido(natural: string): boolean {
+  return (NOTAS as readonly string[]).includes(`${natural}#`);
+}
+
+type AcordeFS = { notaRaiz: Nota; calidad: Calidad; duracionCompases: number };
 type SeccionFS = { nombre: NombreSeccion; acordes: AcordeFS[] };
 
 function nuevaSeccion(): SeccionFS {
   return { nombre: "Intro", acordes: [] };
 }
 
+function IconoDuplicar() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="12" height="12" rx="2" />
+      <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+    </svg>
+  );
+}
+
+function IconoQuitar() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
 function SeccionNombreSelector({ valor, onCambio }: { valor: NombreSeccion; onCambio: (n: NombreSeccion) => void }) {
   const [abierto, setAbierto] = useState(false);
   return (
     <div className="relative">
-      <button type="button" onClick={() => setAbierto((v) => !v)} className="rounded-lg px-3 py-1.5 text-sm font-bold" style={activoStyle}>
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        className="rounded-md px-2 py-1 text-xs font-semibold"
+        style={{ background: colorPorTipoSeccion(valor), color: "oklch(0.99 0.01 82)" }}
+      >
         {valor}
       </button>
       {abierto && (
@@ -42,7 +77,7 @@ function SeccionNombreSelector({ valor, onCambio }: { valor: NombreSeccion; onCa
                 setAbierto(false);
               }}
               className="rounded-lg px-2.5 py-1.5 text-xs font-bold"
-              style={n === valor ? activoStyle : inactivoStyle}
+              style={n === valor ? { background: colorPorTipoSeccion(n), color: "oklch(0.99 0.01 82)" } : inactivoStyle}
             >
               {n}
             </button>
@@ -72,7 +107,6 @@ export function CancionForm({
         notaRaiz: a.notaRaiz,
         calidad: a.calidad,
         duracionCompases: a.duracionCompases,
-        incluirNovena: a.incluirNovena,
       })),
     })) ?? [nuevaSeccion()]
   );
@@ -106,7 +140,7 @@ export function CancionForm({
   const agregarAcorde = (si: number) =>
     setSecciones((prev) =>
       prev.map((s, idx) =>
-        idx === si ? { ...s, acordes: [...s.acordes, { notaRaiz: raiz, calidad: "mayor", duracionCompases: 1, incluirNovena: false }] } : s
+        idx === si ? { ...s, acordes: [...s.acordes, { notaRaiz: raiz, calidad: "mayor", duracionCompases: 1 }] } : s
       )
     );
 
@@ -161,47 +195,66 @@ export function CancionForm({
   return (
     <div className="flex h-full max-w-3xl flex-col">
       <div className="flex flex-1 min-h-0 flex-col gap-6 overflow-y-auto pb-4 pr-1">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-4">
           <label className={labelCls} style={labelColor}>
             Título
             <input className={inputCls} style={inputStyle} value={titulo} onChange={(e) => setTitulo(e.target.value)} />
           </label>
-          <label className={labelCls} style={labelColor}>
-            BPM
-            <input
-              type="number"
-              min={0}
-              max={999}
-              className={inputCls}
-              style={inputStyle}
-              value={bpm}
-              onChange={(e) => setBpm(e.target.value)}
-            />
-          </label>
-          <label className={labelCls} style={labelColor}>
-            Duración
-            <input
-              className={inputCls}
-              style={inputStyle}
-              placeholder="3:24"
-              value={duracion}
-              onChange={(e) => setDuracion(e.target.value)}
-            />
-          </label>
+          <div className="flex gap-4">
+            <label className={labelCls} style={labelColor}>
+              Duración
+              <input
+                className={inputCls}
+                style={{ ...inputStyle, width: "5.5em" }}
+                maxLength={5}
+                placeholder="3:24"
+                value={duracion}
+                onChange={(e) => setDuracion(e.target.value)}
+              />
+            </label>
+            <label className={labelCls} style={labelColor}>
+              BPM
+              <input
+                type="number"
+                min={0}
+                max={999}
+                className={inputCls}
+                style={{ ...inputStyle, width: "4.5em" }}
+                maxLength={3}
+                value={bpm}
+                onChange={(e) => setBpm(e.target.value)}
+              />
+            </label>
+          </div>
         </div>
 
         <div>
           <div className="mb-1.5 text-sm" style={labelColor}>
             Tonalidad
           </div>
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {NOTAS.map((n) => (
-              <button key={n} type="button" onClick={() => setRaiz(n)} className="rounded-lg px-3 py-1.5 text-sm font-bold" style={n === raiz ? activoStyle : inactivoStyle}>
-                {n}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <select
+              className={`${inputCls} w-auto`}
+              style={inputStyle}
+              value={raiz.replace("#", "")}
+              onChange={(e) => setRaiz(esNota(e.target.value, raiz.includes("#")))}
+            >
+              {NATURALES.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={!puedeSostenido(raiz.replace("#", ""))}
+              onClick={() => setRaiz(esNota(raiz.replace("#", ""), !raiz.includes("#")))}
+              title="Sostenido"
+              className="rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-30"
+              style={raiz.includes("#") ? activoStyle : inactivoStyle}
+            >
+              ♯
+            </button>
             {(["mayor", "menor"] as const).map((m) => (
               <button key={m} type="button" onClick={() => setModo(m)} className="rounded-lg px-3 py-1.5 text-sm font-bold" style={m === modo ? activoStyle : inactivoStyle}>
                 {m}
@@ -232,20 +285,23 @@ export function CancionForm({
                 <button
                   type="button"
                   onClick={() => duplicarSeccion(si)}
-                  className="rounded-lg px-3 py-1.5 text-sm font-bold"
-                  style={inactivoStyle}
+                  className="flex h-9 w-9 items-center justify-center rounded-full"
+                  style={{ background: "oklch(0.93 0.016 78 / 0.9)", color: "oklch(0.45 0.02 55)", border: "1px solid oklch(0.85 0.016 78)" }}
+                  aria-label="Duplicar sección"
                   title="Crea una copia idéntica de esta sección justo después"
                 >
-                  Duplicar
+                  <IconoDuplicar />
                 </button>
                 {secciones.length > 1 && (
                   <button
                     type="button"
                     onClick={() => quitarSeccion(si)}
-                    className="ml-auto rounded-lg px-3 py-1.5 text-sm"
-                    style={{ color: "oklch(0.6 0.15 25)" }}
+                    className="ml-auto flex h-9 w-9 items-center justify-center rounded-full"
+                    style={{ background: "oklch(0.6 0.15 25 / 0.12)", color: "oklch(0.5 0.18 25)", border: "1px solid oklch(0.6 0.15 25 / 0.35)" }}
+                    aria-label="Quitar sección"
+                    title="Quitar sección"
                   >
-                    Quitar sección
+                    <IconoQuitar />
                   </button>
                 )}
               </div>
@@ -259,21 +315,12 @@ export function CancionForm({
                       calidad={a.calidad}
                       onSeleccionar={(notaRaiz, calidad) => actualizarAcorde(si, ai, { notaRaiz, calidad })}
                     />
-                    <button
-                      type="button"
-                      title="Agrega la novena al acorde"
-                      onClick={() => actualizarAcorde(si, ai, { incluirNovena: !a.incluirNovena })}
-                      className="whitespace-nowrap rounded-lg px-2.5 py-2 text-xs font-bold"
-                      style={a.incluirNovena ? activoStyle : inactivoStyle}
-                    >
-                      Agregar 9ª
-                    </button>
                     <input
                       type="number"
                       min={0.5}
                       step={0.5}
                       className={inputCls}
-                      style={{ ...inputStyle, width: 90 }}
+                      style={{ ...inputStyle, width: "3em" }}
                       value={a.duracionCompases}
                       onChange={(e) => actualizarAcorde(si, ai, { duracionCompases: Number(e.target.value) || 1 })}
                     />

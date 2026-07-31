@@ -50,11 +50,10 @@ function notaEn(indice: number): Nota {
 
 export type TonoAcorde = { raiz: Nota; acompanantes: { intervalo: string; nota: Nota }[] };
 
-export function tonosDelAcorde(raiz: Nota, calidad: Calidad, incluirNovena = false): TonoAcorde {
+// Brief 19 §6: la 9ª ya no es opcional — todo acorde la incluye siempre.
+export function tonosDelAcorde(raiz: Nota, calidad: Calidad): TonoAcorde {
   const idxRaiz = NOTAS.indexOf(raiz);
-  const intervalos = incluirNovena
-    ? [...INTERVALOS_POR_CALIDAD[calidad], { semitonos: 14, etiqueta: "9ª" }]
-    : INTERVALOS_POR_CALIDAD[calidad];
+  const intervalos = [...INTERVALOS_POR_CALIDAD[calidad], { semitonos: 14, etiqueta: "9ª" }];
   return {
     raiz,
     acompanantes: intervalos.map((i) => ({ intervalo: i.etiqueta, nota: notaEn(idxRaiz + i.semitonos) })),

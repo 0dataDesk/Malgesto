@@ -8,7 +8,7 @@ import type { AcordeGuardado } from "@/lib/cancionesData";
 // ya se usan para el grado del acorde dentro de la tonalidad en
 // AcordeSelector, un concepto distinto que no hay que mezclar acá.
 export function ChordBlock({ acorde }: { acorde: AcordeGuardado }) {
-  const tonos = tonosDelAcorde(acorde.notaRaiz, acorde.calidad, acorde.incluirNovena);
+  const tonos = tonosDelAcorde(acorde.notaRaiz, acorde.calidad);
   const acompanantes = tonos.acompanantes.filter(
     (t) => t.intervalo !== "5ª" || requiereQuintaExplicita(acorde.calidad)
   );
