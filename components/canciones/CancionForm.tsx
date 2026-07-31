@@ -369,7 +369,7 @@ export function CancionForm({
             className="w-fit rounded-lg px-4 py-2 text-sm font-bold"
             style={{ border: "1px dashed oklch(0.75 0.02 78)", color: "oklch(0.5 0.02 55)" }}
           >
-            + Agregar sección
+            + Sección
           </button>
         </div>
 
