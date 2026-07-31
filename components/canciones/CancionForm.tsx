@@ -115,6 +115,12 @@ export function CancionForm({
 
   const tonalidad = { raiz, modo };
 
+  // Brief 20 §1: se recalcula en cada render a partir de `secciones` — nunca
+  // se guarda, así que no puede desincronizarse de lo que el usuario está
+  // editando en este momento (no hace falta guardar primero).
+  const compasesPorSeccion = (s: SeccionFS) => s.acordes.reduce((total, a) => total + a.duracionCompases, 0);
+  const totalCompases = secciones.reduce((total, s) => total + compasesPorSeccion(s), 0);
+
   const actualizarSeccion = (i: number, patch: Partial<SeccionFS>) =>
     setSecciones((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
 
@@ -194,6 +200,9 @@ export function CancionForm({
 
   return (
     <div className="flex h-full max-w-3xl flex-col">
+      <div className="mb-3 shrink-0 font-mono text-xs font-bold uppercase tracking-wide" style={labelColor}>
+        Total: {totalCompases} {totalCompases === 1 ? "compás" : "compases"}
+      </div>
       <div className="flex flex-1 min-h-0 flex-col gap-6 overflow-y-auto pb-4 pr-1">
         <div className="flex flex-col gap-4">
           <label className={labelCls} style={labelColor}>
@@ -268,6 +277,9 @@ export function CancionForm({
             <div key={si} className="rounded-xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
               <div className="mb-3 flex items-center gap-3">
                 <SeccionNombreSelector valor={s.nombre} onCambio={(nombre) => actualizarSeccion(si, { nombre })} />
+                <span className="font-mono text-xs" style={labelColor}>
+                  {compasesPorSeccion(s)}c
+                </span>
                 <div className="flex gap-1">
                   <button type="button" onClick={() => moverSeccion(si, -1)} disabled={si === 0} className="text-sm disabled:opacity-30" style={labelColor}>
                     ↑
@@ -343,7 +355,7 @@ export function CancionForm({
                   className="mt-1 w-fit rounded-lg px-3 py-1.5 text-sm font-bold"
                   style={{ border: "1px dashed oklch(0.75 0.02 78)", color: "oklch(0.5 0.02 55)" }}
                 >
-                  + Agregar acorde
+                  + Acorde
                 </button>
               </div>
             </div>

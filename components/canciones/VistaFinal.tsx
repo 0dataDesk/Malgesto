@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import type { CancionCompleta } from "@/lib/cancionesData";
 import type { SeteoEnContexto } from "@/lib/dispositivosData";
@@ -37,17 +40,36 @@ export function VistaFinal({
   seteosContexto: SeteoEnContexto[];
 }) {
   const sufijo = setlist ? `?setlist=${setlist.id}` : "";
+  // Brief 20 §2: apagado por defecto — un músico que ya lee la nota no
+  // necesita el número de función encima; se prende solo cuando hace falta
+  // (aprender/confirmar el acorde). No persiste entre sesiones a propósito.
+  const [mostrarEtiquetas, setMostrarEtiquetas] = useState(false);
 
   return (
     <div className="min-h-screen pb-28" style={{ background: "oklch(0.965 0.012 82)" }}>
       <div className="mx-auto max-w-2xl px-5 pt-6">
-        <Link
-          href={setlist ? `/set-list/${setlist.id}/vivo` : "/canciones"}
-          className="mb-3 inline-block text-sm no-underline"
-          style={{ color: "oklch(0.55 0.02 55)" }}
-        >
-          ‹ {setlist ? setlist.nombre : "Canciones"}
-        </Link>
+        <div className="flex items-start justify-between gap-3">
+          <Link
+            href={setlist ? `/set-list/${setlist.id}/vivo` : "/canciones"}
+            className="mb-3 inline-block text-sm no-underline"
+            style={{ color: "oklch(0.55 0.02 55)" }}
+          >
+            ‹ {setlist ? setlist.nombre : "Canciones"}
+          </Link>
+          <button
+            type="button"
+            onClick={() => setMostrarEtiquetas((v) => !v)}
+            className="shrink-0 rounded-full px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wide"
+            style={
+              mostrarEtiquetas
+                ? { background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }
+                : { background: "oklch(0.93 0.016 78)", color: "oklch(0.5 0.02 55)" }
+            }
+            title="Mostrar/ocultar el número de función (1, 3, 5, 7, 9) sobre cada nota"
+          >
+            1 3 5 7 9
+          </button>
+        </div>
 
         <h1
           className="text-[28px] font-extrabold tracking-tight"
@@ -95,9 +117,9 @@ export function VistaFinal({
                 {seccion.nombre}
               </h2>
             </div>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-4 gap-2">
               {seccion.acordes.slice(0, 8).map((acorde) => (
-                <ChordBlock key={acorde.id} acorde={acorde} />
+                <ChordBlock key={acorde.id} acorde={acorde} mostrarEtiquetas={mostrarEtiquetas} />
               ))}
             </div>
           </div>
