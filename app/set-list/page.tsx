@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
-import { obtenerMembresias, esSuperadminDeMembresias } from "@/lib/malgestoEventos";
+import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
 import { obtenerSetlists } from "@/lib/setlistsData";
 import { crearSetlistAction } from "@/app/set-list/actions";
 import { TabBar } from "@/components/shell/TabBar";
@@ -24,12 +24,13 @@ export default async function SetListPage({
   const membresias = await obtenerMembresias(user.id);
   if (membresias.length === 0) redirect("/sin-acceso");
 
-  const membresiasConBloque = membresias.filter((m) => m.setlistHabilitado);
-  if (membresiasConBloque.length === 0) redirect("/inicio");
+  const superadmin = esSuperadminDeMembresias(membresias);
+  const bandasConBloque = membresiasConBloque(membresias, "set_list", superadmin);
+  if (bandasConBloque.length === 0) redirect("/inicio");
 
-  const bandaValida = membresiasConBloque.some((m) => m.bandaId === bandaParam);
-  const bandaActiva = bandaValida ? bandaParam! : membresiasConBloque[0].bandaId;
-  const nombreBandaActiva = membresiasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
+  const bandaValida = bandasConBloque.some((m) => m.bandaId === bandaParam);
+  const bandaActiva = bandaValida ? bandaParam! : bandasConBloque[0].bandaId;
+  const nombreBandaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
 
   const setlists = await obtenerSetlists([bandaActiva]);
   const crear = crearSetlistAction.bind(null, bandaActiva);
@@ -52,9 +53,9 @@ export default async function SetListPage({
           </span>
         </div>
 
-        {membresiasConBloque.length > 1 && (
+        {bandasConBloque.length > 1 && (
           <div className="mt-3.5 flex flex-wrap gap-2">
-            {membresiasConBloque.map((m) => (
+            {bandasConBloque.map((m) => (
               <Link
                 key={m.bandaId}
                 href={`/set-list?banda=${m.bandaId}`}
@@ -117,9 +118,10 @@ export default async function SetListPage({
       <TabBar
         activa="setlist"
         userEmail={user.email}
-        esSuperadmin={esSuperadminDeMembresias(membresias)}
-        mostrarCanciones={membresias.some((m) => m.cancionesHabilitado)}
-        mostrarSeteos={membresias.some((m) => m.seteosHabilitado)}
+        esSuperadmin={superadmin}
+        mostrarCanciones={algunaBandaConBloque(membresias, "canciones", superadmin)}
+        mostrarSeteos={algunaBandaConBloque(membresias, "seteos", superadmin)}
+        mostrarFinanzas={algunaBandaConBloque(membresias, "finanzas", superadmin)}
       />
     </div>
   );

@@ -196,6 +196,7 @@ function DetalleBanda({
   const [canciones, setCanciones] = useState(banda.cancionesHabilitado);
   const [setlist, setSetlist] = useState(banda.setlistHabilitado);
   const [seteos, setSeteos] = useState(banda.seteosHabilitado);
+  const [finanzas, setFinanzas] = useState(banda.finanzasHabilitado);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -205,7 +206,8 @@ function DetalleBanda({
     numeroIntegrantes !== numeroIntegrantesInicial ||
     canciones !== banda.cancionesHabilitado ||
     setlist !== banda.setlistHabilitado ||
-    seteos !== banda.seteosHabilitado;
+    seteos !== banda.seteosHabilitado ||
+    finanzas !== banda.finanzasHabilitado;
 
   const guardar = () => {
     if (!nombre.trim()) return;
@@ -219,6 +221,7 @@ function DetalleBanda({
           cancionesHabilitado: canciones,
           setlistHabilitado: setlist,
           seteosHabilitado: seteos,
+          finanzasHabilitado: finanzas,
         };
         await actualizarBandaAction(banda.id, cambios);
         onActualizada({ ...banda, ...cambios });
@@ -269,6 +272,7 @@ function DetalleBanda({
           <ToggleChip label="Canciones" active={canciones} onClick={() => setCanciones((v) => !v)} />
           <ToggleChip label="Set List" active={setlist} onClick={() => setSetlist((v) => !v)} />
           <ToggleChip label="Seteos" active={seteos} onClick={() => setSeteos((v) => !v)} />
+          <ToggleChip label="Finanzas" active={finanzas} onClick={() => setFinanzas((v) => !v)} />
         </div>
 
         {hayCambios && (
@@ -329,6 +333,7 @@ export function BandasPanel({ bandas: bandasIniciales, plazas: plazasIniciales }
               cancionesHabilitado: true,
               setlistHabilitado: true,
               seteosHabilitado: true,
+              finanzasHabilitado: true,
             },
           ].sort((a, b) => a.nombre.localeCompare(b.nombre))
         );
@@ -433,6 +438,11 @@ export function BandasPanel({ bandas: bandasIniciales, plazas: plazasIniciales }
               {b.seteosHabilitado && (
                 <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}>
                   Seteos
+                </span>
+              )}
+              {b.finanzasHabilitado && (
+                <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}>
+                  Finanzas
                 </span>
               )}
             </div>

@@ -93,6 +93,14 @@ function IconoSeteos() {
   );
 }
 
+function IconoFinanzas() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+    </svg>
+  );
+}
+
 function NavBoton({ href, activo, label, children }: { href: string; activo: boolean; label: string; children: React.ReactNode }) {
   return (
     <Link
@@ -119,13 +127,15 @@ export function TabBar({
   mostrarCanciones = true,
   mostrarSetlist = true,
   mostrarSeteos = true,
+  mostrarFinanzas = true,
 }: {
-  activa: "calendario" | "canciones" | "setlist" | "seteos";
+  activa: "calendario" | "canciones" | "setlist" | "seteos" | "finanzas";
   userEmail?: string;
   esSuperadmin?: boolean;
   mostrarCanciones?: boolean;
   mostrarSetlist?: boolean;
   mostrarSeteos?: boolean;
+  mostrarFinanzas?: boolean;
 }) {
   return (
     <>
@@ -160,6 +170,11 @@ export function TabBar({
         {mostrarSeteos && (
           <NavBoton href="/seteos" activo={activa === "seteos"} label="Seteos">
             <IconoSeteos />
+          </NavBoton>
+        )}
+        {mostrarFinanzas && (
+          <NavBoton href="/finanzas" activo={activa === "finanzas"} label="Finanzas">
+            <IconoFinanzas />
           </NavBoton>
         )}
       </div>

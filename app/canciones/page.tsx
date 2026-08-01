@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
-import { obtenerMembresias, esSuperadminDeMembresias } from "@/lib/malgestoEventos";
+import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
 import { obtenerCanciones } from "@/lib/cancionesData";
 import { TabBar } from "@/components/shell/TabBar";
 import { RecordarBandaActiva } from "@/components/canciones/RecordarBandaActiva";
@@ -27,20 +27,22 @@ export default async function CancionesPage({
   const membresias = await obtenerMembresias(user.id);
   if (membresias.length === 0) redirect("/sin-acceso");
 
-  // El bloque Canciones puede estar desactivado por banda (Brief 8 §2) — si
-  // ninguna de las bandas del usuario lo tiene habilitado, la sección entera
-  // no es accesible.
-  const membresiasConBloque = membresias.filter((m) => m.cancionesHabilitado);
-  if (membresiasConBloque.length === 0) redirect("/inicio");
+  const superadmin = esSuperadminDeMembresias(membresias);
+
+  // El bloque Canciones puede estar desactivado por banda, o restringido
+  // por persona (Brief 21 §1) — si ninguna banda del usuario lo hace
+  // efectivamente visible, la sección entera no es accesible.
+  const bandasConBloque = membresiasConBloque(membresias, "canciones", superadmin);
+  if (bandasConBloque.length === 0) redirect("/inicio");
 
   // Brief 12 §3: si no vino ?banda= en la URL, cae a la última banda que el
   // navegador recuerde (cookie de sesión) antes de usar la primera por
   // defecto — así volver desde el tab de abajo no reinicia siempre a ODR.
   const bandaCookie = (await cookies()).get("malgesto_banda_canciones")?.value;
-  const bandaValida = membresiasConBloque.some((m) => m.bandaId === bandaParam);
-  const bandaCookieValida = membresiasConBloque.some((m) => m.bandaId === bandaCookie);
-  const bandaActiva = bandaValida ? bandaParam! : bandaCookieValida ? bandaCookie! : membresiasConBloque[0].bandaId;
-  const nombreBandaActiva = membresiasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
+  const bandaValida = bandasConBloque.some((m) => m.bandaId === bandaParam);
+  const bandaCookieValida = bandasConBloque.some((m) => m.bandaId === bandaCookie);
+  const bandaActiva = bandaValida ? bandaParam! : bandaCookieValida ? bandaCookie! : bandasConBloque[0].bandaId;
+  const nombreBandaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
 
   const canciones = await obtenerCanciones([bandaActiva]);
 
@@ -66,9 +68,9 @@ export default async function CancionesPage({
           </span>
         </div>
 
-        {membresiasConBloque.length > 1 && (
+        {bandasConBloque.length > 1 && (
           <div className="mt-3.5 flex flex-wrap gap-2">
-            {membresiasConBloque.map((m) => (
+            {bandasConBloque.map((m) => (
               <Link
                 key={m.bandaId}
                 href={`/canciones?banda=${m.bandaId}`}
@@ -135,9 +137,10 @@ export default async function CancionesPage({
       <TabBar
         activa="canciones"
         userEmail={user.email}
-        esSuperadmin={esSuperadminDeMembresias(membresias)}
-        mostrarSetlist={membresias.some((m) => m.setlistHabilitado)}
-        mostrarSeteos={membresias.some((m) => m.seteosHabilitado)}
+        esSuperadmin={superadmin}
+        mostrarSetlist={algunaBandaConBloque(membresias, "set_list", superadmin)}
+        mostrarSeteos={algunaBandaConBloque(membresias, "seteos", superadmin)}
+        mostrarFinanzas={algunaBandaConBloque(membresias, "finanzas", superadmin)}
       />
     </div>
   );

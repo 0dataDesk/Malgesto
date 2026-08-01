@@ -18,6 +18,7 @@ import {
   removerDeBanda,
   asignarABanda,
   establecerSuperadmin,
+  actualizarBloquesVisibles,
   type ResultadoInvitacion,
   type ActualizacionBanda,
 } from "@/lib/gestionData";
@@ -122,6 +123,12 @@ export async function asignarABandaAction(usuarioId: string, bandaId: string): P
 export async function establecerSuperadminAction(usuarioId: string, activar: boolean): Promise<void> {
   await requerirSuperadmin();
   await establecerSuperadmin(usuarioId, activar);
+  revalidatePath("/gestion");
+}
+
+export async function actualizarBloquesVisiblesAction(usuarioId: string, bandaId: string, bloques: string[] | null): Promise<void> {
+  await requerirSuperadmin();
+  await actualizarBloquesVisibles(usuarioId, bandaId, bloques);
   revalidatePath("/gestion");
 }
 

@@ -1,6 +1,7 @@
 import "server-only";
 import { supabaseMalgesto } from "@/lib/supabase/malgesto";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
+import { obtenerMembresias, esSuperadminDeMembresias, bloqueVisible, type NombreBloque } from "@/lib/malgestoEventos";
 
 // Verifica que el usuario autenticado sea miembro de la banda dada — usado
 // por los server actions de cualquier módulo (Calendario, Canciones...)
@@ -47,6 +48,28 @@ export async function requerirSuperadmin(): Promise<string> {
     .limit(1);
 
   if (!data || data.length === 0) throw new Error("No tenés permisos de superadmin.");
+
+  return user.id;
+}
+
+// Brief 21 §4: mismo rol que requerirMembresia, pero para acciones de un
+// bloque opcional (ej. cargar un movimiento en Finanzas) — además de ser
+// miembro activo de la banda, valida la regla de visibilidad efectiva
+// (banda activa Y persona no restringida) antes de dejar mutar.
+export async function requerirAccesoBloque(bandaId: string, bloque: NombreBloque): Promise<string> {
+  const supabase = await supabaseServerAuth();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("No hay sesión activa.");
+
+  const membresias = await obtenerMembresias(user.id);
+  const membresia = membresias.find((m) => m.bandaId === bandaId);
+  if (!membresia) throw new Error("No pertenecés a esa banda.");
+
+  const superadmin = esSuperadminDeMembresias(membresias);
+  if (!bloqueVisible(membresia, bloque, superadmin)) throw new Error("No tenés acceso a ese bloque.");
 
   return user.id;
 }

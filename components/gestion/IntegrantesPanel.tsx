@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import type { BandaSimple, PersonaPendiente, Integrante, Plaza } from "@/lib/gestionData";
+import type { BandaSimple, PersonaPendiente, Integrante, Plaza, BandaDeIntegrante } from "@/lib/gestionData";
+import type { NombreBloque } from "@/lib/bloques";
 import { etiquetaPlaza } from "@/lib/instrumentoCatalogo";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import {
@@ -12,7 +13,22 @@ import {
   asignarABandaAction,
   asignarPersonaAPlazaAction,
   quitarPersonaDePlazaAction,
+  actualizarBloquesVisiblesAction,
 } from "@/app/gestion/actions";
+
+// Catálogo de bloques opcionales restringibles por persona (Brief 21 §1) —
+// Calendario nunca entra acá porque nunca se restringe.
+const BLOQUES: { key: NombreBloque; label: string; activo: (b: BandaSimple) => boolean }[] = [
+  { key: "canciones", label: "Canciones", activo: (b) => b.cancionesHabilitado },
+  { key: "set_list", label: "Set List", activo: (b) => b.setlistHabilitado },
+  { key: "seteos", label: "Seteos", activo: (b) => b.seteosHabilitado },
+  { key: "finanzas", label: "Finanzas", activo: (b) => b.finanzasHabilitado },
+];
+
+function bloqueVisible(banda: BandaDeIntegrante, bloque: NombreBloque): boolean {
+  if (!banda.bloquesVisibles) return true;
+  return banda.bloquesVisibles.includes(bloque);
+}
 
 const inputCls = "rounded-xl border px-3.5 py-2.5 text-sm outline-none";
 const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
@@ -77,10 +93,29 @@ function FilaIntegrante({
             return prev.map((b) => (b.bandaId === bandaId ? { ...b, activo: !asignada } : b));
           }
           const info = bandas.find((b) => b.id === bandaId);
-          return [...prev, { bandaId, bandaNombre: info?.nombre ?? "Banda", activo: true, plazas: [] }];
+          return [...prev, { bandaId, bandaNombre: info?.nombre ?? "Banda", activo: true, plazas: [], bloquesVisibles: null }];
         });
       })
       .finally(() => setPendingBanda(null));
+  };
+
+  // Brief 21 §1: al tildar/destildar un bloque, si el resultado cubre TODOS
+  // los bloques activos de esa banda se persiste null (sin restricción) en
+  // vez del array completo — así, si la banda activa un bloque nuevo más
+  // adelante, esta persona lo ve automáticamente en vez de quedar excluida
+  // por un array que quedó desactualizado.
+  const togglePermisoBloque = (bandaId: string, bloque: NombreBloque, bloquesActivos: NombreBloque[]) => {
+    if (!integrante.usuarioId) return;
+    const banda = bandasLocal.find((b) => b.bandaId === bandaId);
+    if (!banda) return;
+    const tildados = new Set(bloquesActivos.filter((bl) => bloqueVisible(banda, bl)));
+    if (tildados.has(bloque)) tildados.delete(bloque);
+    else tildados.add(bloque);
+    const nuevoValor = tildados.size === bloquesActivos.length ? null : bloquesActivos.filter((bl) => tildados.has(bl));
+
+    actualizarBloquesVisiblesAction(integrante.usuarioId, bandaId, nuevoValor).then(() => {
+      setBandasLocal((prev) => prev.map((b) => (b.bandaId === bandaId ? { ...b, bloquesVisibles: nuevoValor } : b)));
+    });
   };
 
   const togglePlaza = (bandaId: string, plazaId: string) => {
@@ -178,6 +213,7 @@ function FilaIntegrante({
               {bandas.map((b) => {
                 const asignada = bandaAsignada(b.id);
                 const plazasDeLaBanda = plazas.filter((p) => p.bandaId === b.id);
+                const bloquesActivosBanda = BLOQUES.filter((bl) => bl.activo(b));
                 return (
                   <div key={b.id}>
                     <label className="flex items-center gap-2 text-sm" style={{ color: "oklch(0.3 0.02 55)" }}>
@@ -185,7 +221,7 @@ function FilaIntegrante({
                       {b.nombre}
                     </label>
                     {asignada && (
-                      <div className="ml-6 mt-1.5">
+                      <div className="ml-6 mt-1.5 flex flex-col gap-2.5">
                         {plazasDeLaBanda.length === 0 ? (
                           <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
                             Esta banda todavía no tiene instrumentos definidos.
@@ -203,6 +239,24 @@ function FilaIntegrante({
                                 />
                               );
                             })}
+                          </div>
+                        )}
+
+                        {bloquesActivosBanda.length > 0 && (
+                          <div>
+                            <span className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                              Bloques visibles
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {bloquesActivosBanda.map((bl) => (
+                                <ToggleChip
+                                  key={bl.key}
+                                  label={bl.label}
+                                  active={bloqueVisible(asignada, bl.key)}
+                                  onClick={() => togglePermisoBloque(b.id, bl.key, bloquesActivosBanda.map((x) => x.key))}
+                                />
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>

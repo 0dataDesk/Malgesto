@@ -1,16 +1,12 @@
 import "server-only";
 import { supabaseMalgesto } from "@/lib/supabase/malgesto";
+import { sincronizarMovimientoAutomatico } from "@/lib/finanzasData";
+import type { Membresia, NombreBloque } from "@/lib/bloques";
+
+export type { Membresia, NombreBloque };
+export { bloqueVisible, algunaBandaConBloque, membresiasConBloque } from "@/lib/bloques";
 
 export type TipoEvento = "ensayo" | "show" | "cumpleanos" | "gira";
-
-export type Membresia = {
-  bandaId: string;
-  bandaNombre: string;
-  rol: string;
-  cancionesHabilitado: boolean;
-  setlistHabilitado: boolean;
-  seteosHabilitado: boolean;
-};
 
 export type Evento = {
   id: string;
@@ -37,6 +33,7 @@ type BandaEmbebida = {
   canciones_habilitado: boolean;
   setlist_habilitado: boolean;
   seteos_habilitado: boolean;
+  finanzas_habilitado: boolean;
 } | null;
 
 type LugarEmbebido = { nombre: string; link_maps: string } | null;
@@ -65,7 +62,7 @@ export async function obtenerMembresias(usuarioId: string): Promise<Membresia[]>
   const admin = supabaseMalgesto();
   const { data } = await admin
     .from("miembros_banda")
-    .select("rol, bandas(id, nombre, canciones_habilitado, setlist_habilitado, seteos_habilitado)")
+    .select("rol, bloques_visibles, bandas(id, nombre, canciones_habilitado, setlist_habilitado, seteos_habilitado, finanzas_habilitado)")
     .eq("usuario_id", usuarioId)
     .eq("activo", true);
 
@@ -78,6 +75,8 @@ export async function obtenerMembresias(usuarioId: string): Promise<Membresia[]>
       cancionesHabilitado: banda?.canciones_habilitado ?? true,
       setlistHabilitado: banda?.setlist_habilitado ?? true,
       seteosHabilitado: banda?.seteos_habilitado ?? true,
+      finanzasHabilitado: banda?.finanzas_habilitado ?? true,
+      bloquesVisibles: (m.bloques_visibles as string[] | null) ?? null,
     };
   });
 }
@@ -239,19 +238,26 @@ export async function crearEvento(input: NuevoEventoInput) {
   }
 
   const lugarId = puedeTenerLugar(input.tipo) ? await resolverLugarId(admin, input.bandaId, input.lugarId, input.lugarNuevo) : null;
+  const ingresoEsperado = input.tipo === "show" ? input.ingresoEsperado : null;
 
-  const { error } = await admin.from("eventos").insert({
-    banda_id: input.bandaId,
-    tipo: input.tipo,
-    titulo: input.titulo,
-    fecha_inicio: input.fechaInicio,
-    fecha_fin: input.fechaFin,
-    ingreso_esperado: input.tipo === "show" ? input.ingresoEsperado : null,
-    gira_id: input.tipo === "show" ? input.giraId : null,
-    setlist_id: puedeTenerSetlist(input.tipo) ? input.setlistId : null,
-    lugar_id: lugarId,
-  });
-  if (error) throw new Error(error.message);
+  const { data, error } = await admin
+    .from("eventos")
+    .insert({
+      banda_id: input.bandaId,
+      tipo: input.tipo,
+      titulo: input.titulo,
+      fecha_inicio: input.fechaInicio,
+      fecha_fin: input.fechaFin,
+      ingreso_esperado: ingresoEsperado,
+      gira_id: input.tipo === "show" ? input.giraId : null,
+      setlist_id: puedeTenerSetlist(input.tipo) ? input.setlistId : null,
+      lugar_id: lugarId,
+    })
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "No se pudo crear el evento.");
+
+  await sincronizarMovimientoAutomatico(data.id, input.bandaId, input.tipo, input.titulo, input.fechaInicio, ingresoEsperado);
 }
 
 export async function actualizarEvento(eventoId: string, input: NuevoEventoInput) {
@@ -281,6 +287,7 @@ export async function actualizarEvento(eventoId: string, input: NuevoEventoInput
   }
 
   const lugarId = puedeTenerLugar(input.tipo) ? await resolverLugarId(admin, input.bandaId, input.lugarId, input.lugarNuevo) : null;
+  const ingresoEsperado = input.tipo === "show" ? input.ingresoEsperado : null;
 
   const { error } = await admin
     .from("eventos")
@@ -290,7 +297,7 @@ export async function actualizarEvento(eventoId: string, input: NuevoEventoInput
       titulo: input.titulo,
       fecha_inicio: input.fechaInicio,
       fecha_fin: input.fechaFin,
-      ingreso_esperado: input.tipo === "show" ? input.ingresoEsperado : null,
+      ingreso_esperado: ingresoEsperado,
       gira_id: input.tipo === "show" ? input.giraId : null,
       setlist_id: puedeTenerSetlist(input.tipo) ? input.setlistId : null,
       lugar_id: lugarId,
@@ -299,6 +306,8 @@ export async function actualizarEvento(eventoId: string, input: NuevoEventoInput
     })
     .eq("id", eventoId);
   if (error) throw new Error(error.message);
+
+  await sincronizarMovimientoAutomatico(eventoId, input.bandaId, input.tipo, input.titulo, input.fechaInicio, ingresoEsperado);
 }
 
 // Alta rápida de gira (Brief 8 §7, multi-banda desde Brief 9 §18) — una gira

@@ -10,6 +10,7 @@ export type BandaSimple = {
   cancionesHabilitado: boolean;
   setlistHabilitado: boolean;
   seteosHabilitado: boolean;
+  finanzasHabilitado: boolean;
 };
 
 export type PersonaPendiente = {
@@ -42,7 +43,9 @@ export async function obtenerBandasTodas(): Promise<BandaSimple[]> {
   const admin = supabaseMalgesto();
   const { data } = await admin
     .from("bandas")
-    .select("id, nombre, genero, numero_integrantes, archivada, canciones_habilitado, setlist_habilitado, seteos_habilitado")
+    .select(
+      "id, nombre, genero, numero_integrantes, archivada, canciones_habilitado, setlist_habilitado, seteos_habilitado, finanzas_habilitado"
+    )
     .order("nombre", { ascending: true });
   return (data ?? []).map((b) => ({
     id: b.id,
@@ -53,6 +56,7 @@ export async function obtenerBandasTodas(): Promise<BandaSimple[]> {
     cancionesHabilitado: b.canciones_habilitado,
     setlistHabilitado: b.setlist_habilitado,
     seteosHabilitado: b.seteos_habilitado,
+    finanzasHabilitado: b.finanzas_habilitado,
   }));
 }
 
@@ -76,6 +80,7 @@ export type ActualizacionBanda = {
   cancionesHabilitado: boolean;
   setlistHabilitado: boolean;
   seteosHabilitado: boolean;
+  finanzasHabilitado: boolean;
 };
 
 export async function actualizarBanda(bandaId: string, cambios: ActualizacionBanda): Promise<void> {
@@ -89,6 +94,7 @@ export async function actualizarBanda(bandaId: string, cambios: ActualizacionBan
       canciones_habilitado: cambios.cancionesHabilitado,
       setlist_habilitado: cambios.setlistHabilitado,
       seteos_habilitado: cambios.seteosHabilitado,
+      finanzas_habilitado: cambios.finanzasHabilitado,
     })
     .eq("id", bandaId);
   if (error) throw new Error(error.message);
@@ -319,6 +325,7 @@ export type BandaDeIntegrante = {
   bandaNombre: string;
   activo: boolean;
   plazas: PlazaAsignada[];
+  bloquesVisibles: string[] | null;
 };
 
 export type Integrante = {
@@ -336,7 +343,7 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
   const [{ data: bandas }, { data: miembros }, { data: invitacionesPendientes }, { data: authData }, { data: personas }, { data: personaPlazas }] =
     await Promise.all([
       admin.from("bandas").select("id, nombre"),
-      admin.from("miembros_banda").select("usuario_id, banda_id, rol, activo"),
+      admin.from("miembros_banda").select("usuario_id, banda_id, rol, activo, bloques_visibles"),
       admin.from("invitaciones").select("email").eq("estado", "pendiente"),
       admin.auth.admin.listUsers({ page: 1, perPage: 200 }),
       admin.from("personas").select("usuario_id, nombre_mostrar, fecha_nacimiento"),
@@ -384,6 +391,7 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
       bandaNombre: bandaPorId.get(m.banda_id) ?? "Banda",
       activo: m.activo,
       plazas: plazasPorPersonaYBanda.get(`${m.usuario_id}:${m.banda_id}`) ?? [],
+      bloquesVisibles: (m.bloques_visibles as string[] | null) ?? null,
     });
     if (m.activo) acc.tieneActivo = true;
   }
@@ -451,5 +459,19 @@ export async function asignarABanda(usuarioId: string, bandaId: string): Promise
   }
 
   const { error } = await admin.from("miembros_banda").insert({ usuario_id: usuarioId, banda_id: bandaId, rol: "miembro" });
+  if (error) throw new Error(error.message);
+}
+
+// Subpermisos por persona (Brief 21 §1): null = sin restricción (ve todo lo
+// que la banda active, incluso bloques activados después); un array =
+// restringida a esos bloques puntuales de esa banda. Calendario nunca forma
+// parte del array porque nunca se restringe.
+export async function actualizarBloquesVisibles(usuarioId: string, bandaId: string, bloques: string[] | null): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin
+    .from("miembros_banda")
+    .update({ bloques_visibles: bloques })
+    .eq("usuario_id", usuarioId)
+    .eq("banda_id", bandaId);
   if (error) throw new Error(error.message);
 }

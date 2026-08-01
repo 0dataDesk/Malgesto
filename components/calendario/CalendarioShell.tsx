@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Evento, Membresia } from "@/lib/malgestoEventos";
+import { algunaBandaConBloque } from "@/lib/bloques";
 import type { Lugar } from "@/lib/lugaresData";
 import type { PersonaConCumple } from "@/lib/cumpleanosVirtual";
 import { generarCumpleanosVirtuales } from "@/lib/cumpleanosVirtual";
@@ -77,9 +78,13 @@ export function CalendarioShell({
 
   const giras = useMemo(() => eventosConCumple.filter((e) => e.tipo === "gira"), [eventosConCumple]);
   const esSuperadmin = membresias.some((m) => m.rol === "superadmin");
-  const mostrarCanciones = membresias.some((m) => m.cancionesHabilitado);
-  const mostrarSetlist = membresias.some((m) => m.setlistHabilitado);
-  const mostrarSeteos = membresias.some((m) => m.seteosHabilitado);
+  // Brief 21 §2: unión de bandas con la regla de visibilidad efectiva
+  // (banda activa Y persona no restringida) en vez de mirar solo el toggle
+  // de banda.
+  const mostrarCanciones = algunaBandaConBloque(membresias, "canciones", esSuperadmin);
+  const mostrarSetlist = algunaBandaConBloque(membresias, "set_list", esSuperadmin);
+  const mostrarSeteos = algunaBandaConBloque(membresias, "seteos", esSuperadmin);
+  const mostrarFinanzas = algunaBandaConBloque(membresias, "finanzas", esSuperadmin);
 
   const eventosDelDia = diaSeleccionado
     ? eventosFiltrados.filter((e) => e.tipo !== "gira" && esMismoDia(enZonaApp(e.fechaInicio), diaSeleccionado))
@@ -257,6 +262,7 @@ export function CalendarioShell({
         mostrarCanciones={mostrarCanciones}
         mostrarSetlist={mostrarSetlist}
         mostrarSeteos={mostrarSeteos}
+        mostrarFinanzas={mostrarFinanzas}
       />
 
       {eventoSeleccionado && (
