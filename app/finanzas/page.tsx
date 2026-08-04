@@ -104,8 +104,21 @@ export default async function FinanzasPage({
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
       <div className="mx-auto max-w-2xl px-5 pt-5">
-        <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
-          {nombreBandaActiva}
+        <div className="flex items-center justify-between">
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+            {nombreBandaActiva}
+          </div>
+          {bandasConBloque.length > 1 && (
+            // Brief de corrección: antes no había forma visible de volver al
+            // selector "¿Qué banda?" desde acá salvo navegación externa.
+            <Link
+              href="/finanzas"
+              className="font-mono text-[10px] font-bold tracking-wide no-underline"
+              style={{ color: "oklch(0.5 0.02 55)" }}
+            >
+              ‹ Cambiar de banda
+            </Link>
+          )}
         </div>
         <h2
           className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
