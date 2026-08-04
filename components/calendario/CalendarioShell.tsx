@@ -8,7 +8,7 @@ import type { Lugar } from "@/lib/lugaresData";
 import type { PersonaConCumple } from "@/lib/cumpleanosVirtual";
 import { generarCumpleanosVirtuales } from "@/lib/cumpleanosVirtual";
 import { nombreMesAno, sumarMeses, esMismoDia, hora } from "@/lib/fechas";
-import { enZonaApp } from "@/lib/zonaHoraria";
+import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 import { COLOR_TIPO, ETIQUETA_TIPO } from "@/lib/eventoUI";
 import { MesView } from "./MesView";
 import { AgendaView } from "./AgendaView";
@@ -71,10 +71,15 @@ export function CalendarioShell({
   // Brief 15 §2: los cumpleaños no van en "Próximos eventos" — solo en la
   // grilla del mes y el detalle de día (eventosConCumple/eventosFiltrados
   // arriba), así que la agenda se filtra sobre `eventos` a secas, sin merge.
-  const eventosFiltradosAgenda = useMemo(
-    () => (todasONinguna ? eventos : eventos.filter((e) => e.bandaIds.some((id) => activas.has(id)))),
-    [eventos, activas, todasONinguna]
-  );
+  // Brief de corrección §1: un evento ya pasado no debe seguir apareciendo acá
+  // — se compara la hora de fin efectiva (fechaFin si existe, si no
+  // fechaInicio; en giras eso es el fin de la gira, no el de cada show) contra
+  // "ahora" en hora de México, así una gira en curso no desaparece de golpe.
+  const eventosFiltradosAgenda = useMemo(() => {
+    const ahora = ahoraEnZonaApp();
+    const base = todasONinguna ? eventos : eventos.filter((e) => e.bandaIds.some((id) => activas.has(id)));
+    return base.filter((e) => enZonaApp(e.fechaFin ?? e.fechaInicio) >= ahora);
+  }, [eventos, activas, todasONinguna]);
 
   const giras = useMemo(() => eventosConCumple.filter((e) => e.tipo === "gira"), [eventosConCumple]);
   const esSuperadmin = membresias.some((m) => m.rol === "superadmin");

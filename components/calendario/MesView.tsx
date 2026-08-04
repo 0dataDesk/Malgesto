@@ -68,6 +68,16 @@ export function MesView({
             const esInicio = esMismoDia(dia, inicio);
             const esFin = esMismoDia(dia, fin);
             radius = `${esInicio ? "9px" : "0"} ${esFin ? "9px" : "0"} ${esFin ? "9px" : "0"} ${esInicio ? "9px" : "0"}`;
+          } else if (bandaIdsDelDia.length > 0) {
+            // Corrección §2: un punto de 5px por banda pasaba desapercibido
+            // al ver el mes completo. Se suma un fondo neutro (no el color de
+            // ninguna banda en particular, para no insinuar que el día es "de
+            // esa banda") detrás del número, mismo lenguaje visual que ya usa
+            // "hoy"/gira para destacar una celda — así un día con evento se
+            // distingue de uno vacío de un vistazo, y los puntos de color
+            // siguen abajo indicando cuáles bandas.
+            bg = "oklch(0.55 0.02 55 / 0.16)";
+            radius = "9px";
           }
 
           return (
@@ -87,16 +97,16 @@ export function MesView({
                   : fueraDeMes
                     ? "oklch(0.72 0.02 60)"
                     : "oklch(0.3 0.02 55)",
-                fontWeight: esHoy || giraDelDia ? 700 : 400,
+                fontWeight: esHoy || giraDelDia || bandaIdsDelDia.length > 0 ? 700 : 400,
               }}
             >
               {dia.getDate()}
-              <div className="mt-0.5 flex h-[5px] gap-0.5">
+              <div className="mt-0.5 flex h-[6px] gap-[3px]">
                 {!fueraDeMes &&
                   bandaIdsDelDia.slice(0, 3).map((bandaId) => (
                     <span
                       key={bandaId}
-                      className="h-[5px] w-[5px] rounded-full"
+                      className="h-[6px] w-[6px] rounded-full"
                       style={{ background: colorPorBanda.get(bandaId) ?? colorPorIndiceBanda(0) }}
                     />
                   ))}
