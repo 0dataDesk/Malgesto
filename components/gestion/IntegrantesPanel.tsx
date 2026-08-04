@@ -63,6 +63,7 @@ function FilaIntegrante({
   const [pendingBanda, setPendingBanda] = useState<string | null>(null);
 
   const bandaAsignada = (bandaId: string) => bandasLocal.find((b) => b.bandaId === bandaId && b.activo);
+  const bandasActivas = bandasLocal.filter((b) => b.activo);
 
   const hayCambiosDatos = nombreMostrar !== datosGuardados.nombreMostrar || fechaNacimiento !== datosGuardados.fechaNacimiento;
 
@@ -153,6 +154,23 @@ function FilaIntegrante({
           </div>
           <div className="truncate font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
             {integrante.email}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {bandasActivas.length > 0 ? (
+              bandasActivas.map((b) => (
+                <span
+                  key={b.bandaId}
+                  className="shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase"
+                  style={{ background: "oklch(0.6 0.1 250 / 0.15)", color: "oklch(0.5 0.1 250)" }}
+                >
+                  {b.bandaNombre}
+                </span>
+              ))
+            ) : (
+              <span className="font-mono text-[9px] font-bold uppercase" style={{ color: "oklch(0.6 0.02 55)" }}>
+                Sin banda asignada
+              </span>
+            )}
           </div>
         </div>
         <span
