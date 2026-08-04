@@ -132,7 +132,7 @@ export function NuevoEventoForm({
 
   const girasDeLaBanda = girasLocal.filter((g) => g.bandaIds.includes(bandaId));
   const setlistsDeLaBanda = setlists.filter((s) => s.bandaId === bandaId);
-  const lugaresDeLaBanda = lugares.filter((l) => l.bandaId === bandaId);
+  const lugaresDeLaBanda = lugares.filter((l) => l.bandaIds.includes(bandaId));
   const bandaNombreActual = membresias.find((m) => m.bandaId === bandaId)?.bandaNombre ?? "";
 
   const crearGiraRapida = () => {

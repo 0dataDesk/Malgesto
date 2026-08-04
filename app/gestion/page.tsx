@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { esSuperadmin, obtenerBandasTodas, obtenerPersonasPendientes, obtenerIntegrantes, obtenerPlazas } from "@/lib/gestionData";
-import { obtenerLugares } from "@/lib/lugaresData";
+import { obtenerLugaresTodos } from "@/lib/lugaresData";
 import { GestionShell } from "@/components/gestion/GestionShell";
 
 // Pantalla 15 "Escritorio · Gestión" (Brief 7, reseccionada en Brief 8/9) —
@@ -25,7 +25,7 @@ export default async function GestionPage() {
     obtenerIntegrantes(),
   ]);
   const bandaIds = bandas.map((b) => b.id);
-  const [lugares, plazas] = await Promise.all([obtenerLugares(bandaIds), obtenerPlazas(bandaIds)]);
+  const [lugares, plazas] = await Promise.all([obtenerLugaresTodos(), obtenerPlazas(bandaIds)]);
 
   return (
     <GestionShell

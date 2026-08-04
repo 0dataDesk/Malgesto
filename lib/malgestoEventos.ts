@@ -203,10 +203,17 @@ async function resolverLugarId(
   if (lugarNuevo && lugarNuevo.nombre.trim() && lugarNuevo.linkMaps.trim()) {
     const { data, error } = await admin
       .from("lugares")
-      .insert({ banda_id: bandaId, nombre: lugarNuevo.nombre.trim(), link_maps: lugarNuevo.linkMaps.trim() })
+      .insert({ nombre: lugarNuevo.nombre.trim(), link_maps: lugarNuevo.linkMaps.trim() })
       .select("id")
       .single();
     if (error || !data) throw new Error(error?.message ?? "No se pudo guardar el lugar.");
+
+    // Brief "Lugares...": un lugar creado desde el form de evento queda
+    // asignado a la banda del evento actual (lugares ya no tienen una sola
+    // banda "dueña" — ver lib/lugaresData.ts).
+    const { error: errorBanda } = await admin.from("lugar_bandas").insert({ lugar_id: data.id, banda_id: bandaId });
+    if (errorBanda) throw new Error(errorBanda.message);
+
     return data.id;
   }
   return lugarId;

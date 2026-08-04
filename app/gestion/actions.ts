@@ -22,7 +22,7 @@ import {
   type ResultadoInvitacion,
   type ActualizacionBanda,
 } from "@/lib/gestionData";
-import { crearLugar, actualizarLugar, eliminarLugar } from "@/lib/lugaresData";
+import { crearLugar, actualizarLugar, actualizarLugarBandas, eliminarLugar } from "@/lib/lugaresData";
 
 export async function crearBandaAction(nombre: string): Promise<string> {
   const usuarioId = await requerirSuperadmin();
@@ -132,9 +132,9 @@ export async function actualizarBloquesVisiblesAction(usuarioId: string, bandaId
   revalidatePath("/gestion");
 }
 
-export async function crearLugarAction(bandaId: string, nombre: string, linkMaps: string) {
+export async function crearLugarAction(bandaIds: string[], nombre: string, linkMaps: string) {
   await requerirSuperadmin();
-  const lugar = await crearLugar(bandaId, nombre, linkMaps);
+  const lugar = await crearLugar(bandaIds, nombre, linkMaps);
   revalidatePath("/gestion");
   return lugar;
 }
@@ -142,6 +142,12 @@ export async function crearLugarAction(bandaId: string, nombre: string, linkMaps
 export async function actualizarLugarAction(id: string, nombre: string, linkMaps: string): Promise<void> {
   await requerirSuperadmin();
   await actualizarLugar(id, nombre, linkMaps);
+  revalidatePath("/gestion");
+}
+
+export async function actualizarLugarBandasAction(id: string, bandaIds: string[]): Promise<void> {
+  await requerirSuperadmin();
+  await actualizarLugarBandas(id, bandaIds);
   revalidatePath("/gestion");
 }
 
