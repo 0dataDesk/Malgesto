@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { Evento } from "@/lib/malgestoEventos";
-import { COLOR_TIPO, ETIQUETA_TIPO, formatoMoneda } from "@/lib/eventoUI";
+import { COLOR_TIPO, ETIQUETA_TIPO, formatoMoneda, eventoYaPaso } from "@/lib/eventoUI";
 import { enZonaApp } from "@/lib/zonaHoraria";
 import { eliminarEventoAction } from "@/app/inicio/actions";
 
@@ -50,6 +50,10 @@ export function EventoDetalle({
   const linkMaps = evento.lugarLinkMaps;
   const nombreUbicacion = evento.lugarNombre;
 
+  // Brief de refinamiento §1: mismo criterio que ya usa CalendarioShell para
+  // sacar eventos de "Próximos eventos" (lib/eventoUI.eventoYaPaso).
+  const yaPaso = eventoYaPaso(evento);
+
   // Brief 18 §1: acá es solo lectura — asignar/cambiar gira o Set List se
   // hace desde el modo de edición del evento (NuevoEventoForm).
   const giraAsignada = evento.giraId ? giras.find((g) => g.id === evento.giraId) : null;
@@ -75,12 +79,22 @@ export function EventoDetalle({
       onClick={inline ? undefined : (e) => e.stopPropagation()}
     >
       <div className="flex items-start justify-between">
-        <span
-          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[11px] font-bold tracking-wide uppercase"
-          style={{ background: COLOR_TIPO[evento.tipo], color: "oklch(0.99 0.01 82)" }}
-        >
-          {ETIQUETA_TIPO[evento.tipo]}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[11px] font-bold tracking-wide uppercase"
+            style={{ background: COLOR_TIPO[evento.tipo], color: "oklch(0.99 0.01 82)" }}
+          >
+            {ETIQUETA_TIPO[evento.tipo]}
+          </span>
+          {yaPaso && (
+            <span
+              className="inline-flex items-center rounded-full px-2.5 py-1 font-mono text-[11px] font-bold tracking-wide uppercase"
+              style={{ background: "oklch(0.9 0.013 78)", color: "oklch(0.5 0.02 55)" }}
+            >
+              Ya pasó
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           {evento.tipo !== "cumpleanos" && puedeEditar && (
             <button type="button" onClick={() => onEditar(evento)} className="text-sm font-bold" style={{ color: "oklch(0.64 0.15 34)" }}>

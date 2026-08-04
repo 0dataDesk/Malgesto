@@ -1,4 +1,5 @@
 import type { TipoEvento } from "@/lib/malgestoEventos";
+import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 
 // Color e identidad visual por tipo de evento. Show/Ensayo/Cumpleaños
 // siguen el HTML de Design literal (Cumpleaños: oklch(0.72 0.12 78), tomado
@@ -47,6 +48,16 @@ const FORMATO_MONEDA = new Intl.NumberFormat("es-MX", {
 
 export function formatoMoneda(n: number): string {
   return FORMATO_MONEDA.format(n);
+}
+
+// Brief de refinamiento §1-2: mismo criterio que ya usaba CalendarioShell
+// para sacar eventos pasados de "Próximos eventos" — hora de fin efectiva
+// (fechaFin si existe, si no fechaInicio; en giras eso es el fin de la gira)
+// contra "ahora" en hora de México — centralizado acá para que el indicativo
+// del detalle y el color de la grilla no puedan desincronizarse de ese
+// filtro.
+export function eventoYaPaso(evento: { fechaInicio: string; fechaFin: string | null }): boolean {
+  return enZonaApp(evento.fechaFin ?? evento.fechaInicio) < ahoraEnZonaApp();
 }
 
 export const MESES = [

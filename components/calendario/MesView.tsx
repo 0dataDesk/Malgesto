@@ -1,7 +1,7 @@
 "use client";
 
 import type { Evento, Membresia } from "@/lib/malgestoEventos";
-import { COLOR_TIPO, colorConAlpha, colorPorIndiceBanda } from "@/lib/eventoUI";
+import { COLOR_TIPO, colorConAlpha, colorPorIndiceBanda, eventoYaPaso } from "@/lib/eventoUI";
 import { celdasDelMes, esMismoDia, mismoMesAno } from "@/lib/fechas";
 import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 
@@ -76,7 +76,12 @@ export function MesView({
             // "hoy"/gira para destacar una celda — así un día con evento se
             // distingue de uno vacío de un vistazo, y los puntos de color
             // siguen abajo indicando cuáles bandas.
-            bg = "oklch(0.55 0.02 55 / 0.16)";
+            // Brief de refinamiento §2: si TODOS los eventos del día ya
+            // pasaron se usa un tono más apagado que si hay alguno futuro
+            // (mezclado cuenta como "con eventos futuros", mismo resaltado
+            // de siempre) — mismo criterio eventoYaPaso de lib/eventoUI.
+            const todosPasados = eventosDelDia.every((e) => eventoYaPaso(e));
+            bg = todosPasados ? "oklch(0.55 0.02 55 / 0.07)" : "oklch(0.55 0.02 55 / 0.16)";
             radius = "9px";
           }
 
