@@ -290,6 +290,55 @@ function FilaIntegrante({
   );
 }
 
+// Brief "Acordeones por estado en Integrantes": agrupa la lista (que puede
+// volverse larga) por estado, colapsada por default -- el usuario decide
+// qué grupo abrir en vez de ver todo de golpe. El conteo en el encabezado
+// da contexto sin necesidad de abrir.
+function GrupoIntegrantes({
+  titulo,
+  integrantes,
+  bandas,
+  plazas,
+}: {
+  titulo: string;
+  integrantes: Integrante[];
+  bandas: BandaSimple[];
+  plazas: Plaza[];
+}) {
+  const [abierto, setAbierto] = useState(false);
+
+  return (
+    <div className="rounded-xl" style={{ border: "1px solid oklch(0.89 0.013 78)" }}>
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        className="flex w-full items-center justify-between px-3.5 py-3 text-left"
+      >
+        <span className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+          {titulo} ({integrantes.length})
+        </span>
+        <span
+          className="text-xs"
+          style={{ color: "oklch(0.5 0.02 55)", transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+        >
+          ▾
+        </span>
+      </button>
+      {abierto && (
+        <div className="flex flex-col gap-2 px-3.5 pb-3.5">
+          {integrantes.length === 0 ? (
+            <p className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+              Nadie en este grupo.
+            </p>
+          ) : (
+            integrantes.map((i) => <FilaIntegrante key={i.usuarioId ?? i.email} integrante={i} bandas={bandas} plazas={plazas} />)
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function IntegrantesPanel({
   bandas,
   personasPendientes: personasPendientesIniciales,
@@ -451,10 +500,10 @@ export function IntegrantesPanel({
             Todavía no hay integrantes.
           </p>
         ) : (
-          <div className="flex flex-col gap-2">
-            {integrantes.map((i) => (
-              <FilaIntegrante key={i.usuarioId ?? i.email} integrante={i} bandas={bandas} plazas={plazas} />
-            ))}
+          <div className="flex flex-col gap-2.5">
+            <GrupoIntegrantes titulo="Activos" integrantes={integrantes.filter((i) => i.estado === "activo")} bandas={bandas} plazas={plazas} />
+            <GrupoIntegrantes titulo="Invitados" integrantes={integrantes.filter((i) => i.estado === "invitado")} bandas={bandas} plazas={plazas} />
+            <GrupoIntegrantes titulo="Inactivos" integrantes={integrantes.filter((i) => i.estado === "inactivo")} bandas={bandas} plazas={plazas} />
           </div>
         )}
       </section>
