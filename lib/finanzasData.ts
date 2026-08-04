@@ -13,11 +13,17 @@ export type Movimiento = {
   fecha: string;
   eventoId: string | null;
   eventoTitulo: string | null;
+  // Brief "Finanzas: ingresos automáticos...": hace falta la fecha real del
+  // evento vinculado (no solo `fecha`, que es la fecha del movimiento) para
+  // poder evaluar eventoYaPaso() en vivo al leer — ver movimientoDisponible
+  // en app/finanzas/page.tsx.
+  eventoFechaInicio: string | null;
+  eventoFechaFin: string | null;
   automatico: boolean;
   createdAt: string;
 };
 
-type EventoEmbebido = { titulo: string } | null;
+type EventoEmbebido = { titulo: string; fecha_inicio: string; fecha_fin: string | null } | null;
 
 function mapearMovimiento(m: {
   id: string;
@@ -41,12 +47,14 @@ function mapearMovimiento(m: {
     fecha: m.fecha,
     eventoId: m.evento_id,
     eventoTitulo: evento?.titulo ?? null,
+    eventoFechaInicio: evento?.fecha_inicio ?? null,
+    eventoFechaFin: evento?.fecha_fin ?? null,
     automatico: m.automatico,
     createdAt: m.created_at,
   };
 }
 
-const COLUMNAS_MOVIMIENTO = "id, banda_id, tipo, concepto, monto, fecha, evento_id, automatico, created_at, eventos(titulo)";
+const COLUMNAS_MOVIMIENTO = "id, banda_id, tipo, concepto, monto, fecha, evento_id, automatico, created_at, eventos(titulo, fecha_inicio, fecha_fin)";
 
 // Más recientes primero (Brief 21 §3): por fecha del movimiento, y a
 // igualdad de fecha por orden de creación.

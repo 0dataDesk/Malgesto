@@ -2,11 +2,23 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque, obtenerEventos } from "@/lib/malgestoEventos";
-import { obtenerMovimientos } from "@/lib/finanzasData";
-import { formatoMoneda } from "@/lib/eventoUI";
+import { obtenerMovimientos, type Movimiento } from "@/lib/finanzasData";
+import { formatoMoneda, eventoYaPaso } from "@/lib/eventoUI";
 import { TabBar } from "@/components/shell/TabBar";
 import { NuevoMovimientoForm } from "@/components/finanzas/NuevoMovimientoForm";
 import { MovimientoFila } from "@/components/finanzas/MovimientoFila";
+
+// Brief "Finanzas: ingresos automáticos de shows futuros...": un movimiento
+// manual siempre cuenta (decisión explícita del usuario); uno automático
+// (ingreso esperado de un show) solo cuenta una vez que el show ya pasó —
+// se evalúa en vivo con eventoYaPaso() en cada lectura, sin cron ni estado
+// persistido. Se usa tanto para el Balance grande como para el de cada
+// banda en el selector, así ambos números nunca se contradicen entre sí.
+function movimientoDisponible(m: Movimiento): boolean {
+  if (!m.automatico) return true;
+  if (!m.eventoFechaInicio) return true;
+  return eventoYaPaso({ fechaInicio: m.eventoFechaInicio, fechaFin: m.eventoFechaFin });
+}
 
 // Pantalla de Finanzas (Brief 21 §3) — bloque opcional, mismo patrón de
 // filtro por banda activa que Canciones/Set List/Seteos, con una excepción
@@ -43,6 +55,7 @@ export default async function FinanzasPage({
     const movimientosTodas = await obtenerMovimientos(bandasConBloque.map((m) => m.bandaId));
     const balancePorBanda = new Map<string, number>();
     for (const m of movimientosTodas) {
+      if (!movimientoDisponible(m)) continue;
       const signo = m.tipo === "entrada" ? 1 : -1;
       balancePorBanda.set(m.bandaId, (balancePorBanda.get(m.bandaId) ?? 0) + signo * m.monto);
     }
@@ -97,8 +110,9 @@ export default async function FinanzasPage({
 
   const [movimientos, eventos] = await Promise.all([obtenerMovimientos([bandaActiva]), obtenerEventos([bandaActiva])]);
 
-  const totalEntradas = movimientos.filter((m) => m.tipo === "entrada").reduce((acc, m) => acc + m.monto, 0);
-  const totalSalidas = movimientos.filter((m) => m.tipo === "salida").reduce((acc, m) => acc + m.monto, 0);
+  const movimientosDisponibles = movimientos.filter(movimientoDisponible);
+  const totalEntradas = movimientosDisponibles.filter((m) => m.tipo === "entrada").reduce((acc, m) => acc + m.monto, 0);
+  const totalSalidas = movimientosDisponibles.filter((m) => m.tipo === "salida").reduce((acc, m) => acc + m.monto, 0);
   const balance = totalEntradas - totalSalidas;
 
   return (
@@ -143,7 +157,7 @@ export default async function FinanzasPage({
             </p>
           )}
           {movimientos.map((m) => (
-            <MovimientoFila key={m.id} movimiento={m} esSuperadmin={superadmin} />
+            <MovimientoFila key={m.id} movimiento={m} disponible={movimientoDisponible(m)} esSuperadmin={superadmin} />
           ))}
         </div>
 

@@ -15,7 +15,20 @@ function formatearFecha(iso: string): string {
 // Brief de corrección §2: fila de movimiento con botón de eliminar
 // (ícono discreto, sólo superadmin) — los automáticos no lo muestran, ver
 // nota en lib/finanzasData.eliminarMovimiento.
-export function MovimientoFila({ movimiento: m, esSuperadmin }: { movimiento: Movimiento; esSuperadmin: boolean }) {
+// Brief "Finanzas: ingresos automáticos...": `disponible` llega ya calculado
+// desde el server (mismo criterio que se usó para el Balance, ver
+// movimientoDisponible en app/finanzas/page.tsx) — un automático de un show
+// futuro se sigue mostrando en la lista, pero sin el signo/color de
+// confirmado y con la etiqueta de pendiente en vez de "Automático".
+export function MovimientoFila({
+  movimiento: m,
+  disponible,
+  esSuperadmin,
+}: {
+  movimiento: Movimiento;
+  disponible: boolean;
+  esSuperadmin: boolean;
+}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +47,7 @@ export function MovimientoFila({ movimiento: m, esSuperadmin }: { movimiento: Mo
   return (
     <div
       className="rounded-2xl p-3.5"
-      style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}
+      style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", opacity: disponible ? 1 : 0.7 }}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
@@ -44,12 +57,15 @@ export function MovimientoFila({ movimiento: m, esSuperadmin }: { movimiento: Mo
           <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
             {formatearFecha(m.fecha)}
             {m.eventoTitulo && ` · ${m.eventoTitulo}`}
-            {m.automatico && " · Automático"}
+            {m.automatico && (disponible ? " · Automático" : " · Pendiente hasta el show")}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="font-mono text-sm font-bold" style={{ color: m.tipo === "entrada" ? "oklch(0.5 0.13 148)" : "oklch(0.55 0.15 25)" }}>
-            {m.tipo === "entrada" ? "+" : "−"}
+          <span
+            className="font-mono text-sm font-bold"
+            style={{ color: !disponible ? "oklch(0.6 0.02 55)" : m.tipo === "entrada" ? "oklch(0.5 0.13 148)" : "oklch(0.55 0.15 25)" }}
+          >
+            {disponible ? (m.tipo === "entrada" ? "+" : "−") : ""}
             {formatoMoneda(m.monto)}
           </span>
           {esSuperadmin && !m.automatico && (
