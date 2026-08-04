@@ -37,6 +37,16 @@ export default async function FinanzasPage({
   const bandaValida = bandasConBloque.some((m) => m.bandaId === bandaParam);
 
   if (!bandaValida && bandasConBloque.length > 1) {
+    // Brief de corrección §1: el balance de cada banda se ve acá mismo, antes
+    // de entrar — para eso hace falta un solo fetch con TODOS los bandaIds
+    // del selector (no uno por banda), agrupado en memoria.
+    const movimientosTodas = await obtenerMovimientos(bandasConBloque.map((m) => m.bandaId));
+    const balancePorBanda = new Map<string, number>();
+    for (const m of movimientosTodas) {
+      const signo = m.tipo === "entrada" ? 1 : -1;
+      balancePorBanda.set(m.bandaId, (balancePorBanda.get(m.bandaId) ?? 0) + signo * m.monto);
+    }
+
     return (
       <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
         <div className="mx-auto max-w-2xl px-5 pt-5">
@@ -58,10 +68,13 @@ export default async function FinanzasPage({
               <Link
                 key={m.bandaId}
                 href={`/finanzas?banda=${m.bandaId}`}
-                className="rounded-2xl p-4 text-base font-bold no-underline"
+                className="flex items-center justify-between rounded-2xl p-4 text-base font-bold no-underline"
                 style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", color: "oklch(0.24 0.02 55)" }}
               >
-                {m.bandaNombre}
+                <span>{m.bandaNombre}</span>
+                <span className="font-mono text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
+                  {formatoMoneda(balancePorBanda.get(m.bandaId) ?? 0)}
+                </span>
               </Link>
             ))}
           </div>
@@ -100,24 +113,6 @@ export default async function FinanzasPage({
         >
           Finanzas
         </h2>
-
-        {bandasConBloque.length > 1 && (
-          <div className="mt-3.5 flex flex-wrap gap-2">
-            {bandasConBloque.map((m) => (
-              <Link
-                key={m.bandaId}
-                href={`/finanzas?banda=${m.bandaId}`}
-                className="rounded-2xl px-3.5 py-2 text-sm font-bold no-underline"
-                style={{
-                  background: m.bandaId === bandaActiva ? "oklch(0.24 0.02 55)" : "oklch(0.93 0.016 78)",
-                  color: m.bandaId === bandaActiva ? "oklch(0.96 0.012 82)" : "oklch(0.4 0.02 55)",
-                }}
-              >
-                {m.bandaNombre}
-              </Link>
-            ))}
-          </div>
-        )}
 
         <div className="mt-4 rounded-2xl p-4" style={{ background: "oklch(0.24 0.02 55)" }}>
           <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.74 0.12 78)" }}>
