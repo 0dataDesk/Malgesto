@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requerirAccesoBloque } from "@/lib/malgestoAccess";
-import { crearMovimiento, type NuevoMovimientoInput } from "@/lib/finanzasData";
+import { requerirAccesoBloque, requerirSuperadmin } from "@/lib/malgestoAccess";
+import { crearMovimiento, eliminarMovimiento, type NuevoMovimientoInput } from "@/lib/finanzasData";
 
 // Brief 21 §3: cualquier persona que ve el bloque Finanzas puede cargar
 // movimientos manuales, no solo superadmin — mismo criterio que
@@ -11,5 +11,13 @@ import { crearMovimiento, type NuevoMovimientoInput } from "@/lib/finanzasData";
 export async function crearMovimientoAction(bandaId: string, input: NuevoMovimientoInput): Promise<void> {
   const usuarioId = await requerirAccesoBloque(bandaId, "finanzas");
   await crearMovimiento(bandaId, usuarioId, input);
+  revalidatePath("/finanzas");
+}
+
+// Brief de corrección §2: borrar movimientos es superadmin-only (a
+// diferencia de cargarlos) — es la acción destructiva sobre datos de plata.
+export async function eliminarMovimientoAction(movimientoId: string): Promise<void> {
+  await requerirSuperadmin();
+  await eliminarMovimiento(movimientoId);
   revalidatePath("/finanzas");
 }

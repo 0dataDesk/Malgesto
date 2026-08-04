@@ -86,6 +86,28 @@ export async function crearMovimiento(bandaId: string, usuarioId: string, input:
   if (error) throw new Error(error.message);
 }
 
+// Brief de corrección §2: los movimientos automáticos (ingreso esperado de
+// un show) sólo se resincronizan cuando se guarda el evento asociado — no
+// hay recálculo diario — así que borrarlos acá los perdería para siempre
+// hasta la próxima edición del show. Se bloquean acá (no sólo ocultando el
+// botón) para no depender de que el cliente no mande el id igual.
+export async function eliminarMovimiento(movimientoId: string): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { data: movimiento, error: errorSelect } = await admin
+    .from("movimientos_financieros")
+    .select("automatico")
+    .eq("id", movimientoId)
+    .maybeSingle();
+  if (errorSelect) throw new Error(errorSelect.message);
+  if (!movimiento) throw new Error("El movimiento ya no existe.");
+  if (movimiento.automatico) {
+    throw new Error("Este movimiento se generó automáticamente desde un show — para quitarlo, editá o eliminá ese show.");
+  }
+
+  const { error } = await admin.from("movimientos_financieros").delete().eq("id", movimientoId);
+  if (error) throw new Error(error.message);
+}
+
 // Brief 21 §3: conecta automáticamente el "Ingreso esperado" de un show con
 // un movimiento de tipo 'entrada'. Se llama después de crear/editar
 // cualquier evento no-gira — si no es un show con ingreso cargado, borra el

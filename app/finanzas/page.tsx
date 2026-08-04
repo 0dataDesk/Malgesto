@@ -6,16 +6,14 @@ import { obtenerMovimientos } from "@/lib/finanzasData";
 import { formatoMoneda } from "@/lib/eventoUI";
 import { TabBar } from "@/components/shell/TabBar";
 import { NuevoMovimientoForm } from "@/components/finanzas/NuevoMovimientoForm";
-
-function formatearFecha(iso: string): string {
-  // "fecha" es date puro (YYYY-MM-DD) — parsear como local, no como UTC, para
-  // que no se corra un día por la zona horaria del servidor.
-  const [anio, mes, dia] = iso.split("-").map(Number);
-  return new Date(anio, mes - 1, dia).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
-}
+import { MovimientoFila } from "@/components/finanzas/MovimientoFila";
 
 // Pantalla de Finanzas (Brief 21 §3) — bloque opcional, mismo patrón de
-// filtro por banda activa que Canciones/Set List/Seteos.
+// filtro por banda activa que Canciones/Set List/Seteos, con una excepción
+// (Brief de corrección §1): acá maneja plata, así que un default silencioso
+// a la primera banda es peligroso (así se guardó sin querer un movimiento en
+// ODR). Sin ?banda= válido y con más de una banda con el bloque, se muestra
+// un selector explícito antes de entrar — nunca se elige por el usuario.
 export default async function FinanzasPage({
   searchParams,
 }: {
@@ -37,6 +35,50 @@ export default async function FinanzasPage({
   if (bandasConBloque.length === 0) redirect("/inicio");
 
   const bandaValida = bandasConBloque.some((m) => m.bandaId === bandaParam);
+
+  if (!bandaValida && bandasConBloque.length > 1) {
+    return (
+      <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
+        <div className="mx-auto max-w-2xl px-5 pt-5">
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+            Finanzas
+          </div>
+          <h2
+            className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
+            style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+          >
+            ¿Qué banda?
+          </h2>
+          <p className="mt-2 text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
+            Elegí la banda antes de ver sus movimientos.
+          </p>
+
+          <div className="mt-5 flex flex-col gap-2.5">
+            {bandasConBloque.map((m) => (
+              <Link
+                key={m.bandaId}
+                href={`/finanzas?banda=${m.bandaId}`}
+                className="rounded-2xl p-4 text-base font-bold no-underline"
+                style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", color: "oklch(0.24 0.02 55)" }}
+              >
+                {m.bandaNombre}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <TabBar
+          activa="finanzas"
+          userEmail={user.email}
+          esSuperadmin={superadmin}
+          mostrarCanciones={algunaBandaConBloque(membresias, "canciones", superadmin)}
+          mostrarSetlist={algunaBandaConBloque(membresias, "set_list", superadmin)}
+          mostrarSeteos={algunaBandaConBloque(membresias, "seteos", superadmin)}
+        />
+      </div>
+    );
+  }
+
   const bandaActiva = bandaValida ? bandaParam! : bandasConBloque[0].bandaId;
   const nombreBandaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
 
@@ -93,28 +135,7 @@ export default async function FinanzasPage({
             </p>
           )}
           {movimientos.map((m) => (
-            <div
-              key={m.id}
-              className="flex items-center justify-between gap-3 rounded-2xl p-3.5"
-              style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}
-            >
-              <div className="min-w-0">
-                <div className="truncate text-[15px] font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
-                  {m.concepto}
-                </div>
-                <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
-                  {formatearFecha(m.fecha)}
-                  {m.eventoTitulo && ` · ${m.eventoTitulo}`}
-                </div>
-              </div>
-              <span
-                className="shrink-0 font-mono text-sm font-bold"
-                style={{ color: m.tipo === "entrada" ? "oklch(0.5 0.13 148)" : "oklch(0.55 0.15 25)" }}
-              >
-                {m.tipo === "entrada" ? "+" : "−"}
-                {formatoMoneda(m.monto)}
-              </span>
-            </div>
+            <MovimientoFila key={m.id} movimiento={m} esSuperadmin={superadmin} />
           ))}
         </div>
 
