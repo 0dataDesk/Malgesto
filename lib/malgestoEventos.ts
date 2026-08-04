@@ -31,11 +31,16 @@ export type Evento = {
   lugarLinkMaps: string | null;
   pais: string | null;
   ciudades: string | null;
+  // Brief "...ciudad en shows": distinto de `ciudades` (exclusivo de Gira) --
+  // una sola ciudad por Show, solo se respeta para ese tipo (ver
+  // crearEvento/actualizarEvento).
+  ciudad: string | null;
 };
 
 type BandaEmbebida = {
   id: string;
   nombre: string;
+  color: string;
   canciones_habilitado: boolean;
   setlist_habilitado: boolean;
   seteos_habilitado: boolean;
@@ -55,7 +60,7 @@ const puedeTenerLugar = (tipo: TipoEvento) => tipo === "ensayo" || tipo === "sho
 // lectura de eventos — no solo los de fin de mes — devolviendo `[]` en vez
 // de fallar ruidosamente. Se califica con el nombre del FK para desambiguar.
 const COLUMNAS_EVENTO =
-  "id, banda_id, tipo, estado, titulo, fecha_inicio, fecha_fin, ingreso_esperado, gira_id, setlist_id, lugar_id, pais, ciudades, bandas!eventos_banda_id_fkey(nombre), lugares(nombre, link_maps)";
+  "id, banda_id, tipo, estado, titulo, fecha_inicio, fecha_fin, ingreso_esperado, gira_id, setlist_id, lugar_id, pais, ciudades, ciudad, bandas!eventos_banda_id_fkey(nombre), lugares(nombre, link_maps)";
 
 // Bandas del usuario, con su rol — determina si va directo al calendario de
 // su única banda o si necesita el selector (más de una). banda_id es
@@ -68,7 +73,7 @@ export async function obtenerMembresias(usuarioId: string): Promise<Membresia[]>
   const admin = supabaseMalgesto();
   const { data } = await admin
     .from("miembros_banda")
-    .select("rol, bloques_visibles, bandas(id, nombre, canciones_habilitado, setlist_habilitado, seteos_habilitado, finanzas_habilitado)")
+    .select("rol, bloques_visibles, bandas(id, nombre, color, canciones_habilitado, setlist_habilitado, seteos_habilitado, finanzas_habilitado)")
     .eq("usuario_id", usuarioId)
     .eq("activo", true);
 
@@ -77,6 +82,10 @@ export async function obtenerMembresias(usuarioId: string): Promise<Membresia[]>
     return {
       bandaId: banda?.id ?? "",
       bandaNombre: banda?.nombre ?? "Banda",
+      // Brief "Color de banda configurable...": color fijo, ya no calculado
+      // por índice -- este fallback neutro solo cubre el caso (no debería
+      // pasar) de una membresía sin banda embebida.
+      color: banda?.color ?? "oklch(0.6 0.02 55)",
       rol: m.rol,
       cancionesHabilitado: banda?.canciones_habilitado ?? true,
       setlistHabilitado: banda?.setlist_habilitado ?? true,
@@ -109,6 +118,7 @@ function mapearEvento(
     lugar_id: string | null;
     pais: string | null;
     ciudades: string | null;
+    ciudad: string | null;
     bandas: unknown;
     lugares: unknown;
   },
@@ -134,6 +144,7 @@ function mapearEvento(
     lugarLinkMaps: lugar?.link_maps ?? null,
     pais: e.pais,
     ciudades: e.ciudades,
+    ciudad: e.ciudad,
   };
 }
 
@@ -203,6 +214,8 @@ export type NuevoEventoInput = {
   lugarNuevo: { nombre: string; linkMaps: string } | null;
   pais: string | null;
   ciudades: string | null;
+  // Solo se respeta para tipo show -- ver crearEvento/actualizarEvento.
+  ciudad: string | null;
 };
 
 async function resolverLugarId(
@@ -259,6 +272,7 @@ export async function crearEvento(input: NuevoEventoInput) {
   const lugarId = puedeTenerLugar(input.tipo) ? await resolverLugarId(admin, input.bandaId, input.lugarId, input.lugarNuevo) : null;
   const ingresoEsperado = input.tipo === "show" ? input.ingresoEsperado : null;
   const estado = input.tipo === "show" ? input.estado : "confirmado";
+  const ciudad = input.tipo === "show" ? input.ciudad : null;
 
   const { data, error } = await admin
     .from("eventos")
@@ -273,6 +287,7 @@ export async function crearEvento(input: NuevoEventoInput) {
       gira_id: input.tipo === "show" ? input.giraId : null,
       setlist_id: puedeTenerSetlist(input.tipo) ? input.setlistId : null,
       lugar_id: lugarId,
+      ciudad,
     })
     .select("id")
     .single();
@@ -311,6 +326,7 @@ export async function actualizarEvento(eventoId: string, input: NuevoEventoInput
   const lugarId = puedeTenerLugar(input.tipo) ? await resolverLugarId(admin, input.bandaId, input.lugarId, input.lugarNuevo) : null;
   const ingresoEsperado = input.tipo === "show" ? input.ingresoEsperado : null;
   const estado = input.tipo === "show" ? input.estado : "confirmado";
+  const ciudad = input.tipo === "show" ? input.ciudad : null;
 
   const { error } = await admin
     .from("eventos")
@@ -325,6 +341,7 @@ export async function actualizarEvento(eventoId: string, input: NuevoEventoInput
       gira_id: input.tipo === "show" ? input.giraId : null,
       setlist_id: puedeTenerSetlist(input.tipo) ? input.setlistId : null,
       lugar_id: lugarId,
+      ciudad,
       pais: null,
       ciudades: null,
     })

@@ -15,15 +15,23 @@ export const COLOR_TIPO: Record<TipoEvento, string> = {
   gira: "oklch(0.58 0.14 300)",
 };
 
-// Color por banda, para los chips de filtro (Design línea 449-452): cada
-// banda tiene un color estable de esta paleta, en el orden en que aparece
-// en miembros_banda. Leocadio/naranja es el primero porque es el acento
-// primario de toda la app (botones, header, etc. en /login ya lo usan).
-const PALETA_BANDA = ["oklch(0.64 0.15 34)", "oklch(0.64 0.13 195)", "oklch(0.6 0.14 280)", "oklch(0.55 0.14 150)"];
-
-export function colorPorIndiceBanda(indice: number): string {
-  return PALETA_BANDA[indice % PALETA_BANDA.length];
-}
+// Brief "Color de banda configurable...": el color de banda dejó de
+// calcularse por índice (era inestable — dependía del orden de
+// miembros_banda, que puede variar) — ahora es un valor fijo en
+// bandas.color, elegido por el superadmin desde Gestión > Bandas entre
+// estas opciones. Paleta acotada (no color picker libre) para garantizar
+// buen contraste sobre fondo claro — evita los hues ya reservados con otro
+// significado en el calendario (tentativo 88, gira 300, cumpleaños 78).
+export const PALETA_COLOR_BANDA = [
+  "oklch(0.64 0.15 34)", // naranja (acento primario de la app)
+  "oklch(0.64 0.13 195)", // teal
+  "oklch(0.6 0.14 280)", // violeta-azulado
+  "oklch(0.55 0.14 150)", // verde
+  "oklch(0.6 0.15 210)", // azul
+  "oklch(0.6 0.16 350)", // magenta
+  "oklch(0.58 0.16 20)", // rojo
+  "oklch(0.58 0.15 110)", // verde-lima
+];
 
 // Inserta un canal alfa dentro de un color oklch(...) ya armado, ej.
 // colorConAlpha("oklch(0.6 0.1 30)", 0.16) -> "oklch(0.6 0.1 30 / 0.16)".

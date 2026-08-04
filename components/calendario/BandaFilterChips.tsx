@@ -1,8 +1,6 @@
 "use client";
 
 import type { Membresia } from "@/lib/malgestoEventos";
-import { colorPorIndiceBanda } from "@/lib/eventoUI";
-import { ToggleChip } from "@/components/ui/ToggleChip";
 
 // Chips de banda de la vista de Mes — el filtro real del Calendario
 // (Brief 8 §3). `activas` empieza con TODAS las bandas prendidas (Brief 9
@@ -10,6 +8,9 @@ import { ToggleChip } from "@/components/ui/ToggleChip";
 // antes el set arrancaba vacío y "todo prendido" era solo un caso especial
 // del render, lo que hacía que tocar un chip apagara visualmente a los
 // otros aunque el toggle en sí fuera independiente).
+// Brief "Color de banda configurable...": el chip pasa de nombre+punto a un
+// círculo pequeño solo del color de la banda (fijo, no calculado), para
+// caber en la misma fila que el título del mes.
 export function BandaFilterChips({
   membresias,
   activas,
@@ -20,16 +21,22 @@ export function BandaFilterChips({
   onToggle: (bandaId: string) => void;
 }) {
   return (
-    <div className="mt-3.5 flex flex-wrap gap-2">
-      {membresias.map((m, i) => (
-        <ToggleChip
-          key={m.bandaId}
-          label={m.bandaNombre}
-          active={activas.has(m.bandaId)}
-          onClick={() => onToggle(m.bandaId)}
-          color={colorPorIndiceBanda(i)}
-        />
-      ))}
+    <div className="flex flex-wrap items-center justify-end gap-1.5">
+      {membresias.map((m) => {
+        const activo = activas.has(m.bandaId);
+        return (
+          <button
+            key={m.bandaId}
+            type="button"
+            onClick={() => onToggle(m.bandaId)}
+            aria-label={m.bandaNombre}
+            aria-pressed={activo}
+            title={m.bandaNombre}
+            className="h-5 w-5 shrink-0 rounded-full transition-all"
+            style={{ background: m.color, opacity: activo ? 1 : 0.32, transform: activo ? "scale(1)" : "scale(0.85)" }}
+          />
+        );
+      })}
     </div>
   );
 }

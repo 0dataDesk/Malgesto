@@ -6,6 +6,7 @@
 export type Membresia = {
   bandaId: string;
   bandaNombre: string;
+  color: string;
   rol: string;
   cancionesHabilitado: boolean;
   setlistHabilitado: boolean;

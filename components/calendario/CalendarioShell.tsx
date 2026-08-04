@@ -46,10 +46,15 @@ export function CalendarioShell({
   const [eventoEnEdicion, setEventoEnEdicion] = useState<Evento | undefined>(undefined);
   const [fechaParaForm, setFechaParaForm] = useState<Date>(() => new Date());
   // Brief 18 §5: la fila "Todas tus bandas" se colapsa al scrollear la lista
-  // de abajo, para darle más aire a "Próximos eventos" — el grid del mes y
-  // los chips ya son fijos (viven en el bloque `shrink-0` de arriba), así
-  // que al colapsar esa fila los chips quedan pegados debajo de "Mes/Año".
+  // de abajo, para darle más aire a "Próximos eventos" — el grid del mes ya
+  // es fijo (vive en el bloque `shrink-0` de arriba), así que al colapsar
+  // esa fila el título/chips quedan pegados arriba del todo.
   const [scrolleado, setScrolleado] = useState(false);
+
+  // Brief "Color de banda configurable...": color fijo por banda (ya no
+  // calculado por índice) — se resuelve una sola vez acá y se pasa a
+  // MesView/AgendaView, en vez de que cada uno arme su propio mapa.
+  const colorPorBanda = useMemo(() => new Map(membresias.map((m) => [m.bandaId, m.color])), [membresias]);
 
   // Para la grilla del mes / selección de día: ventana centro±1 año, así
   // navegar meses hacia atrás o adelante sigue mostrando el cumpleaños
@@ -134,7 +139,7 @@ export function CalendarioShell({
 
   let listaContenido: React.ReactNode;
   if (!diaSeleccionado) {
-    listaContenido = <AgendaView eventos={eventosFiltradosAgenda} onEventoClick={setEventoSeleccionado} />;
+    listaContenido = <AgendaView eventos={eventosFiltradosAgenda} colorPorBanda={colorPorBanda} onEventoClick={setEventoSeleccionado} />;
   } else if (eventosDelDia.length === 0) {
     listaContenido = (
       <p className="pt-10 text-center text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
@@ -201,11 +206,16 @@ export function CalendarioShell({
             Todas tus bandas
           </div>
         </div>
-        <h2 className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]" style={{ ...fuenteEncabezado, color: "oklch(0.24 0.02 55)" }}>
-          {nombreMesAno(mes)}
-        </h2>
-
-        <BandaFilterChips membresias={membresias} activas={activas} onToggle={toggleBanda} />
+        {/* Brief "Color de banda... calendario más compacto...": los chips
+            (ahora solo círculos de color, sin texto) se mudan a esta misma
+            fila, alineados a la derecha del título — eliminan la fila propia
+            que ocupaban antes para ganar espacio vertical. */}
+        <div className="mt-1 flex items-center justify-between gap-3">
+          <h2 className="text-[30px] font-extrabold tracking-[-0.02em]" style={{ ...fuenteEncabezado, color: "oklch(0.24 0.02 55)" }}>
+            {nombreMesAno(mes)}
+          </h2>
+          <BandaFilterChips membresias={membresias} activas={activas} onToggle={toggleBanda} />
+        </div>
 
         <div className="mt-3 flex items-center gap-3">
           <button type="button" onClick={() => setMes((m) => sumarMeses(m, -1))} className="text-lg" style={{ color: "oklch(0.6 0.02 55)" }} aria-label="Mes anterior">
@@ -220,7 +230,7 @@ export function CalendarioShell({
           <MesView
             mes={mes}
             eventos={eventosFiltrados}
-            membresias={membresias}
+            colorPorBanda={colorPorBanda}
             diaSeleccionado={diaSeleccionado}
             onDiaClick={onDiaClick}
             onEventoClick={setEventoSeleccionado}

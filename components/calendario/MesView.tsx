@@ -1,7 +1,7 @@
 "use client";
 
-import type { Evento, Membresia } from "@/lib/malgestoEventos";
-import { COLOR_TIPO, COLOR_TENTATIVO, colorConAlpha, colorPorIndiceBanda, eventoYaPaso } from "@/lib/eventoUI";
+import type { Evento } from "@/lib/malgestoEventos";
+import { COLOR_TIPO, COLOR_TENTATIVO, colorConAlpha, eventoYaPaso } from "@/lib/eventoUI";
 import { celdasDelMes, esMismoDia, mismoMesAno } from "@/lib/fechas";
 import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 
@@ -17,14 +17,14 @@ function estaEnRangoGira(dia: Date, gira: Evento): boolean {
 export function MesView({
   mes,
   eventos,
-  membresias,
+  colorPorBanda,
   diaSeleccionado,
   onDiaClick,
   onEventoClick,
 }: {
   mes: Date;
   eventos: Evento[];
-  membresias: Membresia[];
+  colorPorBanda: Map<string, string>;
   diaSeleccionado: Date | null;
   onDiaClick: (dia: Date) => void;
   onEventoClick: (evento: Evento) => void;
@@ -32,9 +32,6 @@ export function MesView({
   const hoy = ahoraEnZonaApp();
   const celdas = celdasDelMes(mes);
   const giras = eventos.filter((e) => e.tipo === "gira");
-  // Brief 18 §6: mismo color por banda que BandaFilterChips (índice en
-  // `membresias`, no un color fijo por tipo de evento).
-  const colorPorBanda = new Map(membresias.map((m, i) => [m.bandaId, colorPorIndiceBanda(i)]));
 
   return (
     <div>
@@ -127,7 +124,7 @@ export function MesView({
                     <span
                       key={bandaId}
                       className="h-[6px] w-[6px] rounded-full"
-                      style={{ background: colorPorBanda.get(bandaId) ?? colorPorIndiceBanda(0) }}
+                      style={{ background: colorPorBanda.get(bandaId) ?? "oklch(0.6 0.02 55)" }}
                     />
                   ))}
               </div>

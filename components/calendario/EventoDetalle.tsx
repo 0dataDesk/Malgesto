@@ -92,14 +92,21 @@ export function EventoDetalle({
     });
   };
 
+  // Brief "...ciudad en shows": una sola tarjeta de ubicación en vez de dos
+  // -- se muestra si hay lugar y/o ciudad, no solo si hay lugar.
+  const hayUbicacion = !!nombreUbicacion || !!evento.ciudad;
+
   const contenido = (
     <div
-      className={inline ? "rounded-3xl p-5" : "max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl p-6 sm:rounded-3xl"}
-      style={{ background: inline ? "oklch(0.99 0.008 82)" : "oklch(0.99 0.008 82)", border: inline ? "1px solid oklch(0.89 0.013 78)" : undefined }}
+      className={inline ? "rounded-3xl p-4" : "max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl p-4 sm:rounded-3xl"}
+      style={{ background: "oklch(0.99 0.008 82)", border: inline ? "1px solid oklch(0.89 0.013 78)" : undefined }}
       onClick={inline ? undefined : (e) => e.stopPropagation()}
     >
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-2">
+      {/* Brief "...calendario más compacto...": el badge de tipo comparte
+          fila con Editar/×, sin fila propia arriba -- así como el resto del
+          layout de acá abajo, con menos aire entre bloques. */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span
             className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[11px] font-bold tracking-wide uppercase"
             style={{ background: COLOR_TIPO[evento.tipo], color: "oklch(0.99 0.01 82)" }}
@@ -123,7 +130,7 @@ export function EventoDetalle({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           {evento.tipo !== "cumpleanos" && puedeEditar && (
             <button type="button" onClick={() => onEditar(evento)} className="text-sm font-bold" style={{ color: "oklch(0.64 0.15 34)" }}>
               Editar
@@ -135,21 +142,28 @@ export function EventoDetalle({
         </div>
       </div>
 
-      <h2 className="mt-3 text-2xl font-extrabold tracking-tight" style={{ color: "oklch(0.24 0.02 55)", fontFamily: "var(--font-bricolage), sans-serif" }}>
+      <h2 className="mt-2 text-2xl font-extrabold tracking-tight" style={{ color: "oklch(0.24 0.02 55)", fontFamily: "var(--font-bricolage), sans-serif" }}>
         {evento.titulo}
       </h2>
       <div className="mt-1 text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
         {fechaTexto} · {evento.bandaNombre}
       </div>
 
-      {nombreUbicacion && (
-        <div className="mt-4 rounded-2xl p-3.5" style={{ background: "oklch(0.93 0.016 78)" }}>
+      {hayUbicacion && (
+        <div className="mt-2.5 rounded-2xl p-3" style={{ background: "oklch(0.93 0.016 78)" }}>
           <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
             Ubicación
           </div>
-          <div className="mt-1 text-[15px]" style={{ color: "oklch(0.24 0.02 55)" }}>
-            {nombreUbicacion}
-          </div>
+          {nombreUbicacion && (
+            <div className="mt-1 text-[15px]" style={{ color: "oklch(0.24 0.02 55)" }}>
+              {nombreUbicacion}
+            </div>
+          )}
+          {evento.ciudad && (
+            <div className="mt-0.5 text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+              {evento.ciudad}
+            </div>
+          )}
           {linkMaps && (
             <a
               href={linkMaps}
@@ -165,7 +179,7 @@ export function EventoDetalle({
       )}
 
       {giraAsignada && (
-        <div className="mt-3 rounded-2xl p-3.5" style={{ background: "oklch(0.93 0.016 78)" }}>
+        <div className="mt-2.5 rounded-2xl p-3" style={{ background: "oklch(0.93 0.016 78)" }}>
           <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
             Gira
           </div>
@@ -176,7 +190,7 @@ export function EventoDetalle({
       )}
 
       {setlistAsignado && (
-        <div className="mt-3 rounded-2xl p-3.5" style={{ background: "oklch(0.93 0.016 78)" }}>
+        <div className="mt-2.5 rounded-2xl p-3" style={{ background: "oklch(0.93 0.016 78)" }}>
           <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
             Set List
           </div>
@@ -187,7 +201,7 @@ export function EventoDetalle({
       )}
 
       {evento.ingresoEsperado !== null && (
-        <div className="mt-3 rounded-2xl p-3.5" style={{ background: "oklch(0.24 0.02 55)" }}>
+        <div className="mt-2.5 rounded-2xl p-3" style={{ background: "oklch(0.24 0.02 55)" }}>
           <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.74 0.12 78)" }}>
             Ingreso esperado
           </div>
@@ -197,20 +211,23 @@ export function EventoDetalle({
         </div>
       )}
 
-      {puedeSerTentativo && puedeEditar && (
+      {/* Brief "...ajustar botones de tentativo/confirmar...": "Confirmar
+          fecha" sigue siendo una acción rápida acá; volver una fecha
+          confirmada a tentativa ya no -- eso requiere entrar a Editar. */}
+      {puedeSerTentativo && puedeEditar && evento.estado === "tentativo" && (
         <button
           type="button"
           onClick={toggleEstado}
           disabled={pendienteEstado}
-          className="mt-3 w-full rounded-xl py-2.5 text-center text-sm font-bold disabled:opacity-60"
+          className="mt-2.5 w-full rounded-xl py-2 text-center text-sm font-bold disabled:opacity-60"
           style={{ background: colorConAlpha(COLOR_TENTATIVO, 0.16), color: "oklch(0.42 0.13 82)" }}
         >
-          {pendienteEstado ? "Actualizando…" : evento.estado === "tentativo" ? "Confirmar fecha" : "Marcar como tentativo"}
+          {pendienteEstado ? "Confirmando…" : "Confirmar fecha"}
         </button>
       )}
 
       {error && (
-        <p className="mt-3 text-sm" style={{ color: "oklch(0.6 0.15 25)" }}>
+        <p className="mt-2 text-sm" style={{ color: "oklch(0.6 0.15 25)" }}>
           {error}
         </p>
       )}
@@ -220,7 +237,7 @@ export function EventoDetalle({
           type="button"
           onClick={eliminar}
           disabled={pendienteEliminar}
-          className="mt-5 w-full text-center text-sm font-semibold disabled:opacity-50"
+          className="mt-3 w-full text-center text-sm font-semibold disabled:opacity-50"
           style={{ color: "oklch(0.6 0.15 25)" }}
         >
           {pendienteEliminar ? "Eliminando…" : "Eliminar evento"}

@@ -104,6 +104,8 @@ export function NuevoEventoForm({
   const [giraHasta, setGiraHasta] = useState(inicialGiraHasta?.fecha ?? "");
   const [pais, setPais] = useState(eventoExistente?.pais ?? "");
   const [ciudades, setCiudades] = useState(eventoExistente?.ciudades ?? "");
+  // Brief "...ciudad en shows": solo Show -- distinto de `ciudades` (Gira).
+  const [ciudad, setCiudad] = useState(eventoExistente?.ciudad ?? "");
   const [ingreso, setIngreso] = useState(eventoExistente?.ingresoEsperado?.toString() ?? "");
   const [bandaId, setBandaId] = useState(eventoExistente?.bandaId ?? membresias[0]?.bandaId ?? "");
   const [bandaIdsGira, setBandaIdsGira] = useState<Set<string>>(
@@ -240,6 +242,7 @@ export function NuevoEventoForm({
         lugarNuevo: tipo !== "gira" && nuevoLugar && nuevoLugarNombre.trim() && nuevoLugarLink.trim() ? { nombre: nuevoLugarNombre.trim(), linkMaps: nuevoLugarLink.trim() } : null,
         pais: tipo === "gira" ? pais.trim() || null : null,
         ciudades: tipo === "gira" ? ciudades.trim() || null : null,
+        ciudad: tipo === "show" ? ciudad.trim() || null : null,
       };
 
       startTransition(async () => {
@@ -401,6 +404,15 @@ export function NuevoEventoForm({
           )}
 
           {selectorLugar}
+
+          {tipo === "show" && (
+            <div>
+              <span className={labelCls} style={labelStyle}>
+                Ciudad
+              </span>
+              <input className={inputCls} style={inputStyle} value={ciudad} onChange={(e) => setCiudad(e.target.value)} placeholder="CDMX" />
+            </div>
+          )}
 
           {tipo === "gira" ? (
             <>

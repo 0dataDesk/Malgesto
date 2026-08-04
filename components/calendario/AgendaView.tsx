@@ -5,7 +5,11 @@ import { COLOR_TIPO, ETIQUETA_TIPO, colorConAlpha, formatoMoneda } from "@/lib/e
 import { diaDelMes, diaSemanaAbrev, hora, nombreMes, mismoMesAno } from "@/lib/fechas";
 import { enZonaApp } from "@/lib/zonaHoraria";
 
-function TarjetaEvento({ evento, onClick }: { evento: Evento; onClick: () => void }) {
+// Brief "Color de banda...": la tira izquierda y el círculo junto al
+// nombre de banda reflejan el color fijo de la banda (no COLOR_TIPO) — el
+// tipo de evento sigue distinguiéndose por la etiqueta/color del label
+// "SHOW"/"ENSAYO" arriba, eso no cambia.
+function TarjetaEvento({ evento, colorBanda, onClick }: { evento: Evento; colorBanda: string; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -14,7 +18,7 @@ function TarjetaEvento({ evento, onClick }: { evento: Evento; onClick: () => voi
       style={{
         background: "oklch(0.99 0.008 82)",
         border: "1px solid oklch(0.89 0.013 78)",
-        borderLeft: `3px solid ${COLOR_TIPO[evento.tipo]}`,
+        borderLeft: `3px solid ${colorBanda}`,
       }}
     >
       <div className="min-w-[38px] text-center">
@@ -45,9 +49,13 @@ function TarjetaEvento({ evento, onClick }: { evento: Evento; onClick: () => voi
         >
           {evento.titulo}
         </div>
-        <div className="flex flex-wrap gap-2.5 text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
-          <span>{evento.bandaNombre}</span>
+        <div className="flex flex-wrap items-center gap-2.5 text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: colorBanda }} />
+            {evento.bandaNombre}
+          </span>
           {evento.lugarNombre && <span>· {evento.lugarNombre}</span>}
+          {evento.ciudad && <span>· {evento.ciudad}</span>}
           {evento.ingresoEsperado !== null && <span>· {formatoMoneda(evento.ingresoEsperado)} esperado</span>}
         </div>
       </div>
@@ -117,9 +125,11 @@ function TarjetaGira({
 
 export function AgendaView({
   eventos,
+  colorPorBanda,
   onEventoClick,
 }: {
   eventos: Evento[];
+  colorPorBanda: Map<string, string>;
   onEventoClick: (evento: Evento) => void;
 }) {
   const giras = eventos.filter((e) => e.tipo === "gira");
@@ -162,7 +172,11 @@ export function AgendaView({
                 onClickShow={onEventoClick}
               />
             ) : (
-              <TarjetaEvento evento={item} onClick={() => onEventoClick(item)} />
+              <TarjetaEvento
+                evento={item}
+                colorBanda={colorPorBanda.get(item.bandaId) ?? "oklch(0.6 0.02 55)"}
+                onClick={() => onEventoClick(item)}
+              />
             )}
           </div>
         );

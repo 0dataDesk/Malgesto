@@ -3,8 +3,35 @@
 import { useState, useTransition } from "react";
 import type { BandaSimple, ActualizacionBanda, Plaza } from "@/lib/gestionData";
 import { INSTRUMENTOS, ETIQUETA_INSTRUMENTO, etiquetaPlaza, type Instrumento } from "@/lib/instrumentoCatalogo";
+import { PALETA_COLOR_BANDA } from "@/lib/eventoUI";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import { crearBandaAction, actualizarBandaAction, crearPlazaAction, eliminarPlazaAction } from "@/app/gestion/actions";
+
+const COLOR_DEFECTO = PALETA_COLOR_BANDA[0];
+
+// Brief "Color de banda configurable...": paleta acotada en vez de color
+// picker libre, para no arriesgar contraste/legibilidad -- ver
+// PALETA_COLOR_BANDA en lib/eventoUI.ts.
+function SelectorColorBanda({ value, onChange }: { value: string; onChange: (color: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {PALETA_COLOR_BANDA.map((c) => (
+        <button
+          key={c}
+          type="button"
+          onClick={() => onChange(c)}
+          aria-label={`Color ${c}`}
+          className="h-7 w-7 shrink-0 rounded-full transition-transform"
+          style={{
+            background: c,
+            boxShadow: c === value ? "0 0 0 2px oklch(0.99 0.01 82), 0 0 0 4px oklch(0.3 0.02 55)" : "none",
+            transform: c === value ? "scale(1.05)" : "scale(1)",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 const inputCls = "w-full rounded-lg border px-3 py-2 text-sm outline-none";
 const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
@@ -190,6 +217,7 @@ function DetalleBanda({
   onPlazas: (p: Plaza[]) => void;
 }) {
   const [nombre, setNombre] = useState(banda.nombre);
+  const [color, setColor] = useState(banda.color);
   const [genero, setGenero] = useState(banda.genero ?? "");
   const numeroIntegrantesInicial = banda.numeroIntegrantes !== null ? String(banda.numeroIntegrantes) : "";
   const [numeroIntegrantes, setNumeroIntegrantes] = useState(numeroIntegrantesInicial);
@@ -202,6 +230,7 @@ function DetalleBanda({
 
   const hayCambios =
     nombre.trim() !== banda.nombre ||
+    color !== banda.color ||
     (genero.trim() || null) !== banda.genero ||
     numeroIntegrantes !== numeroIntegrantesInicial ||
     canciones !== banda.cancionesHabilitado ||
@@ -216,6 +245,7 @@ function DetalleBanda({
       try {
         const cambios: ActualizacionBanda = {
           nombre: nombre.trim(),
+          color,
           genero: genero.trim() || null,
           numeroIntegrantes: numeroIntegrantes.trim() === "" ? null : Number(numeroIntegrantes),
           cancionesHabilitado: canciones,
@@ -242,6 +272,11 @@ function DetalleBanda({
           Nombre
         </label>
         <input value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputCls} style={inputStyle} />
+
+        <label className="mb-1.5 mt-3 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.02 55)" }}>
+          Color
+        </label>
+        <SelectorColorBanda value={color} onChange={setColor} />
 
         <div className="mt-3 flex gap-2">
           <div className="flex-1">
@@ -327,6 +362,7 @@ export function BandasPanel({ bandas: bandasIniciales, plazas: plazasIniciales }
             {
               id,
               nombre: nombreNueva.trim(),
+              color: COLOR_DEFECTO,
               genero: null,
               numeroIntegrantes: null,
               archivada: false,
@@ -412,7 +448,8 @@ export function BandasPanel({ bandas: bandasIniciales, plazas: plazasIniciales }
             style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}
           >
             <div className="flex items-center justify-between gap-2">
-              <div className="text-base font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+              <div className="flex items-center gap-2 text-base font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+                <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: b.color }} />
                 {b.nombre}
               </div>
               {b.genero && (

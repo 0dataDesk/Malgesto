@@ -4,6 +4,7 @@ import { supabaseMalgesto } from "@/lib/supabase/malgesto";
 export type BandaSimple = {
   id: string;
   nombre: string;
+  color: string;
   genero: string | null;
   numeroIntegrantes: number | null;
   archivada: boolean;
@@ -44,12 +45,13 @@ export async function obtenerBandasTodas(): Promise<BandaSimple[]> {
   const { data } = await admin
     .from("bandas")
     .select(
-      "id, nombre, genero, numero_integrantes, archivada, canciones_habilitado, setlist_habilitado, seteos_habilitado, finanzas_habilitado"
+      "id, nombre, color, genero, numero_integrantes, archivada, canciones_habilitado, setlist_habilitado, seteos_habilitado, finanzas_habilitado"
     )
     .order("nombre", { ascending: true });
   return (data ?? []).map((b) => ({
     id: b.id,
     nombre: b.nombre,
+    color: b.color,
     genero: b.genero,
     numeroIntegrantes: b.numero_integrantes,
     archivada: b.archivada,
@@ -75,6 +77,7 @@ export async function crearBanda(nombre: string, usuarioIdCreador: string): Prom
 
 export type ActualizacionBanda = {
   nombre: string;
+  color: string;
   genero: string | null;
   numeroIntegrantes: number | null;
   cancionesHabilitado: boolean;
@@ -89,6 +92,7 @@ export async function actualizarBanda(bandaId: string, cambios: ActualizacionBan
     .from("bandas")
     .update({
       nombre: cambios.nombre,
+      color: cambios.color,
       genero: cambios.genero,
       numero_integrantes: cambios.numeroIntegrantes,
       canciones_habilitado: cambios.cancionesHabilitado,

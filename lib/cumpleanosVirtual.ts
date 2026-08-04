@@ -37,6 +37,7 @@ function construirEvento(p: PersonaConCumple, anio: number): Evento {
     lugarLinkMaps: null,
     pais: null,
     ciudades: null,
+    ciudad: null,
   };
 }
 
