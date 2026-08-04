@@ -94,6 +94,9 @@ export function NuevoEventoForm({
   const inicialGiraHasta = eventoExistente?.tipo === "gira" && eventoExistente.fechaFin ? aFechaHora(eventoExistente.fechaFin) : null;
 
   const [tipo, setTipo] = useState<TipoEvento>(eventoExistente?.tipo ?? "show");
+  // Brief "Estado Tentativo...": default Confirmado -- solo aplica a
+  // show/gira, se ignora (forzado a "confirmado") para el resto en onSubmit.
+  const [tentativo, setTentativo] = useState(eventoExistente?.estado === "tentativo");
   const [titulo, setTitulo] = useState(eventoExistente && eventoExistente.tipo !== "ensayo" ? eventoExistente.titulo : "");
   const [horaInicio, setHoraInicio] = useState(inicial?.hora ?? "19:00");
   const [horaFin, setHoraFin] = useState(inicialFin?.hora ?? "22:00");
@@ -125,6 +128,7 @@ export function NuevoEventoForm({
   const [nuevaGiraBandaIds, setNuevaGiraBandaIds] = useState<Set<string>>(() => new Set(bandaId ? [bandaId] : []));
   const [nuevaGiraPais, setNuevaGiraPais] = useState("");
   const [nuevaGiraCiudades, setNuevaGiraCiudades] = useState("");
+  const [nuevaGiraTentativo, setNuevaGiraTentativo] = useState(false);
   const [creandoGira, startCrearGira] = useTransition();
 
   const [error, setError] = useState<string | null>(null);
@@ -152,7 +156,8 @@ export function NuevoEventoForm({
           desdeIso,
           hastaIso,
           nuevaGiraPais.trim() || null,
-          nuevaGiraCiudades.trim() || null
+          nuevaGiraCiudades.trim() || null,
+          nuevaGiraTentativo ? "tentativo" : "confirmado"
         );
         setGirasLocal((prev) => [...prev, gira]);
         setGiraId(gira.id);
@@ -162,6 +167,7 @@ export function NuevoEventoForm({
         setNuevaGiraHasta("");
         setNuevaGiraPais("");
         setNuevaGiraCiudades("");
+        setNuevaGiraTentativo(false);
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo crear la gira.");
       }
@@ -223,6 +229,7 @@ export function NuevoEventoForm({
         bandaId: bandaIdsFinal[0],
         bandaIds: tipo === "gira" ? bandaIdsFinal : undefined,
         tipo,
+        estado: (tipo === "show" || tipo === "gira") && tentativo ? "tentativo" : "confirmado",
         titulo: tituloFinal,
         fechaInicio: fechaInicioIso,
         fechaFin: fechaFinIso,
@@ -358,6 +365,20 @@ export function NuevoEventoForm({
               ))}
             </div>
           </div>
+
+          {(tipo === "show" || tipo === "gira") && (
+            <div>
+              <div className="flex items-center justify-between">
+                <span className={labelCls} style={{ ...labelStyle, marginBottom: 0 }}>
+                  Tentativo
+                </span>
+                <Switch activo={tentativo} onToggle={() => setTentativo((v) => !v)} />
+              </div>
+              <p className="mt-1 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+                {tentativo ? "Fecha candidata, todavía sin confirmar." : "Fecha confirmada."}
+              </p>
+            </div>
+          )}
 
           {tipo === "ensayo" && selectorBanda}
 
@@ -539,6 +560,12 @@ export function NuevoEventoForm({
                           onChange={(e) => setNuevaGiraCiudades(e.target.value)}
                           placeholder="Ciudades"
                         />
+                      </div>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-sm font-semibold" style={{ color: "oklch(0.4 0.02 55)" }}>
+                          Tentativo
+                        </span>
+                        <Switch activo={nuevaGiraTentativo} onToggle={() => setNuevaGiraTentativo((v) => !v)} />
                       </div>
                       <div className="mt-2 flex gap-2">
                         <button

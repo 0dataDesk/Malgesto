@@ -157,6 +157,7 @@ export function CalendarioShell({
           setDiaSeleccionado(null);
           router.refresh();
         }}
+        onEstadoActualizado={() => router.refresh()}
       />
     );
   } else {
@@ -281,6 +282,7 @@ export function CalendarioShell({
             setEventoSeleccionado(null);
             router.refresh();
           }}
+          onEstadoActualizado={() => router.refresh()}
         />
       )}
 

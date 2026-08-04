@@ -1,4 +1,4 @@
-import type { TipoEvento } from "@/lib/malgestoEventos";
+import type { TipoEvento, EstadoEvento } from "@/lib/malgestoEventos";
 import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 
 // Color e identidad visual por tipo de evento. Show/Ensayo/Cumpleaños
@@ -36,6 +36,18 @@ export const ETIQUETA_TIPO: Record<TipoEvento, string> = {
   ensayo: "Ensayo",
   cumpleanos: "Cumpleaños",
   gira: "Gira",
+};
+
+// Brief "Estado Tentativo...": amarillo/ámbar de advertencia, deliberadamente
+// distinto de todo lo que ya usa el calendario (acento show/naranja 34,
+// gira/violeta 300, ensayo/teal 195, cumpleaños/durazno 78, paleta de banda
+// 34/195/280/150) — es el único fondo de día pensado para decir "esto
+// necesita revisión", no solo "acá pasa algo".
+export const COLOR_TENTATIVO = "oklch(0.62 0.17 88)";
+
+export const ETIQUETA_ESTADO: Record<EstadoEvento, string> = {
+  confirmado: "Confirmado",
+  tentativo: "Tentativo",
 };
 
 // MXN con separador de miles y 2 decimales, ej. $18,000.00 (Brief 9 §14).

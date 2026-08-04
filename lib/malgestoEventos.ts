@@ -8,12 +8,18 @@ export { bloqueVisible, algunaBandaConBloque, membresiasConBloque } from "@/lib/
 
 export type TipoEvento = "ensayo" | "show" | "cumpleanos" | "gira";
 
+// Brief "Estado Tentativo...": solo aplica a show/gira -- ensayo/cumpleanos
+// siempre son "confirmado" (forzado a nivel app, ver crearEvento/
+// actualizarEvento más abajo, igual que ya se hace con ingresoEsperado).
+export type EstadoEvento = "confirmado" | "tentativo";
+
 export type Evento = {
   id: string;
   bandaId: string;
   bandaIds: string[];
   bandaNombre: string;
   tipo: TipoEvento;
+  estado: EstadoEvento;
   titulo: string;
   fechaInicio: string;
   fechaFin: string | null;
@@ -49,7 +55,7 @@ const puedeTenerLugar = (tipo: TipoEvento) => tipo === "ensayo" || tipo === "sho
 // lectura de eventos — no solo los de fin de mes — devolviendo `[]` en vez
 // de fallar ruidosamente. Se califica con el nombre del FK para desambiguar.
 const COLUMNAS_EVENTO =
-  "id, banda_id, tipo, titulo, fecha_inicio, fecha_fin, ingreso_esperado, gira_id, setlist_id, lugar_id, pais, ciudades, bandas!eventos_banda_id_fkey(nombre), lugares(nombre, link_maps)";
+  "id, banda_id, tipo, estado, titulo, fecha_inicio, fecha_fin, ingreso_esperado, gira_id, setlist_id, lugar_id, pais, ciudades, bandas!eventos_banda_id_fkey(nombre), lugares(nombre, link_maps)";
 
 // Bandas del usuario, con su rol — determina si va directo al calendario de
 // su única banda o si necesita el selector (más de una). banda_id es
@@ -93,6 +99,7 @@ function mapearEvento(
     id: string;
     banda_id: string;
     tipo: string;
+    estado: string;
     titulo: string;
     fecha_inicio: string;
     fecha_fin: string | null;
@@ -115,6 +122,7 @@ function mapearEvento(
     bandaNombre:
       bandasGira && bandasGira.length > 0 ? bandasGira.map((b) => b.nombre).join(" + ") : (e.bandas as unknown as BandaEmbebida)?.nombre ?? "Banda",
     tipo: e.tipo as TipoEvento,
+    estado: e.estado as EstadoEvento,
     titulo: e.titulo,
     fechaInicio: e.fecha_inicio,
     fechaFin: e.fecha_fin,
@@ -182,6 +190,9 @@ export type NuevoEventoInput = {
   bandaId: string;
   bandaIds?: string[];
   tipo: TipoEvento;
+  // Solo se respeta para tipo show/gira -- crearEvento/actualizarEvento
+  // fuerzan 'confirmado' para el resto sin importar lo que llegue acá.
+  estado: EstadoEvento;
   titulo: string;
   fechaInicio: string;
   fechaFin: string | null;
@@ -229,6 +240,7 @@ export async function crearEvento(input: NuevoEventoInput) {
       .insert({
         banda_id: bandaIds[0],
         tipo: "gira",
+        estado: input.estado,
         titulo: input.titulo,
         fecha_inicio: input.fechaInicio,
         fecha_fin: input.fechaFin,
@@ -246,12 +258,14 @@ export async function crearEvento(input: NuevoEventoInput) {
 
   const lugarId = puedeTenerLugar(input.tipo) ? await resolverLugarId(admin, input.bandaId, input.lugarId, input.lugarNuevo) : null;
   const ingresoEsperado = input.tipo === "show" ? input.ingresoEsperado : null;
+  const estado = input.tipo === "show" ? input.estado : "confirmado";
 
   const { data, error } = await admin
     .from("eventos")
     .insert({
       banda_id: input.bandaId,
       tipo: input.tipo,
+      estado,
       titulo: input.titulo,
       fecha_inicio: input.fechaInicio,
       fecha_fin: input.fechaFin,
@@ -277,6 +291,7 @@ export async function actualizarEvento(eventoId: string, input: NuevoEventoInput
       .update({
         banda_id: bandaIds[0],
         tipo: "gira",
+        estado: input.estado,
         titulo: input.titulo,
         fecha_inicio: input.fechaInicio,
         fecha_fin: input.fechaFin,
@@ -295,12 +310,14 @@ export async function actualizarEvento(eventoId: string, input: NuevoEventoInput
 
   const lugarId = puedeTenerLugar(input.tipo) ? await resolverLugarId(admin, input.bandaId, input.lugarId, input.lugarNuevo) : null;
   const ingresoEsperado = input.tipo === "show" ? input.ingresoEsperado : null;
+  const estado = input.tipo === "show" ? input.estado : "confirmado";
 
   const { error } = await admin
     .from("eventos")
     .update({
       banda_id: input.bandaId,
       tipo: input.tipo,
+      estado,
       titulo: input.titulo,
       fecha_inicio: input.fechaInicio,
       fecha_fin: input.fechaFin,
@@ -327,12 +344,13 @@ export async function crearGira(
   desde: string,
   hasta: string,
   pais: string | null,
-  ciudades: string | null
+  ciudades: string | null,
+  estado: EstadoEvento = "confirmado"
 ): Promise<Evento> {
   const admin = supabaseMalgesto();
   const { data, error } = await admin
     .from("eventos")
-    .insert({ banda_id: bandaIds[0], tipo: "gira", titulo: nombre, fecha_inicio: desde, fecha_fin: hasta, pais, ciudades })
+    .insert({ banda_id: bandaIds[0], tipo: "gira", estado, titulo: nombre, fecha_inicio: desde, fecha_fin: hasta, pais, ciudades })
     .select(COLUMNAS_EVENTO)
     .single();
   if (error || !data) throw new Error(error?.message ?? "No se pudo crear la gira.");
@@ -363,5 +381,14 @@ export async function asignarGiraEvento(eventoId: string, giraId: string | null)
 export async function asignarSetlistEvento(eventoId: string, setlistId: string | null) {
   const admin = supabaseMalgesto();
   const { error } = await admin.from("eventos").update({ setlist_id: setlistId }).eq("id", eventoId);
+  if (error) throw new Error(error.message);
+}
+
+// Igual, pero para Tentativo/Confirmado (Brief "Estado Tentativo...") —
+// permite confirmar una fecha tentativa (o volverla a tentativa) directo
+// desde el detalle, sin pasar por el formulario completo de edición.
+export async function asignarEstadoEvento(eventoId: string, estado: EstadoEvento) {
+  const admin = supabaseMalgesto();
+  const { error } = await admin.from("eventos").update({ estado }).eq("id", eventoId);
   if (error) throw new Error(error.message);
 }

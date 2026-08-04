@@ -9,9 +9,11 @@ import {
   eliminarEvento,
   asignarGiraEvento,
   asignarSetlistEvento,
+  asignarEstadoEvento,
   crearGira,
   type NuevoEventoInput,
   type Evento,
+  type EstadoEvento,
 } from "@/lib/malgestoEventos";
 
 // Brief 18 §3: crear/editar/eliminar eventos (y asignarles gira/Set List) es
@@ -92,16 +94,23 @@ export async function asignarSetlistAction(eventoId: string, bandaId: string, se
   revalidatePath("/inicio");
 }
 
+export async function asignarEstadoAction(eventoId: string, bandaId: string, estado: EstadoEvento) {
+  await requerirSuperadminEnBanda(bandaId);
+  await asignarEstadoEvento(eventoId, estado);
+  revalidatePath("/inicio");
+}
+
 export async function crearGiraRapidaAction(
   bandaIds: string[],
   nombre: string,
   desde: string,
   hasta: string,
   pais: string | null,
-  ciudades: string | null
+  ciudades: string | null,
+  estado: EstadoEvento = "confirmado"
 ): Promise<Evento> {
   await requerirSuperadminEnTodas(bandaIds);
-  const gira = await crearGira(bandaIds, nombre, desde, hasta, pais, ciudades);
+  const gira = await crearGira(bandaIds, nombre, desde, hasta, pais, ciudades, estado);
   revalidatePath("/inicio");
   return gira;
 }

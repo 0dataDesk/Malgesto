@@ -1,7 +1,7 @@
 "use client";
 
 import type { Evento, Membresia } from "@/lib/malgestoEventos";
-import { COLOR_TIPO, colorConAlpha, colorPorIndiceBanda, eventoYaPaso } from "@/lib/eventoUI";
+import { COLOR_TIPO, COLOR_TENTATIVO, colorConAlpha, colorPorIndiceBanda, eventoYaPaso } from "@/lib/eventoUI";
 import { celdasDelMes, esMismoDia, mismoMesAno } from "@/lib/fechas";
 import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 
@@ -85,6 +85,21 @@ export function MesView({
             radius = "9px";
           }
 
+          // Brief "Estado Tentativo...": una fecha tentativa necesita
+          // revisión/decisión, no es solo información pasiva -- prevalece
+          // sobre el resaltado normal de evento/gira/pasado de arriba (fondo
+          // de advertencia) y se refuerza con un anillo, así no se pierde ni
+          // siquiera sobre el fondo oscuro de "hoy" más abajo.
+          const tieneTentativo = giraDelDia?.estado === "tentativo" || eventosDelDia.some((e) => e.estado === "tentativo");
+          if (tieneTentativo) {
+            bg = colorConAlpha(COLOR_TENTATIVO, 0.3);
+            if (radius === "0") radius = "9px";
+          }
+          const anillos = [
+            esSeleccionado ? "inset 0 0 0 2px oklch(0.64 0.15 34)" : null,
+            tieneTentativo ? "inset 0 0 0 2px oklch(0.62 0.17 88)" : null,
+          ].filter(Boolean);
+
           return (
             <button
               key={i}
@@ -96,7 +111,7 @@ export function MesView({
                 paddingBottom: 7,
                 background: esHoy ? "oklch(0.24 0.02 55)" : bg,
                 borderRadius: esHoy ? 9 : radius,
-                boxShadow: esSeleccionado ? "inset 0 0 0 2px oklch(0.64 0.15 34)" : "none",
+                boxShadow: anillos.length > 0 ? anillos.join(", ") : "none",
                 color: esHoy
                   ? "oklch(0.99 0.01 82)"
                   : fueraDeMes

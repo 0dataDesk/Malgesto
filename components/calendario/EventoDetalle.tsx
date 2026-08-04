@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from "react";
 import type { Evento } from "@/lib/malgestoEventos";
-import { COLOR_TIPO, ETIQUETA_TIPO, formatoMoneda, eventoYaPaso } from "@/lib/eventoUI";
+import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_TENTATIVO, formatoMoneda, colorConAlpha, eventoYaPaso } from "@/lib/eventoUI";
 import { enZonaApp } from "@/lib/zonaHoraria";
-import { eliminarEventoAction } from "@/app/inicio/actions";
+import { eliminarEventoAction, asignarEstadoAction } from "@/app/inicio/actions";
 
 type SetlistOpcion = { id: string; nombre: string };
 
@@ -21,6 +21,7 @@ export function EventoDetalle({
   onCerrar,
   onEditar,
   onEliminado,
+  onEstadoActualizado,
 }: {
   evento: Evento;
   giras: Evento[];
@@ -30,8 +31,10 @@ export function EventoDetalle({
   onCerrar: () => void;
   onEditar: (evento: Evento) => void;
   onEliminado: () => void;
+  onEstadoActualizado: () => void;
 }) {
   const [pendienteEliminar, startEliminar] = useTransition();
+  const [pendienteEstado, startEstado] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   const inicio = enZonaApp(evento.fechaInicio);
@@ -72,6 +75,23 @@ export function EventoDetalle({
     });
   };
 
+  // Brief "Estado Tentativo...": solo show/gira tienen este concepto —
+  // confirmar una fecha tentativa (o volverla a tentativa) directo desde acá,
+  // sin pasar por el form completo de edición.
+  const puedeSerTentativo = evento.tipo === "show" || evento.tipo === "gira";
+  const toggleEstado = () => {
+    setError(null);
+    const nuevoEstado = evento.estado === "tentativo" ? "confirmado" : "tentativo";
+    startEstado(async () => {
+      try {
+        await asignarEstadoAction(evento.id, evento.bandaId, nuevoEstado);
+        onEstadoActualizado();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "No se pudo actualizar el estado.");
+      }
+    });
+  };
+
   const contenido = (
     <div
       className={inline ? "rounded-3xl p-5" : "max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl p-6 sm:rounded-3xl"}
@@ -86,6 +106,14 @@ export function EventoDetalle({
           >
             {ETIQUETA_TIPO[evento.tipo]}
           </span>
+          {puedeSerTentativo && evento.estado === "tentativo" && (
+            <span
+              className="inline-flex items-center rounded-full px-2.5 py-1 font-mono text-[11px] font-bold tracking-wide uppercase"
+              style={{ background: colorConAlpha(COLOR_TENTATIVO, 0.18), color: "oklch(0.42 0.13 82)" }}
+            >
+              Tentativo
+            </span>
+          )}
           {yaPaso && (
             <span
               className="inline-flex items-center rounded-full px-2.5 py-1 font-mono text-[11px] font-bold tracking-wide uppercase"
@@ -167,6 +195,18 @@ export function EventoDetalle({
             {formatoMoneda(evento.ingresoEsperado)}
           </div>
         </div>
+      )}
+
+      {puedeSerTentativo && puedeEditar && (
+        <button
+          type="button"
+          onClick={toggleEstado}
+          disabled={pendienteEstado}
+          className="mt-3 w-full rounded-xl py-2.5 text-center text-sm font-bold disabled:opacity-60"
+          style={{ background: colorConAlpha(COLOR_TENTATIVO, 0.16), color: "oklch(0.42 0.13 82)" }}
+        >
+          {pendienteEstado ? "Actualizando…" : evento.estado === "tentativo" ? "Confirmar fecha" : "Marcar como tentativo"}
+        </button>
       )}
 
       {error && (

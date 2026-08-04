@@ -25,6 +25,7 @@ function construirEvento(p: PersonaConCumple, anio: number): Evento {
     bandaIds: p.bandaIds,
     bandaNombre: p.bandaNombre,
     tipo: "cumpleanos",
+    estado: "confirmado",
     titulo: `Cumpleaños de ${p.nombre}`,
     fechaInicio: aUtcDesdeZonaApp(anio, mes, dia, 0, 0),
     fechaFin: null,
