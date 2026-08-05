@@ -3,6 +3,7 @@ import Link from "next/link";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
 import { obtenerDispositivos } from "@/lib/dispositivosData";
+import { colorConAlpha } from "@/lib/eventoUI";
 import { TabBar } from "@/components/shell/TabBar";
 import { NuevoDispositivoForm } from "@/components/dispositivos/NuevoDispositivoForm";
 
@@ -68,10 +69,11 @@ export default async function SeteosPage({
                 key={m.bandaId}
                 href={`/seteos?banda=${m.bandaId}`}
                 className="rounded-2xl px-3.5 py-2 text-sm font-bold no-underline"
-                style={{
-                  background: m.bandaId === bandaActiva ? "oklch(0.24 0.02 55)" : "oklch(0.93 0.016 78)",
-                  color: m.bandaId === bandaActiva ? "oklch(0.96 0.012 82)" : "oklch(0.4 0.02 55)",
-                }}
+                style={
+                  m.bandaId === bandaActiva
+                    ? { background: m.color, color: "oklch(0.99 0.01 82)" }
+                    : { background: colorConAlpha(m.color, 0.14), color: m.color }
+                }
               >
                 {m.bandaNombre}
               </Link>

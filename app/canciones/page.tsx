@@ -60,7 +60,7 @@ export default async function CancionesPage({
                 key={m.bandaId}
                 href={`/canciones?banda=${m.bandaId}`}
                 className="flex items-center justify-between rounded-2xl p-4 text-base font-bold no-underline"
-                style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", color: "oklch(0.24 0.02 55)" }}
+                style={{ background: m.color, color: "oklch(0.99 0.01 82)" }}
               >
                 <span>{m.bandaNombre}</span>
               </Link>

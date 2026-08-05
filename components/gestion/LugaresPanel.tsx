@@ -133,6 +133,7 @@ function FilaLugar({
             label={b.nombre}
             active={lugar.bandaIds.includes(b.id)}
             onClick={() => toggleBanda(b.id)}
+            color={b.color}
           />
         ))}
       </div>
@@ -211,7 +212,7 @@ export function LugaresPanel({ bandas, lugares: lugaresIniciales }: { bandas: Ba
             </span>
             <div className="flex flex-wrap gap-1.5">
               {bandas.map((b) => (
-                <ToggleChip key={b.id} label={b.nombre} active={bandaIdsNuevo.has(b.id)} onClick={() => setBandaIdsNuevo((prev) => toggleEnSet(prev, b.id))} />
+                <ToggleChip key={b.id} label={b.nombre} active={bandaIdsNuevo.has(b.id)} onClick={() => setBandaIdsNuevo((prev) => toggleEnSet(prev, b.id))} color={b.color} />
               ))}
             </div>
           </div>

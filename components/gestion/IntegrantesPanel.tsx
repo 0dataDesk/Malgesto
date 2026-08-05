@@ -421,7 +421,7 @@ export function IntegrantesPanel({
             </label>
             <div className="flex flex-wrap gap-1.5">
               {bandas.map((b) => (
-                <ToggleChip key={b.id} label={b.nombre} active={bandaIdsInvitar.has(b.id)} onClick={() => toggleBandaInvitar(b.id)} />
+                <ToggleChip key={b.id} label={b.nombre} active={bandaIdsInvitar.has(b.id)} onClick={() => toggleBandaInvitar(b.id)} color={b.color} />
               ))}
             </div>
           </div>

@@ -422,7 +422,13 @@ export function NuevoEventoForm({
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {membresias.map((m) => (
-                    <ToggleChip key={m.bandaId} label={m.bandaNombre} active={bandaIdsGira.has(m.bandaId)} onClick={() => setBandaIdsGira((prev) => toggleEnSet(prev, m.bandaId))} />
+                    <ToggleChip
+                      key={m.bandaId}
+                      label={m.bandaNombre}
+                      active={bandaIdsGira.has(m.bandaId)}
+                      onClick={() => setBandaIdsGira((prev) => toggleEnSet(prev, m.bandaId))}
+                      color={m.color}
+                    />
                   ))}
                 </div>
               </div>
@@ -538,6 +544,7 @@ export function NuevoEventoForm({
                             label={m.bandaNombre}
                             active={nuevaGiraBandaIds.has(m.bandaId)}
                             onClick={() => setNuevaGiraBandaIds((prev) => toggleEnSet(prev, m.bandaId))}
+                            color={m.color}
                           />
                         ))}
                       </div>

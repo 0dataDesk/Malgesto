@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import type { BandaSimple, ActualizacionBanda, Plaza } from "@/lib/gestionData";
 import { INSTRUMENTOS, ETIQUETA_INSTRUMENTO, etiquetaPlaza, type Instrumento } from "@/lib/instrumentoCatalogo";
-import { PALETA_COLOR_BANDA } from "@/lib/eventoUI";
+import { PALETA_COLOR_BANDA, colorConAlpha } from "@/lib/eventoUI";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import { crearBandaAction, actualizarBandaAction, crearPlazaAction, eliminarPlazaAction } from "@/app/gestion/actions";
 
@@ -445,11 +445,16 @@ export function BandasPanel({ bandas: bandasIniciales, plazas: plazasIniciales }
             type="button"
             onClick={() => setBandaSeleccionadaId(b.id)}
             className="rounded-2xl p-4 text-left"
-            style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}
+            style={{
+              background: colorConAlpha(b.color, 0.08),
+              borderTop: "1px solid oklch(0.89 0.013 78)",
+              borderRight: "1px solid oklch(0.89 0.013 78)",
+              borderBottom: "1px solid oklch(0.89 0.013 78)",
+              borderLeft: `4px solid ${b.color}`,
+            }}
           >
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-base font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
-                <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: b.color }} />
+              <div className="text-base font-bold" style={{ color: b.color }}>
                 {b.nombre}
               </div>
               {b.genero && (
