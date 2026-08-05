@@ -138,7 +138,7 @@ export function VistaFinal({
               </h2>
             </div>
             <div className={`grid ${COLUMNAS_POR_DENSIDAD[densidad]} gap-2`}>
-              {seccion.acordes.slice(0, 8).map((acorde) => (
+              {seccion.acordes.map((acorde) => (
                 <ChordBlock key={acorde.id} acorde={acorde} mostrarEtiquetas={mostrarEtiquetas} densidad={densidad} />
               ))}
             </div>
