@@ -87,6 +87,12 @@ export function CalendarioShell({
 
   const giras = useMemo(() => eventosConCumple.filter((e) => e.tipo === "gira"), [eventosConCumple]);
   const esSuperadmin = membresias.some((m) => m.rol === "superadmin");
+  // Brief "Nuevo nivel de rol": crear eventos ya no es exclusivo de
+  // superadmin — un administrador en al menos una banda también ve el botón
+  // (el servidor valida el rol en la banda puntual elegida dentro del
+  // formulario). Editar/eliminar/asignar siguen atados a esSuperadmin, sin
+  // cambios — ver puedeEditar más abajo.
+  const puedeCrearEventos = membresias.some((m) => m.rol === "superadmin" || m.rol === "administrador");
   // Brief 21 §2: unión de bandas con la regla de visibilidad efectiva
   // (banda activa Y persona no restringida) en vez de mirar solo el toggle
   // de banda.
@@ -257,8 +263,9 @@ export function CalendarioShell({
         {/* Brief 18 §2: acción del DÍA, separada de las acciones del evento
             (Editar/Eliminar viven dentro de la tarjeta de EventoDetalle) —
             por eso va acá, después de todo el contenido del día, no dentro
-            de la tarjeta. Brief 18 §3: solo superadmin crea eventos. */}
-        {diaSeleccionado && esSuperadmin && (
+            de la tarjeta. Brief 18 §3: solo superadmin crea eventos, ampliado
+            en "Nuevo nivel de rol" a también administrador. */}
+        {diaSeleccionado && puedeCrearEventos && (
           <button
             type="button"
             onClick={() => abrirNuevoEnDia(diaSeleccionado)}

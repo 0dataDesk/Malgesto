@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import type { BandaSimple, PersonaPendiente, Integrante, Plaza, BandaDeIntegrante } from "@/lib/gestionData";
+import type { BandaSimple, PersonaPendiente, Integrante, Plaza, BandaDeIntegrante, RolInvitable } from "@/lib/gestionData";
 import type { NombreBloque } from "@/lib/bloques";
 import { etiquetaPlaza } from "@/lib/instrumentoCatalogo";
 import { colorConAlpha } from "@/lib/eventoUI";
@@ -33,6 +33,11 @@ function bloqueVisible(banda: BandaDeIntegrante, bloque: NombreBloque): boolean 
 
 const inputCls = "rounded-xl border px-3.5 py-2.5 text-sm outline-none";
 const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
+
+// Mismo patrón de par de botones ya usado en otros lados de la app (ej.
+// mayor/menor en CancionForm) para una elección excluyente entre 2 opciones.
+const ROL_ACTIVO = { background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" };
+const ROL_INACTIVO = { background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" };
 
 // Brief "Rediseño visual de Gestión" §2: jerarquía de tonos reusando lo que
 // ya existe en la app — BG_SUNKEN es el mismo gris de fondo de página
@@ -404,6 +409,7 @@ export function IntegrantesPanel({
   const [personasPendientes, setPersonasPendientes] = useState(personasPendientesIniciales);
 
   const [email, setEmail] = useState("");
+  const [rolInvitar, setRolInvitar] = useState<RolInvitable>("miembro");
   const [bandaIdsInvitar, setBandaIdsInvitar] = useState<Set<string>>(new Set());
   const [avisoInvitar, setAvisoInvitar] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
   const [pendingInvitar, startInvitarTransition] = useTransition();
@@ -442,7 +448,7 @@ export function IntegrantesPanel({
     }
     startInvitarTransition(async () => {
       try {
-        const resultado = await invitarPersonaAction(email.trim(), Array.from(bandaIdsInvitar));
+        const resultado = await invitarPersonaAction(email.trim(), Array.from(bandaIdsInvitar), rolInvitar);
         if (!resultado.ok) {
           setAvisoInvitar({ tipo: "error", texto: resultado.motivo });
           return;
@@ -451,6 +457,7 @@ export function IntegrantesPanel({
         const emailInvitado = email.trim().toLowerCase();
         setPersonasPendientes((prev) => prev.filter((p) => p.email.toLowerCase() !== emailInvitado));
         setEmail("");
+        setRolInvitar("miembro");
         setBandaIdsInvitar(new Set());
       } catch (e) {
         setAvisoInvitar({ tipo: "error", texto: e instanceof Error ? e.message : "No se pudo invitar." });
@@ -466,6 +473,33 @@ export function IntegrantesPanel({
         </h3>
         <div className="flex flex-col gap-2.5">
           <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@gmail.com" className={inputCls} style={inputStyle} />
+          <div>
+            {/* Brief "Nuevo nivel de rol: Miembro administrador": acá se
+                elige entre los 2 niveles no sensibles — superadmin sigue sin
+                poder cederse desde este flujo, ver establecerSuperadminAction
+                (acción aparte, deliberadamente separada). */}
+            <label className="mb-1.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+              Rol
+            </label>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setRolInvitar("miembro")}
+                className="rounded-lg px-3 py-1.5 text-sm font-bold"
+                style={rolInvitar === "miembro" ? ROL_ACTIVO : ROL_INACTIVO}
+              >
+                Miembro
+              </button>
+              <button
+                type="button"
+                onClick={() => setRolInvitar("administrador")}
+                className="rounded-lg px-3 py-1.5 text-sm font-bold"
+                style={rolInvitar === "administrador" ? ROL_ACTIVO : ROL_INACTIVO}
+              >
+                Administrador
+              </button>
+            </div>
+          </div>
           <div>
             <label className="mb-1.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
               Bandas

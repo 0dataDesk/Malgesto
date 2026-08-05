@@ -52,10 +52,13 @@ export async function requerirSuperadmin(): Promise<string> {
   return user.id;
 }
 
-// Brief 21 §4: mismo rol que requerirMembresia, pero para acciones de un
-// bloque opcional (ej. cargar un movimiento en Finanzas) — además de ser
-// miembro activo de la banda, valida la regla de visibilidad efectiva
-// (banda activa Y persona no restringida) antes de dejar mutar.
+// Brief 21 §4, revisado en "Nuevo nivel de rol: Miembro administrador":
+// valida banda activa + regla de visibilidad efectiva del bloque (igual que
+// antes), y además exige rol administrador o superadmin en esa banda — un
+// miembro de solo consulta ya no puede crear/editar contenido en ningún
+// bloque, solo mirarlo. (Antes cualquier miembro activo con el bloque
+// visible podía escribir acá — Brief 21 §3 — ese criterio se revirtió a
+// pedido explícito.)
 export async function requerirAccesoBloque(bandaId: string, bloque: NombreBloque): Promise<string> {
   const supabase = await supabaseServerAuth();
   const {
@@ -70,6 +73,9 @@ export async function requerirAccesoBloque(bandaId: string, bloque: NombreBloque
 
   const superadmin = esSuperadminDeMembresias(membresias);
   if (!bloqueVisible(membresia, bloque, superadmin)) throw new Error("No tenés acceso a ese bloque.");
+  if (membresia.rol !== "administrador" && membresia.rol !== "superadmin") {
+    throw new Error("Necesitás ser administrador o superadmin para crear o editar acá.");
+  }
 
   return user.id;
 }

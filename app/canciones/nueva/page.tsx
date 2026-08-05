@@ -23,6 +23,11 @@ export default async function NuevaCancionPage({
   const banda = membresias.find((m) => m.bandaId === bandaId) ?? membresias[0];
   if (!banda) notFound();
 
+  // Brief "Nuevo nivel de rol": crear canciones es ahora solo para
+  // administrador/superadmin — quien entre acá sin ese rol vuelve a la
+  // lista en vez de ver un formulario que igual va a rechazar el server.
+  if (banda.rol !== "administrador" && banda.rol !== "superadmin") redirect("/canciones");
+
   return (
     <div
       className="flex h-screen flex-col box-border px-6 py-8 md:px-16 md:py-11"

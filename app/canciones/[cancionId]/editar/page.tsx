@@ -27,6 +27,11 @@ export default async function EditarCancionPage({
   const banda = membresias.find((m) => m.bandaId === cancion.bandaId);
   if (!banda) notFound();
 
+  // Brief "Nuevo nivel de rol": editar canciones es ahora solo para
+  // administrador/superadmin — un miembro simple vuelve a la vista final
+  // (sigue pudiendo verla) en vez de ver un formulario que igual rechazará.
+  if (banda.rol !== "administrador" && banda.rol !== "superadmin") redirect(`/canciones/${cancionId}`);
+
   return (
     <div
       className="flex h-screen flex-col box-border px-6 py-8 md:px-16 md:py-11"

@@ -21,6 +21,7 @@ import {
   actualizarBloquesVisibles,
   type ResultadoInvitacion,
   type ActualizacionBanda,
+  type RolInvitable,
 } from "@/lib/gestionData";
 import { crearLugar, actualizarLugar, actualizarLugarBandas, eliminarLugar } from "@/lib/lugaresData";
 
@@ -74,9 +75,15 @@ export async function quitarPersonaDePlazaAction(usuarioId: string, plazaId: str
   revalidatePath("/gestion");
 }
 
-export async function invitarPersonaAction(email: string, bandaIds: string[]): Promise<ResultadoInvitacion> {
+// Brief "Nuevo nivel de rol": rol elegible desde el formulario de invitar,
+// pero acotado en runtime a los 2 niveles no sensibles — el tipo RolInvitable
+// ya excluye "superadmin" en compilación, pero un server action es un
+// endpoint de red como cualquier otro (alguien podría llamarlo directo con
+// un payload armado a mano), así que igual se valida acá.
+export async function invitarPersonaAction(email: string, bandaIds: string[], rol: RolInvitable): Promise<ResultadoInvitacion> {
   await requerirSuperadmin();
-  const resultado = await invitarPersona(email, bandaIds);
+  if (rol !== "miembro" && rol !== "administrador") throw new Error("Rol inválido.");
+  const resultado = await invitarPersona(email, bandaIds, rol);
   revalidatePath("/gestion");
   return resultado;
 }

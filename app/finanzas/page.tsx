@@ -107,6 +107,11 @@ export default async function FinanzasPage({
 
   const bandaActiva = bandaValida ? bandaParam! : bandasConBloque[0].bandaId;
   const nombreBandaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
+  // Brief "Nuevo nivel de rol": cargar movimientos es ahora solo para
+  // administrador/superadmin — un miembro simple ve el balance y la lista
+  // pero no el formulario de carga (el servidor igual lo exige).
+  const rolEnBanda = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.rol;
+  const puedeEscribir = rolEnBanda === "administrador" || rolEnBanda === "superadmin";
 
   const [movimientos, eventos] = await Promise.all([obtenerMovimientos([bandaActiva]), obtenerEventos([bandaActiva])]);
 
@@ -163,7 +168,9 @@ export default async function FinanzasPage({
           ))}
         </div>
 
-        <NuevoMovimientoForm bandaId={bandaActiva} eventos={eventos.map((e) => ({ id: e.id, titulo: e.titulo }))} />
+        {puedeEscribir && (
+          <NuevoMovimientoForm bandaId={bandaActiva} eventos={eventos.map((e) => ({ id: e.id, titulo: e.titulo }))} />
+        )}
       </div>
 
       <TabBar

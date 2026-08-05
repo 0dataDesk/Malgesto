@@ -56,11 +56,53 @@ async function requerirSuperadminEnTodas(bandaIds: string[]) {
   }
 }
 
+// Brief "Nuevo nivel de rol: Miembro administrador": a diferencia de editar/
+// eliminar/asignar (que siguen siendo solo superadmin, sin cambios — ver
+// requerirSuperadminEnBanda/EnTodas arriba), CREAR un evento nuevo (show,
+// ensayo o gira) también lo puede hacer un administrador. Deliberadamente
+// dos funciones separadas en vez de agregar un parámetro a las de arriba,
+// para que el guard de cada action deje explícito en la firma qué nivel de
+// permiso exige sin tener que leer el cuerpo.
+async function requerirEscrituraEnBanda(bandaId: string) {
+  const supabase = await supabaseServerAuth();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("No hay sesión activa.");
+
+  const membresias = await obtenerMembresias(user.id);
+  const membresia = membresias.find((m) => m.bandaId === bandaId);
+  if (!membresia) throw new Error("No pertenecés a esa banda.");
+  if (membresia.rol !== "superadmin" && membresia.rol !== "administrador") {
+    throw new Error("Necesitás ser administrador o superadmin para crear eventos.");
+  }
+}
+
+async function requerirEscrituraEnTodas(bandaIds: string[]) {
+  const supabase = await supabaseServerAuth();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("No hay sesión activa.");
+
+  const membresias = await obtenerMembresias(user.id);
+  const misMembresias = new Map(membresias.map((m) => [m.bandaId, m]));
+  for (const bandaId of bandaIds) {
+    const membresia = misMembresias.get(bandaId);
+    if (!membresia) throw new Error("No pertenecés a una de las bandas seleccionadas.");
+    if (membresia.rol !== "superadmin" && membresia.rol !== "administrador") {
+      throw new Error("Necesitás ser administrador o superadmin para crear eventos.");
+    }
+  }
+}
+
 export async function crearEventoAction(input: NuevoEventoInput) {
   if (input.tipo === "gira" && input.bandaIds && input.bandaIds.length > 0) {
-    await requerirSuperadminEnTodas(input.bandaIds);
+    await requerirEscrituraEnTodas(input.bandaIds);
   } else {
-    await requerirSuperadminEnBanda(input.bandaId);
+    await requerirEscrituraEnBanda(input.bandaId);
   }
   await crearEvento(input);
   revalidatePath("/inicio");
@@ -109,7 +151,7 @@ export async function crearGiraRapidaAction(
   ciudades: string | null,
   estado: EstadoEvento = "confirmado"
 ): Promise<Evento> {
-  await requerirSuperadminEnTodas(bandaIds);
+  await requerirEscrituraEnTodas(bandaIds);
   const gira = await crearGira(bandaIds, nombre, desde, hasta, pais, ciudades, estado);
   revalidatePath("/inicio");
   return gira;

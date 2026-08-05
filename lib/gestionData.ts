@@ -236,9 +236,14 @@ export async function ignorarPersonaPendiente(usuarioId: string): Promise<void> 
   if (error) throw new Error(error.message);
 }
 
-// Invitar/asignar (Brief 9 §10-11): multi-banda de una, siempre rol
-// "miembro" (superadmin ya no se otorga desde acá — ver establecerSuperadmin).
-export async function invitarPersona(email: string, bandaIds: string[]): Promise<ResultadoInvitacion> {
+export type RolInvitable = "miembro" | "administrador";
+
+// Invitar/asignar (Brief 9 §10-11, rol elegible desde Brief "Nuevo nivel de
+// rol: Miembro administrador"): multi-banda de una, con el mismo rol para
+// todas las bandas seleccionadas. Superadmin sigue sin poder cederse desde
+// acá — ese nivel es aparte y deliberado, ver establecerSuperadmin — por
+// eso el tipo del parámetro ni siquiera lo contempla.
+export async function invitarPersona(email: string, bandaIds: string[], rol: RolInvitable): Promise<ResultadoInvitacion> {
   const admin = supabaseMalgesto();
   const emailNormalizado = email.trim().toLowerCase();
 
@@ -275,7 +280,7 @@ export async function invitarPersona(email: string, bandaIds: string[]): Promise
       continue;
     }
 
-    const { error } = await admin.from("invitaciones").insert({ email: emailNormalizado, banda_id: bandaId, rol: "miembro", estado: "pendiente" });
+    const { error } = await admin.from("invitaciones").insert({ email: emailNormalizado, banda_id: bandaId, rol, estado: "pendiente" });
     if (error) {
       errores.push(error.message);
       continue;

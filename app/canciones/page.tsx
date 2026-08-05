@@ -82,6 +82,11 @@ export default async function CancionesPage({
 
   const bandaActiva = bandaValida ? bandaParam! : bandasConBloque[0].bandaId;
   const nombreBandaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
+  // Brief "Nuevo nivel de rol": crear/editar canciones es ahora solo para
+  // administrador/superadmin — un miembro simple ve la lista pero no estos
+  // controles (el servidor igual lo exige en actions.ts, esto es solo UX).
+  const rolEnBanda = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.rol;
+  const puedeEscribir = rolEnBanda === "administrador" || rolEnBanda === "superadmin";
 
   const canciones = await obtenerCanciones([bandaActiva]);
 
@@ -151,25 +156,29 @@ export default async function CancionesPage({
                   {c.totalCompases > 0 && <span>{c.totalCompases} compases</span>}
                 </div>
               </Link>
-              <Link
-                href={`/canciones/${c.id}/editar`}
-                className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-bold no-underline"
-                style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
-              >
-                Editar
-              </Link>
+              {puedeEscribir && (
+                <Link
+                  href={`/canciones/${c.id}/editar`}
+                  className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-bold no-underline"
+                  style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+                >
+                  Editar
+                </Link>
+              )}
             </div>
           ))}
         </div>
       </div>
 
-      <Link
-        href={`/canciones/nueva?banda=${bandaActiva}`}
-        className="fixed bottom-24 right-6 flex h-14 w-14 items-center justify-center rounded-full text-2xl no-underline"
-        style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)", boxShadow: "0 14px 26px -12px rgba(0,0,0,0.5)" }}
-      >
-        +
-      </Link>
+      {puedeEscribir && (
+        <Link
+          href={`/canciones/nueva?banda=${bandaActiva}`}
+          className="fixed bottom-24 right-6 flex h-14 w-14 items-center justify-center rounded-full text-2xl no-underline"
+          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)", boxShadow: "0 14px 26px -12px rgba(0,0,0,0.5)" }}
+        >
+          +
+        </Link>
+      )}
 
       <TabBar
         activa="canciones"
