@@ -240,9 +240,12 @@ export type RolInvitable = "miembro" | "administrador";
 
 // Invitar/asignar (Brief 9 §10-11, rol elegible desde Brief "Nuevo nivel de
 // rol: Miembro administrador"): multi-banda de una, con el mismo rol para
-// todas las bandas seleccionadas. Superadmin sigue sin poder cederse desde
-// acá — ese nivel es aparte y deliberado, ver establecerSuperadmin — por
-// eso el tipo del parámetro ni siquiera lo contempla.
+// todas las bandas seleccionadas. Superadmin sigue sin poder otorgarse desde
+// acá — por eso el tipo del parámetro ni siquiera lo contempla. No hay una
+// acción separada para cederlo sobre alguien ya existente (se quitó por
+// Brief "3 pendientes" §1: estaba sin conectar a ninguna UI y tenía un bug
+// latente al revertir); si hace falta en el futuro, se construye de nuevo
+// con la lógica correcta en ese momento.
 export async function invitarPersona(email: string, bandaIds: string[], rol: RolInvitable): Promise<ResultadoInvitacion> {
   const admin = supabaseMalgesto();
   const emailNormalizado = email.trim().toLowerCase();
@@ -297,20 +300,6 @@ export async function invitarPersona(email: string, bandaIds: string[], rol: Rol
   return { ok: true };
 }
 
-// Cede/retira superadmin (Brief 9 §11) — acción aparte y deliberada sobre un
-// integrante ya existente, nunca desde el flujo rápido de invitar. rol es
-// binario "es superadmin en esta consola" replicado en cada fila activa (ver
-// comentario de esSuperadmin), así que se aplica parejo a todas.
-export async function establecerSuperadmin(usuarioId: string, activar: boolean): Promise<void> {
-  const admin = supabaseMalgesto();
-  const { error } = await admin
-    .from("miembros_banda")
-    .update({ rol: activar ? "superadmin" : "miembro" })
-    .eq("usuario_id", usuarioId)
-    .eq("activo", true);
-  if (error) throw new Error(error.message);
-}
-
 export async function actualizarFechaNacimiento(usuarioId: string, fecha: string | null): Promise<void> {
   const admin = supabaseMalgesto();
   const { error } = await admin
@@ -333,6 +322,7 @@ export type BandaDeIntegrante = {
   bandaId: string;
   bandaNombre: string;
   activo: boolean;
+  rol: string;
   plazas: PlazaAsignada[];
   bloquesVisibles: string[] | null;
 };
@@ -399,6 +389,7 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
       bandaId: m.banda_id,
       bandaNombre: bandaPorId.get(m.banda_id) ?? "Banda",
       activo: m.activo,
+      rol: m.rol,
       plazas: plazasPorPersonaYBanda.get(`${m.usuario_id}:${m.banda_id}`) ?? [],
       bloquesVisibles: (m.bloques_visibles as string[] | null) ?? null,
     });
@@ -474,6 +465,24 @@ export async function asignarABanda(usuarioId: string, bandaId: string): Promise
   }
 
   const { error } = await admin.from("miembros_banda").insert({ usuario_id: usuarioId, banda_id: bandaId, rol: "miembro" });
+  if (error) throw new Error(error.message);
+}
+
+// Brief "3 pendientes" §2: cambia el rol de una membresía banda+persona ya
+// existente entre los 2 niveles no sensibles — el rol es por fila (no
+// global como superadmin), así que se toca solo esa banda puntual, sin
+// afectar otras membresías de la misma persona. El filtro .neq("rol",
+// "superadmin") es defensa en profundidad además del gate en la UI (que ya
+// no muestra el selector para una fila en superadmin): ni con una llamada
+// directa a este action se puede degradar a un superadmin desde acá.
+export async function actualizarRol(usuarioId: string, bandaId: string, rol: RolInvitable): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin
+    .from("miembros_banda")
+    .update({ rol })
+    .eq("usuario_id", usuarioId)
+    .eq("banda_id", bandaId)
+    .neq("rol", "superadmin");
   if (error) throw new Error(error.message);
 }
 

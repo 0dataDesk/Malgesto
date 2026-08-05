@@ -12,6 +12,7 @@ import {
   actualizarDatosPersonaAction,
   removerDeBandaAction,
   asignarABandaAction,
+  actualizarRolAction,
   asignarPersonaAPlazaAction,
   quitarPersonaDePlazaAction,
   actualizarBloquesVisiblesAction,
@@ -102,6 +103,7 @@ function FilaIntegrante({
   const [errorDatos, setErrorDatos] = useState<string | null>(null);
   const [bandasLocal, setBandasLocal] = useState(integrante.bandas);
   const [pendingBanda, setPendingBanda] = useState<string | null>(null);
+  const [pendingRol, setPendingRol] = useState<string | null>(null);
 
   const bandaAsignada = (bandaId: string) => bandasLocal.find((b) => b.bandaId === bandaId && b.activo);
   const bandasActivas = bandasLocal.filter((b) => b.activo);
@@ -139,10 +141,24 @@ function FilaIntegrante({
             return prev.map((b) => (b.bandaId === bandaId ? { ...b, activo: !asignada } : b));
           }
           const info = bandas.find((b) => b.id === bandaId);
-          return [...prev, { bandaId, bandaNombre: info?.nombre ?? "Banda", activo: true, plazas: [], bloquesVisibles: null }];
+          return [...prev, { bandaId, bandaNombre: info?.nombre ?? "Banda", activo: true, rol: "miembro", plazas: [], bloquesVisibles: null }];
         });
       })
       .finally(() => setPendingBanda(null));
+  };
+
+  // Brief "3 pendientes" §2: cambiar el rol de una banda ya asignada. Nunca
+  // se llama para una fila en superadmin (el botón ni se muestra ahí, ver
+  // más abajo) — actualizarRolAction además lo rechaza en el servidor si de
+  // alguna forma se intentara.
+  const cambiarRol = (bandaId: string, rol: RolInvitable) => {
+    if (!integrante.usuarioId) return;
+    setPendingRol(bandaId);
+    actualizarRolAction(integrante.usuarioId, bandaId, rol)
+      .then(() => {
+        setBandasLocal((prev) => prev.map((b) => (b.bandaId === bandaId ? { ...b, rol } : b)));
+      })
+      .finally(() => setPendingRol(null));
   };
 
   // Brief 21 §1: al tildar/destildar un bloque, si el resultado cubre TODOS
@@ -285,7 +301,37 @@ function FilaIntegrante({
                     disabled={pendingBanda === b.id}
                   />
                   {asignada && (
-                    <div className="ml-2 mt-1.5">
+                    <div className="ml-2 mt-1.5 flex flex-col gap-1.5">
+                      {/* Brief "3 pendientes" §2: rol por banda, editable
+                          acá — salvo que ya sea superadmin en esta banda
+                          puntual, caso en el que no se muestra el selector
+                          en absoluto (esa restricción se mantiene). */}
+                      {asignada.rol === "superadmin" ? (
+                        <span className="text-xs italic" style={{ color: "oklch(0.55 0.02 55)" }}>
+                          Superadmin en esta banda — no editable acá
+                        </span>
+                      ) : (
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => cambiarRol(b.id, "miembro")}
+                            disabled={pendingRol === b.id}
+                            className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
+                            style={asignada.rol === "miembro" ? ROL_ACTIVO : ROL_INACTIVO}
+                          >
+                            Miembro
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => cambiarRol(b.id, "administrador")}
+                            disabled={pendingRol === b.id}
+                            className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
+                            style={asignada.rol === "administrador" ? ROL_ACTIVO : ROL_INACTIVO}
+                          >
+                            Administrador
+                          </button>
+                        </div>
+                      )}
                       {plazasDeLaBanda.length === 0 ? (
                         <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
                           Esta banda todavía no tiene instrumentos definidos.
@@ -476,8 +522,8 @@ export function IntegrantesPanel({
           <div>
             {/* Brief "Nuevo nivel de rol: Miembro administrador": acá se
                 elige entre los 2 niveles no sensibles — superadmin sigue sin
-                poder cederse desde este flujo, ver establecerSuperadminAction
-                (acción aparte, deliberadamente separada). */}
+                poder otorgarse desde este flujo ni desde ningún otro lado de
+                la UI (Brief "3 pendientes" §1). */}
             <label className="mb-1.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
               Rol
             </label>

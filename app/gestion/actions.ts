@@ -17,7 +17,7 @@ import {
   actualizarFechaNacimiento,
   removerDeBanda,
   asignarABanda,
-  establecerSuperadmin,
+  actualizarRol,
   actualizarBloquesVisibles,
   type ResultadoInvitacion,
   type ActualizacionBanda,
@@ -127,9 +127,15 @@ export async function asignarABandaAction(usuarioId: string, bandaId: string): P
   revalidatePath("/gestion");
 }
 
-export async function establecerSuperadminAction(usuarioId: string, activar: boolean): Promise<void> {
+// Brief "3 pendientes" §2: cambiar el rol de un integrante ya activo, por
+// banda. Mismo par de guards que invitarPersonaAction — requerirSuperadmin
+// más la validación en runtime de que el rol pedido es uno de los 2 no
+// sensibles (actualizarRol además rechaza tocar una fila que ya sea
+// superadmin, doble candado).
+export async function actualizarRolAction(usuarioId: string, bandaId: string, rol: RolInvitable): Promise<void> {
   await requerirSuperadmin();
-  await establecerSuperadmin(usuarioId, activar);
+  if (rol !== "miembro" && rol !== "administrador") throw new Error("Rol inválido.");
+  await actualizarRol(usuarioId, bandaId, rol);
   revalidatePath("/gestion");
 }
 

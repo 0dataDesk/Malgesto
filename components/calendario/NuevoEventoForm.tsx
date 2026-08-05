@@ -87,6 +87,20 @@ export function NuevoEventoForm({
   onCreado: () => void;
   onCancelar: () => void;
 }) {
+  // Brief "3 pendientes" §3: el picker de banda al CREAR debe mostrar solo
+  // las bandas donde el usuario realmente puede crear (administrador o
+  // superadmin) — el servidor ya lo exige, esto evita ofrecer una opción
+  // que va a fallar. Al EDITAR se deja `membresias` sin filtrar a propósito:
+  // editar ya está gateado a superadmin más arriba (puedeEditar en
+  // CalendarioShell), y filtrar acá podría esconder la banda actual del
+  // evento si esta persona fuera superadmin en otra banda pero no en esa —
+  // un caso raro pero real que no vale la pena arriesgar.
+  const bandasParaElegir = eventoExistente ? membresias : membresias.filter((m) => m.rol === "administrador" || m.rol === "superadmin");
+  // La gira rápida (dentro de "Gira" en un show) siempre CREA una gira nueva
+  // — sin importar si el formulario de afuera está editando el show — así
+  // que este picker específico siempre filtra, sin la excepción de arriba.
+  const bandasParaGiraRapida = membresias.filter((m) => m.rol === "administrador" || m.rol === "superadmin");
+
   const fechaBase = eventoExistente ? enZonaApp(eventoExistente.fechaInicio) : fechaSeleccionada;
   const inicial = eventoExistente && eventoExistente.tipo !== "gira" ? aFechaHora(eventoExistente.fechaInicio) : null;
   const inicialFin = eventoExistente?.fechaFin && eventoExistente.tipo !== "gira" ? aFechaHora(eventoExistente.fechaFin) : null;
@@ -107,9 +121,12 @@ export function NuevoEventoForm({
   // Brief "...ciudad en shows": solo Show -- distinto de `ciudades` (Gira).
   const [ciudad, setCiudad] = useState(eventoExistente?.ciudad ?? "");
   const [ingreso, setIngreso] = useState(eventoExistente?.ingresoEsperado?.toString() ?? "");
-  const [bandaId, setBandaId] = useState(eventoExistente?.bandaId ?? membresias[0]?.bandaId ?? "");
+  const [bandaId, setBandaId] = useState(eventoExistente?.bandaId ?? bandasParaElegir[0]?.bandaId ?? "");
   const [bandaIdsGira, setBandaIdsGira] = useState<Set<string>>(
-    () => new Set(eventoExistente?.tipo === "gira" ? eventoExistente.bandaIds : membresias.length === 1 ? [membresias[0]?.bandaId] : [])
+    () =>
+      new Set(
+        eventoExistente?.tipo === "gira" ? eventoExistente.bandaIds : bandasParaElegir.length === 1 ? [bandasParaElegir[0]?.bandaId] : []
+      )
   );
 
   const [lugarId, setLugarId] = useState(eventoExistente?.lugarId ?? "");
@@ -264,7 +281,7 @@ export function NuevoEventoForm({
 
   const tituloForm = eventoExistente ? "Editar evento" : tipo === "gira" ? "Nueva gira" : `Nuevo evento · ${fechaLarga(fechaBase)}`;
 
-  const selectorBanda = membresias.length > 1 && (
+  const selectorBanda = bandasParaElegir.length > 1 && (
     <div>
       <span className={labelCls} style={labelStyle}>
         Banda
@@ -280,7 +297,7 @@ export function NuevoEventoForm({
           setLugarId("");
         }}
       >
-        {membresias.map((m) => (
+        {bandasParaElegir.map((m) => (
           <option key={m.bandaId} value={m.bandaId}>
             {m.bandaNombre}
           </option>
@@ -421,7 +438,7 @@ export function NuevoEventoForm({
                   Bandas
                 </span>
                 <div className="flex flex-wrap gap-1.5">
-                  {membresias.map((m) => (
+                  {bandasParaElegir.map((m) => (
                     <ToggleChip
                       key={m.bandaId}
                       label={m.bandaNombre}
@@ -538,7 +555,7 @@ export function NuevoEventoForm({
                         placeholder="Nombre de la gira"
                       />
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {membresias.map((m) => (
+                        {bandasParaGiraRapida.map((m) => (
                           <ToggleChip
                             key={m.bandaId}
                             label={m.bandaNombre}

@@ -16,13 +16,11 @@ import {
   type EstadoEvento,
 } from "@/lib/malgestoEventos";
 
-// Brief 18 §3: crear/editar/eliminar eventos (y asignarles gira/Set List) es
-// solo para superadmin — los miembros mantienen lectura completa del
-// calendario pero su interacción de escritura es en Canciones. El rol vive
-// por fila de miembros_banda (establecerSuperadmin lo aplica parejo a todas
-// las bandas activas de la persona, ver lib/gestionData.ts), así que
-// chequear el rol en la banda puntual de la mutación es correcto y no hace
-// falta un chequeo "global" aparte.
+// Brief 18 §3: editar/eliminar eventos (y asignarles gira/Set List) es solo
+// para superadmin — crear se amplió a administrador también, ver
+// requerirEscrituraEnBanda/EnTodas más abajo. El rol vive por fila de
+// miembros_banda, así que chequearlo en la banda puntual de la mutación es
+// correcto y no hace falta un chequeo "global" aparte.
 async function requerirSuperadminEnBanda(bandaId: string) {
   const supabase = await supabaseServerAuth();
   const {
