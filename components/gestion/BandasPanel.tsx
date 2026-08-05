@@ -9,6 +9,12 @@ import { crearBandaAction, actualizarBandaAction, crearPlazaAction, eliminarPlaz
 
 const COLOR_DEFECTO = PALETA_COLOR_BANDA[0];
 
+// Brief "Rediseño visual de Gestión" §7: blanco opaco + borde, en vez de
+// gris translúcido — así el pill se distingue de cualquier color de banda
+// detrás (el fondo de la tarjeta ya lleva un tinte del color de esa banda),
+// no solo de un fondo neutro.
+const PILL_BLOQUE = { background: "oklch(0.99 0.008 82)", color: "oklch(0.35 0.02 55)", border: "1px solid oklch(0.86 0.016 78)" };
+
 // Brief "Color de banda configurable...": paleta acotada en vez de color
 // picker libre, para no arriesgar contraste/legibilidad -- ver
 // PALETA_COLOR_BANDA en lib/eventoUI.ts.
@@ -464,26 +470,26 @@ export function BandasPanel({ bandas: bandasIniciales, plazas: plazasIniciales }
               )}
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
-              <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}>
+              <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
                 Calendario
               </span>
               {b.cancionesHabilitado && (
-                <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}>
+                <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
                   Canciones
                 </span>
               )}
               {b.setlistHabilitado && (
-                <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}>
+                <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
                   Set List
                 </span>
               )}
               {b.seteosHabilitado && (
-                <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}>
+                <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
                   Seteos
                 </span>
               )}
               {b.finanzasHabilitado && (
-                <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}>
+                <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
                   Finanzas
                 </span>
               )}

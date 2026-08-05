@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import type { BandaSimple, PersonaPendiente, Integrante, Plaza, BandaDeIntegrante } from "@/lib/gestionData";
 import type { NombreBloque } from "@/lib/bloques";
 import { etiquetaPlaza } from "@/lib/instrumentoCatalogo";
+import { colorConAlpha } from "@/lib/eventoUI";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import {
   invitarPersonaAction,
@@ -32,6 +33,41 @@ function bloqueVisible(banda: BandaDeIntegrante, bloque: NombreBloque): boolean 
 
 const inputCls = "rounded-xl border px-3.5 py-2.5 text-sm outline-none";
 const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
+
+// Brief "Rediseño visual de Gestión" §2: jerarquía de tonos reusando lo que
+// ya existe en la app — BG_SUNKEN es el mismo gris de fondo de página
+// (oklch(0.965 0.012 82)) que ya se usa en todos lados, acá sirve para que
+// el acordeón y sus sub-secciones se vean "hundidos" respecto a la tarjeta
+// blanca de cada integrante, que a su vez lleva una sombra sutil para
+// despegarse de ambos.
+const BG_SUNKEN = "oklch(0.965 0.012 82)";
+const BORDE_SUNKEN = "oklch(0.9 0.012 78)";
+const BG_CARD = "oklch(0.99 0.008 82)";
+const SOMBRA_CARD = "0 2px 8px -4px rgba(0,0,0,0.18)";
+
+// Sub-acordeón genérico cerrado por defecto (Brief "Rediseño visual de
+// Gestión" §4) — mismo patrón visual/interactivo que GrupoIntegrantes pero
+// a menor escala, para "Bandas asignadas" y "Bloques visibles" dentro de
+// cada integrante expandido.
+function SubAcordeon({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+  const [abierto, setAbierto] = useState(false);
+  return (
+    <div className="rounded-lg" style={{ background: BG_SUNKEN, border: `1px solid ${BORDE_SUNKEN}` }}>
+      <button type="button" onClick={() => setAbierto((v) => !v)} className="flex w-full items-center justify-between px-2.5 py-2 text-left">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.02 55)" }}>
+          {titulo}
+        </span>
+        <span
+          className="text-[10px]"
+          style={{ color: "oklch(0.5 0.02 55)", transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+        >
+          ▾
+        </span>
+      </button>
+      {abierto && <div className="flex flex-col gap-2.5 px-2.5 pb-2.5">{children}</div>}
+    </div>
+  );
+}
 
 function formatearFecha(iso: string): string {
   return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -64,6 +100,10 @@ function FilaIntegrante({
 
   const bandaAsignada = (bandaId: string) => bandasLocal.find((b) => b.bandaId === bandaId && b.activo);
   const bandasActivas = bandasLocal.filter((b) => b.activo);
+  // Brief "Rediseño visual de Gestión" §6: BandaDeIntegrante no trae color
+  // propio (solo bandaId/bandaNombre) — se resuelve contra `bandas`, la
+  // misma lista completa que ya recibe este componente.
+  const colorDeBanda = (bandaId: string) => bandas.find((b) => b.id === bandaId)?.color ?? "oklch(0.6 0.1 250)";
 
   const hayCambiosDatos = nombreMostrar !== datosGuardados.nombreMostrar || fechaNacimiento !== datosGuardados.fechaNacimiento;
 
@@ -139,7 +179,7 @@ function FilaIntegrante({
   };
 
   return (
-    <div className="rounded-2xl p-3.5" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+    <div className="rounded-2xl p-3.5" style={{ background: BG_CARD, border: "1px solid oklch(0.89 0.013 78)", boxShadow: SOMBRA_CARD }}>
       <button type="button" onClick={() => setExpandido((v) => !v)} className="flex w-full items-center justify-between gap-3 text-left">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
@@ -157,15 +197,18 @@ function FilaIntegrante({
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
             {bandasActivas.length > 0 ? (
-              bandasActivas.map((b) => (
-                <span
-                  key={b.bandaId}
-                  className="shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase"
-                  style={{ background: "oklch(0.6 0.1 250 / 0.15)", color: "oklch(0.5 0.1 250)" }}
-                >
-                  {b.bandaNombre}
-                </span>
-              ))
+              bandasActivas.map((b) => {
+                const color = colorDeBanda(b.bandaId);
+                return (
+                  <span
+                    key={b.bandaId}
+                    className="shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase"
+                    style={{ background: colorConAlpha(color, 0.15), color }}
+                  >
+                    {b.bandaNombre}
+                  </span>
+                );
+              })
             ) : (
               <span className="font-mono text-[9px] font-bold uppercase" style={{ color: "oklch(0.6 0.02 55)" }}>
                 Sin banda asignada
@@ -175,14 +218,14 @@ function FilaIntegrante({
         </div>
         <span
           className="shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase"
-          style={{ background: "oklch(0.965 0.012 82)", color: COLOR_ESTADO[integrante.estado] }}
+          style={{ background: BG_SUNKEN, color: COLOR_ESTADO[integrante.estado] }}
         >
           {ETIQUETA_ESTADO[integrante.estado]}
         </span>
       </button>
 
       {expandido && integrante.usuarioId && (
-        <div className="mt-3 flex flex-col gap-3 border-t pt-3" style={{ borderColor: "oklch(0.9 0.012 78)" }}>
+        <div className="mt-3 flex flex-col gap-2.5 border-t pt-3" style={{ borderColor: "oklch(0.9 0.012 78)" }}>
           <div>
             <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
               Nombre para mostrar
@@ -223,67 +266,73 @@ function FilaIntegrante({
             )}
           </div>
 
-          <div>
-            <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
-              Bandas asignadas
-            </label>
-            <div className="flex flex-col gap-2">
-              {bandas.map((b) => {
-                const asignada = bandaAsignada(b.id);
-                const plazasDeLaBanda = plazas.filter((p) => p.bandaId === b.id);
-                const bloquesActivosBanda = BLOQUES.filter((bl) => bl.activo(b));
-                return (
-                  <div key={b.id}>
-                    <label className="flex items-center gap-2 text-sm" style={{ color: "oklch(0.3 0.02 55)" }}>
-                      <input type="checkbox" checked={!!asignada} disabled={pendingBanda === b.id} onChange={() => toggleBanda(b.id)} />
-                      {b.nombre}
-                    </label>
-                    {asignada && (
-                      <div className="ml-6 mt-1.5 flex flex-col gap-2.5">
-                        {plazasDeLaBanda.length === 0 ? (
-                          <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
-                            Esta banda todavía no tiene instrumentos definidos.
-                          </p>
-                        ) : (
-                          <div className="flex flex-wrap gap-1.5">
-                            {plazasDeLaBanda.map((p) => {
-                              const activo = asignada.plazas.some((ap) => ap.plazaId === p.id);
-                              return (
-                                <ToggleChip
-                                  key={p.id}
-                                  label={etiquetaPlaza(p.instrumento, p.etiqueta)}
-                                  active={activo}
-                                  onClick={() => togglePlaza(b.id, p.id)}
-                                />
-                              );
-                            })}
-                          </div>
-                        )}
+          <SubAcordeon titulo="Bandas asignadas">
+            {bandas.map((b) => {
+              const asignada = bandaAsignada(b.id);
+              const plazasDeLaBanda = plazas.filter((p) => p.bandaId === b.id);
+              return (
+                <div key={b.id}>
+                  <ToggleChip
+                    label={b.nombre}
+                    active={!!asignada}
+                    onClick={() => toggleBanda(b.id)}
+                    color={b.color}
+                    disabled={pendingBanda === b.id}
+                  />
+                  {asignada && (
+                    <div className="ml-2 mt-1.5">
+                      {plazasDeLaBanda.length === 0 ? (
+                        <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+                          Esta banda todavía no tiene instrumentos definidos.
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {plazasDeLaBanda.map((p) => {
+                            const activo = asignada.plazas.some((ap) => ap.plazaId === p.id);
+                            return (
+                              <ToggleChip
+                                key={p.id}
+                                label={etiquetaPlaza(p.instrumento, p.etiqueta)}
+                                active={activo}
+                                onClick={() => togglePlaza(b.id, p.id)}
+                              />
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </SubAcordeon>
 
-                        {bloquesActivosBanda.length > 0 && (
-                          <div>
-                            <span className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
-                              Bloques visibles
-                            </span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {bloquesActivosBanda.map((bl) => (
-                                <ToggleChip
-                                  key={bl.key}
-                                  label={bl.label}
-                                  active={bloqueVisible(asignada, bl.key)}
-                                  onClick={() => togglePermisoBloque(b.id, bl.key, bloquesActivosBanda.map((x) => x.key))}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
+          {bandasActivas.length > 0 && (
+            <SubAcordeon titulo="Bloques visibles">
+              {bandasActivas.map((banda) => {
+                const bandaInfo = bandas.find((b) => b.id === banda.bandaId);
+                const bloquesActivosBanda = bandaInfo ? BLOQUES.filter((bl) => bl.activo(bandaInfo)) : [];
+                if (bloquesActivosBanda.length === 0) return null;
+                return (
+                  <div key={banda.bandaId}>
+                    <span className="mb-1 block text-xs font-bold" style={{ color: colorDeBanda(banda.bandaId) }}>
+                      {banda.bandaNombre}
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {bloquesActivosBanda.map((bl) => (
+                        <ToggleChip
+                          key={bl.key}
+                          label={bl.label}
+                          active={bloqueVisible(banda, bl.key)}
+                          onClick={() => togglePermisoBloque(banda.bandaId, bl.key, bloquesActivosBanda.map((x) => x.key))}
+                        />
+                      ))}
+                    </div>
                   </div>
                 );
               })}
-            </div>
-          </div>
+            </SubAcordeon>
+          )}
         </div>
       )}
     </div>
@@ -294,6 +343,12 @@ function FilaIntegrante({
 // volverse larga) por estado, colapsada por default -- el usuario decide
 // qué grupo abrir en vez de ver todo de golpe. El conteo en el encabezado
 // da contexto sin necesidad de abrir.
+//
+// Brief "Rediseño visual de Gestión" §1: el llamador filtra los grupos
+// vacíos antes de montar este componente (ni encabezado ni "(0)"), así que
+// acá siempre hay al menos un integrante — no hace falta un estado vacío.
+// §2: fondo BG_SUNKEN para que las tarjetas blancas de cada integrante
+// (con su propia sombra) se noten "por encima" de este acordeón.
 function GrupoIntegrantes({
   titulo,
   integrantes,
@@ -308,7 +363,7 @@ function GrupoIntegrantes({
   const [abierto, setAbierto] = useState(false);
 
   return (
-    <div className="rounded-xl" style={{ border: "1px solid oklch(0.89 0.013 78)" }}>
+    <div className="rounded-xl" style={{ background: BG_SUNKEN, border: `1px solid ${BORDE_SUNKEN}` }}>
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}
@@ -326,13 +381,9 @@ function GrupoIntegrantes({
       </button>
       {abierto && (
         <div className="flex flex-col gap-2 px-3.5 pb-3.5">
-          {integrantes.length === 0 ? (
-            <p className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
-              Nadie en este grupo.
-            </p>
-          ) : (
-            integrantes.map((i) => <FilaIntegrante key={i.usuarioId ?? i.email} integrante={i} bandas={bandas} plazas={plazas} />)
-          )}
+          {integrantes.map((i) => (
+            <FilaIntegrante key={i.usuarioId ?? i.email} integrante={i} bandas={bandas} plazas={plazas} />
+          ))}
         </div>
       )}
     </div>
@@ -501,9 +552,17 @@ export function IntegrantesPanel({
           </p>
         ) : (
           <div className="flex flex-col gap-2.5">
-            <GrupoIntegrantes titulo="Activos" integrantes={integrantes.filter((i) => i.estado === "activo")} bandas={bandas} plazas={plazas} />
-            <GrupoIntegrantes titulo="Invitados" integrantes={integrantes.filter((i) => i.estado === "invitado")} bandas={bandas} plazas={plazas} />
-            <GrupoIntegrantes titulo="Inactivos" integrantes={integrantes.filter((i) => i.estado === "inactivo")} bandas={bandas} plazas={plazas} />
+            {/* Brief "Rediseño visual de Gestión" §1: grupo sin nadie adentro
+                no se monta — ni el acordeón ni su "(0)". */}
+            {[
+              { titulo: "Activos", lista: integrantes.filter((i) => i.estado === "activo") },
+              { titulo: "Invitados", lista: integrantes.filter((i) => i.estado === "invitado") },
+              { titulo: "Inactivos", lista: integrantes.filter((i) => i.estado === "inactivo") },
+            ]
+              .filter((g) => g.lista.length > 0)
+              .map((g) => (
+                <GrupoIntegrantes key={g.titulo} titulo={g.titulo} integrantes={g.lista} bandas={bandas} plazas={plazas} />
+              ))}
           </div>
         )}
       </section>

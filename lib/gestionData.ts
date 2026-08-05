@@ -420,7 +420,13 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
       esSuperadmin: acc.tieneSuperadmin,
       bandas: acc.bandas,
     }))
-    .sort((a, b) => a.email.localeCompare(b.email));
+    .sort((a, b) => {
+      // Brief "Rediseño visual de Gestión" §3: alfabético por nombre para
+      // mostrar (o correo si todavía no tiene uno), salvo que superadmin
+      // siempre va primero sin importar el alfabeto.
+      if (a.esSuperadmin !== b.esSuperadmin) return a.esSuperadmin ? -1 : 1;
+      return (a.nombreMostrar || a.email).localeCompare(b.nombreMostrar || b.email, "es");
+    });
 }
 
 export async function actualizarNombreMostrar(usuarioId: string, nombreMostrar: string): Promise<void> {
