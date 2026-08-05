@@ -1,16 +1,15 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
 import { obtenerCanciones } from "@/lib/cancionesData";
 import { TabBar } from "@/components/shell/TabBar";
-import { RecordarBandaActiva } from "@/components/canciones/RecordarBandaActiva";
 
-// Lista de canciones filtrada por banda activa, igual que el Calendario. Con
-// más de una banda, el filtro es por link con ?banda=id (server-rendered,
-// sin JS de cliente) — sin poder probarse con datos reales todavía, Jorge
-// solo tiene ODR.
+// Brief "Canciones: selector de banda previo" — mismo patrón que Finanzas
+// (Brief de corrección §1 de Finanzas): sin ?banda= válido y con más de una
+// banda con el bloque activo, se muestra un selector explícito antes de
+// entrar, en vez de los chips-tab que había antes dentro de la misma vista.
+// Con una sola banda con el bloque, se salta directo (mismo criterio).
 export default async function CancionesPage({
   searchParams,
 }: {
@@ -35,26 +34,72 @@ export default async function CancionesPage({
   const bandasConBloque = membresiasConBloque(membresias, "canciones", superadmin);
   if (bandasConBloque.length === 0) redirect("/inicio");
 
-  // Brief 12 §3: si no vino ?banda= en la URL, cae a la última banda que el
-  // navegador recuerde (cookie de sesión) antes de usar la primera por
-  // defecto — así volver desde el tab de abajo no reinicia siempre a ODR.
-  const bandaCookie = (await cookies()).get("malgesto_banda_canciones")?.value;
   const bandaValida = bandasConBloque.some((m) => m.bandaId === bandaParam);
-  const bandaCookieValida = bandasConBloque.some((m) => m.bandaId === bandaCookie);
-  const bandaActiva = bandaValida ? bandaParam! : bandaCookieValida ? bandaCookie! : bandasConBloque[0].bandaId;
+
+  if (!bandaValida && bandasConBloque.length > 1) {
+    return (
+      <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
+        <div className="mx-auto max-w-2xl px-5 pt-5">
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+            Canciones
+          </div>
+          <h2
+            className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
+            style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+          >
+            ¿Qué banda?
+          </h2>
+          <p className="mt-2 text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
+            Elegí la banda antes de ver su repertorio.
+          </p>
+
+          <div className="mt-5 flex flex-col gap-2.5">
+            {bandasConBloque.map((m) => (
+              <Link
+                key={m.bandaId}
+                href={`/canciones?banda=${m.bandaId}`}
+                className="flex items-center justify-between rounded-2xl p-4 text-base font-bold no-underline"
+                style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", color: "oklch(0.24 0.02 55)" }}
+              >
+                <span>{m.bandaNombre}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <TabBar
+          activa="canciones"
+          userEmail={user.email}
+          esSuperadmin={superadmin}
+          mostrarSetlist={algunaBandaConBloque(membresias, "set_list", superadmin)}
+          mostrarSeteos={algunaBandaConBloque(membresias, "seteos", superadmin)}
+          mostrarFinanzas={algunaBandaConBloque(membresias, "finanzas", superadmin)}
+        />
+      </div>
+    );
+  }
+
+  const bandaActiva = bandaValida ? bandaParam! : bandasConBloque[0].bandaId;
   const nombreBandaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
 
   const canciones = await obtenerCanciones([bandaActiva]);
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
-      <RecordarBandaActiva bandaId={bandaActiva} />
       <div className="mx-auto max-w-2xl px-5 pt-5">
-        <div
-          className="font-mono text-[10px] tracking-[0.14em] uppercase"
-          style={{ color: "oklch(0.5 0.02 55)" }}
-        >
-          {nombreBandaActiva}
+        <div className="flex items-center justify-between">
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+            {nombreBandaActiva}
+          </div>
+          {bandasConBloque.length > 1 && (
+            <Link
+              href="/canciones"
+              className="font-mono text-[10px] font-bold tracking-wide no-underline"
+              style={{ color: "oklch(0.5 0.02 55)" }}
+            >
+              ‹ Cambiar de banda
+            </Link>
+          )}
         </div>
         <div className="flex items-end justify-between gap-3">
           <h2
@@ -67,24 +112,6 @@ export default async function CancionesPage({
             {canciones.length}
           </span>
         </div>
-
-        {bandasConBloque.length > 1 && (
-          <div className="mt-3.5 flex flex-wrap gap-2">
-            {bandasConBloque.map((m) => (
-              <Link
-                key={m.bandaId}
-                href={`/canciones?banda=${m.bandaId}`}
-                className="rounded-2xl px-3.5 py-2 text-sm font-bold no-underline"
-                style={{
-                  background: m.bandaId === bandaActiva ? "oklch(0.24 0.02 55)" : "oklch(0.93 0.016 78)",
-                  color: m.bandaId === bandaActiva ? "oklch(0.96 0.012 82)" : "oklch(0.4 0.02 55)",
-                }}
-              >
-                {m.bandaNombre}
-              </Link>
-            ))}
-          </div>
-        )}
 
         <div className="mt-4 flex flex-col gap-2.5">
           {canciones.length === 0 && (
