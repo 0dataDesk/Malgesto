@@ -95,6 +95,7 @@ export function CancionForm({
   bandaId: string;
   cancionExistente?: CancionCompleta;
 }) {
+  const [esCover, setEsCover] = useState(cancionExistente?.esCover ?? false);
   const [titulo, setTitulo] = useState(cancionExistente?.titulo ?? "");
   const [bpm, setBpm] = useState(cancionExistente?.bpm?.toString() ?? "");
   const [duracion, setDuracion] = useState(cancionExistente?.duracionAprox ?? "");
@@ -176,6 +177,7 @@ export function CancionForm({
       tonalidadModo: modo,
       bpm: bpm ? Number(bpm) : null,
       duracionAprox: duracion.trim() || null,
+      esCover,
       secciones,
     };
 
@@ -205,6 +207,27 @@ export function CancionForm({
       </div>
       <div className="flex flex-1 min-h-0 flex-col gap-6 overflow-y-auto pb-4 pr-1">
         <div className="flex flex-col gap-4">
+          <label className={labelCls} style={labelColor}>
+            Tipo de canción
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setEsCover(false)}
+                className="rounded-lg px-3 py-1.5 text-sm font-bold"
+                style={!esCover ? activoStyle : inactivoStyle}
+              >
+                Propia
+              </button>
+              <button
+                type="button"
+                onClick={() => setEsCover(true)}
+                className="rounded-lg px-3 py-1.5 text-sm font-bold"
+                style={esCover ? activoStyle : inactivoStyle}
+              >
+                Cover
+              </button>
+            </div>
+          </label>
           <label className={labelCls} style={labelColor}>
             Título
             <input className={inputCls} style={inputStyle} value={titulo} onChange={(e) => setTitulo(e.target.value)} />

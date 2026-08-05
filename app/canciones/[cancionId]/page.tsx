@@ -47,10 +47,14 @@ export default async function CancionPage({
   if (setlistId) {
     const setlist = await obtenerSetlistCompleto(setlistId);
     if (setlist && setlist.bandaId === cancion.bandaId) {
-      const indice = setlist.items.findIndex((it) => it.cancion.id === cancionId);
+      // Los bloques libres (sample/diálogo) no son canciones navegables — se
+      // saltan al calcular anterior/siguiente, que solo avanza entre items
+      // tipo "cancion".
+      const cancionItems = setlist.items.filter((it) => it.tipo === "cancion" && it.cancion);
+      const indice = cancionItems.findIndex((it) => it.cancion!.id === cancionId);
       if (indice !== -1) {
-        prevId = indice > 0 ? setlist.items[indice - 1].cancion.id : null;
-        nextId = indice < setlist.items.length - 1 ? setlist.items[indice + 1].cancion.id : null;
+        prevId = indice > 0 ? cancionItems[indice - 1].cancion!.id : null;
+        nextId = indice < cancionItems.length - 1 ? cancionItems[indice + 1].cancion!.id : null;
         setlistValido = { id: setlist.id, nombre: setlist.nombre };
       }
     }

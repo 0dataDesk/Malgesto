@@ -16,5 +16,6 @@ export const config = {
     "/seteos", "/seteos/:path*",
     "/gestion", "/gestion/:path*",
     "/login", "/sin-acceso", "/auth/callback",
+    "/onboarding",
   ],
 };

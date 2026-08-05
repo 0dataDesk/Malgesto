@@ -46,37 +46,60 @@ export default async function SetlistEnVivoPage({
         </div>
 
         <div className="flex flex-col gap-2.5">
-          {setlist.items.map((item, i) => (
-            <Link
-              key={item.id}
-              href={`/canciones/${item.cancion.id}?setlist=${setlistId}`}
-              className="flex items-center gap-3 rounded-2xl p-3.5 no-underline"
-              style={{ background: "oklch(0.28 0.025 55)", border: "1px solid oklch(0.34 0.03 55)" }}
-            >
-              <span className="font-mono text-sm font-bold" style={{ color: "oklch(0.74 0.12 78)" }}>
-                {i + 1}
-              </span>
-              <div className="flex-1">
-                <div
-                  className="text-[16px] font-bold"
-                  style={{ color: "oklch(0.97 0.012 82)", fontFamily: "var(--font-bricolage), sans-serif" }}
-                >
-                  {item.cancion.titulo}
-                </div>
-                <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.72 0.03 60)" }}>
-                  {item.cancion.tonalidadNota}
-                  {item.cancion.tonalidadModo === "menor" ? "m" : ""}
-                  {item.cancion.bpm ? ` · ${item.cancion.bpm} BPM` : ""}
-                  {item.cancion.duracionAprox ? ` · ${item.cancion.duracionAprox}` : ""}
-                </div>
-                {item.notasTransicion && (
-                  <div className="mt-1 text-xs italic" style={{ color: "oklch(0.6 0.05 70)" }}>
-                    {item.notasTransicion}
+          {setlist.items.map((item, i) =>
+            item.tipo === "cancion" && item.cancion ? (
+              <Link
+                key={item.id}
+                href={`/canciones/${item.cancion.id}?setlist=${setlistId}`}
+                className="flex items-center gap-3 rounded-2xl p-3.5 no-underline"
+                style={{ background: "oklch(0.28 0.025 55)", border: "1px solid oklch(0.34 0.03 55)" }}
+              >
+                <span className="font-mono text-sm font-bold" style={{ color: "oklch(0.74 0.12 78)" }}>
+                  {i + 1}
+                </span>
+                <div className="flex-1">
+                  <div
+                    className="text-[16px] font-bold"
+                    style={{ color: "oklch(0.97 0.012 82)", fontFamily: "var(--font-bricolage), sans-serif" }}
+                  >
+                    {item.cancion.titulo}
                   </div>
-                )}
+                  <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.72 0.03 60)" }}>
+                    {item.cancion.tonalidadNota}
+                    {item.cancion.tonalidadModo === "menor" ? "m" : ""}
+                    {item.cancion.bpm ? ` · ${item.cancion.bpm} BPM` : ""}
+                    {item.cancion.duracionAprox ? ` · ${item.cancion.duracionAprox}` : ""}
+                  </div>
+                  {item.notasTransicion && (
+                    <div className="mt-1 text-xs italic" style={{ color: "oklch(0.6 0.05 70)" }}>
+                      {item.notasTransicion}
+                    </div>
+                  )}
+                </div>
+              </Link>
+            ) : (
+              <div
+                key={item.id}
+                className="flex items-center gap-3 rounded-2xl p-3.5"
+                style={{ background: "oklch(0.24 0.02 55)", border: "1px dashed oklch(0.5 0.05 60)" }}
+              >
+                <span className="font-mono text-sm font-bold" style={{ color: "oklch(0.6 0.05 60)" }}>
+                  {i + 1}
+                </span>
+                <div className="flex-1">
+                  <span
+                    className="rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide"
+                    style={{ background: "oklch(0.34 0.03 55)", color: "oklch(0.8 0.03 60)" }}
+                  >
+                    {item.tipo === "sample" ? "Sample" : "Diálogo"}
+                  </span>
+                  <div className="mt-1 text-[16px] font-bold italic" style={{ color: "oklch(0.9 0.02 60)" }}>
+                    {item.etiqueta}
+                  </div>
+                </div>
               </div>
-            </Link>
-          ))}
+            )
+          )}
         </div>
       </div>
     </div>

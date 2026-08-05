@@ -12,6 +12,7 @@ export type Cancion = {
   bpm: number | null;
   duracionAprox: string | null;
   totalCompases: number;
+  esCover: boolean;
 };
 
 export type AcordeGuardado = {
@@ -36,7 +37,7 @@ export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
   const admin = supabaseMalgesto();
   const { data } = await admin
     .from("canciones")
-    .select("id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_aprox, secciones(acordes(duracion_compases))")
+    .select("id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_aprox, es_cover, secciones(acordes(duracion_compases))")
     .in("banda_id", bandaIds)
     .order("titulo", { ascending: true });
 
@@ -58,6 +59,7 @@ export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
       bpm: c.bpm,
       duracionAprox: c.duracion_aprox,
       totalCompases,
+      esCover: c.es_cover,
     };
   });
 }
@@ -66,7 +68,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
   const admin = supabaseMalgesto();
   const { data: cancion } = await admin
     .from("canciones")
-    .select("id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_aprox")
+    .select("id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_aprox, es_cover")
     .eq("id", cancionId)
     .single();
 
@@ -93,6 +95,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
     bpm: cancion.bpm,
     duracionAprox: cancion.duracion_aprox,
     totalCompases,
+    esCover: cancion.es_cover,
     secciones: (secciones ?? []).map((s) => ({
       id: s.id,
       orden: s.orden,
@@ -129,6 +132,7 @@ export type CancionInput = {
   tonalidadModo: Modo;
   bpm: number | null;
   duracionAprox: string | null;
+  esCover: boolean;
   secciones: SeccionInput[];
 };
 
@@ -173,6 +177,7 @@ export async function crearCancion(input: CancionInput): Promise<string> {
       tonalidad_modo: input.tonalidadModo,
       bpm: input.bpm,
       duracion_aprox: input.duracionAprox,
+      es_cover: input.esCover,
     })
     .select("id")
     .single();
@@ -195,6 +200,7 @@ export async function actualizarCancion(cancionId: string, input: CancionInput) 
       tonalidad_modo: input.tonalidadModo,
       bpm: input.bpm,
       duracion_aprox: input.duracionAprox,
+      es_cover: input.esCover,
     })
     .eq("id", cancionId);
   if (errUpdate) throw new Error(errUpdate.message);

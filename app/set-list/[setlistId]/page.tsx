@@ -35,7 +35,9 @@ export default async function ArmarSetlistPage({
       bandaId={setlist.bandaId}
       nombre={setlist.nombre}
       itemsIniciales={setlist.items.map((i) => ({
-        cancionId: i.cancion.id,
+        tipo: i.tipo,
+        cancionId: i.cancion?.id ?? null,
+        etiqueta: i.etiqueta,
         notasTransicion: i.notasTransicion,
         cancion: i.cancion,
       }))}

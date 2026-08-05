@@ -2,10 +2,17 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import type { CancionEnSetlist } from "@/lib/setlistsData";
+import type { CancionEnSetlist, TipoItemSetlist } from "@/lib/setlistsData";
 import { actualizarSetlistAction } from "@/app/set-list/actions";
+import { colorConAlpha } from "@/lib/eventoUI";
 
-type ItemLocal = { cancionId: string; notasTransicion: string | null; cancion: CancionEnSetlist };
+type ItemLocal = {
+  tipo: TipoItemSetlist;
+  cancionId: string | null;
+  etiqueta: string | null;
+  notasTransicion: string | null;
+  cancion: CancionEnSetlist | null;
+};
 
 function metaCancion(c: CancionEnSetlist) {
   const partes = [`${c.tonalidadNota}${c.tonalidadModo === "menor" ? "m" : ""}`];
@@ -13,6 +20,16 @@ function metaCancion(c: CancionEnSetlist) {
   if (c.duracionAprox) partes.push(c.duracionAprox);
   return partes.join(" · ");
 }
+
+const ETIQUETA_TIPO: Record<Exclude<TipoItemSetlist, "cancion">, string> = {
+  sample: "Sample",
+  dialogo: "Diálogo",
+};
+
+const COLOR_TIPO: Record<Exclude<TipoItemSetlist, "cancion">, string> = {
+  sample: "oklch(0.62 0.14 250)",
+  dialogo: "oklch(0.66 0.14 300)",
+};
 
 // Armar & ordenar (pantalla 10): agregar canciones del catálogo de la
 // banda, reordenar con botones (Design permite drag o botones — se eligió
@@ -35,12 +52,21 @@ export function SetlistEditor({
   const [guardado, setGuardado] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [nuevaEtiqueta, setNuevaEtiqueta] = useState("");
 
-  const idsEnSet = new Set(items.map((i) => i.cancionId));
+  const idsEnSet = new Set(items.filter((i) => i.tipo === "cancion").map((i) => i.cancionId));
   const disponibles = cancionesDisponibles.filter((c) => !idsEnSet.has(c.id));
 
   const agregar = (c: CancionEnSetlist) => {
-    setItems((prev) => [...prev, { cancionId: c.id, notasTransicion: null, cancion: c }]);
+    setItems((prev) => [...prev, { tipo: "cancion", cancionId: c.id, etiqueta: null, notasTransicion: null, cancion: c }]);
+    setGuardado(false);
+  };
+
+  const agregarBloque = (tipo: "sample" | "dialogo") => {
+    const etiqueta = nuevaEtiqueta.trim();
+    if (!etiqueta) return;
+    setItems((prev) => [...prev, { tipo, cancionId: null, etiqueta, notasTransicion: null, cancion: null }]);
+    setNuevaEtiqueta("");
     setGuardado(false);
   };
 
@@ -67,7 +93,7 @@ export function SetlistEditor({
         await actualizarSetlistAction(
           setlistId,
           bandaId,
-          items.map((i) => ({ cancionId: i.cancionId, notasTransicion: i.notasTransicion }))
+          items.map((i) => ({ tipo: i.tipo, cancionId: i.cancionId, etiqueta: i.etiqueta, notasTransicion: i.notasTransicion }))
         );
         setGuardado(true);
       } catch (e) {
@@ -101,20 +127,43 @@ export function SetlistEditor({
         )}
         {items.map((it, i) => (
           <div
-            key={it.cancionId}
+            key={i}
             className="flex items-center gap-3 rounded-xl p-3"
-            style={{ background: "oklch(0.185 0.008 260)", border: "1px solid oklch(0.28 0.01 260)" }}
+            style={
+              it.tipo === "cancion"
+                ? { background: "oklch(0.185 0.008 260)", border: "1px solid oklch(0.28 0.01 260)" }
+                : { background: "oklch(0.185 0.008 260)", border: `1px dashed ${COLOR_TIPO[it.tipo]}` }
+            }
           >
             <span className="font-mono text-sm font-bold" style={{ color: "oklch(0.64 0.15 34)" }}>
               {i + 1}
             </span>
             <div className="flex-1">
-              <div className="text-sm font-bold" style={{ color: "oklch(0.95 0.005 260)" }}>
-                {it.cancion.titulo}
-              </div>
-              <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.55 0.01 260)" }}>
-                {metaCancion(it.cancion)}
-              </div>
+              {it.tipo === "cancion" && it.cancion ? (
+                <>
+                  <div className="text-sm font-bold" style={{ color: "oklch(0.95 0.005 260)" }}>
+                    {it.cancion.titulo}
+                  </div>
+                  <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.55 0.01 260)" }}>
+                    {metaCancion(it.cancion)}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span
+                    className="rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide"
+                    style={{
+                      background: colorConAlpha(COLOR_TIPO[it.tipo as "sample" | "dialogo"], 0.2),
+                      color: COLOR_TIPO[it.tipo as "sample" | "dialogo"],
+                    }}
+                  >
+                    {ETIQUETA_TIPO[it.tipo as "sample" | "dialogo"]}
+                  </span>
+                  <div className="mt-1 text-sm font-bold italic" style={{ color: "oklch(0.9 0.005 260)" }}>
+                    {it.etiqueta}
+                  </div>
+                </>
+              )}
             </div>
             <button type="button" onClick={() => mover(i, -1)} disabled={i === 0} className="text-sm disabled:opacity-30" style={{ color: "oklch(0.7 0.01 260)" }}>
               ↑
@@ -165,6 +214,38 @@ export function SetlistEditor({
             </span>
           </button>
         ))}
+      </div>
+
+      <div className="mb-2 mt-8 text-sm font-bold" style={{ color: "oklch(0.75 0.01 260)" }}>
+        Agregar bloque libre
+      </div>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={nuevaEtiqueta}
+          onChange={(e) => setNuevaEtiqueta(e.target.value)}
+          placeholder="Etiqueta (ej. Intro ambiental)"
+          className="flex-1 rounded-xl border px-3.5 py-2.5 text-sm outline-none"
+          style={{ background: "oklch(0.185 0.008 260)", borderColor: "oklch(0.34 0.03 55)", color: "oklch(0.95 0.005 260)" }}
+        />
+        <button
+          type="button"
+          onClick={() => agregarBloque("sample")}
+          disabled={!nuevaEtiqueta.trim()}
+          className="rounded-xl px-3.5 py-2.5 text-sm font-bold disabled:opacity-40"
+          style={{ background: colorConAlpha(COLOR_TIPO.sample, 0.2), color: COLOR_TIPO.sample }}
+        >
+          + Sample
+        </button>
+        <button
+          type="button"
+          onClick={() => agregarBloque("dialogo")}
+          disabled={!nuevaEtiqueta.trim()}
+          className="rounded-xl px-3.5 py-2.5 text-sm font-bold disabled:opacity-40"
+          style={{ background: colorConAlpha(COLOR_TIPO.dialogo, 0.2), color: COLOR_TIPO.dialogo }}
+        >
+          + Diálogo
+        </button>
       </div>
 
       {error && (

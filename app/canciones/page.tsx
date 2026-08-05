@@ -137,10 +137,18 @@ export default async function CancionesPage({
             >
               <Link href={`/canciones/${c.id}`} className="min-w-0 flex-1 no-underline">
                 <div
-                  className="text-[17px] font-bold"
+                  className="flex items-center gap-2 text-[17px] font-bold"
                   style={{ color: "oklch(0.24 0.02 55)", fontFamily: "var(--font-bricolage), sans-serif" }}
                 >
                   {c.titulo}
+                  {c.esCover && (
+                    <span
+                      className="rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide"
+                      style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.5 0.02 55)" }}
+                    >
+                      Cover
+                    </span>
+                  )}
                 </div>
                 <div className="mt-1 flex items-baseline gap-3 font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
                   {/* Brief de refinamiento §1: la nota usa el mismo color por

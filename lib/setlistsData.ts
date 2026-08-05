@@ -18,11 +18,15 @@ export type CancionEnSetlist = {
   duracionAprox: string | null;
 };
 
+export type TipoItemSetlist = "cancion" | "sample" | "dialogo";
+
 export type SetlistItem = {
   id: string;
   orden: number;
+  tipo: TipoItemSetlist;
+  etiqueta: string | null;
   notasTransicion: string | null;
-  cancion: CancionEnSetlist;
+  cancion: CancionEnSetlist | null;
 };
 
 export type SetlistCompleto = {
@@ -63,7 +67,7 @@ export async function obtenerSetlistCompleto(setlistId: string): Promise<Setlist
 
   const { data: items } = await admin
     .from("setlist_items")
-    .select("id, orden, notas_transicion, canciones(id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_aprox)")
+    .select("id, orden, tipo, etiqueta, notas_transicion, canciones(id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_aprox)")
     .eq("setlist_id", setlistId)
     .order("orden", { ascending: true });
 
@@ -71,31 +75,31 @@ export async function obtenerSetlistCompleto(setlistId: string): Promise<Setlist
     id: setlist.id,
     bandaId: setlist.banda_id,
     nombre: setlist.nombre,
-    items: (items ?? [])
-      .filter((i) => i.canciones)
-      .map((i) => {
-        const c = i.canciones as unknown as {
-          id: string;
-          titulo: string;
-          tonalidad_nota: Nota;
-          tonalidad_modo: Modo;
-          bpm: number | null;
-          duracion_aprox: string | null;
-        };
-        return {
-          id: i.id,
-          orden: i.orden,
-          notasTransicion: i.notas_transicion,
-          cancion: {
-            id: c.id,
-            titulo: c.titulo,
-            tonalidadNota: c.tonalidad_nota,
-            tonalidadModo: c.tonalidad_modo,
-            bpm: c.bpm,
-            duracionAprox: c.duracion_aprox,
-          },
-        };
-      }),
+    items: (items ?? []).map((i) => {
+      const c = i.canciones as unknown as {
+        id: string;
+        titulo: string;
+        tonalidad_nota: Nota;
+        tonalidad_modo: Modo;
+        bpm: number | null;
+        duracion_aprox: string | null;
+      } | null;
+      return {
+        id: i.id,
+        orden: i.orden,
+        tipo: i.tipo as TipoItemSetlist,
+        etiqueta: i.etiqueta,
+        notasTransicion: i.notas_transicion,
+        cancion: c && {
+          id: c.id,
+          titulo: c.titulo,
+          tonalidadNota: c.tonalidad_nota,
+          tonalidadModo: c.tonalidad_modo,
+          bpm: c.bpm,
+          duracionAprox: c.duracion_aprox,
+        },
+      };
+    }),
   };
 }
 
@@ -106,7 +110,12 @@ export async function crearSetlist(bandaId: string, nombre: string): Promise<str
   return data.id;
 }
 
-export type ItemInput = { cancionId: string; notasTransicion: string | null };
+export type ItemInput = {
+  tipo: TipoItemSetlist;
+  cancionId: string | null;
+  etiqueta: string | null;
+  notasTransicion: string | null;
+};
 
 // Reemplazo completo de los items en vez de diffear, igual que en Canciones
 // y Calendario.
@@ -120,7 +129,9 @@ export async function actualizarSetlistItems(setlistId: string, items: ItemInput
   const { error: errInsert } = await admin.from("setlist_items").insert(
     items.map((it, i) => ({
       setlist_id: setlistId,
+      tipo: it.tipo,
       cancion_id: it.cancionId,
+      etiqueta: it.etiqueta,
       orden: i,
       notas_transicion: it.notasTransicion,
     }))

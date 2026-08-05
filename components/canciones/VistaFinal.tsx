@@ -92,10 +92,18 @@ export function VistaFinal({
         </div>
 
         <h1
-          className="text-[28px] font-extrabold tracking-tight"
+          className="flex items-center gap-2.5 text-[28px] font-extrabold tracking-tight"
           style={{ color: "oklch(0.24 0.02 55)", fontFamily: "var(--font-bricolage), sans-serif" }}
         >
           {cancion.titulo}
+          {cancion.esCover && (
+            <span
+              className="rounded-md px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wide"
+              style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.5 0.02 55)" }}
+            >
+              Cover
+            </span>
+          )}
         </h1>
         <div className="mt-1 font-mono text-xs uppercase tracking-[0.1em]" style={{ color: "oklch(0.5 0.02 55)" }}>
           {cancion.tonalidadNota}
