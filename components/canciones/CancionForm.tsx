@@ -335,7 +335,7 @@ export function CancionForm({
                       value={a.duracionCompases}
                       onChange={(e) => {
                         const limpio = e.target.value.replace(/[^0-9.]/g, "");
-                        actualizarAcorde(si, ai, { duracionCompases: Number(limpio) || 1 });
+                        actualizarAcorde(si, ai, { duracionCompases: limpio === "" ? 0 : Number(limpio) });
                       }}
                     />
                     <span className="text-xs" style={labelColor}>

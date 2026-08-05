@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
-import { obtenerMembresias } from "@/lib/malgestoEventos";
+import { obtenerMembresias, esSuperadminDeMembresias, bloqueVisible } from "@/lib/malgestoEventos";
 import { obtenerCancionCompleta, obtenerCanciones } from "@/lib/cancionesData";
 import { obtenerSetlistCompleto } from "@/lib/setlistsData";
 import { obtenerSeteosParaCancion } from "@/lib/dispositivosData";
@@ -28,8 +28,14 @@ export default async function CancionPage({
   const cancion = await obtenerCancionCompleta(cancionId);
   if (!cancion) notFound();
 
-  const esMiembro = membresias.some((m) => m.bandaId === cancion.bandaId);
-  if (!esMiembro) notFound();
+  const membresia = membresias.find((m) => m.bandaId === cancion.bandaId);
+  if (!membresia) notFound();
+
+  // Brief de corrección §3: la vista final debe respetar el mismo toggle de
+  // banda (seteos_habilitado + restricción por persona) que ya aplica en la
+  // barra de navegación — antes se mostraba sin importar el bloque.
+  const superadmin = esSuperadminDeMembresias(membresias);
+  const seteosVisible = bloqueVisible(membresia, "seteos", superadmin);
 
   // Con Set List de por medio, siguiente/anterior siguen su orden — tiene
   // prioridad sobre el alfabético, que era la solución temporal del Brief 4
@@ -57,7 +63,7 @@ export default async function CancionPage({
     nextId = indice >= 0 && indice < canciones.length - 1 ? canciones[indice + 1].id : null;
   }
 
-  const seteosContexto = await obtenerSeteosParaCancion(cancion.bandaId, cancionId);
+  const seteosContexto = seteosVisible ? await obtenerSeteosParaCancion(cancion.bandaId, cancionId) : [];
 
   return (
     <VistaFinal

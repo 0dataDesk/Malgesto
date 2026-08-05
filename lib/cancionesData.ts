@@ -136,7 +136,7 @@ async function insertarSecciones(
           orden: j,
           nota_raiz: a.notaRaiz,
           calidad: a.calidad,
-          duracion_compases: a.duracionCompases || 1,
+          duracion_compases: a.duracionCompases,
         }))
       );
       if (errAcordes) throw new Error(errAcordes.message);

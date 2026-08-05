@@ -4,7 +4,25 @@ import { useState } from "react";
 import Link from "next/link";
 import type { CancionCompleta } from "@/lib/cancionesData";
 import type { SeteoEnContexto } from "@/lib/dispositivosData";
-import { ChordBlock } from "./ChordBlock";
+import { ChordBlock, type Densidad } from "./ChordBlock";
+
+// Brief de corrección §6: la cuadrícula se adapta a cuánto contenido tiene
+// la canción entera (no una tarjeta de tamaño fijo siempre) — pocas
+// tarjetas se ven grandes y cómodas (2 por fila, hasta ~4 filas antes de
+// necesitar scroll), y a medida que hay más acordes la densidad sube (3,
+// luego 4 por fila) para que quepan sin perder legibilidad. Umbrales
+// elegidos a criterio, sin un número exacto pedido por el brief.
+function densidadPorCantidadDeAcordes(totalAcordes: number): Densidad {
+  if (totalAcordes <= 8) return "grande";
+  if (totalAcordes <= 24) return "media";
+  return "compacta";
+}
+
+const COLUMNAS_POR_DENSIDAD: Record<Densidad, string> = {
+  grande: "grid-cols-2",
+  media: "grid-cols-3",
+  compacta: "grid-cols-4",
+};
 
 // Vista final / tocar (Brief 4 §7, tema claro + layout denso desde Brief
 // 12). Los botones flotantes pasan a la canción siguiente/anterior de la
@@ -44,6 +62,8 @@ export function VistaFinal({
   // necesita el número de función encima; se prende solo cuando hace falta
   // (aprender/confirmar el acorde). No persiste entre sesiones a propósito.
   const [mostrarEtiquetas, setMostrarEtiquetas] = useState(false);
+  const totalAcordes = cancion.secciones.reduce((total, s) => total + s.acordes.length, 0);
+  const densidad = densidadPorCantidadDeAcordes(totalAcordes);
 
   return (
     <div className="min-h-screen pb-28" style={{ background: "oklch(0.965 0.012 82)" }}>
@@ -117,9 +137,9 @@ export function VistaFinal({
                 {seccion.nombre}
               </h2>
             </div>
-            <div className="grid grid-cols-4 gap-2">
+            <div className={`grid ${COLUMNAS_POR_DENSIDAD[densidad]} gap-2`}>
               {seccion.acordes.slice(0, 8).map((acorde) => (
-                <ChordBlock key={acorde.id} acorde={acorde} mostrarEtiquetas={mostrarEtiquetas} />
+                <ChordBlock key={acorde.id} acorde={acorde} mostrarEtiquetas={mostrarEtiquetas} densidad={densidad} />
               ))}
             </div>
           </div>

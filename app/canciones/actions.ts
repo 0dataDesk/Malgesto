@@ -17,7 +17,7 @@ export async function actualizarCancionAction(cancionId: string, input: CancionI
   await actualizarCancion(cancionId, input);
   revalidatePath("/canciones");
   revalidatePath(`/canciones/${cancionId}`);
-  redirect(`/canciones/${cancionId}`);
+  redirect(`/canciones?banda=${input.bandaId}`);
 }
 
 export async function eliminarCancionAction(cancionId: string, bandaId: string) {
