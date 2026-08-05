@@ -118,19 +118,21 @@ export default async function FinanzasPage({
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
       <div className="mx-auto max-w-2xl px-5 pt-5">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
             {nombreBandaActiva}
           </div>
           {bandasConBloque.length > 1 && (
-            // Brief de corrección: antes no había forma visible de volver al
-            // selector "¿Qué banda?" desde acá salvo navegación externa.
+            // Brief de corrección "Reposicionar Cambiar de banda": antes vivía
+            // a la derecha (justify-between) y se encimaba con los botones
+            // flotantes de Gestión/Cerrar sesión (top-right, fixed) — ahora
+            // vive junto al nombre de banda, a la izquierda.
             <Link
               href="/finanzas"
               className="font-mono text-[10px] font-bold tracking-wide no-underline"
               style={{ color: "oklch(0.5 0.02 55)" }}
             >
-              ‹ Cambiar de banda
+              · ‹ Cambiar de banda
             </Link>
           )}
         </div>
