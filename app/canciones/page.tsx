@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
 import { obtenerCanciones } from "@/lib/cancionesData";
+import { colorRaizAcorde } from "@/lib/cancionTeoria";
 import { TabBar } from "@/components/shell/TabBar";
 
 // Brief "Canciones: selector de banda previo" — mismo patrón que Finanzas
@@ -136,13 +137,18 @@ export default async function CancionesPage({
                 >
                   {c.titulo}
                 </div>
-                <div className="mt-1 flex gap-3 font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
-                  <span>
+                <div className="mt-1 flex items-baseline gap-3 font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+                  {/* Brief de refinamiento §1: la nota usa el mismo color por
+                      tonalidad que ya existe para acordes (colorRaizAcorde) —
+                      Modo ("mayor"/"menor") entra tal cual como Calidad,
+                      mismas dos categorías de color que ya usa ChordBlock. */}
+                  <span className="text-base font-extrabold" style={{ color: colorRaizAcorde(c.tonalidadNota, c.tonalidadModo) }}>
                     {c.tonalidadNota}
                     {c.tonalidadModo === "menor" ? "m" : ""}
                   </span>
                   {c.bpm && <span>{c.bpm} BPM</span>}
                   {c.duracionAprox && <span>{c.duracionAprox}</span>}
+                  {c.totalCompases > 0 && <span>{c.totalCompases} compases</span>}
                 </div>
               </Link>
               <Link

@@ -11,6 +11,7 @@ export type Cancion = {
   tonalidadModo: Modo;
   bpm: number | null;
   duracionAprox: string | null;
+  totalCompases: number;
 };
 
 export type AcordeGuardado = {
@@ -35,19 +36,30 @@ export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
   const admin = supabaseMalgesto();
   const { data } = await admin
     .from("canciones")
-    .select("id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_aprox")
+    .select("id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_aprox, secciones(acordes(duracion_compases))")
     .in("banda_id", bandaIds)
     .order("titulo", { ascending: true });
 
-  return (data ?? []).map((c) => ({
-    id: c.id,
-    bandaId: c.banda_id,
-    titulo: c.titulo,
-    tonalidadNota: c.tonalidad_nota as Nota,
-    tonalidadModo: c.tonalidad_modo as Modo,
-    bpm: c.bpm,
-    duracionAprox: c.duracion_aprox,
-  }));
+  return (data ?? []).map((c) => {
+    // Brief de refinamiento §2: mismo cálculo que CancionForm (suma de
+    // duracionCompases de todos los acordes, en todas las secciones).
+    const secciones = (c.secciones ?? []) as { acordes: { duracion_compases: number }[] }[];
+    const totalCompases = secciones.reduce(
+      (total, s) => total + (s.acordes ?? []).reduce((t, a) => t + Number(a.duracion_compases), 0),
+      0
+    );
+
+    return {
+      id: c.id,
+      bandaId: c.banda_id,
+      titulo: c.titulo,
+      tonalidadNota: c.tonalidad_nota as Nota,
+      tonalidadModo: c.tonalidad_modo as Modo,
+      bpm: c.bpm,
+      duracionAprox: c.duracion_aprox,
+      totalCompases,
+    };
+  });
 }
 
 export async function obtenerCancionCompleta(cancionId: string): Promise<CancionCompleta | null> {
@@ -67,6 +79,11 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
     .order("orden", { ascending: true })
     .order("orden", { ascending: true, foreignTable: "acordes" });
 
+  const totalCompases = (secciones ?? []).reduce(
+    (total, s) => total + (s.acordes ?? []).reduce((t, a) => t + Number(a.duracion_compases), 0),
+    0
+  );
+
   return {
     id: cancion.id,
     bandaId: cancion.banda_id,
@@ -75,6 +92,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
     tonalidadModo: cancion.tonalidad_modo as Modo,
     bpm: cancion.bpm,
     duracionAprox: cancion.duracion_aprox,
+    totalCompases,
     secciones: (secciones ?? []).map((s) => ({
       id: s.id,
       orden: s.orden,
