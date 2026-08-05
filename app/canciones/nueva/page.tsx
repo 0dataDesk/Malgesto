@@ -26,14 +26,14 @@ export default async function NuevaCancionPage({
   // Brief "Nuevo nivel de rol": crear canciones es ahora solo para
   // administrador/superadmin — quien entre acá sin ese rol vuelve a la
   // lista en vez de ver un formulario que igual va a rechazar el server.
-  if (banda.rol !== "administrador" && banda.rol !== "superadmin") redirect("/canciones");
+  if (banda.rol !== "administrador" && banda.rol !== "superadmin") redirect(`/canciones?banda=${banda.bandaId}`);
 
   return (
     <div
       className="flex h-screen flex-col box-border px-6 py-8 md:px-16 md:py-11"
       style={{ background: "oklch(0.965 0.012 82)", color: "oklch(0.24 0.02 55)" }}
     >
-      <Link href="/canciones" className="mb-1.5 flex w-fit items-center gap-3.5 no-underline">
+      <Link href={`/canciones?banda=${banda.bandaId}`} className="mb-1.5 flex w-fit items-center gap-3.5 no-underline">
         <span className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
           ‹ {banda.bandaNombre}
         </span>

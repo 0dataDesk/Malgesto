@@ -29,5 +29,5 @@ export async function eliminarCancionAction(cancionId: string, bandaId: string) 
   await requerirAccesoBloque(bandaId, "canciones");
   await eliminarCancion(cancionId);
   revalidatePath("/canciones");
-  redirect("/canciones");
+  redirect(`/canciones?banda=${bandaId}`);
 }

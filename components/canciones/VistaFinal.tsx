@@ -70,7 +70,7 @@ export function VistaFinal({
       <div className="mx-auto max-w-2xl px-5 pt-6">
         <div className="flex items-start justify-between gap-3">
           <Link
-            href={setlist ? `/set-list/${setlist.id}/vivo` : "/canciones"}
+            href={setlist ? `/set-list/${setlist.id}/vivo` : `/canciones?banda=${cancion.bandaId}`}
             className="mb-3 inline-block text-sm no-underline"
             style={{ color: "oklch(0.55 0.02 55)" }}
           >
