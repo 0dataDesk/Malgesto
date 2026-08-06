@@ -44,6 +44,7 @@ export default async function InicioPage() {
       cumpleanos={cumpleanos}
       ausencias={ausencias}
       userEmail={user.email}
+      usuarioId={user.id}
     />
   );
 }

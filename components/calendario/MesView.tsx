@@ -39,6 +39,7 @@ export function MesView({
   eventos,
   ausencias,
   colorPorBanda,
+  emojiPorBanda,
   diaSeleccionado,
   onDiaClick,
   onEventoClick,
@@ -47,6 +48,7 @@ export function MesView({
   eventos: Evento[];
   ausencias: AusenciaPersona[];
   colorPorBanda: Map<string, string>;
+  emojiPorBanda: Map<string, string | null>;
   diaSeleccionado: Date | null;
   onDiaClick: (dia: Date) => void;
   onEventoClick: (evento: Evento) => void;
@@ -175,15 +177,27 @@ export function MesView({
                     fondo del día ya distingue Show de Ensayo por color, el
                     punto no necesita hacerlo también (era el anillo hueco
                     del brief anterior); su único trabajo vuelve a ser
-                    indicar de qué banda es. */}
+                    indicar de qué banda es. Brief "Rediseño de Ausencias
+                    §5": si la banda tiene emoji capturado, se usa en vez
+                    del punto -- mismo tamaño reducido (contenedor de 6x6px
+                    con overflow-hidden, para que el glyph nunca estire la
+                    fila de la grilla) y sigue siendo el punto de color para
+                    las bandas sin emoji. */}
                 {!fueraDeMes &&
-                  bandaIdsDelDia.slice(0, 3).map((bandaId) => (
-                    <span
-                      key={bandaId}
-                      className="h-[6px] w-[6px] rounded-full"
-                      style={{ background: colorPorBanda.get(bandaId) ?? "oklch(0.6 0.02 55)" }}
-                    />
-                  ))}
+                  bandaIdsDelDia.slice(0, 3).map((bandaId) => {
+                    const emoji = emojiPorBanda.get(bandaId);
+                    return emoji ? (
+                      <span key={bandaId} className="flex h-[6px] w-[6px] items-center justify-center overflow-hidden">
+                        <span style={{ fontSize: 7, lineHeight: 1 }}>{emoji}</span>
+                      </span>
+                    ) : (
+                      <span
+                        key={bandaId}
+                        className="h-[6px] w-[6px] rounded-full"
+                        style={{ background: colorPorBanda.get(bandaId) ?? "oklch(0.6 0.02 55)" }}
+                      />
+                    );
+                  })}
               </div>
             </button>
           );

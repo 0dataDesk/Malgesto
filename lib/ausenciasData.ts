@@ -1,7 +1,8 @@
 import "server-only";
 import { supabaseMalgesto } from "@/lib/supabase/malgesto";
-import { enZonaApp } from "@/lib/zonaHoraria";
+import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 import { etiquetaPlaza } from "@/lib/instrumentoCatalogo";
+import { fechaISO } from "@/lib/fechas";
 
 export type Ausencia = {
   id: string;
@@ -44,6 +45,11 @@ export async function eliminarIncidencia(usuarioId: string, incidenciaId: string
 }
 
 export type AusenciaPersona = {
+  // Brief "Rediseño de Ausencias": id de la incidencia real para origen
+  // "manual" (permite borrarla desde el panel del día); una clave sintética
+  // para "automatico" (no hay fila que borrar -- se recalcula cada vez).
+  id: string;
+  origen: "manual" | "automatico";
   usuarioId: string;
   nombre: string;
   bandaId: string;
@@ -112,7 +118,7 @@ export async function obtenerAusencias(bandaIds: string[]): Promise<AusenciaPers
 
   const [{ data: incidencias }, { data: personas }, { data: authData }, { data: personaPlazas }, { data: eventosDirectos }, { data: giraBandasRelevantes }] =
     await Promise.all([
-      admin.from("incidencias").select("usuario_id, fecha_inicio, fecha_fin").in("usuario_id", personaIds),
+      admin.from("incidencias").select("id, usuario_id, fecha_inicio, fecha_fin").in("usuario_id", personaIds),
       admin.from("personas").select("usuario_id, nombre_mostrar"),
       admin.auth.admin.listUsers({ page: 1, perPage: 200 }),
       admin.from("persona_plazas").select("persona_id, plazas(banda_id, instrumento, etiqueta)").in("persona_id", personaIds),
@@ -173,6 +179,8 @@ export async function obtenerAusencias(bandaIds: string[]): Promise<AusenciaPers
     for (const bandaId of bandas) {
       if (!bandaIds.includes(bandaId)) continue;
       resultado.push({
+        id: inc.id,
+        origen: "manual",
         usuarioId: inc.usuario_id,
         nombre: nombreDe(inc.usuario_id),
         bandaId,
@@ -195,6 +203,8 @@ export async function obtenerAusencias(bandaIds: string[]): Promise<AusenciaPers
         if (!bandaIds.includes(bandaId)) continue;
         if (bandasDelEvento.has(bandaId)) continue; // no es "otra" banda
         resultado.push({
+          id: `auto:${ev.id}:${usuarioId}:${bandaId}`,
+          origen: "automatico",
           usuarioId,
           nombre: nombreDe(usuarioId),
           bandaId,
@@ -206,5 +216,48 @@ export async function obtenerAusencias(bandaIds: string[]): Promise<AusenciaPers
     }
   }
 
-  return resultado;
+  // Brief "Rediseño de Ausencias §1": nunca fechas pasadas -- una ausencia
+  // (manual o automática) cuyo rango ya terminó no aporta nada, solo ruido.
+  // "Futuro" incluye hoy (fechaFin >= hoy, no >).
+  const hoy = fechaISO(ahoraEnZonaApp());
+  return resultado.filter((a) => a.fechaFin >= hoy);
+}
+
+// Brief "Rediseño de Ausencias §1": cuando un Show/Ensayo/Gira pasa a
+// estado=confirmado, el evento "reemplaza" cualquier ausencia manual
+// declarada por los integrantes de ESA banda que se traslape con esa
+// fecha -- ya se resolvió/negoció, deja de tener sentido seguir marcándolos
+// ausentes ahí. Explícito acá, llamado desde el mismo server action que
+// confirma (crearEvento/actualizarEvento/asignarEstadoEvento/crearGira en
+// lib/malgestoEventos.ts) en vez de un trigger de base de datos, para que
+// quede claro en el código dónde pasa. Solo miembro/administrador cuentan
+// (mismo filtro que el resto de este archivo). El conflicto AUTOMÁTICO que
+// esa misma persona sigue generando en SUS OTRAS bandas no se toca acá --
+// no es una fila guardada, se recalcula al vuelo arriba.
+export async function limpiarIncidenciasPorConfirmacion(bandaIds: string[], fechaInicio: string, fechaFin: string | null): Promise<void> {
+  if (bandaIds.length === 0) return;
+  const admin = supabaseMalgesto();
+
+  const { data: miembros } = await admin
+    .from("miembros_banda")
+    .select("usuario_id")
+    .in("banda_id", bandaIds)
+    .in("rol", ["miembro", "administrador"])
+    .eq("activo", true);
+  const usuarioIds = [...new Set((miembros ?? []).map((m) => m.usuario_id))];
+  if (usuarioIds.length === 0) return;
+
+  // fecha_inicio/fecha_fin del evento son timestamptz; incidencias.fecha_*
+  // son date -- se compara por día en ZONA_HORARIA_APP (mismo diaISO que ya
+  // usa obtenerAusencias arriba para lo mismo).
+  const inicioDia = diaISO(fechaInicio);
+  const finDia = fechaFin ? diaISO(fechaFin) : inicioDia;
+
+  const { error } = await admin
+    .from("incidencias")
+    .delete()
+    .in("usuario_id", usuarioIds)
+    .lte("fecha_inicio", finDia)
+    .gte("fecha_fin", inicioDia);
+  if (error) throw new Error(error.message);
 }

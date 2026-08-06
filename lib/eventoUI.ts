@@ -1,37 +1,21 @@
 import type { TipoEvento, EstadoEvento } from "@/lib/malgestoEventos";
 import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 
-// Color e identidad visual por tipo de evento. Show/Ensayo/Cumpleaños
-// siguen el HTML de Design literal (Cumpleaños: oklch(0.72 0.12 78), tomado
-// de las pantallas 05/06 en uso real — ver detalle en el commit de la
-// corrección de fidelidad anterior). Gira es la única excepción deliberada:
-// Design lo deja casi idéntico a Cumpleaños, pero eso confunde ambos tipos
-// en el calendario con datos reales, así que mantiene el violeta propio del
-// Brief 2 en vez de seguir la fidelidad literal en este punto.
+// Color e identidad visual por tipo de evento. Show/Ensayo siguen el HTML de
+// Design literal. Gira es una excepción deliberada: Design lo deja casi
+// idéntico a Cumpleaños, pero eso confunde ambos tipos en el calendario con
+// datos reales, así que mantiene el violeta propio del Brief 2 en vez de
+// seguir la fidelidad literal en este punto.
 export const COLOR_TIPO: Record<TipoEvento, string> = {
   show: "oklch(0.64 0.15 34)",
   ensayo: "oklch(0.64 0.13 195)",
-  cumpleanos: "oklch(0.72 0.12 78)",
+  // Brief "Rediseño de Ausencias §4": el durazno original (oklch(0.72 0.12
+  // 78)) no se sentía "de cumpleaños" -- más dorado/amarillo ahora (hue 85,
+  // entre el naranja de Show/78 y el ámbar de tentativo/88, sin pisar
+  // ninguno de los dos) y más chroma para que el dorado se note.
+  cumpleanos: "oklch(0.76 0.15 85)",
   gira: "oklch(0.58 0.14 300)",
 };
-
-// Brief "Color de banda configurable...": el color de banda dejó de
-// calcularse por índice (era inestable — dependía del orden de
-// miembros_banda, que puede variar) — ahora es un valor fijo en
-// bandas.color, elegido por el superadmin desde Gestión > Bandas entre
-// estas opciones. Paleta acotada (no color picker libre) para garantizar
-// buen contraste sobre fondo claro — evita los hues ya reservados con otro
-// significado en el calendario (tentativo 88, gira 300, cumpleaños 78).
-export const PALETA_COLOR_BANDA = [
-  "oklch(0.64 0.15 34)", // naranja (acento primario de la app)
-  "oklch(0.64 0.13 195)", // teal
-  "oklch(0.6 0.14 280)", // violeta-azulado
-  "oklch(0.55 0.14 150)", // verde
-  "oklch(0.6 0.15 210)", // azul
-  "oklch(0.6 0.16 350)", // magenta
-  "oklch(0.58 0.16 20)", // rojo
-  "oklch(0.58 0.15 110)", // verde-lima
-];
 
 // Inserta un canal alfa dentro de un color oklch(...) ya armado, ej.
 // colorConAlpha("oklch(0.6 0.1 30)", 0.16) -> "oklch(0.6 0.1 30 / 0.16)".

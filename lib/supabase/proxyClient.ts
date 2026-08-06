@@ -48,8 +48,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/set-list") ||
     request.nextUrl.pathname.startsWith("/seteos") ||
     request.nextUrl.pathname.startsWith("/gestion") ||
-    request.nextUrl.pathname.startsWith("/stage-plot") ||
-    request.nextUrl.pathname.startsWith("/disponibilidad");
+    request.nextUrl.pathname.startsWith("/stage-plot");
 
   const rutaProtegida =
     rutaAppShell ||

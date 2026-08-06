@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Evento, Membresia } from "@/lib/malgestoEventos";
 import { algunaBandaConBloque } from "@/lib/bloques";
@@ -11,6 +11,7 @@ import type { AusenciaPersona } from "@/lib/ausenciasData";
 import { nombreMesAno, sumarMeses, esMismoDia, hora, fechaISO } from "@/lib/fechas";
 import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 import { COLOR_TIPO, ETIQUETA_TIPO, eventoYaPaso } from "@/lib/eventoUI";
+import { eliminarIncidenciaAction } from "@/app/inicio/actions";
 import { MesView } from "./MesView";
 import { AgendaView } from "./AgendaView";
 import { EventoDetalle } from "./EventoDetalle";
@@ -30,6 +31,7 @@ export function CalendarioShell({
   cumpleanos,
   ausencias,
   userEmail,
+  usuarioId,
 }: {
   membresias: Membresia[];
   eventos: Evento[];
@@ -38,11 +40,13 @@ export function CalendarioShell({
   cumpleanos: PersonaConCumple[];
   ausencias: AusenciaPersona[];
   userEmail: string;
+  usuarioId: string;
 }) {
   const router = useRouter();
   const [mes, setMes] = useState(() => new Date());
   const [activas, setActivas] = useState<Set<string>>(() => new Set(membresias.map((m) => m.bandaId)));
   const [diaSeleccionado, setDiaSeleccionado] = useState<Date | null>(null);
+  const [borrandoAusencia, startBorrarAusencia] = useTransition();
   // Fix: "+ Crear Set List" (y "Confirmar fecha") parecían no hacer nada.
   // Antes estos guardaban el objeto Evento entero, capturado al
   // seleccionarlo — router.refresh() trae `eventos` (prop, server)
@@ -69,6 +73,10 @@ export function CalendarioShell({
   // calculado por índice) — se resuelve una sola vez acá y se pasa a
   // MesView/AgendaView, en vez de que cada uno arme su propio mapa.
   const colorPorBanda = useMemo(() => new Map(membresias.map((m) => [m.bandaId, m.color])), [membresias]);
+  // Brief "Rediseño de Ausencias §5": emoji opcional por banda, mismo
+  // patrón que colorPorBanda -- MesView usa el emoji en vez del punto de
+  // color cuando existe, y sigue con el punto cuando es null.
+  const emojiPorBanda = useMemo(() => new Map(membresias.map((m) => [m.bandaId, m.emoji])), [membresias]);
 
   // Para la grilla del mes / selección de día: ventana centro±1 año, así
   // navegar meses hacia atrás o adelante sigue mostrando el cumpleaños
@@ -118,12 +126,6 @@ export function CalendarioShell({
 
   const giras = useMemo(() => eventosConCumple.filter((e) => e.tipo === "gira"), [eventosConCumple]);
   const esSuperadmin = membresias.some((m) => m.rol === "superadmin");
-  // Brief "Nuevo nivel de rol": crear eventos ya no es exclusivo de
-  // superadmin — un administrador en al menos una banda también ve el botón
-  // (el servidor valida el rol en la banda puntual elegida dentro del
-  // formulario). Editar/eliminar/asignar siguen atados a esSuperadmin, sin
-  // cambios — ver puedeEditar más abajo.
-  const puedeCrearEventos = membresias.some((m) => m.rol === "superadmin" || m.rol === "administrador");
   // Brief 21 §2: unión de bandas con la regla de visibilidad efectiva
   // (banda activa Y persona no restringida) en vez de mirar solo el toggle
   // de banda.
@@ -182,6 +184,17 @@ export function CalendarioShell({
     setEventoEnEdicion(undefined);
     setFechaParaForm(dia);
     setMostrarForm(true);
+  };
+
+  // Brief "Rediseño de Ausencias": borrar una ausencia propia declarada por
+  // error (o ya resuelta antes de que un evento la confirme) -- solo tiene
+  // sentido para origen "manual" (una fila real de incidencias); un
+  // conflicto "automatico" no es una fila, se recalcula solo.
+  const borrarAusencia = (incidenciaId: string) => {
+    startBorrarAusencia(async () => {
+      await eliminarIncidenciaAction(incidenciaId);
+      router.refresh();
+    });
   };
 
   const abrirEdicion = (evento: Evento) => {
@@ -305,6 +318,7 @@ export function CalendarioShell({
             eventos={eventosFiltrados}
             ausencias={ausenciasFiltradas}
             colorPorBanda={colorPorBanda}
+            emojiPorBanda={emojiPorBanda}
             diaSeleccionado={diaSeleccionado}
             onDiaClick={onDiaClick}
             onEventoClick={(e) => setEventoSeleccionadoId(e.id)}
@@ -348,11 +362,29 @@ export function CalendarioShell({
                       </span>
                     )}
                   </span>
-                  {membresias.length > 1 && (
-                    <span className="shrink-0 font-mono text-xs" style={{ color: colorPorBanda.get(a.bandaId) ?? "oklch(0.55 0.02 55)" }}>
-                      {membresias.find((m) => m.bandaId === a.bandaId)?.bandaNombre ?? ""}
-                    </span>
-                  )}
+                  <div className="flex shrink-0 items-center gap-2">
+                    {membresias.length > 1 && (
+                      <span className="font-mono text-xs" style={{ color: colorPorBanda.get(a.bandaId) ?? "oklch(0.55 0.02 55)" }}>
+                        {membresias.find((m) => m.bandaId === a.bandaId)?.bandaNombre ?? ""}
+                      </span>
+                    )}
+                    {/* Brief "Rediseño de Ausencias": borrar solo la propia y solo
+                        si es manual -- un conflicto automático no es una fila,
+                        no hay nada que borrar. */}
+                    {a.origen === "manual" && a.usuarioId === usuarioId && (
+                      <button
+                        type="button"
+                        onClick={() => borrarAusencia(a.id)}
+                        disabled={borrandoAusencia}
+                        aria-label="Borrar ausencia"
+                        title="Borrar ausencia"
+                        className="flex h-5 w-5 items-center justify-center rounded-full text-xs disabled:opacity-50"
+                        style={{ background: "oklch(0.85 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -363,8 +395,12 @@ export function CalendarioShell({
             (Editar/Eliminar viven dentro de la tarjeta de EventoDetalle) —
             por eso va acá, después de todo el contenido del día, no dentro
             de la tarjeta. Brief 18 §3: solo superadmin crea eventos, ampliado
-            en "Nuevo nivel de rol" a también administrador. */}
-        {diaSeleccionado && puedeCrearEventos && (
+            en "Nuevo nivel de rol" a también administrador -- y en "Rediseño
+            de Ausencias §2" a CUALQUIER integrante, porque el mismo botón
+            ahora también es la puerta de entrada para declarar una Ausencia
+            (NuevoEventoForm decide puertas adentro qué tipos ve cada quien
+            según su rol). */}
+        {diaSeleccionado && (
           <button
             type="button"
             onClick={() => abrirNuevoEnDia(diaSeleccionado)}

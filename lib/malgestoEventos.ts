@@ -1,6 +1,7 @@
 import "server-only";
 import { supabaseMalgesto } from "@/lib/supabase/malgesto";
 import { sincronizarMovimientoAutomatico } from "@/lib/finanzasData";
+import { limpiarIncidenciasPorConfirmacion } from "@/lib/ausenciasData";
 import type { Membresia, NombreBloque } from "@/lib/bloques";
 
 export type { Membresia, NombreBloque };
@@ -41,6 +42,7 @@ type BandaEmbebida = {
   id: string;
   nombre: string;
   color: string;
+  emoji: string | null;
   canciones_habilitado: boolean;
   setlist_habilitado: boolean;
   seteos_habilitado: boolean;
@@ -75,7 +77,7 @@ export async function obtenerMembresias(usuarioId: string): Promise<Membresia[]>
   const { data } = await admin
     .from("miembros_banda")
     .select(
-      "rol, bloques_visibles, bandas(id, nombre, color, canciones_habilitado, setlist_habilitado, seteos_habilitado, finanzas_habilitado, stage_plot_habilitado)"
+      "rol, bloques_visibles, bandas(id, nombre, color, emoji, canciones_habilitado, setlist_habilitado, seteos_habilitado, finanzas_habilitado, stage_plot_habilitado)"
     )
     .eq("usuario_id", usuarioId)
     .eq("activo", true);
@@ -89,6 +91,7 @@ export async function obtenerMembresias(usuarioId: string): Promise<Membresia[]>
       // por índice -- este fallback neutro solo cubre el caso (no debería
       // pasar) de una membresía sin banda embebida.
       color: banda?.color ?? "oklch(0.6 0.02 55)",
+      emoji: banda?.emoji ?? null,
       rol: m.rol,
       cancionesHabilitado: banda?.canciones_habilitado ?? true,
       setlistHabilitado: banda?.setlist_habilitado ?? true,
@@ -270,6 +273,13 @@ export async function crearEvento(input: NuevoEventoInput) {
 
     const { error: errBandas } = await admin.from("gira_bandas").insert(bandaIds.map((id) => ({ gira_evento_id: data.id, banda_id: id })));
     if (errBandas) throw new Error(errBandas.message);
+
+    // Brief "Rediseño de Ausencias §1": una gira nace confirmada por defecto
+    // (o tentativa, si input.estado lo pide) -- si nace confirmada, ya es un
+    // "pasa a confirmado" real (no había evento antes).
+    if (input.estado === "confirmado") {
+      await limpiarIncidenciasPorConfirmacion(bandaIds, input.fechaInicio, input.fechaFin);
+    }
     return;
   }
 
@@ -298,10 +308,25 @@ export async function crearEvento(input: NuevoEventoInput) {
   if (error || !data) throw new Error(error?.message ?? "No se pudo crear el evento.");
 
   await sincronizarMovimientoAutomatico(data.id, input.bandaId, input.tipo, input.titulo, input.fechaInicio, ingresoEsperado);
+
+  // Brief "Rediseño de Ausencias §1": ensayo nace SIEMPRE confirmado (forzado
+  // arriba) y show puede nacer confirmado directo (sin pasar por tentativo) --
+  // en ambos casos es un "pasa a confirmado" real, nunca había evento antes.
+  if (estado === "confirmado") {
+    await limpiarIncidenciasPorConfirmacion([input.bandaId], input.fechaInicio, input.fechaFin);
+  }
 }
 
 export async function actualizarEvento(eventoId: string, input: NuevoEventoInput) {
   const admin = supabaseMalgesto();
+
+  // Brief "Rediseño de Ausencias §1": la limpieza de incidencias solo debe
+  // dispararse en una transición REAL a confirmado (tentativo -> confirmado),
+  // no en cada edición de un evento ya confirmado (eso borraría de más una
+  // incidencia declarada después, por otro motivo, para la misma fecha) --
+  // hace falta el estado previo para distinguir ambos casos.
+  const { data: previo } = await admin.from("eventos").select("estado").eq("id", eventoId).single();
+  const estadoPrevio = previo?.estado;
 
   if (input.tipo === "gira") {
     const bandaIds = input.bandaIds && input.bandaIds.length > 0 ? input.bandaIds : [input.bandaId];
@@ -324,6 +349,10 @@ export async function actualizarEvento(eventoId: string, input: NuevoEventoInput
     if (errDelete) throw new Error(errDelete.message);
     const { error: errInsert } = await admin.from("gira_bandas").insert(bandaIds.map((id) => ({ gira_evento_id: eventoId, banda_id: id })));
     if (errInsert) throw new Error(errInsert.message);
+
+    if (estadoPrevio !== "confirmado" && input.estado === "confirmado") {
+      await limpiarIncidenciasPorConfirmacion(bandaIds, input.fechaInicio, input.fechaFin);
+    }
     return;
   }
 
@@ -353,6 +382,10 @@ export async function actualizarEvento(eventoId: string, input: NuevoEventoInput
   if (error) throw new Error(error.message);
 
   await sincronizarMovimientoAutomatico(eventoId, input.bandaId, input.tipo, input.titulo, input.fechaInicio, ingresoEsperado);
+
+  if (estadoPrevio !== "confirmado" && estado === "confirmado") {
+    await limpiarIncidenciasPorConfirmacion([input.bandaId], input.fechaInicio, input.fechaFin);
+  }
 }
 
 // Alta rápida de gira (Brief 8 §7, multi-banda desde Brief 9 §18) — una gira
@@ -378,6 +411,10 @@ export async function crearGira(
 
   const { error: errBandas } = await admin.from("gira_bandas").insert(bandaIds.map((id) => ({ gira_evento_id: data.id, banda_id: id })));
   if (errBandas) throw new Error(errBandas.message);
+
+  if (estado === "confirmado") {
+    await limpiarIncidenciasPorConfirmacion(bandaIds, desde, hasta);
+  }
 
   const { data: bandasInfo } = await admin.from("bandas").select("id, nombre").in("id", bandaIds);
   return mapearEvento(data, bandasInfo ?? []);
@@ -407,9 +444,24 @@ export async function asignarSetlistEvento(eventoId: string, setlistId: string |
 
 // Igual, pero para Tentativo/Confirmado (Brief "Estado Tentativo...") —
 // permite confirmar una fecha tentativa (o volverla a tentativa) directo
-// desde el detalle, sin pasar por el formulario completo de edición.
+// desde el detalle, sin pasar por el formulario completo de edición. Es el
+// disparador MÁS común de "Rediseño de Ausencias §1" (el botón "Confirmar"
+// de EventoDetalle) -- necesita el estado/tipo/fechas previos para decidir
+// si de verdad hubo una transición a confirmado y, si es gira, con qué
+// bandas (gira_bandas) limpiar incidencias.
 export async function asignarEstadoEvento(eventoId: string, estado: EstadoEvento) {
   const admin = supabaseMalgesto();
+  const { data: previo } = await admin.from("eventos").select("banda_id, tipo, estado, fecha_inicio, fecha_fin").eq("id", eventoId).single();
+
   const { error } = await admin.from("eventos").update({ estado }).eq("id", eventoId);
   if (error) throw new Error(error.message);
+
+  if (previo && previo.estado !== "confirmado" && estado === "confirmado") {
+    let bandaIds = [previo.banda_id];
+    if (previo.tipo === "gira") {
+      const { data: relaciones } = await admin.from("gira_bandas").select("banda_id").eq("gira_evento_id", eventoId);
+      if (relaciones && relaciones.length > 0) bandaIds = relaciones.map((r) => r.banda_id);
+    }
+    await limpiarIncidenciasPorConfirmacion(bandaIds, previo.fecha_inicio, previo.fecha_fin);
+  }
 }

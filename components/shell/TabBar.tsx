@@ -83,33 +83,6 @@ function GestionBoton() {
   );
 }
 
-// Brief "Disponibilidad de integrantes" §1: accesible para CUALQUIER
-// integrante (sin importar rol) — a diferencia de GestionBoton, sin gate de
-// esSuperadmin. Vive en el mismo cluster que Gestión/Cerrar sesión porque
-// es, igual que esos dos, una acción de "cuenta", no una vista principal
-// (no forma parte del menú de vistas de abajo).
-function DisponibilidadBoton() {
-  return (
-    <Link
-      href="/disponibilidad"
-      aria-label="Mi disponibilidad"
-      title="Mi disponibilidad"
-      className="flex h-8 w-8 items-center justify-center rounded-full no-underline"
-      style={{
-        background: "oklch(0.93 0.016 78 / 0.9)",
-        color: "oklch(0.45 0.02 55)",
-        border: "1px solid oklch(0.85 0.016 78)",
-      }}
-    >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="5" width="18" height="16" rx="2" />
-        <path d="M3 10h18M8 3v4M16 3v4" />
-        <path d="M9 15l2 2 4-4" />
-      </svg>
-    </Link>
-  );
-}
-
 function IconoCalendario() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -225,7 +198,6 @@ export function TabBar({
           boxShadow: "0 10px 26px -10px rgba(0,0,0,0.28)",
         }}
       >
-        <DisponibilidadBoton />
         {esSuperadmin && <GestionBoton />}
         <CerrarSesionBoton userEmail={userEmail} />
       </div>

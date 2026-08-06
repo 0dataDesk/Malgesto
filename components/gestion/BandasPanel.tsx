@@ -3,11 +3,13 @@
 import { useState, useTransition } from "react";
 import type { BandaSimple, ActualizacionBanda, Plaza } from "@/lib/gestionData";
 import { INSTRUMENTOS, ETIQUETA_INSTRUMENTO, etiquetaPlaza, type Instrumento } from "@/lib/instrumentoCatalogo";
-import { PALETA_COLOR_BANDA, colorConAlpha } from "@/lib/eventoUI";
+import { colorConAlpha } from "@/lib/eventoUI";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import { crearBandaAction, actualizarBandaAction, crearPlazaAction, eliminarPlazaAction } from "@/app/gestion/actions";
 
-const COLOR_DEFECTO = PALETA_COLOR_BANDA[0];
+// Mismo valor que el DEFAULT de bandas.color en la base -- lo que recibe una
+// banda recién creada hasta que alguien la abra y le elija un color propio.
+const COLOR_DEFECTO = "oklch(0.64 0.15 34)";
 
 // Brief "Rediseño visual de Gestión" §7: blanco opaco + borde, en vez de
 // gris translúcido — así el pill se distingue de cualquier color de banda
@@ -15,27 +17,47 @@ const COLOR_DEFECTO = PALETA_COLOR_BANDA[0];
 // no solo de un fondo neutro.
 const PILL_BLOQUE = { background: "oklch(0.99 0.008 82)", color: "oklch(0.35 0.02 55)", border: "1px solid oklch(0.86 0.016 78)" };
 
-// Brief "Color de banda configurable...": paleta acotada en vez de color
-// picker libre, para no arriesgar contraste/legibilidad -- ver
-// PALETA_COLOR_BANDA en lib/eventoUI.ts.
+function esHexValido(color: string): boolean {
+  return /^#[0-9a-fA-F]{6}$/.test(color);
+}
+
+// Brief "Rediseño de Ausencias §7": reemplaza la paleta preestablecida por
+// un selector de color real -- <input type="color"> solo acepta hex, pero
+// bandas.color puede seguir teniendo el valor oklch(...) de siempre (default
+// de la base, o elegido antes de este cambio) hasta que alguien lo edite acá
+// -- por eso el swatch cae a un gris neutro cuando el valor guardado no es
+// hex válido, y el texto de al lado siempre muestra el valor real guardado.
 function SelectorColorBanda({ value, onChange }: { value: string; onChange: (color: string) => void }) {
   return (
-    <div className="flex flex-wrap gap-2">
-      {PALETA_COLOR_BANDA.map((c) => (
-        <button
-          key={c}
-          type="button"
-          onClick={() => onChange(c)}
-          aria-label={`Color ${c}`}
-          className="h-7 w-7 shrink-0 rounded-full transition-transform"
-          style={{
-            background: c,
-            boxShadow: c === value ? "0 0 0 2px oklch(0.99 0.01 82), 0 0 0 4px oklch(0.3 0.02 55)" : "none",
-            transform: c === value ? "scale(1.05)" : "scale(1)",
-          }}
-        />
-      ))}
+    <div className="flex items-center gap-2.5">
+      <input
+        type="color"
+        value={esHexValido(value) ? value : "#888888"}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label="Color de la banda"
+        className="h-9 w-9 shrink-0 cursor-pointer rounded-lg border p-0.5"
+        style={{ borderColor: "oklch(0.88 0.013 78)" }}
+      />
+      <span className="font-mono text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+        {value}
+      </span>
     </div>
+  );
+}
+
+// Brief "Rediseño de Ausencias §6": campo libre, no una paleta curada --
+// Jorge escribe/pega cualquier emoji (picker nativo del teclado/SO), igual
+// de flexible que el selector de color de arriba.
+function SelectorEmojiBanda({ value, onChange }: { value: string; onChange: (emoji: string) => void }) {
+  return (
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="🎸"
+      maxLength={8}
+      className="w-20 rounded-lg border px-3 py-2 text-center text-xl outline-none"
+      style={{ background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)" }}
+    />
   );
 }
 
@@ -224,6 +246,7 @@ function DetalleBanda({
 }) {
   const [nombre, setNombre] = useState(banda.nombre);
   const [color, setColor] = useState(banda.color);
+  const [emoji, setEmoji] = useState(banda.emoji ?? "");
   const [genero, setGenero] = useState(banda.genero ?? "");
   const numeroIntegrantesInicial = banda.numeroIntegrantes !== null ? String(banda.numeroIntegrantes) : "";
   const [numeroIntegrantes, setNumeroIntegrantes] = useState(numeroIntegrantesInicial);
@@ -238,6 +261,7 @@ function DetalleBanda({
   const hayCambios =
     nombre.trim() !== banda.nombre ||
     color !== banda.color ||
+    (emoji.trim() || null) !== banda.emoji ||
     (genero.trim() || null) !== banda.genero ||
     numeroIntegrantes !== numeroIntegrantesInicial ||
     canciones !== banda.cancionesHabilitado ||
@@ -254,6 +278,7 @@ function DetalleBanda({
         const cambios: ActualizacionBanda = {
           nombre: nombre.trim(),
           color,
+          emoji: emoji.trim() || null,
           genero: genero.trim() || null,
           numeroIntegrantes: numeroIntegrantes.trim() === "" ? null : Number(numeroIntegrantes),
           cancionesHabilitado: canciones,
@@ -282,10 +307,20 @@ function DetalleBanda({
         </label>
         <input value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputCls} style={inputStyle} />
 
-        <label className="mb-1.5 mt-3 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.02 55)" }}>
-          Color
-        </label>
-        <SelectorColorBanda value={color} onChange={setColor} />
+        <div className="mt-3 flex gap-4">
+          <div>
+            <label className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.02 55)" }}>
+              Color
+            </label>
+            <SelectorColorBanda value={color} onChange={setColor} />
+          </div>
+          <div>
+            <label className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.02 55)" }}>
+              Emoji
+            </label>
+            <SelectorEmojiBanda value={emoji} onChange={setEmoji} />
+          </div>
+        </div>
 
         <div className="mt-3 flex gap-2">
           <div className="flex-1">
@@ -373,6 +408,7 @@ export function BandasPanel({ bandas: bandasIniciales, plazas: plazasIniciales }
               id,
               nombre: nombreNueva.trim(),
               color: COLOR_DEFECTO,
+              emoji: null,
               genero: null,
               numeroIntegrantes: null,
               archivada: false,

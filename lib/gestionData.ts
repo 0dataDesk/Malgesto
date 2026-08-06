@@ -5,6 +5,9 @@ export type BandaSimple = {
   id: string;
   nombre: string;
   color: string;
+  // Brief "Rediseño de Ausencias §5/§6": opcional -- si no está capturado,
+  // el calendario sigue mostrando el punto de color de siempre.
+  emoji: string | null;
   genero: string | null;
   numeroIntegrantes: number | null;
   archivada: boolean;
@@ -46,13 +49,14 @@ export async function obtenerBandasTodas(): Promise<BandaSimple[]> {
   const { data } = await admin
     .from("bandas")
     .select(
-      "id, nombre, color, genero, numero_integrantes, archivada, canciones_habilitado, setlist_habilitado, seteos_habilitado, finanzas_habilitado, stage_plot_habilitado"
+      "id, nombre, color, emoji, genero, numero_integrantes, archivada, canciones_habilitado, setlist_habilitado, seteos_habilitado, finanzas_habilitado, stage_plot_habilitado"
     )
     .order("nombre", { ascending: true });
   return (data ?? []).map((b) => ({
     id: b.id,
     nombre: b.nombre,
     color: b.color,
+    emoji: b.emoji,
     genero: b.genero,
     numeroIntegrantes: b.numero_integrantes,
     archivada: b.archivada,
@@ -80,6 +84,7 @@ export async function crearBanda(nombre: string, usuarioIdCreador: string): Prom
 export type ActualizacionBanda = {
   nombre: string;
   color: string;
+  emoji: string | null;
   genero: string | null;
   numeroIntegrantes: number | null;
   cancionesHabilitado: boolean;
@@ -96,6 +101,7 @@ export async function actualizarBanda(bandaId: string, cambios: ActualizacionBan
     .update({
       nombre: cambios.nombre,
       color: cambios.color,
+      emoji: cambios.emoji,
       genero: cambios.genero,
       numero_integrantes: cambios.numeroIntegrantes,
       canciones_habilitado: cambios.cancionesHabilitado,

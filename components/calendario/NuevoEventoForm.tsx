@@ -7,13 +7,20 @@ import type { AusenciaPersona } from "@/lib/ausenciasData";
 import { COLOR_TIPO, ETIQUETA_TIPO } from "@/lib/eventoUI";
 import { fechaISO } from "@/lib/fechas";
 import { ToggleChip } from "@/components/ui/ToggleChip";
-import { crearEventoAction, actualizarEventoAction, crearGiraRapidaAction } from "@/app/inicio/actions";
+import { crearEventoAction, actualizarEventoAction, crearGiraRapidaAction, crearIncidenciaAction } from "@/app/inicio/actions";
 import { enZonaApp, aUtcDesdeZonaApp } from "@/lib/zonaHoraria";
 import { HoraRangoSlider } from "./HoraRangoSlider";
 
 type SetlistOpcion = { id: string; bandaId: string; nombre: string };
 
+// Brief "Rediseño de Ausencias §2": "Ausencia" no es un TipoEvento real (no
+// toca `eventos`, sigue siendo una fila de `incidencias`) -- es una opción
+// más en este mismo selector de tipo, así que el tipo local del formulario
+// es la unión de TipoEvento + esta pseudo-opción, nunca al revés.
+type TipoFormulario = TipoEvento | "ausencia";
+
 const TIPOS: TipoEvento[] = ["show", "ensayo", "gira"];
+const COLOR_AUSENCIA = "oklch(0.55 0.02 55)";
 
 const inputCls = "w-full rounded-xl border px-3.5 py-3 text-[15px] outline-none";
 const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
@@ -111,7 +118,13 @@ export function NuevoEventoForm({
   const inicialGiraDesde = eventoExistente?.tipo === "gira" ? aFechaHora(eventoExistente.fechaInicio) : null;
   const inicialGiraHasta = eventoExistente?.tipo === "gira" && eventoExistente.fechaFin ? aFechaHora(eventoExistente.fechaFin) : null;
 
-  const [tipo, setTipo] = useState<TipoEvento>(eventoExistente?.tipo ?? "show");
+  // Brief "Rediseño de Ausencias §2": alguien sin banda donde crear eventos
+  // completos (solo "miembro" en todas) arranca directo en "ausencia" -- es
+  // la única opción que le sirve.
+  const [tipo, setTipo] = useState<TipoFormulario>(eventoExistente?.tipo ?? (bandasParaElegir.length > 0 ? "show" : "ausencia"));
+  const [ausenciaDesde, setAusenciaDesde] = useState(fechaISO(fechaSeleccionada));
+  const [ausenciaRango, setAusenciaRango] = useState(false);
+  const [ausenciaHasta, setAusenciaHasta] = useState(fechaISO(fechaSeleccionada));
   // Brief "Estado Tentativo...": default Confirmado -- solo aplica a
   // show/gira, se ignora (forzado a "confirmado") para el resto en onSubmit.
   const [tentativo, setTentativo] = useState(eventoExistente?.estado === "tentativo");
@@ -163,11 +176,13 @@ export function NuevoEventoForm({
 
   // Brief "Disponibilidad de integrantes" §4: aviso no bloqueante -- quién
   // de la banda (o bandas, si es gira) elegida está ausente en la fecha (o
-  // rango, si es gira) elegida. Deduplicado por persona+banda.
+  // rango, si es gira) elegida. Deduplicado por persona+banda. No aplica a
+  // "ausencia" (Rediseño de Ausencias §2): ahí la persona está declarando su
+  // PROPIA ausencia, no eligiendo una banda con la que podría chocar.
   const bandasSeleccionadas = tipo === "gira" ? Array.from(bandaIdsGira) : [bandaId];
   const rangoInicio = tipo === "gira" ? giraDesde : fechaISO(fechaBase);
   const rangoFin = tipo === "gira" ? giraHasta || giraDesde : fechaISO(fechaBase);
-  const personasAusentes = rangoInicio
+  const personasAusentes = tipo !== "ausencia" && rangoInicio
     ? (() => {
         const vistos = new Set<string>();
         return ausencias.filter((a) => {
@@ -221,7 +236,35 @@ export function NuevoEventoForm({
   // startTransition (que solo cubre la llamada al server action) y quedaba
   // sin mostrarle nada al usuario ni tocar `error`: clic en "Crear" y
   // "no pasaba nada", sin pista de por qué.
+  // Brief "Rediseño de Ausencias §2": rama completamente aparte de
+  // crearEventoAction -- una Ausencia no es un evento (nunca toca `eventos`,
+  // no tiene banda), así que ni construye un NuevoEventoInput.
+  const onSubmitAusencia = () => {
+    setError(null);
+    if (!ausenciaDesde) {
+      setError("Elegí una fecha.");
+      return;
+    }
+    const fin = ausenciaRango && ausenciaHasta ? ausenciaHasta : ausenciaDesde;
+    if (fin < ausenciaDesde) {
+      setError("La fecha de fin no puede ser anterior a la de inicio.");
+      return;
+    }
+    startTransition(async () => {
+      try {
+        await crearIncidenciaAction(ausenciaDesde, fin);
+        onCreado();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "No se pudo guardar la ausencia.");
+      }
+    });
+  };
+
   const onSubmit = () => {
+    if (tipo === "ausencia") {
+      onSubmitAusencia();
+      return;
+    }
     setError(null);
     try {
       const tituloFinal = tipo === "ensayo" ? "Ensayo" : titulo.trim();
@@ -302,7 +345,19 @@ export function NuevoEventoForm({
     }
   };
 
-  const tituloForm = eventoExistente ? "Editar evento" : tipo === "gira" ? "Nueva gira" : `Nuevo evento · ${fechaLarga(fechaBase)}`;
+  const tituloForm = eventoExistente
+    ? "Editar evento"
+    : tipo === "gira"
+      ? "Nueva gira"
+      : tipo === "ausencia"
+        ? "Declarar ausencia"
+        : `Nuevo evento · ${fechaLarga(fechaBase)}`;
+
+  // Brief "Rediseño de Ausencias §2": "Ausencia" solo aparece al CREAR (no
+  // existe como TipoEvento editable) y solo para gente sin banda donde
+  // pueda crear eventos completos se le suma a la lista -- quien sí puede
+  // crear show/ensayo/gira ve las 4 opciones.
+  const tiposDisponibles: TipoFormulario[] = eventoExistente ? TIPOS : bandasParaElegir.length > 0 ? [...TIPOS, "ausencia"] : ["ausencia"];
 
   const selectorBanda = bandasParaElegir.length > 1 && (
     <div>
@@ -403,11 +458,48 @@ export function NuevoEventoForm({
               Tipo
             </span>
             <div className="flex flex-wrap gap-1.5">
-              {TIPOS.map((t) => (
-                <ToggleChip key={t} label={ETIQUETA_TIPO[t]} active={tipo === t} onClick={() => setTipo(t)} color={COLOR_TIPO[t]} />
+              {tiposDisponibles.map((t) => (
+                <ToggleChip
+                  key={t}
+                  label={t === "ausencia" ? "Ausencia" : ETIQUETA_TIPO[t]}
+                  active={tipo === t}
+                  onClick={() => setTipo(t)}
+                  color={t === "ausencia" ? COLOR_AUSENCIA : COLOR_TIPO[t]}
+                />
               ))}
             </div>
           </div>
+
+          {/* Brief "Rediseño de Ausencias §2": sub-form acotado -- por día
+              individual por default (el mismo día en el que se abrió "+
+              Nuevo"), con opción de extender a un rango de días seguidos
+              para vacaciones/gira personal. Sin campo de motivo (igual que
+              la incidencia manual de siempre) ni selector de banda (la
+              ausencia es de la persona, no de una banda puntual). */}
+          {tipo === "ausencia" && (
+            <div className="flex flex-col gap-3">
+              <div>
+                <span className={labelCls} style={labelStyle}>
+                  {ausenciaRango ? "Desde" : "Fecha"}
+                </span>
+                <input type="date" className={inputCls} style={inputStyle} value={ausenciaDesde} onChange={(e) => setAusenciaDesde(e.target.value)} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className={labelCls} style={{ ...labelStyle, marginBottom: 0 }}>
+                  Varios días seguidos
+                </span>
+                <Switch activo={ausenciaRango} onToggle={() => setAusenciaRango((v) => !v)} />
+              </div>
+              {ausenciaRango && (
+                <div>
+                  <span className={labelCls} style={labelStyle}>
+                    Hasta
+                  </span>
+                  <input type="date" className={inputCls} style={inputStyle} value={ausenciaHasta} onChange={(e) => setAusenciaHasta(e.target.value)} />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Brief "Disponibilidad de integrantes" §4: aviso, nunca bloquea
               -- se recalcula solo, reactivo a banda(s) y fecha(s) elegidas
@@ -444,23 +536,24 @@ export function NuevoEventoForm({
 
           {tipo === "ensayo" && selectorBanda}
 
-          {tipo === "ensayo" ? (
-            <div>
-              <span className={labelCls} style={labelStyle}>
-                Título
-              </span>
-              <div className="rounded-xl border px-3.5 py-3 text-[15px]" style={{ ...inputStyle, color: "oklch(0.5 0.02 55)" }}>
-                Ensayo
+          {tipo !== "ausencia" &&
+            (tipo === "ensayo" ? (
+              <div>
+                <span className={labelCls} style={labelStyle}>
+                  Título
+                </span>
+                <div className="rounded-xl border px-3.5 py-3 text-[15px]" style={{ ...inputStyle, color: "oklch(0.5 0.02 55)" }}>
+                  Ensayo
+                </div>
               </div>
-            </div>
-          ) : (
-            <div>
-              <span className={labelCls} style={labelStyle}>
-                Título
-              </span>
-              <input className={inputCls} style={inputStyle} value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Foro Escénico" />
-            </div>
-          )}
+            ) : (
+              <div>
+                <span className={labelCls} style={labelStyle}>
+                  Título
+                </span>
+                <input className={inputCls} style={inputStyle} value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Foro Escénico" />
+              </div>
+            ))}
 
           {selectorLugar}
 
@@ -473,7 +566,8 @@ export function NuevoEventoForm({
             </div>
           )}
 
-          {tipo === "gira" ? (
+          {tipo !== "ausencia" &&
+            (tipo === "gira" ? (
             <>
               <div>
                 <span className={labelCls} style={labelStyle}>
@@ -521,25 +615,25 @@ export function NuevoEventoForm({
               </div>
             </>
           ) : (
-            <div>
-              <span className={labelCls} style={labelStyle}>
-                Horario
-              </span>
-              <div className="rounded-xl border px-3.5 py-2.5" style={inputStyle}>
-                <span className="text-sm">{fechaLarga(fechaBase)}</span>
-                <HoraRangoSlider
-                  inicio={horaInicio}
-                  fin={horaFin}
-                  onChange={(i, f) => {
-                    setHoraInicio(i);
-                    setHoraFin(f);
-                  }}
-                />
+              <div>
+                <span className={labelCls} style={labelStyle}>
+                  Horario
+                </span>
+                <div className="rounded-xl border px-3.5 py-2.5" style={inputStyle}>
+                  <span className="text-sm">{fechaLarga(fechaBase)}</span>
+                  <HoraRangoSlider
+                    inicio={horaInicio}
+                    fin={horaFin}
+                    onChange={(i, f) => {
+                      setHoraInicio(i);
+                      setHoraFin(f);
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-          )}
+            ))}
 
-          {tipo !== "ensayo" && tipo !== "gira" && selectorBanda}
+          {tipo !== "ensayo" && tipo !== "gira" && tipo !== "ausencia" && selectorBanda}
 
           {(tipo === "show" || tipo === "ensayo") && (
             <div>

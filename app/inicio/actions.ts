@@ -16,6 +16,7 @@ import {
   type EstadoEvento,
 } from "@/lib/malgestoEventos";
 import { crearSetlist } from "@/lib/setlistsData";
+import { crearIncidencia, eliminarIncidencia, type Ausencia } from "@/lib/ausenciasData";
 
 // Brief 18 §3: editar/eliminar eventos (y asignarles gira/Set List) es solo
 // para superadmin — crear se amplió a administrador también, ver
@@ -154,6 +155,37 @@ export async function crearSetlistDesdeEventoAction(eventoId: string, bandaId: s
 export async function asignarEstadoAction(eventoId: string, bandaId: string, estado: EstadoEvento) {
   await requerirSuperadminEnBanda(bandaId);
   await asignarEstadoEvento(eventoId, estado);
+  revalidatePath("/inicio");
+}
+
+async function usuarioActualId(): Promise<string> {
+  const supabase = await supabaseServerAuth();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("No hay sesión activa.");
+  return user.id;
+}
+
+// Brief "Rediseño de Ausencias §2": la Ausencia ya no vive en una página
+// aparte ("Mi disponibilidad", eliminada) -- se captura desde el mismo "+
+// Nuevo" del calendario, pero no es un evento real (no toca `eventos`, sigue
+// guardándose en `incidencias` tal cual ya existía). Por eso NO pasa por
+// crearEventoAction/requerirEscrituraEnBanda: cualquier integrante puede
+// crear una Ausencia, solo para sí mismo -- mismo guard (ninguno más que la
+// sesión) que ya tenía esta acción en app/disponibilidad/actions.ts.
+export async function crearIncidenciaAction(fechaInicio: string, fechaFin: string): Promise<Ausencia> {
+  const usuarioId = await usuarioActualId();
+  if (!fechaInicio || !fechaFin) throw new Error("Completá las dos fechas.");
+  if (fechaFin < fechaInicio) throw new Error("La fecha de fin no puede ser anterior a la de inicio.");
+  const incidencia = await crearIncidencia(usuarioId, fechaInicio, fechaFin);
+  revalidatePath("/inicio");
+  return incidencia;
+}
+
+export async function eliminarIncidenciaAction(incidenciaId: string): Promise<void> {
+  const usuarioId = await usuarioActualId();
+  await eliminarIncidencia(usuarioId, incidenciaId);
   revalidatePath("/inicio");
 }
 
