@@ -40,8 +40,19 @@ export function CalendarioShell({
   const [mes, setMes] = useState(() => new Date());
   const [activas, setActivas] = useState<Set<string>>(() => new Set(membresias.map((m) => m.bandaId)));
   const [diaSeleccionado, setDiaSeleccionado] = useState<Date | null>(null);
-  const [eventoDelDiaElegido, setEventoDelDiaElegido] = useState<Evento | null>(null);
-  const [eventoSeleccionado, setEventoSeleccionado] = useState<Evento | null>(null);
+  // Fix: "+ Crear Set List" (y "Confirmar fecha") parecían no hacer nada.
+  // Antes estos guardaban el objeto Evento entero, capturado al
+  // seleccionarlo — router.refresh() trae `eventos` (prop, server)
+  // actualizado, pero no reescribía esa copia ya en estado, así que el
+  // detalle abierto seguía mostrando el evento viejo (sin setlistId, con
+  // estado tentativo) aunque el server action ya hubiera terminado bien
+  // (confirmado con datos reales: el Set List sí se creaba y asignaba en la
+  // base, solo no se veía reflejado en pantalla). Guardar solo el id y
+  // derivar el objeto actual en cada render (más abajo, contra
+  // eventosConCumple) resuelve esto sin un efecto que reescriba estado
+  // sincrónicamente (evitado a propósito, ver regla react-hooks del lint).
+  const [eventoDelDiaElegidoId, setEventoDelDiaElegidoId] = useState<string | null>(null);
+  const [eventoSeleccionadoId, setEventoSeleccionadoId] = useState<string | null>(null);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [eventoEnEdicion, setEventoEnEdicion] = useState<Evento | undefined>(undefined);
   const [fechaParaForm, setFechaParaForm] = useState<Date>(() => new Date());
@@ -63,6 +74,14 @@ export function CalendarioShell({
     () => [...eventos, ...generarCumpleanosVirtuales(cumpleanos, mes)],
     [eventos, cumpleanos, mes]
   );
+
+  // Derivados (no estado) a partir de los ids de arriba — siempre reflejan
+  // el evento actual de eventosConCumple, incluso justo después de un
+  // router.refresh(). Busca en eventosConCumple, no en `eventos` a secas,
+  // porque un cumpleaños elegido desde la lista de un día con varios
+  // eventos es virtual y no vive en `eventos`.
+  const eventoDelDiaElegido = eventoDelDiaElegidoId ? (eventosConCumple.find((e) => e.id === eventoDelDiaElegidoId) ?? null) : null;
+  const eventoSeleccionado = eventoSeleccionadoId ? (eventosConCumple.find((e) => e.id === eventoSeleccionadoId) ?? null) : null;
 
   // Brief 9 §2: cada chip prende/apaga SOLO ese chip (el set arranca con
   // TODAS las bandas activas, no vacío) — con todas apagadas o todas
@@ -118,16 +137,16 @@ export function CalendarioShell({
   const onDiaClick = (dia: Date) => {
     if (diaSeleccionado && esMismoDia(dia, diaSeleccionado)) {
       setDiaSeleccionado(null);
-      setEventoDelDiaElegido(null);
+      setEventoDelDiaElegidoId(null);
     } else {
       setDiaSeleccionado(dia);
-      setEventoDelDiaElegido(null);
+      setEventoDelDiaElegidoId(null);
     }
   };
 
   const quitarSeleccionDia = () => {
     setDiaSeleccionado(null);
-    setEventoDelDiaElegido(null);
+    setEventoDelDiaElegidoId(null);
   };
 
   const abrirNuevoEnDia = (dia: Date) => {
@@ -137,8 +156,8 @@ export function CalendarioShell({
   };
 
   const abrirEdicion = (evento: Evento) => {
-    setEventoSeleccionado(null);
-    setEventoDelDiaElegido(null);
+    setEventoSeleccionadoId(null);
+    setEventoDelDiaElegidoId(null);
     setEventoEnEdicion(evento);
     setFechaParaForm(enZonaApp(evento.fechaInicio));
     setMostrarForm(true);
@@ -146,7 +165,7 @@ export function CalendarioShell({
 
   let listaContenido: React.ReactNode;
   if (!diaSeleccionado) {
-    listaContenido = <AgendaView eventos={eventosFiltradosAgenda} colorPorBanda={colorPorBanda} onEventoClick={setEventoSeleccionado} />;
+    listaContenido = <AgendaView eventos={eventosFiltradosAgenda} colorPorBanda={colorPorBanda} onEventoClick={(e) => setEventoSeleccionadoId(e.id)} />;
   } else if (eventosDelDia.length === 0) {
     listaContenido = (
       <p className="pt-10 text-center text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
@@ -162,10 +181,10 @@ export function CalendarioShell({
         giras={giras.filter((g) => g.bandaIds.some((id) => eventoAMostrar.bandaIds.includes(id)))}
         setlists={setlists.filter((s) => s.bandaId === eventoAMostrar.bandaId)}
         puedeEditar={esSuperadmin}
-        onCerrar={() => (eventosDelDia.length > 1 ? setEventoDelDiaElegido(null) : quitarSeleccionDia())}
+        onCerrar={() => (eventosDelDia.length > 1 ? setEventoDelDiaElegidoId(null) : quitarSeleccionDia())}
         onEditar={abrirEdicion}
         onEliminado={() => {
-          setEventoDelDiaElegido(null);
+          setEventoDelDiaElegidoId(null);
           setDiaSeleccionado(null);
           router.refresh();
         }}
@@ -180,7 +199,7 @@ export function CalendarioShell({
           <button
             key={e.id}
             type="button"
-            onClick={() => setEventoDelDiaElegido(e)}
+            onClick={() => setEventoDelDiaElegidoId(e.id)}
             className="flex items-center justify-between gap-3 rounded-2xl p-3.5 text-left"
             style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", borderLeft: `3px solid ${COLOR_TIPO[e.tipo]}` }}
           >
@@ -258,7 +277,7 @@ export function CalendarioShell({
             colorPorBanda={colorPorBanda}
             diaSeleccionado={diaSeleccionado}
             onDiaClick={onDiaClick}
-            onEventoClick={setEventoSeleccionado}
+            onEventoClick={(e) => setEventoSeleccionadoId(e.id)}
           />
         </div>
       </div>
@@ -313,10 +332,10 @@ export function CalendarioShell({
           giras={giras.filter((g) => g.bandaIds.some((id) => eventoSeleccionado.bandaIds.includes(id)))}
           setlists={setlists.filter((s) => s.bandaId === eventoSeleccionado.bandaId)}
           puedeEditar={esSuperadmin}
-          onCerrar={() => setEventoSeleccionado(null)}
+          onCerrar={() => setEventoSeleccionadoId(null)}
           onEditar={abrirEdicion}
           onEliminado={() => {
-            setEventoSeleccionado(null);
+            setEventoSeleccionadoId(null);
             router.refresh();
           }}
           onEstadoActualizado={() => router.refresh()}
