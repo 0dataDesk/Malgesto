@@ -4,11 +4,12 @@ import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
 import { obtenerSetlists } from "@/lib/setlistsData";
 import { crearSetlistAction } from "@/app/set-list/actions";
-import { colorConAlpha } from "@/lib/eventoUI";
 import { TabBar } from "@/components/shell/TabBar";
 
-// Sets guardados (pantalla 09), filtrado por banda activa igual que
-// Canciones y Calendario.
+// Brief "Set List: selector de banda previo": mismo patrón que Canciones y
+// Finanzas — reemplaza los chips de filtro que vivían dentro de la vista por
+// una pantalla "¿Qué banda?" previa, sin ?banda= válido y con más de una
+// banda con el bloque activo. Con una sola banda, se salta directo.
 export default async function SetListPage({
   searchParams,
 }: {
@@ -30,6 +31,51 @@ export default async function SetListPage({
   if (bandasConBloque.length === 0) redirect("/inicio");
 
   const bandaValida = bandasConBloque.some((m) => m.bandaId === bandaParam);
+
+  if (!bandaValida && bandasConBloque.length > 1) {
+    return (
+      <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
+        <div className="mx-auto max-w-2xl px-5 pt-20">
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+            Set List
+          </div>
+          <h2
+            className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
+            style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+          >
+            ¿Qué banda?
+          </h2>
+          <p className="mt-2 text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
+            Elegí la banda antes de ver sus Set Lists.
+          </p>
+
+          <div className="mt-5 flex flex-col gap-2.5">
+            {bandasConBloque.map((m) => (
+              <Link
+                key={m.bandaId}
+                href={`/set-list?banda=${m.bandaId}`}
+                className="flex items-center justify-between rounded-2xl p-4 text-base font-bold no-underline"
+                style={{ background: m.color, color: "oklch(0.99 0.01 82)" }}
+              >
+                <span>{m.bandaNombre}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <TabBar
+          activa="setlist"
+          userEmail={user.email}
+          esSuperadmin={superadmin}
+          mostrarCanciones={algunaBandaConBloque(membresias, "canciones", superadmin)}
+          mostrarSeteos={algunaBandaConBloque(membresias, "seteos", superadmin)}
+          mostrarFinanzas={algunaBandaConBloque(membresias, "finanzas", superadmin)}
+          mostrarStagePlot={algunaBandaConBloque(membresias, "stage_plot", superadmin)}
+        />
+      </div>
+    );
+  }
+
   const bandaActiva = bandaValida ? bandaParam! : bandasConBloque[0].bandaId;
   const nombreBandaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
 
@@ -39,8 +85,19 @@ export default async function SetListPage({
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
       <div className="mx-auto max-w-2xl px-5 pt-20">
-        <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
-          {nombreBandaActiva}
+        <div className="flex items-center gap-2.5">
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+            {nombreBandaActiva}
+          </div>
+          {bandasConBloque.length > 1 && (
+            <Link
+              href="/set-list"
+              className="font-mono text-[10px] font-bold tracking-wide no-underline"
+              style={{ color: "oklch(0.5 0.02 55)" }}
+            >
+              · ‹ Cambiar de banda
+            </Link>
+          )}
         </div>
         <div className="flex items-end justify-between gap-3">
           <h2
@@ -53,25 +110,6 @@ export default async function SetListPage({
             {setlists.length}
           </span>
         </div>
-
-        {bandasConBloque.length > 1 && (
-          <div className="mt-3.5 flex flex-wrap gap-2">
-            {bandasConBloque.map((m) => (
-              <Link
-                key={m.bandaId}
-                href={`/set-list?banda=${m.bandaId}`}
-                className="rounded-2xl px-3.5 py-2 text-sm font-bold no-underline"
-                style={
-                  m.bandaId === bandaActiva
-                    ? { background: m.color, color: "oklch(0.99 0.01 82)" }
-                    : { background: colorConAlpha(m.color, 0.14), color: m.color }
-                }
-              >
-                {m.bandaNombre}
-              </Link>
-            ))}
-          </div>
-        )}
 
         <div className="mt-4 flex flex-col gap-2.5">
           {setlists.length === 0 && (

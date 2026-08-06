@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import type { Evento } from "@/lib/malgestoEventos";
 import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_TENTATIVO, formatoMoneda, colorConAlpha, eventoYaPaso } from "@/lib/eventoUI";
 import { enZonaApp } from "@/lib/zonaHoraria";
-import { eliminarEventoAction, asignarEstadoAction } from "@/app/inicio/actions";
+import { eliminarEventoAction, asignarEstadoAction, crearSetlistDesdeEventoAction } from "@/app/inicio/actions";
 
 type SetlistOpcion = { id: string; nombre: string };
 
@@ -22,6 +22,7 @@ export function EventoDetalle({
   onEditar,
   onEliminado,
   onEstadoActualizado,
+  onSetlistCreado,
 }: {
   evento: Evento;
   giras: Evento[];
@@ -32,10 +33,32 @@ export function EventoDetalle({
   onEditar: (evento: Evento) => void;
   onEliminado: () => void;
   onEstadoActualizado: () => void;
+  onSetlistCreado: () => void;
 }) {
   const [pendienteEliminar, startEliminar] = useTransition();
   const [pendienteEstado, startEstado] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  // Brief "Crear Set List desde un evento": atajo de creación + asignación en
+  // un solo paso, sin pasar por "Editar" — nombre sugerido a partir del
+  // evento (su título ya cubre "nombre del evento o fecha": en Ensayo es el
+  // auto-generado "Ensayo {banda} — {fecha}"), pero editable.
+  const [creandoSetlist, setCreandoSetlist] = useState(false);
+  const [nombreSetlist, setNombreSetlist] = useState(evento.titulo);
+  const [pendienteSetlist, startSetlist] = useTransition();
+
+  const crearSetlist = () => {
+    setError(null);
+    startSetlist(async () => {
+      try {
+        await crearSetlistDesdeEventoAction(evento.id, evento.bandaId, nombreSetlist);
+        setCreandoSetlist(false);
+        onSetlistCreado();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "No se pudo crear el Set List.");
+      }
+    });
+  };
 
   const inicio = enZonaApp(evento.fechaInicio);
   const fin = evento.fechaFin ? enZonaApp(evento.fechaFin) : null;
@@ -197,6 +220,56 @@ export function EventoDetalle({
           <div className="mt-1 text-[15px]" style={{ color: "oklch(0.24 0.02 55)" }}>
             {setlistAsignado.nombre}
           </div>
+        </div>
+      )}
+
+      {!setlistAsignado && puedeEditar && (evento.tipo === "show" || evento.tipo === "ensayo") && (
+        <div className="mt-2.5">
+          {creandoSetlist ? (
+            <div className="rounded-2xl p-3" style={{ background: "oklch(0.93 0.016 78)" }}>
+              <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                Nuevo Set List
+              </div>
+              <input
+                className="mt-1.5 w-full rounded-xl border px-3 py-2 text-sm outline-none"
+                style={{ background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" }}
+                value={nombreSetlist}
+                onChange={(e) => setNombreSetlist(e.target.value)}
+                placeholder="Nombre del Set List"
+              />
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={crearSetlist}
+                  disabled={pendienteSetlist}
+                  className="flex-1 rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-60"
+                  style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+                >
+                  {pendienteSetlist ? "Creando…" : "Crear y asignar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreandoSetlist(false)}
+                  className="rounded-lg px-3 py-2 text-sm font-bold"
+                  style={{ background: "oklch(0.99 0.008 82)", color: "oklch(0.4 0.02 55)" }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setNombreSetlist(evento.titulo);
+                setCreandoSetlist(true);
+              }}
+              className="text-sm font-bold"
+              style={{ color: "oklch(0.64 0.15 34)" }}
+            >
+              + Crear Set List
+            </button>
+          )}
         </div>
       )}
 

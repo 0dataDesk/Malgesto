@@ -15,6 +15,7 @@ import {
   type Evento,
   type EstadoEvento,
 } from "@/lib/malgestoEventos";
+import { crearSetlist } from "@/lib/setlistsData";
 
 // Brief 18 §3: editar/eliminar eventos (y asignarles gira/Set List) es solo
 // para superadmin — crear se amplió a administrador también, ver
@@ -132,6 +133,22 @@ export async function asignarSetlistAction(eventoId: string, bandaId: string, se
   await requerirSuperadminEnBanda(bandaId);
   await asignarSetlistEvento(eventoId, setlistId);
   revalidatePath("/inicio");
+}
+
+// Brief "Crear Set List desde un evento": atajo desde el detalle de un Show o
+// Ensayo — crea el Set List (banda heredada del evento, sin volver a
+// preguntar) y lo asigna en el mismo paso, usando el mismo mecanismo de
+// asignación de arriba (asignarSetlistEvento), sin pasar por el form de
+// edición completo. El Set List resultante no es especial: queda igual que
+// cualquier otro, visible en /set-list y reasignable desde ahí.
+export async function crearSetlistDesdeEventoAction(eventoId: string, bandaId: string, nombre: string) {
+  await requerirSuperadminEnBanda(bandaId);
+  const nombreFinal = nombre.trim() || "Set sin nombre";
+  const setlistId = await crearSetlist(bandaId, nombreFinal);
+  await asignarSetlistEvento(eventoId, setlistId);
+  revalidatePath("/inicio");
+  revalidatePath("/set-list");
+  return { id: setlistId, nombre: nombreFinal };
 }
 
 export async function asignarEstadoAction(eventoId: string, bandaId: string, estado: EstadoEvento) {
