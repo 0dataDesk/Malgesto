@@ -79,7 +79,16 @@ export async function obtenerAusencias(bandaIds: string[]): Promise<AusenciaPers
   if (bandaIds.length === 0) return [];
   const admin = supabaseMalgesto();
 
-  const { data: misMiembros } = await admin.from("miembros_banda").select("usuario_id, banda_id").in("banda_id", bandaIds).eq("activo", true);
+  // Fix "ausencias con demasiado ruido": superadmin no genera ni recibe
+  // ausencias (ni manuales ni automáticas) -- pertenece a todas las bandas,
+  // así que sin este filtro cualquier evento suyo en cualquier banda lo
+  // marcaría "ausente" en todas las demás. Solo miembro/administrador cuentan.
+  const { data: misMiembros } = await admin
+    .from("miembros_banda")
+    .select("usuario_id, banda_id")
+    .in("banda_id", bandaIds)
+    .in("rol", ["miembro", "administrador"])
+    .eq("activo", true);
   if (!misMiembros || misMiembros.length === 0) return [];
 
   const personaIds = [...new Set(misMiembros.map((m) => m.usuario_id))];
@@ -90,6 +99,7 @@ export async function obtenerAusencias(bandaIds: string[]): Promise<AusenciaPers
     .from("miembros_banda")
     .select("usuario_id, banda_id")
     .in("usuario_id", personaIds)
+    .in("rol", ["miembro", "administrador"])
     .eq("activo", true);
 
   const bandasPorPersona = new Map<string, Set<string>>();
@@ -110,7 +120,8 @@ export async function obtenerAusencias(bandaIds: string[]): Promise<AusenciaPers
         .from("eventos")
         .select("id, banda_id, tipo, fecha_inicio, fecha_fin")
         .in("banda_id", todasLasBandas)
-        .in("tipo", ["show", "ensayo", "gira"]),
+        .in("tipo", ["show", "ensayo", "gira"])
+        .eq("estado", "confirmado"),
       admin.from("gira_bandas").select("gira_evento_id, banda_id").in("banda_id", todasLasBandas),
     ]);
 
@@ -121,7 +132,7 @@ export async function obtenerAusencias(bandaIds: string[]): Promise<AusenciaPers
   const idsExtra = [...new Set((giraBandasRelevantes ?? []).map((g) => g.gira_evento_id))].filter((id) => !idsDirectos.has(id));
   const { data: eventosExtra } =
     idsExtra.length > 0
-      ? await admin.from("eventos").select("id, banda_id, tipo, fecha_inicio, fecha_fin").in("id", idsExtra)
+      ? await admin.from("eventos").select("id, banda_id, tipo, fecha_inicio, fecha_fin").in("id", idsExtra).eq("estado", "confirmado")
       : { data: [] as EventoParaConflicto[] };
 
   const eventos: EventoParaConflicto[] = [...(eventosDirectos ?? []), ...(eventosExtra ?? [])];
