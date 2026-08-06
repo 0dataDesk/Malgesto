@@ -1,7 +1,7 @@
 "use client";
 
 import type { Evento } from "@/lib/malgestoEventos";
-import { COLOR_TIPO, COLOR_TENTATIVO, colorConAlpha, eventoYaPaso } from "@/lib/eventoUI";
+import { COLOR_TIPO, COLOR_TENTATIVO, colorConAlpha } from "@/lib/eventoUI";
 import { celdasDelMes, esMismoDia, mismoMesAno } from "@/lib/fechas";
 import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 
@@ -12,6 +12,25 @@ function estaEnRangoGira(dia: Date, gira: Evento): boolean {
   const i = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
   const f = new Date(fin.getFullYear(), fin.getMonth(), fin.getDate());
   return d >= i && d <= f;
+}
+
+// Brief "Colores de calendario" §1: "pasado" es por DÍA (no por hora exacta
+// del evento como eventoYaPaso) — cualquier día ya transcurrido, sea
+// overflow del mes anterior o parte del mes visible. No afecta a "hoy": esa
+// celda siempre se pinta sólida más abajo, sin importar qué calcule esto.
+function esDiaPasado(dia: Date, hoy: Date): boolean {
+  const d = new Date(dia.getFullYear(), dia.getMonth(), dia.getDate());
+  const h = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  return d < h;
+}
+
+// "Más oscuro" aplica solo al overflow de CIERRE (mes siguiente al
+// visible) — el overflow de apertura (mes anterior) nunca lo recibe, según
+// el brief, incluso en el caso raro de que ese overflow sea futuro (navegar
+// varios meses adelante).
+function esOverflowMesSiguiente(dia: Date, mesVisible: Date): boolean {
+  const siguiente = new Date(mesVisible.getFullYear(), mesVisible.getMonth() + 1, 1);
+  return dia.getFullYear() === siguiente.getFullYear() && dia.getMonth() === siguiente.getMonth();
 }
 
 export function MesView({
@@ -66,20 +85,30 @@ export function MesView({
             const esFin = esMismoDia(dia, fin);
             radius = `${esInicio ? "9px" : "0"} ${esFin ? "9px" : "0"} ${esFin ? "9px" : "0"} ${esInicio ? "9px" : "0"}`;
           } else if (bandaIdsDelDia.length > 0) {
-            // Corrección §2: un punto de 5px por banda pasaba desapercibido
-            // al ver el mes completo. Se suma un fondo neutro (no el color de
-            // ninguna banda en particular, para no insinuar que el día es "de
-            // esa banda") detrás del número, mismo lenguaje visual que ya usa
-            // "hoy"/gira para destacar una celda — así un día con evento se
-            // distingue de uno vacío de un vistazo, y los puntos de color
-            // siguen abajo indicando cuáles bandas.
-            // Brief de refinamiento §2: si TODOS los eventos del día ya
-            // pasaron se usa un tono más apagado que si hay alguno futuro
-            // (mezclado cuenta como "con eventos futuros", mismo resaltado
-            // de siempre) — mismo criterio eventoYaPaso de lib/eventoUI.
-            const todosPasados = eventosDelDia.every((e) => eventoYaPaso(e));
-            bg = todosPasados ? "oklch(0.55 0.02 55 / 0.07)" : "oklch(0.55 0.02 55 / 0.16)";
-            radius = "9px";
+            // Brief "Colores de calendario" §1: reemplaza el fondo neutro
+            // único por 2 acentos distintos (no 2 intensidades del mismo
+            // color) — Show y Ensayo ya tenían color propio en COLOR_TIPO,
+            // reusado acá. Si un día tiene ambos tipos, Show manda (es el
+            // evento de mayor peso: compromiso público + ingreso, vs. un
+            // ensayo interno) — criterio explícito, no hace falta más señal
+            // visual para el caso mixto.
+            //
+            // Cumpleaños (sin Show ni Ensayo ese día) queda sin fondo
+            // especial acá — el punto de color de banda sigue marcándolo,
+            // pero esta capa de fondo es específicamente Show/Ensayo. No es
+            // parte explícita del alcance de este brief; señalado en la
+            // entrega por si se esperaba lo contrario.
+            const tieneShow = eventosDelDia.some((e) => e.tipo === "show");
+            const tieneEnsayo = eventosDelDia.some((e) => e.tipo === "ensayo");
+            const colorBase = tieneShow ? COLOR_TIPO.show : tieneEnsayo ? COLOR_TIPO.ensayo : null;
+
+            if (colorBase) {
+              const pasado = esDiaPasado(dia, hoy);
+              const mesSiguiente = !pasado && fueraDeMes && esOverflowMesSiguiente(dia, mes);
+              const alpha = pasado ? 0.08 : mesSiguiente ? 0.34 : 0.18;
+              bg = colorConAlpha(colorBase, alpha);
+              radius = "9px";
+            }
           }
 
           // Brief "Estado Tentativo...": una fecha tentativa necesita

@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { cerrarSesion } from "@/app/auth/actions";
 
@@ -6,6 +9,30 @@ import { cerrarSesion } from "@/app/auth/actions";
 // sesión (círculo de 36px), agrupados en su propia esquina para no sentirse
 // amontonados con ese otro cluster, y liberando el espacio vertical fijo que
 // ocupaba la barra en cada una de las 4 vistas principales.
+//
+// Brief "Colores de calendario, botón Hoy...": el menú de vistas se mudó de
+// abajo-derecha a arriba-centrado (§4), y Gestión/Cerrar sesión ahora se
+// ocultan al scrollear igual que la fila "Todas tus bandas" de Calendario
+// (§6) — pero esa fila vive en estado local de CalendarioShell, que no
+// existe en Canciones/Seteos/Finanzas/Stage Plot (TabBar se monta en las 6
+// vistas). Por eso el listener de scroll vive acá adentro, en capture phase
+// sobre window: los eventos de scroll no burbujean, pero si se escuchan en
+// fase de captura sí se detectan aunque el scroll ocurra en un div interno
+// (el layout de Calendario, con su propio overflow-y-auto) en vez de en la
+// ventana entera (el resto de las vistas, con scroll normal de documento) —
+// un solo mecanismo cubre ambos casos sin plumbing por página.
+function useOcultarAlScrollear(): boolean {
+  const [oculto, setOculto] = useState(false);
+  useEffect(() => {
+    const onScroll = (e: Event) => {
+      const top = e.target instanceof Document ? window.scrollY : (e.target as HTMLElement).scrollTop;
+      setOculto(top > 8);
+    };
+    window.addEventListener("scroll", onScroll, true);
+    return () => window.removeEventListener("scroll", onScroll, true);
+  }, []);
+  return oculto;
+}
 
 function CerrarSesionBoton({ userEmail }: { userEmail?: string }) {
   return (
@@ -14,7 +41,7 @@ function CerrarSesionBoton({ userEmail }: { userEmail?: string }) {
         type="submit"
         aria-label="Cerrar sesión"
         title={userEmail ? `Cerrar sesión (${userEmail})` : "Cerrar sesión"}
-        className="flex h-9 w-9 items-center justify-center rounded-full"
+        className="flex h-8 w-8 items-center justify-center rounded-full"
         style={{
           background: "oklch(0.6 0.15 25 / 0.12)",
           color: "oklch(0.5 0.18 25)",
@@ -41,7 +68,7 @@ function GestionBoton() {
       href="/gestion"
       aria-label="Gestión"
       title="Gestión"
-      className="flex h-9 w-9 items-center justify-center rounded-full no-underline"
+      className="flex h-8 w-8 items-center justify-center rounded-full no-underline"
       style={{
         background: "oklch(0.93 0.016 78 / 0.9)",
         color: "oklch(0.45 0.02 55)",
@@ -150,18 +177,40 @@ export function TabBar({
   mostrarFinanzas?: boolean;
   mostrarStagePlot?: boolean;
 }) {
+  const oculto = useOcultarAlScrollear();
+
   return (
     <>
-      <div className="fixed z-20 flex items-center gap-2" style={{ top: 14, right: 14 }}>
+      {/* Brief §6: mismo lenguaje visual del menú de vistas de abajo (pill
+          agrupada, no 2 círculos sueltos) — ya no hace falta que Gestión y
+          Cerrar sesión sean círculos independientes, solo que queden
+          agrupados de forma reconocible y sigan accesibles. */}
+      <div
+        className="fixed z-20 flex items-center gap-1.5 rounded-full p-1.5 transition-all duration-200"
+        style={{
+          top: 14,
+          right: 14,
+          opacity: oculto ? 0 : 1,
+          transform: oculto ? "translateY(-10px)" : "translateY(0)",
+          pointerEvents: oculto ? "none" : "auto",
+          background: "oklch(0.99 0.008 82 / 0.95)",
+          border: "1px solid oklch(0.89 0.013 78)",
+          boxShadow: "0 10px 26px -10px rgba(0,0,0,0.28)",
+        }}
+      >
         {esSuperadmin && <GestionBoton />}
         <CerrarSesionBoton userEmail={userEmail} />
       </div>
 
+      {/* Brief §4: el menú de vistas se muda de abajo-derecha a
+          arriba-centrado — mismo comportamiento flotante, solo cambia la
+          posición (no se oculta al scrollear, eso es exclusivo de §6). */}
       <div
         className="fixed z-20 flex items-center gap-1.5 rounded-full p-1.5"
         style={{
-          bottom: 14,
-          right: 14,
+          top: 14,
+          left: "50%",
+          transform: "translateX(-50%)",
           background: "oklch(0.99 0.008 82 / 0.95)",
           border: "1px solid oklch(0.89 0.013 78)",
           boxShadow: "0 10px 26px -10px rgba(0,0,0,0.28)",

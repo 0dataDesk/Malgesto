@@ -36,7 +36,7 @@ export default async function StagePlotPage({
   if (!bandaValida && bandasConBloque.length > 1) {
     return (
       <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
-        <div className="mx-auto max-w-2xl px-5 pt-5">
+        <div className="mx-auto max-w-2xl px-5 pt-20">
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
             Stage Plot
           </div>
@@ -86,7 +86,7 @@ export default async function StagePlotPage({
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
-      <div className="mx-auto max-w-3xl px-5 pt-5">
+      <div className="mx-auto max-w-3xl px-5 pt-20">
         <div className="flex items-center gap-2.5">
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
             {nombreBandaActiva}

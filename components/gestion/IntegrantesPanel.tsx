@@ -16,6 +16,8 @@ import {
   asignarPersonaAPlazaAction,
   quitarPersonaDePlazaAction,
   actualizarBloquesVisiblesAction,
+  inactivarPersonaAction,
+  eliminarPersonaAction,
 } from "@/app/gestion/actions";
 
 // Catálogo de bloques opcionales restringibles por persona (Brief 21 §1) —
@@ -90,10 +92,12 @@ function FilaIntegrante({
   integrante,
   bandas,
   plazas,
+  onEliminado,
 }: {
   integrante: Integrante;
   bandas: BandaSimple[];
   plazas: Plaza[];
+  onEliminado: () => void;
 }) {
   const [expandido, setExpandido] = useState(false);
   const [nombreMostrar, setNombreMostrar] = useState(integrante.nombreMostrar ?? "");
@@ -104,6 +108,9 @@ function FilaIntegrante({
   const [bandasLocal, setBandasLocal] = useState(integrante.bandas);
   const [pendingBanda, setPendingBanda] = useState<string | null>(null);
   const [pendingRol, setPendingRol] = useState<string | null>(null);
+  const [pendingInactivar, setPendingInactivar] = useState(false);
+  const [pendingEliminar, setPendingEliminar] = useState(false);
+  const [errorPeligro, setErrorPeligro] = useState<string | null>(null);
 
   const bandaAsignada = (bandaId: string) => bandasLocal.find((b) => b.bandaId === bandaId && b.activo);
   const bandasActivas = bandasLocal.filter((b) => b.activo);
@@ -197,6 +204,36 @@ function FilaIntegrante({
         })
       );
     });
+  };
+
+  // Brief "Eliminar integrante" / "Inactivar": Inactivar reusa el mismo
+  // mecanismo que ya existía por banda (removerDeBanda), solo que para
+  // TODAS las bandas activas de una vez, en un solo botón explícito (antes
+  // había que destildar cada banda una por una en "Bandas asignadas").
+  // Eliminar es distinto: borrado real e irreversible, con el mismo patrón
+  // de confirm() nativo que ya usan LugaresPanel/MovimientoFila/EventoDetalle
+  // para acciones destructivas en esta app.
+  const inactivar = () => {
+    if (!integrante.usuarioId) return;
+    setErrorPeligro(null);
+    setPendingInactivar(true);
+    inactivarPersonaAction(integrante.usuarioId)
+      .then(() => setBandasLocal((prev) => prev.map((b) => ({ ...b, activo: false }))))
+      .catch((e) => setErrorPeligro(e instanceof Error ? e.message : "No se pudo inactivar."))
+      .finally(() => setPendingInactivar(false));
+  };
+
+  const eliminar = () => {
+    if (!integrante.usuarioId) return;
+    const nombre = integrante.nombreMostrar || integrante.email;
+    if (!confirm(`¿Eliminar por completo la cuenta de ${nombre}? Se borra su cuenta, datos personales y membresías. Esta acción no se puede deshacer.`))
+      return;
+    setErrorPeligro(null);
+    setPendingEliminar(true);
+    eliminarPersonaAction(integrante.usuarioId)
+      .then(() => onEliminado())
+      .catch((e) => setErrorPeligro(e instanceof Error ? e.message : "No se pudo eliminar."))
+      .finally(() => setPendingEliminar(false));
   };
 
   return (
@@ -384,6 +421,34 @@ function FilaIntegrante({
               })}
             </SubAcordeon>
           )}
+
+          <div className="flex gap-2 border-t pt-3" style={{ borderColor: "oklch(0.9 0.012 78)" }}>
+            {bandasActivas.length > 0 && (
+              <button
+                type="button"
+                onClick={inactivar}
+                disabled={pendingInactivar}
+                className="flex-1 rounded-lg py-2 text-xs font-bold disabled:opacity-60"
+                style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+              >
+                {pendingInactivar ? "Inactivando…" : "Inactivar"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={eliminar}
+              disabled={pendingEliminar}
+              className="flex-1 rounded-lg py-2 text-xs font-bold disabled:opacity-60"
+              style={{ background: "oklch(0.6 0.15 25 / 0.12)", color: "oklch(0.5 0.18 25)", border: "1px solid oklch(0.6 0.15 25 / 0.35)" }}
+            >
+              {pendingEliminar ? "Eliminando…" : "Eliminar cuenta"}
+            </button>
+          </div>
+          {errorPeligro && (
+            <p className="text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
+              {errorPeligro}
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -405,11 +470,13 @@ function GrupoIntegrantes({
   integrantes,
   bandas,
   plazas,
+  onEliminado,
 }: {
   titulo: string;
   integrantes: Integrante[];
   bandas: BandaSimple[];
   plazas: Plaza[];
+  onEliminado: (usuarioId: string) => void;
 }) {
   const [abierto, setAbierto] = useState(false);
 
@@ -433,7 +500,13 @@ function GrupoIntegrantes({
       {abierto && (
         <div className="flex flex-col gap-2 px-3.5 pb-3.5">
           {integrantes.map((i) => (
-            <FilaIntegrante key={i.usuarioId ?? i.email} integrante={i} bandas={bandas} plazas={plazas} />
+            <FilaIntegrante
+              key={i.usuarioId ?? i.email}
+              integrante={i}
+              bandas={bandas}
+              plazas={plazas}
+              onEliminado={() => i.usuarioId && onEliminado(i.usuarioId)}
+            />
           ))}
         </div>
       )}
@@ -444,7 +517,7 @@ function GrupoIntegrantes({
 export function IntegrantesPanel({
   bandas,
   personasPendientes: personasPendientesIniciales,
-  integrantes,
+  integrantes: integrantesIniciales,
   plazas,
 }: {
   bandas: BandaSimple[];
@@ -453,6 +526,10 @@ export function IntegrantesPanel({
   plazas: Plaza[];
 }) {
   const [personasPendientes, setPersonasPendientes] = useState(personasPendientesIniciales);
+  // Brief "Eliminar integrante": mismo patrón que LugaresPanel — el borrado
+  // pasa por un server action + revalidatePath, pero la fila desaparece de
+  // esta lista al toque via callback, sin depender del próximo refresh.
+  const [integrantes, setIntegrantes] = useState(integrantesIniciales);
 
   const [email, setEmail] = useState("");
   const [rolInvitar, setRolInvitar] = useState<RolInvitable>("miembro");
@@ -641,7 +718,14 @@ export function IntegrantesPanel({
             ]
               .filter((g) => g.lista.length > 0)
               .map((g) => (
-                <GrupoIntegrantes key={g.titulo} titulo={g.titulo} integrantes={g.lista} bandas={bandas} plazas={plazas} />
+                <GrupoIntegrantes
+                  key={g.titulo}
+                  titulo={g.titulo}
+                  integrantes={g.lista}
+                  bandas={bandas}
+                  plazas={plazas}
+                  onEliminado={(usuarioId) => setIntegrantes((prev) => prev.filter((i) => i.usuarioId !== usuarioId))}
+                />
               ))}
           </div>
         )}

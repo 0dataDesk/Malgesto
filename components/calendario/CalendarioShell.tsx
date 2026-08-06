@@ -8,7 +8,7 @@ import type { Lugar } from "@/lib/lugaresData";
 import type { PersonaConCumple } from "@/lib/cumpleanosVirtual";
 import { generarCumpleanosVirtuales } from "@/lib/cumpleanosVirtual";
 import { nombreMesAno, sumarMeses, esMismoDia, hora } from "@/lib/fechas";
-import { enZonaApp } from "@/lib/zonaHoraria";
+import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 import { COLOR_TIPO, ETIQUETA_TIPO, eventoYaPaso } from "@/lib/eventoUI";
 import { MesView } from "./MesView";
 import { AgendaView } from "./AgendaView";
@@ -170,6 +170,7 @@ export function CalendarioShell({
           router.refresh();
         }}
         onEstadoActualizado={() => router.refresh()}
+        onSetlistCreado={() => router.refresh()}
       />
     );
   } else {
@@ -204,13 +205,18 @@ export function CalendarioShell({
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden" style={{ background: "oklch(0.965 0.012 82)" }}>
-      <div className="mx-auto w-full max-w-2xl shrink-0 px-5 pt-5">
+      {/* Brief "...menú de vistas arriba centrado...": pt-20 en vez de pt-5
+          para que el título no quede debajo de la pill flotante de vistas,
+          que ahora vive arriba-centro (antes abajo-derecha, no competía con
+          este espacio). Mismo ajuste replicado en las otras 5 vistas que
+          montan TabBar. */}
+      <div className="mx-auto w-full max-w-2xl shrink-0 px-5 pt-20">
         <div
           className="overflow-hidden transition-all duration-200"
           style={{ maxHeight: scrolleado ? 0 : 40, opacity: scrolleado ? 0 : 1 }}
         >
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
-            Todas tus bandas
+            Calendario
           </div>
         </div>
         {/* Brief "Color de banda... calendario más compacto...": los chips
@@ -227,6 +233,18 @@ export function CalendarioShell({
         <div className="mt-3 flex items-center gap-3">
           <button type="button" onClick={() => setMes((m) => sumarMeses(m, -1))} className="text-lg" style={{ color: "oklch(0.6 0.02 55)" }} aria-label="Mes anterior">
             ‹
+          </button>
+          {/* Brief "Botón Hoy": vuelve al mes actual de un clic — útil tras
+              navegar varios meses adelante o atrás. No usa `new Date()`
+              directo (esa es la fecha del navegador, no la de
+              ZONA_HORARIA_APP) para no desalinearse de "hoy" en el grid. */}
+          <button
+            type="button"
+            onClick={() => setMes(ahoraEnZonaApp())}
+            className="rounded-full px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wide"
+            style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+          >
+            Hoy
           </button>
           <button type="button" onClick={() => setMes((m) => sumarMeses(m, 1))} className="text-lg" style={{ color: "oklch(0.6 0.02 55)" }} aria-label="Mes siguiente">
             ›
@@ -302,6 +320,7 @@ export function CalendarioShell({
             router.refresh();
           }}
           onEstadoActualizado={() => router.refresh()}
+          onSetlistCreado={() => router.refresh()}
         />
       )}
 

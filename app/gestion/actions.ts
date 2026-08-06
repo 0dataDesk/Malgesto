@@ -19,6 +19,8 @@ import {
   asignarABanda,
   actualizarRol,
   actualizarBloquesVisibles,
+  inactivarPersona,
+  eliminarPersona,
   type ResultadoInvitacion,
   type ActualizacionBanda,
   type RolInvitable,
@@ -142,6 +144,23 @@ export async function actualizarRolAction(usuarioId: string, bandaId: string, ro
 export async function actualizarBloquesVisiblesAction(usuarioId: string, bandaId: string, bloques: string[] | null): Promise<void> {
   await requerirSuperadmin();
   await actualizarBloquesVisibles(usuarioId, bandaId, bloques);
+  revalidatePath("/gestion");
+}
+
+export async function inactivarPersonaAction(usuarioId: string): Promise<void> {
+  await requerirSuperadmin();
+  await inactivarPersona(usuarioId);
+  revalidatePath("/gestion");
+}
+
+// Brief "Eliminar integrante": borrado real, no reversible — el gate de
+// confirmación explícita vive en la UI (mismo patrón que ya usan
+// LugaresPanel/MovimientoFila/EventoDetalle: confirm() nativo con aviso de
+// "no se puede deshacer"), acá solo el guard de rol + la verificación
+// conservadora de eliminarPersona (bloquea si hay movimientos financieros).
+export async function eliminarPersonaAction(usuarioId: string): Promise<void> {
+  await requerirSuperadmin();
+  await eliminarPersona(usuarioId);
   revalidatePath("/gestion");
 }
 

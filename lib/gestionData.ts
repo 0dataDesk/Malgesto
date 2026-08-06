@@ -503,3 +503,69 @@ export async function actualizarBloquesVisibles(usuarioId: string, bandaId: stri
     .eq("banda_id", bandaId);
   if (error) throw new Error(error.message);
 }
+
+// Brief "Ocultar botones... eliminar integrante": "Inactivar" ya existía
+// implícitamente (destildar cada banda una por una desde "Bandas asignadas"
+// ya deja a la persona en estado "inactivo" — ver el cálculo de `estado` en
+// obtenerIntegrantes más abajo), pero no como una acción explícita de un
+// solo clic. Esto hace lo mismo que remover cada banda por separado, en
+// una sola llamada — no toca personas/auth, el historial queda intacto.
+export async function inactivarPersona(usuarioId: string): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin.from("miembros_banda").update({ activo: false }).eq("usuario_id", usuarioId).eq("activo", true);
+  if (error) throw new Error(error.message);
+}
+
+export type VerificacionEliminacion = { eliminable: true } | { eliminable: false; motivo: string };
+
+// Criterio conservador (Brief "Eliminar integrante"): movimientos_financieros
+// no tiene FK a usuario_id (verificado, ninguna tabla la tiene — la integridad
+// acá es de aplicación, no de la base), así que borrar a la persona NO
+// fallaría a nivel DB, dejaría movimientos financieros con creado_por
+// huérfano en silencio. Se bloquea el borrado en vez de dejar ese rastro
+// financiero sin dueño — "Inactivar" es la alternativa para este caso.
+export async function verificarPersonaEliminable(usuarioId: string): Promise<VerificacionEliminacion> {
+  const admin = supabaseMalgesto();
+  const { count } = await admin.from("movimientos_financieros").select("id", { count: "exact", head: true }).eq("creado_por", usuarioId);
+  if (count && count > 0) {
+    return {
+      eliminable: false,
+      motivo: `No se puede eliminar: tiene ${count} movimiento${count === 1 ? "" : "s"} financiero${count === 1 ? "" : "s"} registrado${count === 1 ? "" : "s"} a su nombre. Para no perder ese historial, usá "Inactivar" en vez de eliminar.`,
+    };
+  }
+  return { eliminable: true };
+}
+
+// Hard delete real (Brief "Eliminar integrante"): borra cuenta de auth,
+// persona y todas sus membresías — no solo desactiva. Ningún usuario_id de
+// la app tiene FK formal (confirmado contra information_schema), así que el
+// orden de limpieza es responsabilidad de esta función, no de la DB: primero
+// las filas propias de la app (para que, si algo falla acá, la cuenta de
+// auth siga existiendo y se pueda reintentar sin dejar un estado "medio
+// borrado" imposible de iniciar sesión pero con rastros sueltos), recién al
+// final se borra la cuenta de auth.
+export async function eliminarPersona(usuarioId: string): Promise<void> {
+  const verificacion = await verificarPersonaEliminable(usuarioId);
+  if (!verificacion.eliminable) throw new Error(verificacion.motivo);
+
+  const admin = supabaseMalgesto();
+
+  const { error: errorPlazas } = await admin.from("persona_plazas").delete().eq("persona_id", usuarioId);
+  if (errorPlazas) throw new Error(errorPlazas.message);
+
+  // dispositivos -> seteos cascadea por FK (dispositivo_id ON DELETE CASCADE).
+  const { error: errorDispositivos } = await admin.from("dispositivos").delete().eq("usuario_id", usuarioId);
+  if (errorDispositivos) throw new Error(errorDispositivos.message);
+
+  const { error: errorMiembros } = await admin.from("miembros_banda").delete().eq("usuario_id", usuarioId);
+  if (errorMiembros) throw new Error(errorMiembros.message);
+
+  const { error: errorIgnorados } = await admin.from("accesos_ignorados").delete().eq("usuario_id", usuarioId);
+  if (errorIgnorados) throw new Error(errorIgnorados.message);
+
+  const { error: errorPersona } = await admin.from("personas").delete().eq("usuario_id", usuarioId);
+  if (errorPersona) throw new Error(errorPersona.message);
+
+  const { error: errorAuth } = await admin.auth.admin.deleteUser(usuarioId);
+  if (errorAuth) throw new Error(errorAuth.message);
+}
