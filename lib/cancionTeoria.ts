@@ -33,12 +33,6 @@ const INTERVALOS_POR_CALIDAD: Record<Calidad, Intervalo[]> = {
   sus4: [{ semitonos: 5, etiqueta: "4ª" }, { semitonos: 7, etiqueta: "5ª" }],
 };
 
-// 5ª explícita solo cuando no es justa (brief §5).
-const CALIDADES_CON_QUINTA_EXPLICITA = new Set<Calidad>(["disminuido", "dim7", "m7b5", "aumentado"]);
-export function requiereQuintaExplicita(calidad: Calidad): boolean {
-  return CALIDADES_CON_QUINTA_EXPLICITA.has(calidad);
-}
-
 const SUFIJO_POR_CALIDAD: Record<Calidad, string> = {
   mayor: "", menor: "m", disminuido: "dim", aumentado: "aum",
   "7": "7", maj7: "maj7", m7: "m7", dim7: "dim7", m7b5: "m7b5", sus2: "sus2", sus4: "sus4",
@@ -139,6 +133,16 @@ export function colorRaizAcorde(raiz: Nota, calidad: Calidad): string {
   return `hsl(${hue} ${s}% ${l}%)`;
 }
 
+const S_EXTENSION = 60;
+const L_EXTENSION = 40;
+
+// Color por nota para los pills 1/3/5/7/9 (independiente del color de fondo
+// de la tarjeta, que sale de colorRaizAcorde) — cada nota acompañante tiene
+// su propio color según su hue, no el de la raíz.
+export function colorExtension(nota: Nota): string {
+  return `hsl(${huePorNota(nota)} ${S_EXTENSION}% ${L_EXTENSION}%)`;
+}
+
 function hslARgb(h: number, s: number, l: number): [number, number, number] {
   const c = (1 - Math.abs(2 * l - 1)) * s;
   const hp = (((h % 360) + 360) % 360) / 60;
@@ -162,10 +166,10 @@ function luminanciaRelativa(color: string): number {
   return 0.2126 * canalLineal(r) + 0.7152 * canalLineal(g) + 0.0722 * canalLineal(b);
 }
 
-// Brief "Vista Final: fondo de color en tarjetas de acorde" — con el fondo
-// de la tarjeta pasando a ser el color de la nota, el texto encima ya no
-// puede ser un tono fijo: se elige negro o blanco según cuál da mejor
-// contraste contra ESE color en particular (fórmula de contraste WCAG).
+// Brief "Ajustes ChordBlock/ChordCard §1/§4": ya no decide el color del
+// símbolo del acorde (fijo en blanco) -- queda para decidir si la tarjeta
+// lee como "oscura" o "clara" en conjunto, uso que sigue vivo para elegir
+// la variante del fondo del badge de compases (§4).
 export function colorContrasteTexto(color: string): "#000000" | "#ffffff" {
   const luminancia = luminanciaRelativa(color);
   const contrasteBlanco = 1.05 / (luminancia + 0.05);
