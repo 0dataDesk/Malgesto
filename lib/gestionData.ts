@@ -12,6 +12,7 @@ export type BandaSimple = {
   setlistHabilitado: boolean;
   seteosHabilitado: boolean;
   finanzasHabilitado: boolean;
+  stagePlotHabilitado: boolean;
 };
 
 export type PersonaPendiente = {
@@ -45,7 +46,7 @@ export async function obtenerBandasTodas(): Promise<BandaSimple[]> {
   const { data } = await admin
     .from("bandas")
     .select(
-      "id, nombre, color, genero, numero_integrantes, archivada, canciones_habilitado, setlist_habilitado, seteos_habilitado, finanzas_habilitado"
+      "id, nombre, color, genero, numero_integrantes, archivada, canciones_habilitado, setlist_habilitado, seteos_habilitado, finanzas_habilitado, stage_plot_habilitado"
     )
     .order("nombre", { ascending: true });
   return (data ?? []).map((b) => ({
@@ -59,6 +60,7 @@ export async function obtenerBandasTodas(): Promise<BandaSimple[]> {
     setlistHabilitado: b.setlist_habilitado,
     seteosHabilitado: b.seteos_habilitado,
     finanzasHabilitado: b.finanzas_habilitado,
+    stagePlotHabilitado: b.stage_plot_habilitado,
   }));
 }
 
@@ -84,6 +86,7 @@ export type ActualizacionBanda = {
   setlistHabilitado: boolean;
   seteosHabilitado: boolean;
   finanzasHabilitado: boolean;
+  stagePlotHabilitado: boolean;
 };
 
 export async function actualizarBanda(bandaId: string, cambios: ActualizacionBanda): Promise<void> {
@@ -99,6 +102,7 @@ export async function actualizarBanda(bandaId: string, cambios: ActualizacionBan
       setlist_habilitado: cambios.setlistHabilitado,
       seteos_habilitado: cambios.seteosHabilitado,
       finanzas_habilitado: cambios.finanzasHabilitado,
+      stage_plot_habilitado: cambios.stagePlotHabilitado,
     })
     .eq("id", bandaId);
   if (error) throw new Error(error.message);

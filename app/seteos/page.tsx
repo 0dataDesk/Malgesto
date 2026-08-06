@@ -119,6 +119,7 @@ export default async function SeteosPage({
         mostrarCanciones={algunaBandaConBloque(membresias, "canciones", superadmin)}
         mostrarSetlist={algunaBandaConBloque(membresias, "set_list", superadmin)}
         mostrarFinanzas={algunaBandaConBloque(membresias, "finanzas", superadmin)}
+        mostrarStagePlot={algunaBandaConBloque(membresias, "stage_plot", superadmin)}
       />
     </div>
   );

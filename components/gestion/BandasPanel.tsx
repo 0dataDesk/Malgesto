@@ -231,6 +231,7 @@ function DetalleBanda({
   const [setlist, setSetlist] = useState(banda.setlistHabilitado);
   const [seteos, setSeteos] = useState(banda.seteosHabilitado);
   const [finanzas, setFinanzas] = useState(banda.finanzasHabilitado);
+  const [stagePlot, setStagePlot] = useState(banda.stagePlotHabilitado);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -242,7 +243,8 @@ function DetalleBanda({
     canciones !== banda.cancionesHabilitado ||
     setlist !== banda.setlistHabilitado ||
     seteos !== banda.seteosHabilitado ||
-    finanzas !== banda.finanzasHabilitado;
+    finanzas !== banda.finanzasHabilitado ||
+    stagePlot !== banda.stagePlotHabilitado;
 
   const guardar = () => {
     if (!nombre.trim()) return;
@@ -258,6 +260,7 @@ function DetalleBanda({
           setlistHabilitado: setlist,
           seteosHabilitado: seteos,
           finanzasHabilitado: finanzas,
+          stagePlotHabilitado: stagePlot,
         };
         await actualizarBandaAction(banda.id, cambios);
         onActualizada({ ...banda, ...cambios });
@@ -314,6 +317,7 @@ function DetalleBanda({
           <ToggleChip label="Set List" active={setlist} onClick={() => setSetlist((v) => !v)} />
           <ToggleChip label="Seteos" active={seteos} onClick={() => setSeteos((v) => !v)} />
           <ToggleChip label="Finanzas" active={finanzas} onClick={() => setFinanzas((v) => !v)} />
+          <ToggleChip label="Stage Plot" active={stagePlot} onClick={() => setStagePlot((v) => !v)} />
         </div>
 
         {hayCambios && (
@@ -376,6 +380,7 @@ export function BandasPanel({ bandas: bandasIniciales, plazas: plazasIniciales }
               setlistHabilitado: true,
               seteosHabilitado: true,
               finanzasHabilitado: true,
+              stagePlotHabilitado: true,
             },
           ].sort((a, b) => a.nombre.localeCompare(b.nombre))
         );
@@ -491,6 +496,11 @@ export function BandasPanel({ bandas: bandasIniciales, plazas: plazasIniciales }
               {b.finanzasHabilitado && (
                 <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
                   Finanzas
+                </span>
+              )}
+              {b.stagePlotHabilitado && (
+                <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
+                  Stage Plot
                 </span>
               )}
             </div>

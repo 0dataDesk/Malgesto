@@ -3,9 +3,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { supabaseMalgesto } from "@/lib/supabase/malgesto";
 
 // Refresca la sesión de auth en cada request a una ruta del shell y protege
-// /inicio, /canciones, /set-list, /seteos y /gestion (ver matcher en
-// proxy.ts). /gestion además exige rol superadmin, chequeado en la propia
-// página — este proxy solo garantiza que haya sesión.
+// /inicio, /canciones, /set-list, /seteos, /stage-plot y /gestion (ver
+// matcher en proxy.ts). /gestion además exige rol superadmin, chequeado en
+// la propia página — este proxy solo garantiza que haya sesión. /plot/[token]
+// (share público de Stage Plot) es pública a propósito y nunca pasa por acá.
 //
 // Onboarding fecha de nacimiento: además, sobre esas mismas rutas de shell
 // (no /sin-acceso, que ya está fuera de la app), exige que
@@ -46,7 +47,8 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/canciones") ||
     request.nextUrl.pathname.startsWith("/set-list") ||
     request.nextUrl.pathname.startsWith("/seteos") ||
-    request.nextUrl.pathname.startsWith("/gestion");
+    request.nextUrl.pathname.startsWith("/gestion") ||
+    request.nextUrl.pathname.startsWith("/stage-plot");
 
   const rutaProtegida =
     rutaAppShell ||

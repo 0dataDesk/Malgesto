@@ -101,6 +101,17 @@ function IconoFinanzas() {
   );
 }
 
+function IconoStagePlot() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="14" rx="1" />
+      <circle cx="8.5" cy="11" r="1.6" />
+      <circle cx="15.5" cy="9" r="1.6" />
+      <circle cx="12" cy="14.5" r="1.6" />
+    </svg>
+  );
+}
+
 function NavBoton({ href, activo, label, children }: { href: string; activo: boolean; label: string; children: React.ReactNode }) {
   return (
     <Link
@@ -128,14 +139,16 @@ export function TabBar({
   mostrarSetlist = true,
   mostrarSeteos = true,
   mostrarFinanzas = true,
+  mostrarStagePlot = true,
 }: {
-  activa: "calendario" | "canciones" | "setlist" | "seteos" | "finanzas";
+  activa: "calendario" | "canciones" | "setlist" | "seteos" | "finanzas" | "stage_plot";
   userEmail?: string;
   esSuperadmin?: boolean;
   mostrarCanciones?: boolean;
   mostrarSetlist?: boolean;
   mostrarSeteos?: boolean;
   mostrarFinanzas?: boolean;
+  mostrarStagePlot?: boolean;
 }) {
   return (
     <>
@@ -175,6 +188,11 @@ export function TabBar({
         {mostrarFinanzas && (
           <NavBoton href="/finanzas" activo={activa === "finanzas"} label="Finanzas">
             <IconoFinanzas />
+          </NavBoton>
+        )}
+        {mostrarStagePlot && (
+          <NavBoton href="/stage-plot" activo={activa === "stage_plot"} label="Stage Plot">
+            <IconoStagePlot />
           </NavBoton>
         )}
       </div>

@@ -12,13 +12,14 @@ export type Membresia = {
   setlistHabilitado: boolean;
   seteosHabilitado: boolean;
   finanzasHabilitado: boolean;
+  stagePlotHabilitado: boolean;
   bloquesVisibles: string[] | null;
 };
 
 // Brief 21 §1-2: bloque opcional de una banda (Calendario nunca se
 // restringe, no forma parte de este catálogo). "set_list" con guión bajo
 // porque así se persiste en miembros_banda.bloques_visibles.
-export type NombreBloque = "canciones" | "set_list" | "seteos" | "finanzas";
+export type NombreBloque = "canciones" | "set_list" | "seteos" | "finanzas" | "stage_plot";
 
 function bandaTieneBloque(m: Membresia, bloque: NombreBloque): boolean {
   switch (bloque) {
@@ -30,6 +31,8 @@ function bandaTieneBloque(m: Membresia, bloque: NombreBloque): boolean {
       return m.seteosHabilitado;
     case "finanzas":
       return m.finanzasHabilitado;
+    case "stage_plot":
+      return m.stagePlotHabilitado;
   }
 }
 

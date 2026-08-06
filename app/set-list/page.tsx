@@ -124,6 +124,7 @@ export default async function SetListPage({
         mostrarCanciones={algunaBandaConBloque(membresias, "canciones", superadmin)}
         mostrarSeteos={algunaBandaConBloque(membresias, "seteos", superadmin)}
         mostrarFinanzas={algunaBandaConBloque(membresias, "finanzas", superadmin)}
+        mostrarStagePlot={algunaBandaConBloque(membresias, "stage_plot", superadmin)}
       />
     </div>
   );
