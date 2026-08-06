@@ -1,4 +1,4 @@
-import { simboloAcorde, tonosDelAcorde, colorRaizAcorde, colorExtension, colorConAlphaHSL, requiereQuintaExplicita } from "@/lib/cancionTeoria";
+import { simboloAcorde, tonosDelAcorde, colorRaizAcorde, colorContrasteTexto, requiereQuintaExplicita } from "@/lib/cancionTeoria";
 import type { AcordeGuardado } from "@/lib/cancionesData";
 
 export type Densidad = "grande" | "media" | "compacta";
@@ -19,6 +19,13 @@ const TAMANOS: Record<Densidad, { padding: string; simbolo: string; nota: string
 //
 // Brief "Vista Final §1": las notas 1-3-5-7-9 ya no son un toggle -- se
 // muestran siempre, fijas.
+//
+// Brief "Vista Final: fondo de color en tarjetas de acorde": el fondo de la
+// tarjeta pasa a ser el color de la nota raíz (antes solo el texto del
+// símbolo lo usaba, sobre fondo blanco). Con eso, ningún texto puede quedar
+// en un color fijo -- todo el texto de la tarjeta (símbolo, badge de
+// compases, notas/grados) usa el mismo negro-o-blanco calculado por
+// contraste contra ESE fondo en particular.
 export function ChordBlock({
   acorde,
   densidad = "compacta",
@@ -31,22 +38,24 @@ export function ChordBlock({
     (t) => t.intervalo !== "5ª" || requiereQuintaExplicita(acorde.calidad)
   );
   const colorRaiz = colorRaizAcorde(acorde.notaRaiz, acorde.calidad);
+  const colorTexto = colorContrasteTexto(colorRaiz);
+  const colorPill = colorTexto === "#ffffff" ? "rgba(255, 255, 255, 0.18)" : "rgba(0, 0, 0, 0.12)";
   const notas = [
-    { numero: "1", nota: tonos.raiz, color: colorRaiz },
-    ...acompanantes.map((t) => ({ numero: t.intervalo.replace("ª", ""), nota: t.nota, color: colorExtension(t.nota) })),
+    { numero: "1", nota: tonos.raiz },
+    ...acompanantes.map((t) => ({ numero: t.intervalo.replace("ª", ""), nota: t.nota })),
   ];
   const tamano = TAMANOS[densidad];
 
   return (
-    <div className={`rounded-xl ${tamano.padding}`} style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+    <div className={`rounded-xl ${tamano.padding}`} style={{ background: colorRaiz, border: "1px solid oklch(0.89 0.013 78)" }}>
       <div className="flex items-start justify-between gap-1.5">
         <div
           className={`${tamano.simbolo} font-extrabold leading-tight break-words`}
-          style={{ color: colorRaiz, fontFamily: "var(--font-bricolage), sans-serif" }}
+          style={{ color: colorTexto, fontFamily: "var(--font-bricolage), sans-serif" }}
         >
           {simboloAcorde(acorde.notaRaiz, acorde.calidad)}
         </div>
-        <span className={`shrink-0 font-mono ${tamano.badge}`} style={{ color: "oklch(0.6 0.02 55)" }}>
+        <span className={`shrink-0 font-mono ${tamano.badge}`} style={{ color: colorTexto, opacity: 0.75 }}>
           {acorde.duracionCompases}c
         </span>
       </div>
@@ -55,9 +64,9 @@ export function ChordBlock({
           <span
             key={i}
             className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-mono ${tamano.nota} font-bold`}
-            style={{ background: colorConAlphaHSL(n.color, 0.14), color: "oklch(0.3 0.02 55)" }}
+            style={{ background: colorPill, color: colorTexto }}
           >
-            <span style={{ color: n.color }}>{n.numero}</span>
+            <span style={{ opacity: 0.75 }}>{n.numero}</span>
             {n.nota}
           </span>
         ))}

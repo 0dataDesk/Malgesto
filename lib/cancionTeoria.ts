@@ -139,15 +139,36 @@ export function colorRaizAcorde(raiz: Nota, calidad: Calidad): string {
   return `hsl(${hue} ${s}% ${l}%)`;
 }
 
-const S_EXTENSION = 60;
-const L_EXTENSION = 40;
-
-export function colorExtension(nota: Nota): string {
-  return `hsl(${huePorNota(nota)} ${S_EXTENSION}% ${L_EXTENSION}%)`;
+function hslARgb(h: number, s: number, l: number): [number, number, number] {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const hp = (((h % 360) + 360) % 360) / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  const [r0, g0, b0] = hp < 1 ? [c, x, 0] : hp < 2 ? [x, c, 0] : hp < 3 ? [0, c, x] : hp < 4 ? [0, x, c] : hp < 5 ? [x, 0, c] : [c, 0, x];
+  const m = l - c / 2;
+  return [r0 + m, g0 + m, b0 + m];
 }
 
-// Inserta un canal alfa en un color hsl(...) ya armado — mismo truco que
-// colorConAlpha en lib/eventoUI.ts, pero para hsl en vez de oklch.
-export function colorConAlphaHSL(color: string, alpha: number): string {
-  return color.replace(/\)$/, ` / ${alpha})`);
+function canalLineal(canal: number): number {
+  return canal <= 0.03928 ? canal / 12.92 : ((canal + 0.055) / 1.055) ** 2.4;
+}
+
+// Luminancia relativa WCAG (0 = negro, 1 = blanco) a partir de un color
+// hsl(h s% l%) como el que arma colorRaizAcorde.
+function luminanciaRelativa(color: string): number {
+  const match = /^hsl\((-?[\d.]+) ([\d.]+)% ([\d.]+)%\)$/.exec(color);
+  if (!match) return 0;
+  const [, h, s, l] = match;
+  const [r, g, b] = hslARgb(Number(h), Number(s) / 100, Number(l) / 100);
+  return 0.2126 * canalLineal(r) + 0.7152 * canalLineal(g) + 0.0722 * canalLineal(b);
+}
+
+// Brief "Vista Final: fondo de color en tarjetas de acorde" — con el fondo
+// de la tarjeta pasando a ser el color de la nota, el texto encima ya no
+// puede ser un tono fijo: se elige negro o blanco según cuál da mejor
+// contraste contra ESE color en particular (fórmula de contraste WCAG).
+export function colorContrasteTexto(color: string): "#000000" | "#ffffff" {
+  const luminancia = luminanciaRelativa(color);
+  const contrasteBlanco = 1.05 / (luminancia + 0.05);
+  const contrasteNegro = (luminancia + 0.05) / 0.05;
+  return contrasteBlanco >= contrasteNegro ? "#ffffff" : "#000000";
 }
