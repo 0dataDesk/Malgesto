@@ -39,6 +39,46 @@ export function colorConAlpha(color: string, alpha: number): string {
   return color.replace(/\)$/, ` / ${alpha})`);
 }
 
+// Brief "Paleta definitiva de colores del calendario": fondo de DÍA en el
+// grid del mes — independiente de COLOR_TIPO de arriba (ese sigue siendo
+// el acento de badges/pills en el resto de la app — EventoDetalle, borde
+// de la lista "varios eventos este día" — sin cambios, esto es
+// exclusivamente para el fondo de la celda). 3 intensidades por tipo:
+// normal (mes actual, no pasado) / pasado (más claro, cualquier día ya
+// transcurrido) / mesSiguiente (más oscuro, overflow de cierre futuro) —
+// mismo patrón de 3 estados para los 3 tipos, colores sólidos (no alpha
+// sobre el fondo de página, a diferencia del sistema anterior) para que la
+// intensidad sea exacta y predecible.
+export type IntensidadFondoDia = "pasado" | "normal" | "mesSiguiente";
+
+// Show: escala de grises pura (chroma casi 0) — el hue 55 es el mismo que
+// ya usa el resto de la app para sus neutros, así el gris no se siente
+// "importado" de otra paleta.
+export const FONDO_SHOW: Record<IntensidadFondoDia, string> = {
+  pasado: "oklch(0.915 0.008 55)",
+  normal: "oklch(0.82 0.012 55)",
+  mesSiguiente: "oklch(0.70 0.016 55)",
+};
+
+// Ensayo: café/mostaza — mismo hue base que los grises de Show pero con
+// chroma real (0.045-0.095 vs ~0.01), así se distingue con claridad sin
+// pelearse por atención con el naranja de acento (hue 34) ni con el ámbar
+// de tentativo (hue 88, chroma 0.17).
+export const FONDO_ENSAYO: Record<IntensidadFondoDia, string> = {
+  pasado: "oklch(0.87 0.045 55)",
+  normal: "oklch(0.74 0.08 52)",
+  mesSiguiente: "oklch(0.62 0.095 48)",
+};
+
+// Cumpleaños: dorado discreto — chroma deliberadamente más baja que Ensayo
+// ("discreto y agradable, no llamativo"), hue corrido hacia el amarillo
+// para no confundirse ni con Ensayo ni con tentativo.
+export const FONDO_CUMPLEANOS: Record<IntensidadFondoDia, string> = {
+  pasado: "oklch(0.91 0.022 95)",
+  normal: "oklch(0.83 0.035 95)",
+  mesSiguiente: "oklch(0.70 0.045 92)",
+};
+
 export const ETIQUETA_TIPO: Record<TipoEvento, string> = {
   show: "Show",
   ensayo: "Ensayo",

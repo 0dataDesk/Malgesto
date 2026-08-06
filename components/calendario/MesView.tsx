@@ -1,7 +1,7 @@
 "use client";
 
 import type { Evento } from "@/lib/malgestoEventos";
-import { COLOR_TIPO, COLOR_TENTATIVO, colorConAlpha } from "@/lib/eventoUI";
+import { COLOR_TIPO, COLOR_TENTATIVO, colorConAlpha, FONDO_SHOW, FONDO_ENSAYO, FONDO_CUMPLEANOS, type IntensidadFondoDia } from "@/lib/eventoUI";
 import { celdasDelMes, esMismoDia, mismoMesAno } from "@/lib/fechas";
 import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 
@@ -85,28 +85,26 @@ export function MesView({
             const esFin = esMismoDia(dia, fin);
             radius = `${esInicio ? "9px" : "0"} ${esFin ? "9px" : "0"} ${esFin ? "9px" : "0"} ${esInicio ? "9px" : "0"}`;
           } else if (bandaIdsDelDia.length > 0) {
-            // Brief "Colores de calendario" §1: reemplaza el fondo neutro
-            // único por 2 acentos distintos (no 2 intensidades del mismo
-            // color) — Show y Ensayo ya tenían color propio en COLOR_TIPO,
-            // reusado acá. Si un día tiene ambos tipos, Show manda (es el
-            // evento de mayor peso: compromiso público + ingreso, vs. un
-            // ensayo interno) — criterio explícito, no hace falta más señal
-            // visual para el caso mixto.
-            //
-            // Cumpleaños (sin Show ni Ensayo ese día) queda sin fondo
-            // especial acá — el punto de color de banda sigue marcándolo,
-            // pero esta capa de fondo es específicamente Show/Ensayo. No es
-            // parte explícita del alcance de este brief; señalado en la
-            // entrega por si se esperaba lo contrario.
+            // Brief "Paleta definitiva de colores del calendario": Show
+            // (grises), Ensayo (café/mostaza) y Cumpleaños (dorado
+            // discreto) cada uno con sus propias 3 intensidades — colores
+            // sólidos, ya no acentos con alpha sobre el fondo de página.
+            // Prioridad si un día mezcla tipos: Show sigue mandando sobre
+            // Ensayo (mismo criterio ya usado — es el evento de mayor peso).
+            // Cumpleaños entra por debajo de los dos: es un recordatorio
+            // pasivo, no algo que la banda deba "hacer" ese día, así que no
+            // debería tapar la señal de un Show/Ensayo real si coinciden —
+            // criterio propio, señalado en la entrega.
             const tieneShow = eventosDelDia.some((e) => e.tipo === "show");
             const tieneEnsayo = eventosDelDia.some((e) => e.tipo === "ensayo");
-            const colorBase = tieneShow ? COLOR_TIPO.show : tieneEnsayo ? COLOR_TIPO.ensayo : null;
+            const tieneCumple = eventosDelDia.some((e) => e.tipo === "cumpleanos");
+            const paleta = tieneShow ? FONDO_SHOW : tieneEnsayo ? FONDO_ENSAYO : tieneCumple ? FONDO_CUMPLEANOS : null;
 
-            if (colorBase) {
+            if (paleta) {
               const pasado = esDiaPasado(dia, hoy);
               const mesSiguiente = !pasado && fueraDeMes && esOverflowMesSiguiente(dia, mes);
-              const alpha = pasado ? 0.08 : mesSiguiente ? 0.34 : 0.18;
-              bg = colorConAlpha(colorBase, alpha);
+              const intensidad: IntensidadFondoDia = pasado ? "pasado" : mesSiguiente ? "mesSiguiente" : "normal";
+              bg = paleta[intensidad];
               radius = "9px";
             }
           }
@@ -138,9 +136,15 @@ export function MesView({
                 background: esHoy ? "oklch(0.24 0.02 55)" : bg,
                 borderRadius: esHoy ? 9 : radius,
                 boxShadow: anillos.length > 0 ? anillos.join(", ") : "none",
+                // El overflow de mes siguiente ahora puede llevar un fondo
+                // bastante más fuerte (gris/café/dorado oscuro) — el texto
+                // tenue de "fuera de mes" perdía casi todo el contraste ahí,
+                // así que un día con fondo de evento usa el texto oscuro
+                // normal sin importar si es overflow o no; el tenue queda
+                // reservado para overflow realmente vacío.
                 color: esHoy
                   ? "oklch(0.99 0.01 82)"
-                  : fueraDeMes
+                  : fueraDeMes && bg === "transparent"
                     ? "oklch(0.72 0.02 60)"
                     : "oklch(0.3 0.02 55)",
                 fontWeight: esHoy || giraDelDia || bandaIdsDelDia.length > 0 ? 700 : 400,
@@ -148,28 +152,20 @@ export function MesView({
             >
               {dia.getDate()}
               <div className="mt-0.5 flex h-[6px] gap-[3px]">
+                {/* Brief "Paleta definitiva de colores del calendario" §5:
+                    el punto vuelve a ser sólido siempre — ahora que el
+                    fondo del día ya distingue Show de Ensayo por color, el
+                    punto no necesita hacerlo también (era el anillo hueco
+                    del brief anterior); su único trabajo vuelve a ser
+                    indicar de qué banda es. */}
                 {!fueraDeMes &&
-                  bandaIdsDelDia.slice(0, 3).map((bandaId) => {
-                    // Brief "Distinguir Show vs Ensayo": mismo color de banda,
-                    // el punto pasa a anillo hueco cuando TODOS los eventos de
-                    // esa banda ese día son ensayo — un show (o un cumpleaños,
-                    // que este brief no toca) mantiene el punto sólido de
-                    // siempre, incluso si además hay un ensayo el mismo día.
-                    const eventosBanda = eventosDelDia.filter((e) => e.bandaId === bandaId);
-                    const soloEnsayo = eventosBanda.length > 0 && eventosBanda.every((e) => e.tipo === "ensayo");
-                    const color = colorPorBanda.get(bandaId) ?? "oklch(0.6 0.02 55)";
-                    return (
-                      <span
-                        key={bandaId}
-                        className="h-[6px] w-[6px] rounded-full"
-                        style={
-                          soloEnsayo
-                            ? { boxSizing: "border-box", border: `1.5px solid ${color}`, background: "transparent" }
-                            : { background: color }
-                        }
-                      />
-                    );
-                  })}
+                  bandaIdsDelDia.slice(0, 3).map((bandaId) => (
+                    <span
+                      key={bandaId}
+                      className="h-[6px] w-[6px] rounded-full"
+                      style={{ background: colorPorBanda.get(bandaId) ?? "oklch(0.6 0.02 55)" }}
+                    />
+                  ))}
               </div>
             </button>
           );
