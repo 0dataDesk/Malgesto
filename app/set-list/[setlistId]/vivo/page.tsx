@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias } from "@/lib/malgestoEventos";
 import { obtenerSetlistCompleto } from "@/lib/setlistsData";
+import { ETIQUETA_BLOQUE } from "@/lib/setlistCatalogo";
 
 // En vivo (pantalla 11): canciones del Set List en su orden definido. Tocar
 // una lleva a su vista final (Brief 4) pero con ?setlist= para que
@@ -29,6 +30,11 @@ export default async function SetlistEnVivoPage({
   const esMiembro = membresias.some((m) => m.bandaId === setlist.bandaId);
   if (!esMiembro) notFound();
 
+  // Brief "Marcadores de sección": mismo criterio que el editor — los
+  // marcadores no participan de la numeración de tomas.
+  let contadorTomas = 0;
+  const numeros = setlist.items.map((it) => (it.tipo === "marcador" ? null : ++contadorTomas));
+
   return (
     <div className="min-h-screen" style={{ background: "oklch(0.22 0.02 52)" }}>
       <div className="mx-auto max-w-2xl px-5 pb-16 pt-6">
@@ -47,7 +53,21 @@ export default async function SetlistEnVivoPage({
 
         <div className="flex flex-col gap-2.5">
           {setlist.items.map((item, i) =>
-            item.tipo === "cancion" && item.cancion ? (
+            item.tipo === "marcador" ? (
+              // Brief "Marcadores de sección": mismo divisor visual que el
+              // editor, sin número (los marcadores no participan de la
+              // numeración de tomas — ver `numeros` arriba).
+              <div key={item.id} className="flex items-center gap-2.5 py-1">
+                <div className="h-px flex-1" style={{ background: "oklch(0.4 0.03 60)" }} />
+                <span
+                  className="shrink-0 rounded-full px-3.5 py-1.5 font-mono text-xs font-bold uppercase tracking-wide"
+                  style={{ background: "oklch(0.34 0.03 55)", color: "oklch(0.85 0.08 80)" }}
+                >
+                  {item.etiqueta}
+                </span>
+                <div className="h-px flex-1" style={{ background: "oklch(0.4 0.03 60)" }} />
+              </div>
+            ) : item.tipo === "cancion" && item.cancion ? (
               <Link
                 key={item.id}
                 href={`/canciones/${item.cancion.id}?setlist=${setlistId}`}
@@ -55,7 +75,7 @@ export default async function SetlistEnVivoPage({
                 style={{ background: "oklch(0.28 0.025 55)", border: "1px solid oklch(0.34 0.03 55)" }}
               >
                 <span className="font-mono text-sm font-bold" style={{ color: "oklch(0.74 0.12 78)" }}>
-                  {i + 1}
+                  {numeros[i]}
                 </span>
                 <div className="flex-1">
                   <div
@@ -84,14 +104,14 @@ export default async function SetlistEnVivoPage({
                 style={{ background: "oklch(0.24 0.02 55)", border: "1px dashed oklch(0.5 0.05 60)" }}
               >
                 <span className="font-mono text-sm font-bold" style={{ color: "oklch(0.6 0.05 60)" }}>
-                  {i + 1}
+                  {numeros[i]}
                 </span>
                 <div className="flex-1">
                   <span
                     className="rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide"
                     style={{ background: "oklch(0.34 0.03 55)", color: "oklch(0.8 0.03 60)" }}
                   >
-                    {item.tipo === "sample" ? "Sample" : "Diálogo"}
+                    {ETIQUETA_BLOQUE[item.tipo as "secuencia" | "interludio"]}
                   </span>
                   <div className="mt-1 text-[16px] font-bold italic" style={{ color: "oklch(0.9 0.02 60)" }}>
                     {item.etiqueta}

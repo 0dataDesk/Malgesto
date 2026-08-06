@@ -18,7 +18,12 @@ export type CancionEnSetlist = {
   duracionAprox: string | null;
 };
 
-export type TipoItemSetlist = "cancion" | "sample" | "dialogo";
+// Brief "renombrar bloques libres...": sample -> secuencia, dialogo ->
+// interludio (rename ya hecho en la DB, sin datos que migrar), + marcador
+// nuevo (divisor de sección: Intro/Encore/Parte N, sin cancion_id, con
+// etiqueta obligatoria — misma regla de consistencia que secuencia/interludio,
+// ver CHECK constraint en la migración de este brief).
+export type TipoItemSetlist = "cancion" | "secuencia" | "interludio" | "marcador";
 
 export type SetlistItem = {
   id: string;

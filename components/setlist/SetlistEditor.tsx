@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import type { CancionEnSetlist, TipoItemSetlist } from "@/lib/setlistsData";
+import { ETIQUETA_BLOQUE, COLOR_BLOQUE } from "@/lib/setlistCatalogo";
 import { actualizarSetlistAction } from "@/app/set-list/actions";
 import { colorConAlpha } from "@/lib/eventoUI";
 
@@ -21,15 +22,17 @@ function metaCancion(c: CancionEnSetlist) {
   return partes.join(" · ");
 }
 
-const ETIQUETA_TIPO: Record<Exclude<TipoItemSetlist, "cancion">, string> = {
-  sample: "Sample",
-  dialogo: "Diálogo",
-};
-
-const COLOR_TIPO: Record<Exclude<TipoItemSetlist, "cancion">, string> = {
-  sample: "oklch(0.62 0.14 250)",
-  dialogo: "oklch(0.66 0.14 300)",
-};
+// Brief "Marcadores de sección": sugiere "Parte N+1" a partir del número más
+// alto ya usado entre los marcadores "Parte N" existentes — si no hay
+// ninguno, arranca en 1.
+function siguienteParte(items: ItemLocal[]): number {
+  const numeros = items
+    .filter((i) => i.tipo === "marcador" && i.etiqueta)
+    .map((i) => /^Parte (\d+)$/.exec(i.etiqueta!)?.[1])
+    .filter((n): n is string => !!n)
+    .map(Number);
+  return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
+}
 
 // Armar & ordenar (pantalla 10): agregar canciones del catálogo de la
 // banda, reordenar con botones (Design permite drag o botones — se eligió
@@ -53,6 +56,7 @@ export function SetlistEditor({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [nuevaEtiqueta, setNuevaEtiqueta] = useState("");
+  const [textoMarcador, setTextoMarcador] = useState("");
 
   const idsEnSet = new Set(items.filter((i) => i.tipo === "cancion").map((i) => i.cancionId));
   const disponibles = cancionesDisponibles.filter((c) => !idsEnSet.has(c.id));
@@ -62,11 +66,19 @@ export function SetlistEditor({
     setGuardado(false);
   };
 
-  const agregarBloque = (tipo: "sample" | "dialogo") => {
+  const agregarBloque = (tipo: "secuencia" | "interludio") => {
     const etiqueta = nuevaEtiqueta.trim();
     if (!etiqueta) return;
     setItems((prev) => [...prev, { tipo, cancionId: null, etiqueta, notasTransicion: null, cancion: null }]);
     setNuevaEtiqueta("");
+    setGuardado(false);
+  };
+
+  const agregarMarcador = (etiqueta: string) => {
+    const limpio = etiqueta.trim();
+    if (!limpio) return;
+    setItems((prev) => [...prev, { tipo: "marcador", cancionId: null, etiqueta: limpio, notasTransicion: null, cancion: null }]);
+    setTextoMarcador("");
     setGuardado(false);
   };
 
@@ -102,6 +114,13 @@ export function SetlistEditor({
     });
   };
 
+  // Brief "Marcadores de sección": los marcadores tienen orden pero no
+  // número visible — no deben romper ni saltar la numeración 1,2,3... de
+  // canciones/secuencia/interludio, así que el contador solo avanza para
+  // esos tres tipos.
+  let contadorTomas = 0;
+  const numeros = items.map((it) => (it.tipo === "marcador" ? null : ++contadorTomas));
+
   return (
     <div className="mx-auto max-w-2xl px-5 pb-16 pt-6">
       <div className="mb-1 flex items-center justify-between">
@@ -125,63 +144,96 @@ export function SetlistEditor({
             Sin canciones todavía — agregá del catálogo abajo.
           </p>
         )}
-        {items.map((it, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-3 rounded-xl p-3"
-            style={
-              it.tipo === "cancion"
-                ? { background: "oklch(0.185 0.008 260)", border: "1px solid oklch(0.28 0.01 260)" }
-                : { background: "oklch(0.185 0.008 260)", border: `1px dashed ${COLOR_TIPO[it.tipo]}` }
-            }
-          >
-            <span className="font-mono text-sm font-bold" style={{ color: "oklch(0.64 0.15 34)" }}>
-              {i + 1}
-            </span>
-            <div className="flex-1">
-              {it.tipo === "cancion" && it.cancion ? (
-                <>
-                  <div className="text-sm font-bold" style={{ color: "oklch(0.95 0.005 260)" }}>
-                    {it.cancion.titulo}
-                  </div>
-                  <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.55 0.01 260)" }}>
-                    {metaCancion(it.cancion)}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <span
-                    className="rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide"
-                    style={{
-                      background: colorConAlpha(COLOR_TIPO[it.tipo as "sample" | "dialogo"], 0.2),
-                      color: COLOR_TIPO[it.tipo as "sample" | "dialogo"],
-                    }}
-                  >
-                    {ETIQUETA_TIPO[it.tipo as "sample" | "dialogo"]}
-                  </span>
-                  <div className="mt-1 text-sm font-bold italic" style={{ color: "oklch(0.9 0.005 260)" }}>
-                    {it.etiqueta}
-                  </div>
-                </>
-              )}
+        {items.map((it, i) =>
+          it.tipo === "marcador" ? (
+            // Brief "Marcadores de sección": divisor visual, no una tarjeta
+            // como las canciones — sin número (ver `numeros` más arriba),
+            // pero con los mismos controles compactos de reordenar/eliminar.
+            <div key={i} className="flex items-center gap-2 py-1">
+              <div className="h-px flex-1" style={{ background: "oklch(0.34 0.03 55)" }} />
+              <span
+                className="shrink-0 rounded-full px-3 py-1 font-mono text-xs font-bold uppercase tracking-wide"
+                style={{ background: colorConAlpha(COLOR_BLOQUE.marcador, 0.2), color: COLOR_BLOQUE.marcador }}
+              >
+                {it.etiqueta}
+              </span>
+              <div className="h-px flex-1" style={{ background: "oklch(0.34 0.03 55)" }} />
+              <div className="flex shrink-0 items-center gap-2">
+                <button type="button" onClick={() => mover(i, -1)} disabled={i === 0} className="text-xs disabled:opacity-30" style={{ color: "oklch(0.6 0.01 260)" }}>
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => mover(i, 1)}
+                  disabled={i === items.length - 1}
+                  className="text-xs disabled:opacity-30"
+                  style={{ color: "oklch(0.6 0.01 260)" }}
+                >
+                  ↓
+                </button>
+                <button type="button" onClick={() => quitar(i)} className="text-xs" style={{ color: "oklch(0.6 0.15 25)" }}>
+                  ×
+                </button>
+              </div>
             </div>
-            <button type="button" onClick={() => mover(i, -1)} disabled={i === 0} className="text-sm disabled:opacity-30" style={{ color: "oklch(0.7 0.01 260)" }}>
-              ↑
-            </button>
-            <button
-              type="button"
-              onClick={() => mover(i, 1)}
-              disabled={i === items.length - 1}
-              className="text-sm disabled:opacity-30"
-              style={{ color: "oklch(0.7 0.01 260)" }}
+          ) : (
+            <div
+              key={i}
+              className="flex items-center gap-3 rounded-xl p-3"
+              style={
+                it.tipo === "cancion"
+                  ? { background: "oklch(0.185 0.008 260)", border: "1px solid oklch(0.28 0.01 260)" }
+                  : { background: "oklch(0.185 0.008 260)", border: `1px dashed ${COLOR_BLOQUE[it.tipo]}` }
+              }
             >
-              ↓
-            </button>
-            <button type="button" onClick={() => quitar(i)} className="text-sm" style={{ color: "oklch(0.6 0.15 25)" }}>
-              Quitar
-            </button>
-          </div>
-        ))}
+              <span className="font-mono text-sm font-bold" style={{ color: "oklch(0.64 0.15 34)" }}>
+                {numeros[i]}
+              </span>
+              <div className="flex-1">
+                {it.tipo === "cancion" && it.cancion ? (
+                  <>
+                    <div className="text-sm font-bold" style={{ color: "oklch(0.95 0.005 260)" }}>
+                      {it.cancion.titulo}
+                    </div>
+                    <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.55 0.01 260)" }}>
+                      {metaCancion(it.cancion)}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <span
+                      className="rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide"
+                      style={{
+                        background: colorConAlpha(COLOR_BLOQUE[it.tipo as "secuencia" | "interludio"], 0.2),
+                        color: COLOR_BLOQUE[it.tipo as "secuencia" | "interludio"],
+                      }}
+                    >
+                      {ETIQUETA_BLOQUE[it.tipo as "secuencia" | "interludio"]}
+                    </span>
+                    <div className="mt-1 text-sm font-bold italic" style={{ color: "oklch(0.9 0.005 260)" }}>
+                      {it.etiqueta}
+                    </div>
+                  </>
+                )}
+              </div>
+              <button type="button" onClick={() => mover(i, -1)} disabled={i === 0} className="text-sm disabled:opacity-30" style={{ color: "oklch(0.7 0.01 260)" }}>
+                ↑
+              </button>
+              <button
+                type="button"
+                onClick={() => mover(i, 1)}
+                disabled={i === items.length - 1}
+                className="text-sm disabled:opacity-30"
+                style={{ color: "oklch(0.7 0.01 260)" }}
+              >
+                ↓
+              </button>
+              <button type="button" onClick={() => quitar(i)} className="text-sm" style={{ color: "oklch(0.6 0.15 25)" }}>
+                Quitar
+              </button>
+            </div>
+          )
+        )}
       </div>
 
       <div className="mb-2 mt-8 text-sm font-bold" style={{ color: "oklch(0.75 0.01 260)" }}>
@@ -230,21 +282,75 @@ export function SetlistEditor({
         />
         <button
           type="button"
-          onClick={() => agregarBloque("sample")}
+          onClick={() => agregarBloque("secuencia")}
           disabled={!nuevaEtiqueta.trim()}
           className="rounded-xl px-3.5 py-2.5 text-sm font-bold disabled:opacity-40"
-          style={{ background: colorConAlpha(COLOR_TIPO.sample, 0.2), color: COLOR_TIPO.sample }}
+          style={{ background: colorConAlpha(COLOR_BLOQUE.secuencia, 0.2), color: COLOR_BLOQUE.secuencia }}
         >
-          + Sample
+          + Secuencia
         </button>
         <button
           type="button"
-          onClick={() => agregarBloque("dialogo")}
+          onClick={() => agregarBloque("interludio")}
           disabled={!nuevaEtiqueta.trim()}
           className="rounded-xl px-3.5 py-2.5 text-sm font-bold disabled:opacity-40"
-          style={{ background: colorConAlpha(COLOR_TIPO.dialogo, 0.2), color: COLOR_TIPO.dialogo }}
+          style={{ background: colorConAlpha(COLOR_BLOQUE.interludio, 0.2), color: COLOR_BLOQUE.interludio }}
         >
-          + Diálogo
+          + Interludio
+        </button>
+      </div>
+
+      {/* Brief "Marcadores de sección": atajos rápidos para los casos
+          comunes (Intro/Encore/Parte N, con N sugerido automáticamente) +
+          texto libre para cualquier otro caso — sección aparte de "Agregar
+          bloque libre" porque conceptualmente es distinto (divisor, no
+          toma). */}
+      <div className="mb-2 mt-8 text-sm font-bold" style={{ color: "oklch(0.75 0.01 260)" }}>
+        Agregar marcador
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => agregarMarcador("Intro")}
+          className="rounded-xl px-3.5 py-2.5 text-sm font-bold"
+          style={{ background: colorConAlpha(COLOR_BLOQUE.marcador, 0.2), color: COLOR_BLOQUE.marcador }}
+        >
+          + Intro
+        </button>
+        <button
+          type="button"
+          onClick={() => agregarMarcador("Encore")}
+          className="rounded-xl px-3.5 py-2.5 text-sm font-bold"
+          style={{ background: colorConAlpha(COLOR_BLOQUE.marcador, 0.2), color: COLOR_BLOQUE.marcador }}
+        >
+          + Encore
+        </button>
+        <button
+          type="button"
+          onClick={() => agregarMarcador(`Parte ${siguienteParte(items)}`)}
+          className="rounded-xl px-3.5 py-2.5 text-sm font-bold"
+          style={{ background: colorConAlpha(COLOR_BLOQUE.marcador, 0.2), color: COLOR_BLOQUE.marcador }}
+        >
+          + Parte {siguienteParte(items)}
+        </button>
+      </div>
+      <div className="mt-2 flex gap-2">
+        <input
+          type="text"
+          value={textoMarcador}
+          onChange={(e) => setTextoMarcador(e.target.value)}
+          placeholder="Otro texto (ej. Bloque acústico)"
+          className="flex-1 rounded-xl border px-3.5 py-2.5 text-sm outline-none"
+          style={{ background: "oklch(0.185 0.008 260)", borderColor: "oklch(0.34 0.03 55)", color: "oklch(0.95 0.005 260)" }}
+        />
+        <button
+          type="button"
+          onClick={() => agregarMarcador(textoMarcador)}
+          disabled={!textoMarcador.trim()}
+          className="rounded-xl px-3.5 py-2.5 text-sm font-bold disabled:opacity-40"
+          style={{ background: colorConAlpha(COLOR_BLOQUE.marcador, 0.2), color: COLOR_BLOQUE.marcador }}
+        >
+          + Agregar
         </button>
       </div>
 
