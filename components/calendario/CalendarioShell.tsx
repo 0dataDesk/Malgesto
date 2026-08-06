@@ -170,7 +170,6 @@ export function CalendarioShell({
           router.refresh();
         }}
         onEstadoActualizado={() => router.refresh()}
-        onSetlistCreado={() => router.refresh()}
       />
     );
   } else {
@@ -320,7 +319,6 @@ export function CalendarioShell({
             router.refresh();
           }}
           onEstadoActualizado={() => router.refresh()}
-          onSetlistCreado={() => router.refresh()}
         />
       )}
 
