@@ -15,7 +15,7 @@ export type CancionEnSetlist = {
   tonalidadNota: Nota;
   tonalidadModo: Modo;
   bpm: number | null;
-  duracionAprox: string | null;
+  duracionSegundos: number | null;
 };
 
 // Brief "renombrar bloques libres...": sample -> secuencia, dialogo ->
@@ -31,6 +31,10 @@ export type SetlistItem = {
   tipo: TipoItemSetlist;
   etiqueta: string | null;
   notasTransicion: string | null;
+  // Brief "Tiempos en Set List": solo se persiste para secuencia/interludio
+  // (cancion saca su duración de canciones.duracion_segundos vía join,
+  // marcador no lleva duración) — null en los otros dos casos.
+  duracionSegundos: number | null;
   cancion: CancionEnSetlist | null;
 };
 
@@ -38,6 +42,9 @@ export type SetlistCompleto = {
   id: string;
   bandaId: string;
   nombre: string;
+  // Hora de inicio del cronómetro en vivo — compartida entre todos los
+  // dispositivos que tengan la vista "En vivo" abierta, null = no corriendo.
+  enVivoIniciadoEn: string | null;
   items: SetlistItem[];
 };
 
@@ -67,12 +74,18 @@ export async function obtenerSetlists(bandaIds: string[]): Promise<Setlist[]> {
 
 export async function obtenerSetlistCompleto(setlistId: string): Promise<SetlistCompleto | null> {
   const admin = supabaseMalgesto();
-  const { data: setlist } = await admin.from("setlists").select("id, banda_id, nombre").eq("id", setlistId).single();
+  const { data: setlist } = await admin
+    .from("setlists")
+    .select("id, banda_id, nombre, en_vivo_iniciado_en")
+    .eq("id", setlistId)
+    .single();
   if (!setlist) return null;
 
   const { data: items } = await admin
     .from("setlist_items")
-    .select("id, orden, tipo, etiqueta, notas_transicion, canciones(id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_aprox)")
+    .select(
+      "id, orden, tipo, etiqueta, notas_transicion, duracion_segundos, canciones(id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos)"
+    )
     .eq("setlist_id", setlistId)
     .order("orden", { ascending: true });
 
@@ -80,6 +93,7 @@ export async function obtenerSetlistCompleto(setlistId: string): Promise<Setlist
     id: setlist.id,
     bandaId: setlist.banda_id,
     nombre: setlist.nombre,
+    enVivoIniciadoEn: setlist.en_vivo_iniciado_en,
     items: (items ?? []).map((i) => {
       const c = i.canciones as unknown as {
         id: string;
@@ -87,7 +101,7 @@ export async function obtenerSetlistCompleto(setlistId: string): Promise<Setlist
         tonalidad_nota: Nota;
         tonalidad_modo: Modo;
         bpm: number | null;
-        duracion_aprox: string | null;
+        duracion_segundos: number | null;
       } | null;
       return {
         id: i.id,
@@ -95,13 +109,14 @@ export async function obtenerSetlistCompleto(setlistId: string): Promise<Setlist
         tipo: i.tipo as TipoItemSetlist,
         etiqueta: i.etiqueta,
         notasTransicion: i.notas_transicion,
+        duracionSegundos: i.duracion_segundos,
         cancion: c && {
           id: c.id,
           titulo: c.titulo,
           tonalidadNota: c.tonalidad_nota,
           tonalidadModo: c.tonalidad_modo,
           bpm: c.bpm,
-          duracionAprox: c.duracion_aprox,
+          duracionSegundos: c.duracion_segundos,
         },
       };
     }),
@@ -120,6 +135,7 @@ export type ItemInput = {
   cancionId: string | null;
   etiqueta: string | null;
   notasTransicion: string | null;
+  duracionSegundos: number | null;
 };
 
 // Reemplazo completo de los items en vez de diffear, igual que en Canciones
@@ -139,7 +155,47 @@ export async function actualizarSetlistItems(setlistId: string, items: ItemInput
       etiqueta: it.etiqueta,
       orden: i,
       notas_transicion: it.notasTransicion,
+      duracion_segundos: it.duracionSegundos,
     }))
   );
   if (errInsert) throw new Error(errInsert.message);
+}
+
+// Brief "Cronómetro sincronizado en vivo": UNA hora de inicio por set list,
+// compartida entre todos los dispositivos (setlists.en_vivo_iniciado_en) —
+// nunca un timer local independiente. El servidor genera el timestamp
+// (new Date(), no lo que mande el cliente) para que el reloj de un
+// dispositivo desincronizado no descalibre a los demás.
+export async function iniciarEnVivo(setlistId: string): Promise<string> {
+  const admin = supabaseMalgesto();
+  const iniciadoEn = new Date().toISOString();
+  const { error } = await admin.from("setlists").update({ en_vivo_iniciado_en: iniciadoEn }).eq("id", setlistId);
+  if (error) throw new Error(error.message);
+  return iniciadoEn;
+}
+
+export async function detenerEnVivo(setlistId: string): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin.from("setlists").update({ en_vivo_iniciado_en: null }).eq("id", setlistId);
+  if (error) throw new Error(error.message);
+}
+
+// Corrección manual: reescribe en_vivo_iniciado_en a (ahora - offsetSegundos)
+// -- offsetSegundos es la suma de duraciones hasta el punto elegido
+// (calcularAcumuladoGlobal en lib/setlistCatalogo.ts). "Ahora" es el reloj
+// del servidor, mismo criterio que iniciarEnVivo.
+export async function corregirEnVivo(setlistId: string, offsetSegundos: number): Promise<string> {
+  const admin = supabaseMalgesto();
+  const iniciadoEn = new Date(Date.now() - offsetSegundos * 1000).toISOString();
+  const { error } = await admin.from("setlists").update({ en_vivo_iniciado_en: iniciadoEn }).eq("id", setlistId);
+  if (error) throw new Error(error.message);
+  return iniciadoEn;
+}
+
+// Lectura liviana para el polling de sincronización entre dispositivos (ver
+// SetlistEnVivoCliente.tsx) — no trae el setlist completo.
+export async function obtenerEnVivoIniciadoEn(setlistId: string): Promise<string | null> {
+  const admin = supabaseMalgesto();
+  const { data } = await admin.from("setlists").select("en_vivo_iniciado_en").eq("id", setlistId).maybeSingle();
+  return data?.en_vivo_iniciado_en ?? null;
 }

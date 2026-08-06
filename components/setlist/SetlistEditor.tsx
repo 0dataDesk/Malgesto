@@ -3,22 +3,26 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import type { CancionEnSetlist, TipoItemSetlist } from "@/lib/setlistsData";
-import { ETIQUETA_BLOQUE, COLOR_BLOQUE } from "@/lib/setlistCatalogo";
+import { ETIQUETA_BLOQUE, COLOR_BLOQUE, calcularSubtotalesPorSeccion } from "@/lib/setlistCatalogo";
+import { formatoMMSS, parseMMSS } from "@/lib/duracion";
 import { actualizarSetlistAction } from "@/app/set-list/actions";
 import { colorConAlpha } from "@/lib/eventoUI";
+
+const COLOR_ADVERTENCIA = "oklch(0.7 0.15 70)";
 
 type ItemLocal = {
   tipo: TipoItemSetlist;
   cancionId: string | null;
   etiqueta: string | null;
   notasTransicion: string | null;
+  duracionSegundos: number | null;
   cancion: CancionEnSetlist | null;
 };
 
 function metaCancion(c: CancionEnSetlist) {
   const partes = [`${c.tonalidadNota}${c.tonalidadModo === "menor" ? "m" : ""}`];
   if (c.bpm) partes.push(`${c.bpm} BPM`);
-  if (c.duracionAprox) partes.push(c.duracionAprox);
+  if (c.duracionSegundos !== null) partes.push(formatoMMSS(c.duracionSegundos)!);
   return partes.join(" · ");
 }
 
@@ -56,28 +60,44 @@ export function SetlistEditor({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [nuevaEtiqueta, setNuevaEtiqueta] = useState("");
+  const [nuevaDuracion, setNuevaDuracion] = useState("");
   const [textoMarcador, setTextoMarcador] = useState("");
 
   const idsEnSet = new Set(items.filter((i) => i.tipo === "cancion").map((i) => i.cancionId));
   const disponibles = cancionesDisponibles.filter((c) => !idsEnSet.has(c.id));
 
   const agregar = (c: CancionEnSetlist) => {
-    setItems((prev) => [...prev, { tipo: "cancion", cancionId: c.id, etiqueta: null, notasTransicion: null, cancion: c }]);
+    setItems((prev) => [
+      ...prev,
+      { tipo: "cancion", cancionId: c.id, etiqueta: null, notasTransicion: null, duracionSegundos: null, cancion: c },
+    ]);
     setGuardado(false);
   };
 
+  // Brief "Tiempos en Set List" §1: duración mm:ss opcional al agregar
+  // Secuencia/Interludio — texto inválido no bloquea el bloque (se guarda
+  // sin duración, igual que una canción sin tiempo capturado), solo se
+  // ignora silenciosamente ahí; el campo de Canciones sí valida porque
+  // tiene su propio submit separado, acá el "agregar" es de un solo paso.
   const agregarBloque = (tipo: "secuencia" | "interludio") => {
     const etiqueta = nuevaEtiqueta.trim();
     if (!etiqueta) return;
-    setItems((prev) => [...prev, { tipo, cancionId: null, etiqueta, notasTransicion: null, cancion: null }]);
+    setItems((prev) => [
+      ...prev,
+      { tipo, cancionId: null, etiqueta, notasTransicion: null, duracionSegundos: parseMMSS(nuevaDuracion), cancion: null },
+    ]);
     setNuevaEtiqueta("");
+    setNuevaDuracion("");
     setGuardado(false);
   };
 
   const agregarMarcador = (etiqueta: string) => {
     const limpio = etiqueta.trim();
     if (!limpio) return;
-    setItems((prev) => [...prev, { tipo: "marcador", cancionId: null, etiqueta: limpio, notasTransicion: null, cancion: null }]);
+    setItems((prev) => [
+      ...prev,
+      { tipo: "marcador", cancionId: null, etiqueta: limpio, notasTransicion: null, duracionSegundos: null, cancion: null },
+    ]);
     setTextoMarcador("");
     setGuardado(false);
   };
@@ -105,7 +125,13 @@ export function SetlistEditor({
         await actualizarSetlistAction(
           setlistId,
           bandaId,
-          items.map((i) => ({ tipo: i.tipo, cancionId: i.cancionId, etiqueta: i.etiqueta, notasTransicion: i.notasTransicion }))
+          items.map((i) => ({
+            tipo: i.tipo,
+            cancionId: i.cancionId,
+            etiqueta: i.etiqueta,
+            notasTransicion: i.notasTransicion,
+            duracionSegundos: i.duracionSegundos,
+          }))
         );
         setGuardado(true);
       } catch (e) {
@@ -121,6 +147,13 @@ export function SetlistEditor({
   let contadorTomas = 0;
   const numeros = items.map((it) => (it.tipo === "marcador" ? null : ++contadorTomas));
 
+  // Brief "Subtotales por sección y total": una sección = todo lo que hay
+  // entre dos marcadores (o desde el inicio hasta el primero). El total
+  // general suma canción + secuencia + interludio (marcador no suma, solo
+  // divide) — canciones/bloques sin duración capturada cuentan 0 pero
+  // marcan faltanTiempos para el indicador "?".
+  const { porMarcador, total } = calcularSubtotalesPorSeccion(items);
+
   return (
     <div className="mx-auto max-w-2xl px-5 pb-16 pt-6">
       <div className="mb-1 flex items-center justify-between">
@@ -135,8 +168,18 @@ export function SetlistEditor({
         {nombre}
       </h1>
 
-      <div className="mb-2 text-sm font-bold" style={{ color: "oklch(0.75 0.01 260)" }}>
-        Orden del set
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <span className="text-sm font-bold" style={{ color: "oklch(0.75 0.01 260)" }}>
+          Orden del set
+        </span>
+        <span className="font-mono text-xs font-bold" style={{ color: "oklch(0.6 0.01 260)" }}>
+          Total: {formatoMMSS(total.segundos)}
+          {total.faltanTiempos && (
+            <span className="ml-1" style={{ color: COLOR_ADVERTENCIA }} title="Faltan tiempos por capturar">
+              ?
+            </span>
+          )}
+        </span>
       </div>
       <div className="flex flex-col gap-2">
         {items.length === 0 && (
@@ -156,6 +199,12 @@ export function SetlistEditor({
                 style={{ background: colorConAlpha(COLOR_BLOQUE.marcador, 0.2), color: COLOR_BLOQUE.marcador }}
               >
                 {it.etiqueta}
+                {porMarcador[i] && (
+                  <span className="ml-1.5 font-normal normal-case opacity-80">
+                    · {formatoMMSS(porMarcador[i]!.segundos)}
+                    {porMarcador[i]!.faltanTiempos && <span style={{ color: COLOR_ADVERTENCIA }}>?</span>}
+                  </span>
+                )}
               </span>
               <div className="h-px flex-1" style={{ background: "oklch(0.34 0.03 55)" }} />
               <div className="flex shrink-0 items-center gap-2">
@@ -197,6 +246,11 @@ export function SetlistEditor({
                     </div>
                     <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.55 0.01 260)" }}>
                       {metaCancion(it.cancion)}
+                      {it.cancion.duracionSegundos === null && (
+                        <span className="ml-1" style={{ color: COLOR_ADVERTENCIA }} title="Falta capturar la duración">
+                          ?
+                        </span>
+                      )}
                     </div>
                   </>
                 ) : (
@@ -212,6 +266,15 @@ export function SetlistEditor({
                     </span>
                     <div className="mt-1 text-sm font-bold italic" style={{ color: "oklch(0.9 0.005 260)" }}>
                       {it.etiqueta}
+                    </div>
+                    <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.55 0.01 260)" }}>
+                      {it.duracionSegundos !== null ? (
+                        formatoMMSS(it.duracionSegundos)
+                      ) : (
+                        <span style={{ color: COLOR_ADVERTENCIA }} title="Falta capturar la duración">
+                          ?
+                        </span>
+                      )}
                     </div>
                   </>
                 )}
@@ -278,6 +341,15 @@ export function SetlistEditor({
           onChange={(e) => setNuevaEtiqueta(e.target.value)}
           placeholder="Etiqueta (ej. Intro ambiental)"
           className="flex-1 rounded-xl border px-3.5 py-2.5 text-sm outline-none"
+          style={{ background: "oklch(0.185 0.008 260)", borderColor: "oklch(0.34 0.03 55)", color: "oklch(0.95 0.005 260)" }}
+        />
+        <input
+          type="text"
+          value={nuevaDuracion}
+          onChange={(e) => setNuevaDuracion(e.target.value)}
+          placeholder="mm:ss"
+          maxLength={6}
+          className="w-20 shrink-0 rounded-xl border px-3 py-2.5 text-sm outline-none"
           style={{ background: "oklch(0.185 0.008 260)", borderColor: "oklch(0.34 0.03 55)", color: "oklch(0.95 0.005 260)" }}
         />
         <button

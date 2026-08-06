@@ -39,6 +39,7 @@ export default async function ArmarSetlistPage({
         cancionId: i.cancion?.id ?? null,
         etiqueta: i.etiqueta,
         notasTransicion: i.notasTransicion,
+        duracionSegundos: i.duracionSegundos,
         cancion: i.cancion,
       }))}
       cancionesDisponibles={canciones}

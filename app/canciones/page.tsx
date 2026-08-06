@@ -4,6 +4,7 @@ import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
 import { obtenerCanciones } from "@/lib/cancionesData";
 import { colorRaizAcorde } from "@/lib/cancionTeoria";
+import { formatoMMSS } from "@/lib/duracion";
 import { TabBar } from "@/components/shell/TabBar";
 
 // Brief "Canciones: selector de banda previo" — mismo patrón que Finanzas
@@ -161,7 +162,7 @@ export default async function CancionesPage({
                     {c.tonalidadModo === "menor" ? "m" : ""}
                   </span>
                   {c.bpm && <span>{c.bpm} BPM</span>}
-                  {c.duracionAprox && <span>{c.duracionAprox}</span>}
+                  {c.duracionSegundos !== null && <span>{formatoMMSS(c.duracionSegundos)}</span>}
                   {c.totalCompases > 0 && <span>{c.totalCompases} compases</span>}
                 </div>
               </Link>

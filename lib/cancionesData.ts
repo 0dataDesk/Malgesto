@@ -10,7 +10,7 @@ export type Cancion = {
   tonalidadNota: Nota;
   tonalidadModo: Modo;
   bpm: number | null;
-  duracionAprox: string | null;
+  duracionSegundos: number | null;
   totalCompases: number;
   esCover: boolean;
 };
@@ -37,7 +37,7 @@ export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
   const admin = supabaseMalgesto();
   const { data } = await admin
     .from("canciones")
-    .select("id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_aprox, es_cover, secciones(acordes(duracion_compases))")
+    .select("id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, secciones(acordes(duracion_compases))")
     .in("banda_id", bandaIds)
     .order("titulo", { ascending: true });
 
@@ -57,7 +57,7 @@ export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
       tonalidadNota: c.tonalidad_nota as Nota,
       tonalidadModo: c.tonalidad_modo as Modo,
       bpm: c.bpm,
-      duracionAprox: c.duracion_aprox,
+      duracionSegundos: c.duracion_segundos,
       totalCompases,
       esCover: c.es_cover,
     };
@@ -68,7 +68,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
   const admin = supabaseMalgesto();
   const { data: cancion } = await admin
     .from("canciones")
-    .select("id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_aprox, es_cover")
+    .select("id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover")
     .eq("id", cancionId)
     .single();
 
@@ -93,7 +93,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
     tonalidadNota: cancion.tonalidad_nota as Nota,
     tonalidadModo: cancion.tonalidad_modo as Modo,
     bpm: cancion.bpm,
-    duracionAprox: cancion.duracion_aprox,
+    duracionSegundos: cancion.duracion_segundos,
     totalCompases,
     esCover: cancion.es_cover,
     secciones: (secciones ?? []).map((s) => ({
@@ -131,7 +131,7 @@ export type CancionInput = {
   tonalidadNota: Nota;
   tonalidadModo: Modo;
   bpm: number | null;
-  duracionAprox: string | null;
+  duracionSegundos: number | null;
   esCover: boolean;
   secciones: SeccionInput[];
 };
@@ -176,7 +176,7 @@ export async function crearCancion(input: CancionInput): Promise<string> {
       tonalidad_nota: input.tonalidadNota,
       tonalidad_modo: input.tonalidadModo,
       bpm: input.bpm,
-      duracion_aprox: input.duracionAprox,
+      duracion_segundos: input.duracionSegundos,
       es_cover: input.esCover,
     })
     .select("id")
@@ -199,7 +199,7 @@ export async function actualizarCancion(cancionId: string, input: CancionInput) 
       tonalidad_nota: input.tonalidadNota,
       tonalidad_modo: input.tonalidadModo,
       bpm: input.bpm,
-      duracion_aprox: input.duracionAprox,
+      duracion_segundos: input.duracionSegundos,
       es_cover: input.esCover,
     })
     .eq("id", cancionId);

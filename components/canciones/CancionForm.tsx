@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { NOTAS, type Nota, type Modo, type Calidad } from "@/lib/cancionTeoria";
 import { NOMBRES_SECCION, colorPorTipoSeccion, type NombreSeccion } from "@/lib/seccionCatalogo";
 import type { CancionCompleta, CancionInput } from "@/lib/cancionesData";
+import { formatoMMSS, parseMMSS } from "@/lib/duracion";
 import { crearCancionAction, actualizarCancionAction } from "@/app/canciones/actions";
 import { AcordeSelector } from "./AcordeSelector";
 
@@ -98,7 +99,7 @@ export function CancionForm({
   const [esCover, setEsCover] = useState(cancionExistente?.esCover ?? false);
   const [titulo, setTitulo] = useState(cancionExistente?.titulo ?? "");
   const [bpm, setBpm] = useState(cancionExistente?.bpm?.toString() ?? "");
-  const [duracion, setDuracion] = useState(cancionExistente?.duracionAprox ?? "");
+  const [duracion, setDuracion] = useState(formatoMMSS(cancionExistente?.duracionSegundos ?? null) ?? "");
   const [raiz, setRaiz] = useState<Nota>(cancionExistente?.tonalidadNota ?? "C");
   const [modo, setModo] = useState<Modo>(cancionExistente?.tonalidadModo ?? "mayor");
   const [secciones, setSecciones] = useState<SeccionFS[]>(
@@ -169,6 +170,11 @@ export function CancionForm({
       setError("El título es obligatorio.");
       return;
     }
+    const duracionSegundos = parseMMSS(duracion);
+    if (duracion.trim() && duracionSegundos === null) {
+      setError("Duración inválida — usá el formato mm:ss (ej. 3:24).");
+      return;
+    }
 
     const input: CancionInput = {
       bandaId,
@@ -176,7 +182,7 @@ export function CancionForm({
       tonalidadNota: raiz,
       tonalidadModo: modo,
       bpm: bpm ? Number(bpm) : null,
-      duracionAprox: duracion.trim() || null,
+      duracionSegundos,
       esCover,
       secciones,
     };
