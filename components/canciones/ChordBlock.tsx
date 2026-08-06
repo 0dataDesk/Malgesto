@@ -17,18 +17,13 @@ const TAMANOS: Record<Densidad, { padding: string; simbolo: string; nota: string
 // grado del acorde dentro de la tonalidad en AcordeSelector, un concepto
 // distinto que no hay que mezclar acá.
 //
-// Brief 21: con `mostrarEtiquetas` en false (default) el bloque renderiza
-// ÚNICAMENTE el símbolo — ni las notas ni sus círculos de color se montan en
-// el DOM. Brief de corrección §4: el contador de compases quedó atrapado en
-// ese mismo `{mostrarEtiquetas && (...)}`, apagándose junto con las notas —
-// ahora vive en la fila superior, junto al símbolo, y se monta siempre.
+// Brief "Vista Final §1": las notas 1-3-5-7-9 ya no son un toggle -- se
+// muestran siempre, fijas.
 export function ChordBlock({
   acorde,
-  mostrarEtiquetas = false,
   densidad = "compacta",
 }: {
   acorde: AcordeGuardado;
-  mostrarEtiquetas?: boolean;
   densidad?: Densidad;
 }) {
   const tonos = tonosDelAcorde(acorde.notaRaiz, acorde.calidad);
@@ -55,20 +50,18 @@ export function ChordBlock({
           {acorde.duracionCompases}c
         </span>
       </div>
-      {mostrarEtiquetas && (
-        <div className="mt-1 flex flex-wrap items-center gap-1">
-          {notas.map((n, i) => (
-            <span
-              key={i}
-              className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-mono ${tamano.nota} font-bold`}
-              style={{ background: colorConAlphaHSL(n.color, 0.14), color: "oklch(0.3 0.02 55)" }}
-            >
-              <span style={{ color: n.color }}>{n.numero}</span>
-              {n.nota}
-            </span>
-          ))}
-        </div>
-      )}
+      <div className="mt-1 flex flex-wrap items-center gap-1">
+        {notas.map((n, i) => (
+          <span
+            key={i}
+            className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-mono ${tamano.nota} font-bold`}
+            style={{ background: colorConAlphaHSL(n.color, 0.14), color: "oklch(0.3 0.02 55)" }}
+          >
+            <span style={{ color: n.color }}>{n.numero}</span>
+            {n.nota}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,10 +1,17 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import type { CancionCompleta } from "@/lib/cancionesData";
 import type { SeteoEnContexto } from "@/lib/dispositivosData";
+import { escalaDiatonica } from "@/lib/cancionTeoria";
+import { formatoMMSS } from "@/lib/duracion";
 import { ChordBlock, type Densidad } from "./ChordBlock";
+
+const COLOR_ADVERTENCIA = "oklch(0.55 0.15 70)";
+
+function textoCompases(n: number): string {
+  return `${n} ${n === 1 ? "compás" : "compases"}`;
+}
 
 // Brief de corrección §6: la cuadrícula se adapta a cuánto contenido tiene
 // la canción entera (no una tarjeta de tamaño fijo siempre) — pocas
@@ -58,38 +65,20 @@ export function VistaFinal({
   seteosContexto: SeteoEnContexto[];
 }) {
   const sufijo = setlist ? `?setlist=${setlist.id}` : "";
-  // Brief 20 §2: apagado por defecto — un músico que ya lee la nota no
-  // necesita el número de función encima; se prende solo cuando hace falta
-  // (aprender/confirmar el acorde). No persiste entre sesiones a propósito.
-  const [mostrarEtiquetas, setMostrarEtiquetas] = useState(false);
   const totalAcordes = cancion.secciones.reduce((total, s) => total + s.acordes.length, 0);
   const densidad = densidadPorCantidadDeAcordes(totalAcordes);
+  const escala = escalaDiatonica({ raiz: cancion.tonalidadNota, modo: cancion.tonalidadModo });
 
   return (
     <div className="min-h-screen pb-28" style={{ background: "oklch(0.965 0.012 82)" }}>
       <div className="mx-auto max-w-2xl px-5 pt-6">
-        <div className="flex items-start justify-between gap-3">
-          <Link
-            href={setlist ? `/set-list/${setlist.id}/vivo` : `/canciones?banda=${cancion.bandaId}`}
-            className="mb-3 inline-block text-sm no-underline"
-            style={{ color: "oklch(0.55 0.02 55)" }}
-          >
-            ‹ {setlist ? setlist.nombre : "Canciones"}
-          </Link>
-          <button
-            type="button"
-            onClick={() => setMostrarEtiquetas((v) => !v)}
-            className="shrink-0 rounded-full px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wide"
-            style={
-              mostrarEtiquetas
-                ? { background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }
-                : { background: "oklch(0.93 0.016 78)", color: "oklch(0.5 0.02 55)" }
-            }
-            title="Mostrar/ocultar el número de función (1, 3, 5, 7, 9) sobre cada nota"
-          >
-            1 3 5 7 9
-          </button>
-        </div>
+        <Link
+          href={setlist ? `/set-list/${setlist.id}/vivo` : `/canciones?banda=${cancion.bandaId}`}
+          className="mb-3 inline-block text-sm no-underline"
+          style={{ color: "oklch(0.55 0.02 55)" }}
+        >
+          ‹ {setlist ? setlist.nombre : "Canciones"}
+        </Link>
 
         <h1
           className="flex items-center gap-2.5 text-[28px] font-extrabold tracking-tight"
@@ -107,7 +96,18 @@ export function VistaFinal({
         </h1>
         <div className="mt-1 font-mono text-xs uppercase tracking-[0.1em]" style={{ color: "oklch(0.5 0.02 55)" }}>
           {cancion.tonalidadNota}
-          {cancion.tonalidadModo === "menor" ? "m" : ""} · {cancion.bpm ?? "—"} BPM
+          {cancion.tonalidadModo === "menor" ? "m" : ""} · {cancion.bpm ?? "—"} BPM ·{" "}
+          {cancion.duracionSegundos !== null ? (
+            formatoMMSS(cancion.duracionSegundos)
+          ) : (
+            <span style={{ color: COLOR_ADVERTENCIA }} title="Falta capturar la duración">
+              ?
+            </span>
+          )}{" "}
+          · {textoCompases(cancion.totalCompases)}
+        </div>
+        <div className="mt-1 font-mono text-xs uppercase tracking-[0.1em]" style={{ color: "oklch(0.6 0.02 55)" }}>
+          Escala {escala.join(" · ")}
         </div>
 
         {cancion.secciones.length > 1 && (
@@ -144,10 +144,13 @@ export function VistaFinal({
               >
                 {seccion.nombre}
               </h2>
+              <span className="font-mono text-xs" style={{ color: "oklch(0.6 0.02 55)" }}>
+                — {textoCompases(seccion.acordes.reduce((total, a) => total + a.duracionCompases, 0))}
+              </span>
             </div>
             <div className={`grid ${COLUMNAS_POR_DENSIDAD[densidad]} gap-2`}>
               {seccion.acordes.map((acorde) => (
-                <ChordBlock key={acorde.id} acorde={acorde} mostrarEtiquetas={mostrarEtiquetas} densidad={densidad} />
+                <ChordBlock key={acorde.id} acorde={acorde} densidad={densidad} />
               ))}
             </div>
           </div>
