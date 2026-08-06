@@ -7,7 +7,8 @@ import { algunaBandaConBloque } from "@/lib/bloques";
 import type { Lugar } from "@/lib/lugaresData";
 import type { PersonaConCumple } from "@/lib/cumpleanosVirtual";
 import { generarCumpleanosVirtuales } from "@/lib/cumpleanosVirtual";
-import { nombreMesAno, sumarMeses, esMismoDia, hora } from "@/lib/fechas";
+import type { AusenciaPersona } from "@/lib/ausenciasData";
+import { nombreMesAno, sumarMeses, esMismoDia, hora, fechaISO } from "@/lib/fechas";
 import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 import { COLOR_TIPO, ETIQUETA_TIPO, eventoYaPaso } from "@/lib/eventoUI";
 import { MesView } from "./MesView";
@@ -27,6 +28,7 @@ export function CalendarioShell({
   setlists,
   lugares,
   cumpleanos,
+  ausencias,
   userEmail,
 }: {
   membresias: Membresia[];
@@ -34,6 +36,7 @@ export function CalendarioShell({
   setlists: SetlistOpcion[];
   lugares: Lugar[];
   cumpleanos: PersonaConCumple[];
+  ausencias: AusenciaPersona[];
   userEmail: string;
 }) {
   const router = useRouter();
@@ -104,6 +107,15 @@ export function CalendarioShell({
     return base.filter((e) => !eventoYaPaso(e));
   }, [eventos, activas, todasONinguna]);
 
+  // Brief "Disponibilidad de integrantes" §2: mismo filtro por banda activa
+  // que ya usan los eventos (`activas`/`todasONinguna`) — una ausencia solo
+  // se muestra si la banda a la que aplica está entre las que se están
+  // viendo ahora mismo.
+  const ausenciasFiltradas = useMemo(
+    () => (todasONinguna ? ausencias : ausencias.filter((a) => activas.has(a.bandaId))),
+    [ausencias, activas, todasONinguna]
+  );
+
   const giras = useMemo(() => eventosConCumple.filter((e) => e.tipo === "gira"), [eventosConCumple]);
   const esSuperadmin = membresias.some((m) => m.rol === "superadmin");
   // Brief "Nuevo nivel de rol": crear eventos ya no es exclusivo de
@@ -123,6 +135,23 @@ export function CalendarioShell({
 
   const eventosDelDia = diaSeleccionado
     ? eventosFiltrados.filter((e) => e.tipo !== "gira" && esMismoDia(enZonaApp(e.fechaInicio), diaSeleccionado))
+    : [];
+
+  // Brief "Disponibilidad de integrantes" §2: quién está ausente el día
+  // seleccionado, para las bandas activas — deduplicado por persona+banda
+  // (una incidencia manual y un conflicto automático podrían solaparse).
+  const ausenciasDelDia = diaSeleccionado
+    ? (() => {
+        const diaStr = fechaISO(diaSeleccionado);
+        const vistos = new Set<string>();
+        return ausenciasFiltradas.filter((a) => {
+          if (diaStr < a.fechaInicio || diaStr > a.fechaFin) return false;
+          const clave = `${a.usuarioId}:${a.bandaId}`;
+          if (vistos.has(clave)) return false;
+          vistos.add(clave);
+          return true;
+        });
+      })()
     : [];
 
   const toggleBanda = (bandaId: string) => {
@@ -274,6 +303,7 @@ export function CalendarioShell({
           <MesView
             mes={mes}
             eventos={eventosFiltrados}
+            ausencias={ausenciasFiltradas}
             colorPorBanda={colorPorBanda}
             diaSeleccionado={diaSeleccionado}
             onDiaClick={onDiaClick}
@@ -297,6 +327,37 @@ export function CalendarioShell({
           )}
         </div>
         {listaContenido}
+
+        {/* Brief "Disponibilidad de integrantes" §2: quién está ausente ese
+            día, para cualquier integrante de la banda (no restringido a
+            administradores) — nombre + instrumento(s), nunca el motivo ni,
+            si es un conflicto automático, con qué otra banda. */}
+        {ausenciasDelDia.length > 0 && (
+          <div className="mt-4 rounded-2xl p-3.5" style={{ background: "oklch(0.93 0.016 78 / 0.6)", border: "1px dashed oklch(0.75 0.02 60)" }}>
+            <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.05 60)" }}>
+              Ausencias
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {ausenciasDelDia.map((a) => (
+                <div key={`${a.usuarioId}:${a.bandaId}`} className="flex items-center justify-between gap-2 text-sm">
+                  <span style={{ color: "oklch(0.3 0.02 55)" }}>
+                    {a.nombre}
+                    {a.instrumentos.length > 0 && (
+                      <span className="ml-1 font-mono text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+                        ({a.instrumentos.join(", ")})
+                      </span>
+                    )}
+                  </span>
+                  {membresias.length > 1 && (
+                    <span className="shrink-0 font-mono text-xs" style={{ color: colorPorBanda.get(a.bandaId) ?? "oklch(0.55 0.02 55)" }}>
+                      {membresias.find((m) => m.bandaId === a.bandaId)?.bandaNombre ?? ""}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Brief 18 §2: acción del DÍA, separada de las acciones del evento
             (Editar/Eliminar viven dentro de la tarjeta de EventoDetalle) —
@@ -349,6 +410,7 @@ export function CalendarioShell({
           giras={giras.filter((g) => !g.id.startsWith("cumple-"))}
           setlists={setlists}
           lugares={lugares}
+          ausencias={ausencias}
           eventoExistente={eventoEnEdicion}
           fechaSeleccionada={fechaParaForm}
           onCancelar={() => setMostrarForm(false)}

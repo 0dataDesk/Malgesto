@@ -18,6 +18,7 @@ export const config = {
     "/seteos", "/seteos/:path*",
     "/gestion", "/gestion/:path*",
     "/stage-plot", "/stage-plot/:path*",
+    "/disponibilidad", "/disponibilidad/:path*",
     "/login", "/sin-acceso", "/auth/callback",
     "/onboarding",
   ],

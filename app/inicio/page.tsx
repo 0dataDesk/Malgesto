@@ -4,6 +4,7 @@ import { obtenerMembresias, obtenerEventos, esSuperadminDeMembresias } from "@/l
 import { obtenerSetlists } from "@/lib/setlistsData";
 import { obtenerLugares } from "@/lib/lugaresData";
 import { obtenerCumpleanosDeMisBandas } from "@/lib/cumpleanos";
+import { obtenerAusencias } from "@/lib/ausenciasData";
 import { CalendarioShell } from "@/components/calendario/CalendarioShell";
 
 // 1 banda -> directo al calendario de esa banda (hoy el único bloque que
@@ -26,11 +27,12 @@ export default async function InicioPage() {
   }
 
   const bandaIds = membresias.map((m) => m.bandaId);
-  const [eventos, setlists, lugares, cumpleanos] = await Promise.all([
+  const [eventos, setlists, lugares, cumpleanos, ausencias] = await Promise.all([
     obtenerEventos(bandaIds),
     obtenerSetlists(bandaIds),
     obtenerLugares(bandaIds),
     obtenerCumpleanosDeMisBandas(bandaIds, esSuperadminDeMembresias(membresias)),
+    obtenerAusencias(bandaIds),
   ]);
 
   return (
@@ -40,6 +42,7 @@ export default async function InicioPage() {
       setlists={setlists.map((s) => ({ id: s.id, bandaId: s.bandaId, nombre: s.nombre }))}
       lugares={lugares}
       cumpleanos={cumpleanos}
+      ausencias={ausencias}
       userEmail={user.email}
     />
   );

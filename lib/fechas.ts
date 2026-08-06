@@ -50,6 +50,16 @@ export function mismoMesAno(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
 }
 
+// Brief "Disponibilidad de integrantes": "YYYY-MM-DD" a partir de los
+// getters locales de un Date de calendario (mismo criterio que esMismoDia,
+// no una conversión de zona) — para comparar directo contra columnas `date`
+// de Postgres (incidencias.fecha_inicio/fin), que ya vienen así, sin hora
+// ni zona que convertir.
+export function fechaISO(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 // Celdas de la grilla del mes: arranca en lunes de la semana que contiene el
 // día 1, y cierra en domingo de la semana que contiene el último día —
 // siempre múltiplo de 7, sin semanas "de más" innecesarias.

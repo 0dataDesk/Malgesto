@@ -3,7 +3,9 @@
 import { useState, useTransition } from "react";
 import type { Membresia, TipoEvento, Evento, NuevoEventoInput } from "@/lib/malgestoEventos";
 import type { Lugar } from "@/lib/lugaresData";
+import type { AusenciaPersona } from "@/lib/ausenciasData";
 import { COLOR_TIPO, ETIQUETA_TIPO } from "@/lib/eventoUI";
+import { fechaISO } from "@/lib/fechas";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import { crearEventoAction, actualizarEventoAction, crearGiraRapidaAction } from "@/app/inicio/actions";
 import { enZonaApp, aUtcDesdeZonaApp } from "@/lib/zonaHoraria";
@@ -73,6 +75,7 @@ export function NuevoEventoForm({
   giras,
   setlists,
   lugares,
+  ausencias,
   eventoExistente,
   fechaSeleccionada,
   onCreado,
@@ -82,6 +85,7 @@ export function NuevoEventoForm({
   giras: Evento[];
   setlists: SetlistOpcion[];
   lugares: Lugar[];
+  ausencias: AusenciaPersona[];
   eventoExistente?: Evento;
   fechaSeleccionada: Date;
   onCreado: () => void;
@@ -157,6 +161,26 @@ export function NuevoEventoForm({
   const setlistsDeLaBanda = setlists.filter((s) => s.bandaId === bandaId);
   const lugaresDeLaBanda = lugares.filter((l) => l.bandaIds.includes(bandaId));
   const bandaNombreActual = membresias.find((m) => m.bandaId === bandaId)?.bandaNombre ?? "";
+
+  // Brief "Disponibilidad de integrantes" §4: aviso no bloqueante -- quién
+  // de la banda (o bandas, si es gira) elegida está ausente en la fecha (o
+  // rango, si es gira) elegida. Deduplicado por persona+banda.
+  const bandasSeleccionadas = tipo === "gira" ? Array.from(bandaIdsGira) : [bandaId];
+  const rangoInicio = tipo === "gira" ? giraDesde : fechaISO(fechaBase);
+  const rangoFin = tipo === "gira" ? giraHasta || giraDesde : fechaISO(fechaBase);
+  const personasAusentes = rangoInicio
+    ? (() => {
+        const vistos = new Set<string>();
+        return ausencias.filter((a) => {
+          if (!bandasSeleccionadas.includes(a.bandaId)) return false;
+          if (rangoInicio > a.fechaFin || a.fechaInicio > rangoFin) return false;
+          const clave = `${a.usuarioId}:${a.bandaId}`;
+          if (vistos.has(clave)) return false;
+          vistos.add(clave);
+          return true;
+        });
+      })()
+    : [];
 
   const crearGiraRapida = () => {
     setError(null);
@@ -385,6 +409,25 @@ export function NuevoEventoForm({
               ))}
             </div>
           </div>
+
+          {/* Brief "Disponibilidad de integrantes" §4: aviso, nunca bloquea
+              -- se recalcula solo, reactivo a banda(s) y fecha(s) elegidas
+              más abajo en el form. */}
+          {personasAusentes.length > 0 && (
+            <div className="rounded-xl p-3" style={{ background: "oklch(0.93 0.016 78 / 0.7)", border: "1px dashed oklch(0.75 0.02 60)" }}>
+              <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.05 60)" }}>
+                Posible ausencia
+              </div>
+              <div className="flex flex-col gap-0.5 text-sm" style={{ color: "oklch(0.35 0.02 55)" }}>
+                {personasAusentes.map((a) => (
+                  <span key={`${a.usuarioId}:${a.bandaId}`}>
+                    {a.nombre}
+                    {a.instrumentos.length > 0 ? ` (${a.instrumentos.join(", ")})` : ""}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {(tipo === "show" || tipo === "gira") && (
             <div>

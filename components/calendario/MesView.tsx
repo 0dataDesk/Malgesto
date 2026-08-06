@@ -1,8 +1,9 @@
 "use client";
 
 import type { Evento } from "@/lib/malgestoEventos";
+import type { AusenciaPersona } from "@/lib/ausenciasData";
 import { COLOR_TIPO, COLOR_TENTATIVO, colorConAlpha, FONDO_SHOW, FONDO_ENSAYO, FONDO_CUMPLEANOS, type IntensidadFondoDia } from "@/lib/eventoUI";
-import { celdasDelMes, esMismoDia, mismoMesAno } from "@/lib/fechas";
+import { celdasDelMes, esMismoDia, mismoMesAno, fechaISO } from "@/lib/fechas";
 import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 
 function estaEnRangoGira(dia: Date, gira: Evento): boolean {
@@ -36,6 +37,7 @@ function esOverflowMesSiguiente(dia: Date, mesVisible: Date): boolean {
 export function MesView({
   mes,
   eventos,
+  ausencias,
   colorPorBanda,
   diaSeleccionado,
   onDiaClick,
@@ -43,6 +45,7 @@ export function MesView({
 }: {
   mes: Date;
   eventos: Evento[];
+  ausencias: AusenciaPersona[];
   colorPorBanda: Map<string, string>;
   diaSeleccionado: Date | null;
   onDiaClick: (dia: Date) => void;
@@ -71,6 +74,14 @@ export function MesView({
           // evento) — los no-gira siempre tienen una sola bandaId propia.
           const bandaIdsDelDia = [...new Set(eventosDelDia.map((e) => e.bandaId))];
           const giraDelDia = giras.find((g) => estaEnRangoGira(dia, g));
+
+          // Brief "Disponibilidad de integrantes" §2: indicador de "hay
+          // alguna ausencia este día" — deliberadamente distinto de los
+          // puntos de banda (que indican DE QUÉ banda es un evento); acá
+          // solo importa "sí/no hay que revisar", el detalle vive al abrir
+          // el día (CalendarioShell).
+          const diaStr = fechaISO(dia);
+          const hayAusencias = !fueraDeMes && ausencias.some((a) => diaStr >= a.fechaInicio && diaStr <= a.fechaFin);
 
           let bg = "transparent";
           let radius = "0";
@@ -129,7 +140,7 @@ export function MesView({
               key={i}
               type="button"
               onClick={() => onDiaClick(dia)}
-              className="flex flex-col items-center text-[13px]"
+              className="relative flex flex-col items-center text-[13px]"
               style={{
                 paddingTop: 7,
                 paddingBottom: 7,
@@ -150,6 +161,13 @@ export function MesView({
                 fontWeight: esHoy || giraDelDia || bandaIdsDelDia.length > 0 ? 700 : 400,
               }}
             >
+              {hayAusencias && (
+                <span
+                  className="absolute h-[5px] w-[5px] rounded-full"
+                  style={{ top: 4, right: 4, background: "oklch(0.5 0.14 40)" }}
+                  title="Hay ausencias este día"
+                />
+              )}
               {dia.getDate()}
               <div className="mt-0.5 flex h-[6px] gap-[3px]">
                 {/* Brief "Paleta definitiva de colores del calendario" §5:
