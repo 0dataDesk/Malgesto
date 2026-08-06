@@ -120,13 +120,27 @@ export function MesView({
               {dia.getDate()}
               <div className="mt-0.5 flex h-[6px] gap-[3px]">
                 {!fueraDeMes &&
-                  bandaIdsDelDia.slice(0, 3).map((bandaId) => (
-                    <span
-                      key={bandaId}
-                      className="h-[6px] w-[6px] rounded-full"
-                      style={{ background: colorPorBanda.get(bandaId) ?? "oklch(0.6 0.02 55)" }}
-                    />
-                  ))}
+                  bandaIdsDelDia.slice(0, 3).map((bandaId) => {
+                    // Brief "Distinguir Show vs Ensayo": mismo color de banda,
+                    // el punto pasa a anillo hueco cuando TODOS los eventos de
+                    // esa banda ese día son ensayo — un show (o un cumpleaños,
+                    // que este brief no toca) mantiene el punto sólido de
+                    // siempre, incluso si además hay un ensayo el mismo día.
+                    const eventosBanda = eventosDelDia.filter((e) => e.bandaId === bandaId);
+                    const soloEnsayo = eventosBanda.length > 0 && eventosBanda.every((e) => e.tipo === "ensayo");
+                    const color = colorPorBanda.get(bandaId) ?? "oklch(0.6 0.02 55)";
+                    return (
+                      <span
+                        key={bandaId}
+                        className="h-[6px] w-[6px] rounded-full"
+                        style={
+                          soloEnsayo
+                            ? { boxSizing: "border-box", border: `1.5px solid ${color}`, background: "transparent" }
+                            : { background: color }
+                        }
+                      />
+                    );
+                  })}
               </div>
             </button>
           );
