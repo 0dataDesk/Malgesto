@@ -160,7 +160,6 @@ export function NuevoEventoForm({
   const girasDeLaBanda = girasLocal.filter((g) => g.bandaIds.includes(bandaId));
   const setlistsDeLaBanda = setlists.filter((s) => s.bandaId === bandaId);
   const lugaresDeLaBanda = lugares.filter((l) => l.bandaIds.includes(bandaId));
-  const bandaNombreActual = membresias.find((m) => m.bandaId === bandaId)?.bandaNombre ?? "";
 
   // Brief "Disponibilidad de integrantes" §4: aviso no bloqueante -- quién
   // de la banda (o bandas, si es gira) elegida está ausente en la fecha (o
@@ -225,7 +224,7 @@ export function NuevoEventoForm({
   const onSubmit = () => {
     setError(null);
     try {
-      const tituloFinal = tipo === "ensayo" ? `Ensayo ${bandaNombreActual} — ${fechaLarga(fechaBase)}` : titulo.trim();
+      const tituloFinal = tipo === "ensayo" ? "Ensayo" : titulo.trim();
       if (tipo !== "ensayo" && !tituloFinal) {
         setError("El título es obligatorio.");
         return;
@@ -451,7 +450,7 @@ export function NuevoEventoForm({
                 Título
               </span>
               <div className="rounded-xl border px-3.5 py-3 text-[15px]" style={{ ...inputStyle, color: "oklch(0.5 0.02 55)" }}>
-                Ensayo {bandaNombreActual} — {fechaLarga(fechaBase)}
+                Ensayo
               </div>
             </div>
           ) : (
