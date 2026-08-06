@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { esSuperadmin, obtenerBandasTodas, obtenerPersonasPendientes, obtenerIntegrantes, obtenerPlazas } from "@/lib/gestionData";
 import { obtenerLugaresTodos } from "@/lib/lugaresData";
-import { GestionShell, SECCIONES, type Seccion } from "@/components/gestion/GestionShell";
+import { GestionShell } from "@/components/gestion/GestionShell";
+import { SECCIONES, type Seccion } from "@/lib/gestionSecciones";
 
 // Pantalla 15 "Escritorio · Gestión" (Brief 7, reseccionada en Brief 8/9) —
 // solo accesible para usuarios con rol superadmin en al menos una banda.

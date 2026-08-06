@@ -5,12 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { BandaSimple, PersonaPendiente, Integrante, Plaza } from "@/lib/gestionData";
 import type { Lugar } from "@/lib/lugaresData";
+import { SECCIONES, type Seccion } from "@/lib/gestionSecciones";
 import { BandasPanel } from "./BandasPanel";
 import { IntegrantesPanel } from "./IntegrantesPanel";
 import { LugaresPanel } from "./LugaresPanel";
 
-export const SECCIONES = ["bandas", "integrantes", "lugares"] as const;
-export type Seccion = (typeof SECCIONES)[number];
 const ETIQUETA_SECCION: Record<Seccion, string> = { bandas: "Bandas", integrantes: "Integrantes", lugares: "Lugares" };
 
 // Pantalla 15 "Escritorio · Gestión" (Brief 7, reseccionada en Brief 8 §2,
