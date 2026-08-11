@@ -2,24 +2,41 @@ import type { TipoEvento, EstadoEvento } from "@/lib/malgestoEventos";
 import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 
 // Color e identidad visual por tipo de evento. Show/Ensayo siguen el HTML de
-// Design literal. Gira es una excepción deliberada: Design lo deja casi
-// idéntico a Cumpleaños, pero eso confunde ambos tipos en el calendario con
-// datos reales, así que mantiene el violeta propio del Brief 2 en vez de
-// seguir la fidelidad literal en este punto.
+// Design literal, sin cambios acá (el brief "Calendario — sistema de
+// colores" es exclusivamente sobre el fondo de día del grid, ver
+// FONDO_GRISES más abajo -- este COLOR_TIPO sigue siendo el acento de
+// badges/pills en el resto de la app, EventoDetalle/AgendaView, según ya
+// documentaba este comentario). Cumpleaños y Gira sí cambian: Brief
+// "Calendario — sistema de colores" los vuelve colores FIJOS en hex, iguales
+// sin importar la fecha -- gira en particular unifica el valor que hoy se ve
+// distinto entre el día del calendario (por el bug de colorConAlpha con hex,
+// ver abajo) y el badge de "Próximos eventos".
 export const COLOR_TIPO: Record<TipoEvento, string> = {
   show: "oklch(0.64 0.15 34)",
   ensayo: "oklch(0.64 0.13 195)",
-  // Brief "Rediseño de Ausencias §4": el durazno original (oklch(0.72 0.12
-  // 78)) no se sentía "de cumpleaños" -- más dorado/amarillo ahora (hue 85,
-  // entre el naranja de Show/78 y el ámbar de tentativo/88, sin pisar
-  // ninguno de los dos) y más chroma para que el dorado se note.
-  cumpleanos: "oklch(0.76 0.15 85)",
-  gira: "oklch(0.58 0.14 300)",
+  cumpleanos: "#E0839C",
+  gira: "#7C5CBF",
 };
 
-// Inserta un canal alfa dentro de un color oklch(...) ya armado, ej.
-// colorConAlpha("oklch(0.6 0.1 30)", 0.16) -> "oklch(0.6 0.1 30 / 0.16)".
+function clamp01(n: number): number {
+  return Math.min(1, Math.max(0, n));
+}
+
+// Inserta un canal alfa dentro de un color ya armado -- oklch(...) o
+// #rrggbb. Ej. colorConAlpha("oklch(0.6 0.1 30)", 0.16) ->
+// "oklch(0.6 0.1 30 / 0.16)"; colorConAlpha("#7C5CBF", 0.22) ->
+// "#7C5CBF38" (canal alfa de 8 dígitos hex, soportado nativamente por CSS).
+// El caso hex se agrega acá (Brief "Calendario — sistema de colores": Gira
+// pasa a guardarse en hex) -- antes el regex solo cazaba el ")" final de
+// oklch(...) y para un hex sin paréntesis no hacía nada, devolviendo el
+// color de entrada intacto y OPACO en vez de atenuado (rompía cualquier
+// fondo con alpha que dependiera de un color en hex).
 export function colorConAlpha(color: string, alpha: number): string {
+  const hex = color.match(/^#([0-9a-fA-F]{6})$/);
+  if (hex) {
+    const canalAlfa = Math.round(clamp01(alpha) * 255).toString(16).padStart(2, "0");
+    return `${color}${canalAlfa}`;
+  }
   return color.replace(/\)$/, ` / ${alpha})`);
 }
 
@@ -35,32 +52,18 @@ export function colorConAlpha(color: string, alpha: number): string {
 // intensidad sea exacta y predecible.
 export type IntensidadFondoDia = "pasado" | "normal" | "mesSiguiente";
 
-// Show: escala de grises pura (chroma casi 0) — el hue 55 es el mismo que
-// ya usa el resto de la app para sus neutros, así el gris no se siente
-// "importado" de otra paleta.
-export const FONDO_SHOW: Record<IntensidadFondoDia, string> = {
+// Brief "Calendario — sistema de colores": Show y Ensayo comparten ahora la
+// MISMA escala de grises (antes Ensayo tenía su propia paleta café/mostaza,
+// FONDO_ENSAYO) -- lo que los distingue ya no es el color sino cómo se
+// aplica (relleno completo para Show, borde de ~2px para Ensayo, dejando el
+// fondo natural del calendario -- ver MesView). "pasado" y "normal" quedan
+// igual que siempre (se ven bien, brief pide no tocarlos); "mesSiguiente"
+// pasa a un gris neutro puro en hex -- el oklch anterior se veía con tinte
+// café.
+export const FONDO_GRISES: Record<IntensidadFondoDia, string> = {
   pasado: "oklch(0.915 0.008 55)",
   normal: "oklch(0.82 0.012 55)",
-  mesSiguiente: "oklch(0.70 0.016 55)",
-};
-
-// Ensayo: café/mostaza — mismo hue base que los grises de Show pero con
-// chroma real (0.045-0.095 vs ~0.01), así se distingue con claridad sin
-// pelearse por atención con el naranja de acento (hue 34) ni con el ámbar
-// de tentativo (hue 88, chroma 0.17).
-export const FONDO_ENSAYO: Record<IntensidadFondoDia, string> = {
-  pasado: "oklch(0.87 0.045 55)",
-  normal: "oklch(0.74 0.08 52)",
-  mesSiguiente: "oklch(0.62 0.095 48)",
-};
-
-// Cumpleaños: dorado discreto — chroma deliberadamente más baja que Ensayo
-// ("discreto y agradable, no llamativo"), hue corrido hacia el amarillo
-// para no confundirse ni con Ensayo ni con tentativo.
-export const FONDO_CUMPLEANOS: Record<IntensidadFondoDia, string> = {
-  pasado: "oklch(0.91 0.022 95)",
-  normal: "oklch(0.83 0.035 95)",
-  mesSiguiente: "oklch(0.70 0.045 92)",
+  mesSiguiente: "#3F3F42",
 };
 
 export const ETIQUETA_TIPO: Record<TipoEvento, string> = {

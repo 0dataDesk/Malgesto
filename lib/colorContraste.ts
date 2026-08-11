@@ -42,14 +42,17 @@ function linealASrgb8(v: number): number {
   return Math.round(clamp01(s) * 255);
 }
 
-// Parsea "#rrggbb" o "oklch(L C H)" / "oklch(L C H / A)" (lo que produce
-// colorConAlpha). Devuelve RGB 0-255 y alpha 0-1 (1 si el color no trae
-// canal alfa propio -- hex siempre es opaco).
+// Parsea "#rrggbb", "#rrggbbaa" (8 dígitos -- lo que produce colorConAlpha
+// para un color de entrada en hex) u "oklch(L C H)" / "oklch(L C H / A)" (lo
+// que produce colorConAlpha para oklch). Devuelve RGB 0-255 y alpha 0-1 (1
+// si el color no trae canal alfa propio -- #rrggbb de 6 dígitos siempre es
+// opaco).
 function parsearColor(color: string): { rgb: RGB; alpha: number } {
-  const hex = color.match(/^#([0-9a-f]{6})$/i);
+  const hex = color.match(/^#([0-9a-f]{6})([0-9a-f]{2})?$/i);
   if (hex) {
     const n = parseInt(hex[1], 16);
-    return { rgb: [(n >> 16) & 255, (n >> 8) & 255, n & 255], alpha: 1 };
+    const alpha = hex[2] !== undefined ? parseInt(hex[2], 16) / 255 : 1;
+    return { rgb: [(n >> 16) & 255, (n >> 8) & 255, n & 255], alpha };
   }
 
   const ok = color.match(/^oklch\(\s*([\d.]+)%?\s+([\d.]+)%?\s+([\d.]+)\s*(?:\/\s*([\d.]+)%?\s*)?\)$/i);

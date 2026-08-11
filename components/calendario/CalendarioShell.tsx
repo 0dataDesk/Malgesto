@@ -44,7 +44,14 @@ export function CalendarioShell({
 }) {
   const router = useRouter();
   const [mes, setMes] = useState(() => new Date());
-  const [activas, setActivas] = useState<Set<string>>(() => new Set(membresias.map((m) => m.bandaId)));
+  // Brief "Calendario — sistema de colores y filtro de bandas" §2: arranca
+  // VACÍO (antes arrancaba con todas las bandaId adentro) -- todasONinguna
+  // más abajo ya trataba "0 seleccionadas" igual que "todas seleccionadas"
+  // (ambas casos "se ve todo"), así que este solo cambio alcanza para
+  // invertir qué significa el chip resaltado sin tocar esa lógica: ahora
+  // arranca sin ningún chip prendido (= sin filtro, se ve todo) y activar
+  // uno o más chips filtra a la unión de esas bandas.
+  const [activas, setActivas] = useState<Set<string>>(() => new Set());
   const [diaSeleccionado, setDiaSeleccionado] = useState<Date | null>(null);
   const [borrandoAusencia, startBorrarAusencia] = useTransition();
   // Fix: "+ Crear Set List" (y "Confirmar fecha") parecían no hacer nada.
@@ -90,10 +97,11 @@ export function CalendarioShell({
   const eventoDelDiaElegido = eventoDelDiaElegidoId ? (eventosConCumple.find((e) => e.id === eventoDelDiaElegidoId) ?? null) : null;
   const eventoSeleccionado = eventoSeleccionadoId ? (eventosConCumple.find((e) => e.id === eventoSeleccionadoId) ?? null) : null;
 
-  // Brief 9 §2: cada chip prende/apaga SOLO ese chip (el set arranca con
-  // TODAS las bandas activas, no vacío) — con todas apagadas o todas
-  // prendidas se ve todo, igual que antes, pero sin que tocar una banda
-  // afecte visualmente a las demás.
+  // Brief 9 §2 / "Calendario — sistema de colores y filtro de bandas" §2:
+  // cada chip prende/apaga SOLO ese chip, sin afectar a los demás — con
+  // ninguna banda prendida (estado inicial) o con TODAS prendidas se ve
+  // todo por igual; el filtro real solo entra en juego con 1 hasta N-1
+  // bandas seleccionadas.
   const todasONinguna = activas.size === 0 || activas.size === membresias.length;
   const eventosFiltrados = useMemo(
     () => (todasONinguna ? eventosConCumple : eventosConCumple.filter((e) => e.bandaIds.some((id) => activas.has(id)))),

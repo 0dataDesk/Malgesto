@@ -2,7 +2,8 @@
 
 import type { Evento } from "@/lib/malgestoEventos";
 import type { AusenciaPersona } from "@/lib/ausenciasData";
-import { COLOR_TIPO, COLOR_TENTATIVO, colorConAlpha, FONDO_SHOW, FONDO_ENSAYO, FONDO_CUMPLEANOS, type IntensidadFondoDia } from "@/lib/eventoUI";
+import { COLOR_TIPO, COLOR_TENTATIVO, colorConAlpha, FONDO_GRISES, type IntensidadFondoDia } from "@/lib/eventoUI";
+import { textoLegibleSobre } from "@/lib/colorContraste";
 import { celdasDelMes, esMismoDia, mismoMesAno, fechaISO } from "@/lib/fechas";
 import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 
@@ -85,7 +86,14 @@ export function MesView({
 
           let bg = "transparent";
           let radius = "0";
+          // Brief "Calendario — sistema de colores": Ensayo ya no rellena la
+          // celda -- usa el mismo gris que Show, pero solo como contorno
+          // (~2px), dejando bg en el crema natural del calendario.
+          let bordeEnsayo: string | null = null;
           if (giraDelDia) {
+            // Gira es un color FIJO (no depende de la fecha) — mismo valor
+            // que el badge de "Próximos eventos" (COLOR_TIPO.gira), ya no
+            // dos tonos que se leían distinto entre las dos pantallas.
             bg = colorConAlpha(COLOR_TIPO.gira, 0.22);
             // Design redondea solo en el día exacto de inicio/fin de la gira,
             // nunca en los bordes de fila del calendario (ver líneas 481-485
@@ -96,26 +104,29 @@ export function MesView({
             const esFin = esMismoDia(dia, fin);
             radius = `${esInicio ? "9px" : "0"} ${esFin ? "9px" : "0"} ${esFin ? "9px" : "0"} ${esInicio ? "9px" : "0"}`;
           } else if (bandaIdsDelDia.length > 0) {
-            // Brief "Paleta definitiva de colores del calendario": Show
-            // (grises), Ensayo (café/mostaza) y Cumpleaños (dorado
-            // discreto) cada uno con sus propias 3 intensidades — colores
-            // sólidos, ya no acentos con alpha sobre el fondo de página.
-            // Prioridad si un día mezcla tipos: Show sigue mandando sobre
-            // Ensayo (mismo criterio ya usado — es el evento de mayor peso).
-            // Cumpleaños entra por debajo de los dos: es un recordatorio
-            // pasivo, no algo que la banda deba "hacer" ese día, así que no
-            // debería tapar la señal de un Show/Ensayo real si coinciden —
-            // criterio propio, señalado en la entrega.
+            // Brief "Calendario — sistema de colores": Show y Ensayo
+            // comparten la misma escala de grises según qué tan lejos está
+            // la fecha (pasado/normal/mesSiguiente) -- la diferencia entre
+            // ambos ya no es de color, es de aplicación (relleno vs.
+            // contorno, resuelto más abajo). Cumpleaños es fijo, no depende
+            // de la fecha. Prioridad si un día mezcla tipos: Show sigue
+            // mandando sobre Ensayo (mismo criterio ya usado — es el evento
+            // de mayor peso), Cumpleaños entra por debajo de los dos —
+            // criterio ya resuelto, no es parte de este brief redefinirlo.
             const tieneShow = eventosDelDia.some((e) => e.tipo === "show");
             const tieneEnsayo = eventosDelDia.some((e) => e.tipo === "ensayo");
             const tieneCumple = eventosDelDia.some((e) => e.tipo === "cumpleanos");
-            const paleta = tieneShow ? FONDO_SHOW : tieneEnsayo ? FONDO_ENSAYO : tieneCumple ? FONDO_CUMPLEANOS : null;
 
-            if (paleta) {
+            if (tieneShow || tieneEnsayo) {
               const pasado = esDiaPasado(dia, hoy);
               const mesSiguiente = !pasado && fueraDeMes && esOverflowMesSiguiente(dia, mes);
               const intensidad: IntensidadFondoDia = pasado ? "pasado" : mesSiguiente ? "mesSiguiente" : "normal";
-              bg = paleta[intensidad];
+              const gris = FONDO_GRISES[intensidad];
+              if (tieneShow) bg = gris;
+              else bordeEnsayo = gris;
+              radius = "9px";
+            } else if (tieneCumple) {
+              bg = COLOR_TIPO.cumpleanos;
               radius = "9px";
             }
           }
@@ -133,6 +144,7 @@ export function MesView({
           const anillos = [
             esSeleccionado ? "inset 0 0 0 2px oklch(0.64 0.15 34)" : null,
             tieneTentativo ? "inset 0 0 0 2px oklch(0.62 0.17 88)" : null,
+            bordeEnsayo ? `inset 0 0 0 2px ${bordeEnsayo}` : null,
           ].filter(Boolean);
 
           return (
@@ -147,17 +159,22 @@ export function MesView({
                 background: esHoy ? "oklch(0.24 0.02 55)" : bg,
                 borderRadius: esHoy ? 9 : radius,
                 boxShadow: anillos.length > 0 ? anillos.join(", ") : "none",
-                // El overflow de mes siguiente ahora puede llevar un fondo
-                // bastante más fuerte (gris/café/dorado oscuro) — el texto
-                // tenue de "fuera de mes" perdía casi todo el contraste ahí,
-                // así que un día con fondo de evento usa el texto oscuro
-                // normal sin importar si es overflow o no; el tenue queda
-                // reservado para overflow realmente vacío.
+                // Brief "Calendario — sistema de colores": "mesSiguiente"
+                // pasa a un gris OSCURO puro (#3F3F42) -- el texto oscuro
+                // fijo que se usaba antes para cualquier día con fondo ya no
+                // alcanza ahí (quedaría casi invisible sobre un fondo
+                // igual de oscuro), así que un día con relleno mide
+                // contraste real contra ESE fondo en vez de asumir que
+                // siempre es claro; el tenue de "fuera de mes vacío" y el
+                // oscuro fijo de siempre se mantienen sin cambios para los
+                // demás casos (sin relleno).
                 color: esHoy
                   ? "oklch(0.99 0.01 82)"
-                  : fueraDeMes && bg === "transparent"
-                    ? "oklch(0.72 0.02 60)"
-                    : "oklch(0.3 0.02 55)",
+                  : bg !== "transparent"
+                    ? textoLegibleSobre(bg)
+                    : fueraDeMes
+                      ? "oklch(0.72 0.02 60)"
+                      : "oklch(0.3 0.02 55)",
                 fontWeight: esHoy || giraDelDia || bandaIdsDelDia.length > 0 ? 700 : 400,
               }}
             >
