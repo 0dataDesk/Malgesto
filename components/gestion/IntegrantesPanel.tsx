@@ -180,6 +180,11 @@ function FilaIntegrante({
 
   const bandaAsignada = (bandaId: string) => bandasLocal.find((b) => b.bandaId === bandaId && b.activo);
   const bandasActivas = bandasLocal.filter((b) => b.activo);
+  // Brief "Integrantes — orden de bandas en 'Bandas asignadas'" §9: las
+  // bandas donde SÍ está asignado (tarjeta expandida) van arriba, las que no
+  // (pill gris) abajo -- sort estable, así dentro de cada grupo se conserva
+  // el orden alfabético que ya trae `bandas`.
+  const bandasOrdenParaAsignacion = [...bandas].sort((a, b) => Number(!bandaAsignada(a.id)) - Number(!bandaAsignada(b.id)));
   // Brief "Rediseño visual de Gestión" §6: BandaDeIntegrante no trae color
   // propio (solo bandaId/bandaNombre) — se resuelve contra `bandas`, la
   // misma lista completa que ya recibe este componente.
@@ -447,7 +452,7 @@ function FilaIntegrante({
               vez de dos acordeones separados (Bandas asignadas / Bloques
               visibles) que no se leían como relacionados. */}
           <SubAcordeon titulo="Bandas asignadas">
-            {bandas.map((b) => {
+            {bandasOrdenParaAsignacion.map((b) => {
               const asignada = bandaAsignada(b.id);
               const plazasDeLaBanda = plazas.filter((p) => p.bandaId === b.id);
               const bloquesActivosBanda = bloquesActivosDeBanda(b);
