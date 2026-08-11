@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { BandaSimple } from "@/lib/gestionData";
 import type { Lugar } from "@/lib/lugaresData";
 import { ToggleChip } from "@/components/ui/ToggleChip";
-import { actualizarLugarAction, actualizarLugarBandasAction, eliminarLugarAction } from "@/app/gestion/actions";
+import { crearLugarAction, actualizarLugarAction, actualizarLugarBandasAction, eliminarLugarAction } from "@/app/gestion/actions";
 
 const inputCls = "w-full rounded-lg border px-3 py-2 text-sm outline-none";
 const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
@@ -33,11 +33,17 @@ function toggleEnSet(set: Set<string>, valor: string): Set<string> {
 // link, bandas asignadas, borrar. Nombre/link/bandas se juntan en un solo
 // Guardar (antes cada chip de banda pegaba al servidor en cada click); si no
 // se guarda, Cancelar/volver atrás no persiste nada.
-export function LugarForm({ lugar, bandas }: { lugar: Lugar; bandas: BandaSimple[] }) {
+// Brief "Lugares — FAB para crear": `lugar` ahora es opcional -- sin él, el
+// mismo formulario arranca vacío y actúa en modo creación (crearLugarAction
+// en vez de actualizar, sin botón de eliminar, botón dice "Crear"). Mismo
+// componente para los dos casos en vez de duplicarlo, ya que la única
+// diferencia real es qué action se llama al guardar.
+export function LugarForm({ lugar, bandas }: { lugar?: Lugar; bandas: BandaSimple[] }) {
   const router = useRouter();
-  const [nombre, setNombre] = useState(lugar.nombre);
-  const [linkMaps, setLinkMaps] = useState(lugar.linkMaps);
-  const [bandaIds, setBandaIds] = useState<Set<string>>(new Set(lugar.bandaIds));
+  const esNuevo = !lugar;
+  const [nombre, setNombre] = useState(lugar?.nombre ?? "");
+  const [linkMaps, setLinkMaps] = useState(lugar?.linkMaps ?? "");
+  const [bandaIds, setBandaIds] = useState<Set<string>>(new Set(lugar?.bandaIds ?? []));
   const [pending, startTransition] = useTransition();
   const [pendingEliminar, setPendingEliminar] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,11 +55,19 @@ export function LugarForm({ lugar, bandas }: { lugar: Lugar; bandas: BandaSimple
       setError("Nombre y link son obligatorios.");
       return;
     }
+    if (esNuevo && bandaIds.size === 0) {
+      setError("Elegí al menos una banda.");
+      return;
+    }
     setError(null);
     startTransition(async () => {
       try {
-        await actualizarLugarAction(lugar.id, nombre.trim(), linkMaps.trim());
-        await actualizarLugarBandasAction(lugar.id, Array.from(bandaIds));
+        if (lugar) {
+          await actualizarLugarAction(lugar.id, nombre.trim(), linkMaps.trim());
+          await actualizarLugarBandasAction(lugar.id, Array.from(bandaIds));
+        } else {
+          await crearLugarAction(Array.from(bandaIds), nombre.trim(), linkMaps.trim());
+        }
         volver();
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo guardar.");
@@ -64,6 +78,7 @@ export function LugarForm({ lugar, bandas }: { lugar: Lugar; bandas: BandaSimple
   // Mismo patrón de confirm() que "Eliminar cuenta" en IntegrantesPanel --
   // borrado real e irreversible, aviso explícito antes de disparar.
   const eliminar = () => {
+    if (!lugar) return;
     if (!confirm(`¿Eliminar "${lugar.nombre}"? Esta acción no se puede deshacer.`)) return;
     setError(null);
     setPendingEliminar(true);
@@ -79,19 +94,21 @@ export function LugarForm({ lugar, bandas }: { lugar: Lugar; bandas: BandaSimple
     <div className="mx-auto flex w-full max-w-md flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-lg font-extrabold" style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}>
-          Editar lugar
+          {esNuevo ? "Nuevo lugar" : "Editar lugar"}
         </h2>
-        <button
-          type="button"
-          onClick={eliminar}
-          disabled={pendingEliminar}
-          aria-label="Eliminar lugar"
-          title="Eliminar lugar (borrado permanente)"
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full disabled:opacity-50"
-          style={{ background: "oklch(0.6 0.15 25 / 0.12)", color: "oklch(0.5 0.18 25)" }}
-        >
-          <IconoEliminar />
-        </button>
+        {lugar && (
+          <button
+            type="button"
+            onClick={eliminar}
+            disabled={pendingEliminar}
+            aria-label="Eliminar lugar"
+            title="Eliminar lugar (borrado permanente)"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full disabled:opacity-50"
+            style={{ background: "oklch(0.6 0.15 25 / 0.12)", color: "oklch(0.5 0.18 25)" }}
+          >
+            <IconoEliminar />
+          </button>
+        )}
       </div>
 
       <label className={labelCls} style={labelColor}>
@@ -129,7 +146,7 @@ export function LugarForm({ lugar, bandas }: { lugar: Lugar; bandas: BandaSimple
           className="flex-1 rounded-xl py-2.5 text-sm font-bold disabled:opacity-60"
           style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
         >
-          {pending ? "Guardando…" : "Guardar"}
+          {pending ? (esNuevo ? "Creando…" : "Guardando…") : esNuevo ? "Crear" : "Guardar"}
         </button>
         <button
           type="button"

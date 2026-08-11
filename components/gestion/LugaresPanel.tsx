@@ -1,22 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import Link from "next/link";
 import type { BandaSimple } from "@/lib/gestionData";
 import type { Lugar } from "@/lib/lugaresData";
-import { ToggleChip } from "@/components/ui/ToggleChip";
 import { EmojiOPunto } from "@/components/ui/EmojiOPunto";
-import { crearLugarAction } from "@/app/gestion/actions";
-
-const inputCls = "rounded-lg border px-3 py-2 text-sm outline-none";
-const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
-
-function toggleEnSet(set: Set<string>, valor: string): Set<string> {
-  const next = new Set(set);
-  if (next.has(valor)) next.delete(valor);
-  else next.add(valor);
-  return next;
-}
 
 function IconoMaps() {
   return (
@@ -72,39 +59,26 @@ function TarjetaLugar({ lugar, bandas }: { lugar: Lugar; bandas: BandaSimple[] }
   );
 }
 
-export function LugaresPanel({ bandas, lugares: lugaresIniciales }: { bandas: BandaSimple[]; lugares: Lugar[] }) {
-  const [lugares, setLugares] = useState(lugaresIniciales);
-  const [nombre, setNombre] = useState("");
-  const [linkMaps, setLinkMaps] = useState("");
-  const [bandaIdsNuevo, setBandaIdsNuevo] = useState<Set<string>>(new Set());
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  const crear = () => {
-    setError(null);
-    if (!nombre.trim() || !linkMaps.trim()) {
-      setError("Nombre y link son obligatorios.");
-      return;
-    }
-    if (bandaIdsNuevo.size === 0) {
-      setError("Elegí al menos una banda.");
-      return;
-    }
-    startTransition(async () => {
-      try {
-        const lugar = await crearLugarAction(Array.from(bandaIdsNuevo), nombre.trim(), linkMaps.trim());
-        setLugares((prev) => [...prev, lugar]);
-        setNombre("");
-        setLinkMaps("");
-        setBandaIdsNuevo(new Set());
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "No se pudo crear.");
-      }
-    });
-  };
-
+// Brief "Lugares — FAB para crear": mismo estilo/posición que el FAB de
+// Bandas (commit 82ebfa0), pero acá navega directo a una pantalla completa
+// en vez de expandirse in-place -- Lugares captura nombre + link + bandas
+// de una sola vez, no entra en el mismo campito inline que un nombre solo.
+function BotonCrearLugar() {
   return (
-    <div className="flex flex-col gap-3">
+    <Link
+      href="/gestion/lugares/nuevo"
+      aria-label="Crear lugar nuevo"
+      className="fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full text-2xl font-bold no-underline"
+      style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)", boxShadow: "0 14px 26px -12px rgba(0,0,0,0.5)" }}
+    >
+      +
+    </Link>
+  );
+}
+
+export function LugaresPanel({ bandas, lugares }: { bandas: BandaSimple[]; lugares: Lugar[] }) {
+  return (
+    <div className="flex flex-col gap-3 pb-20">
       <section className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
         <h3 className="mb-3 text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
           Lugares
@@ -121,36 +95,9 @@ export function LugaresPanel({ bandas, lugares: lugaresIniciales }: { bandas: Ba
             ))}
           </div>
         )}
-
-        <div className="mt-3 flex flex-col gap-2 border-t pt-3" style={{ borderColor: "oklch(0.9 0.012 78)" }}>
-          <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre del lugar" className={inputCls} style={inputStyle} />
-          <input value={linkMaps} onChange={(e) => setLinkMaps(e.target.value)} placeholder="Link de Google Maps" className={inputCls} style={inputStyle} />
-          <div>
-            <span className="mb-1.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
-              Bandas
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {bandas.map((b) => (
-                <ToggleChip key={b.id} label={b.nombre} active={bandaIdsNuevo.has(b.id)} onClick={() => setBandaIdsNuevo((prev) => toggleEnSet(prev, b.id))} color={b.color} />
-              ))}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={crear}
-            disabled={pending}
-            className="rounded-lg py-2 text-sm font-bold disabled:opacity-60"
-            style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
-          >
-            {pending ? "Creando…" : "+ Nuevo lugar"}
-          </button>
-          {error && (
-            <p className="text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
-              {error}
-            </p>
-          )}
-        </div>
       </section>
+
+      <BotonCrearLugar />
     </div>
   );
 }
