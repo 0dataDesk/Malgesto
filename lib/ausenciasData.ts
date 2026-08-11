@@ -75,26 +75,18 @@ function diaISO(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-type EventoParaConflicto = { id: string; banda_id: string; tipo: string; fecha_inicio: string; fecha_fin: string | null };
-
-// Brief "Disponibilidad de integrantes": ausencias de los integrantes de
-// las bandas dadas -- combina 2 fuentes:
-// 1. Manuales: malgesto.incidencias, capturadas por cada quien sobre sí
-//    mismo (§1).
-// 2. Automáticas: un integrante de banda X con un evento (show/ensayo/gira)
-//    agendado ese mismo día con OTRA banda a la que pertenezca -- calculado
-//    al vuelo contra malgesto.eventos, nunca duplicado en incidencias (§3).
-// El resultado nunca revela CON QUÉ otra banda es el conflicto automático
-// ("no restringido... ni de qué banda es el conflicto si es automático") --
-// cada fila solo lleva la banda que se está evaluando (bandaId=X), nunca Y.
+// Brief "Ausencias — quitar las automáticas...": esta función combinaba 2
+// fuentes -- manuales (malgesto.incidencias) y automáticas (calculadas al
+// vuelo comparando eventos entre TODAS las bandas de cada persona). La
+// automática se quita por completo acá: solo queda la manual.
 export async function obtenerAusencias(bandaIds: string[]): Promise<AusenciaPersona[]> {
   if (bandaIds.length === 0) return [];
   const admin = supabaseMalgesto();
 
   // Fix "ausencias con demasiado ruido": superadmin no genera ni recibe
-  // ausencias (ni manuales ni automáticas) -- pertenece a todas las bandas,
-  // así que sin este filtro cualquier evento suyo en cualquier banda lo
-  // marcaría "ausente" en todas las demás. Solo miembro/administrador cuentan.
+  // ausencias -- pertenece a todas las bandas, así que sin este filtro
+  // cualquier evento suyo en cualquier banda lo marcaría "ausente" en todas
+  // las demás. Solo miembro/administrador cuentan.
   const { data: misMiembros } = await admin
     .from("miembros_banda")
     .select("usuario_id, banda_id")
@@ -105,59 +97,24 @@ export async function obtenerAusencias(bandaIds: string[]): Promise<AusenciaPers
 
   const personaIds = [...new Set(misMiembros.map((m) => m.usuario_id))];
 
-  // Bandas de CADA una de esas personas (no solo bandaIds pedidos) -- hace
-  // falta el panorama completo para detectar el conflicto con "otra banda".
-  const { data: todasMembresias } = await admin
-    .from("miembros_banda")
-    .select("usuario_id, banda_id")
-    .in("usuario_id", personaIds)
-    .in("rol", ["miembro", "administrador"])
-    .eq("activo", true);
-
+  // Brief "Ausencias — quitar las automáticas...": ya no hace falta el
+  // panorama COMPLETO de bandas de cada persona (eso era para detectar el
+  // conflicto con "otra banda", eliminado acá) -- misMiembros ya está
+  // scopeado a bandaIds, alcanza para saber a cuáles de las bandas pedidas
+  // pertenece cada persona con incidencia manual.
   const bandasPorPersona = new Map<string, Set<string>>();
-  for (const m of todasMembresias ?? []) {
+  for (const m of misMiembros) {
     const set = bandasPorPersona.get(m.usuario_id) ?? new Set<string>();
     set.add(m.banda_id);
     bandasPorPersona.set(m.usuario_id, set);
   }
-  const todasLasBandas = [...new Set((todasMembresias ?? []).map((m) => m.banda_id))];
 
-  const [{ data: incidencias }, { data: personas }, { data: authData }, { data: personaPlazas }, { data: eventosDirectos }, { data: giraBandasRelevantes }] =
-    await Promise.all([
-      admin.from("incidencias").select("id, usuario_id, fecha_inicio, fecha_fin").in("usuario_id", personaIds),
-      admin.from("personas").select("usuario_id, nombre_mostrar"),
-      admin.auth.admin.listUsers({ page: 1, perPage: 200 }),
-      admin.from("persona_plazas").select("persona_id, plazas(banda_id, instrumento, etiqueta)").in("persona_id", personaIds),
-      admin
-        .from("eventos")
-        .select("id, banda_id, tipo, fecha_inicio, fecha_fin")
-        .in("banda_id", todasLasBandas)
-        .in("tipo", ["show", "ensayo", "gira"])
-        .eq("estado", "confirmado"),
-      admin.from("gira_bandas").select("gira_evento_id, banda_id").in("banda_id", todasLasBandas),
-    ]);
-
-  // Mismo patrón "directos + extra" que obtenerEventos (lib/malgestoEventos.ts):
-  // una gira puede involucrar una banda relevante solo como secundaria
-  // (gira_bandas), sin que su banda_id primaria esté en todasLasBandas.
-  const idsDirectos = new Set((eventosDirectos ?? []).map((e) => e.id));
-  const idsExtra = [...new Set((giraBandasRelevantes ?? []).map((g) => g.gira_evento_id))].filter((id) => !idsDirectos.has(id));
-  const { data: eventosExtra } =
-    idsExtra.length > 0
-      ? await admin.from("eventos").select("id, banda_id, tipo, fecha_inicio, fecha_fin").in("id", idsExtra).eq("estado", "confirmado")
-      : { data: [] as EventoParaConflicto[] };
-
-  const eventos: EventoParaConflicto[] = [...(eventosDirectos ?? []), ...(eventosExtra ?? [])];
-  const giraIds = eventos.filter((e) => e.tipo === "gira").map((e) => e.id);
-  const bandasPorGira = new Map<string, Set<string>>();
-  if (giraIds.length > 0) {
-    const { data: relaciones } = await admin.from("gira_bandas").select("gira_evento_id, banda_id").in("gira_evento_id", giraIds);
-    for (const r of relaciones ?? []) {
-      const set = bandasPorGira.get(r.gira_evento_id) ?? new Set<string>();
-      set.add(r.banda_id);
-      bandasPorGira.set(r.gira_evento_id, set);
-    }
-  }
+  const [{ data: incidencias }, { data: personas }, { data: authData }, { data: personaPlazas }] = await Promise.all([
+    admin.from("incidencias").select("id, usuario_id, fecha_inicio, fecha_fin").in("usuario_id", personaIds),
+    admin.from("personas").select("usuario_id, nombre_mostrar"),
+    admin.auth.admin.listUsers({ page: 1, perPage: 200 }),
+    admin.from("persona_plazas").select("persona_id, plazas(banda_id, instrumento, etiqueta)").in("persona_id", personaIds),
+  ]);
 
   const nombrePorId = new Map((personas ?? []).map((p) => [p.usuario_id, p.nombre_mostrar]));
   const emailPorId = new Map((authData?.users ?? []).map((u) => [u.id, u.email ?? "Integrante"]));
@@ -197,34 +154,9 @@ export async function obtenerAusencias(bandaIds: string[]): Promise<AusenciaPers
     }
   }
 
-  for (const ev of eventos) {
-    const bandasDelEvento = ev.tipo === "gira" ? (bandasPorGira.get(ev.id) ?? new Set([ev.banda_id])) : new Set([ev.banda_id]);
-    const inicio = diaISO(ev.fecha_inicio);
-    const fin = ev.fecha_fin ? diaISO(ev.fecha_fin) : inicio;
-
-    for (const [usuarioId, susBandas] of bandasPorPersona) {
-      const tieneEventoAca = [...bandasDelEvento].some((y) => susBandas.has(y));
-      if (!tieneEventoAca) continue;
-      for (const bandaId of susBandas) {
-        if (!bandaIds.includes(bandaId)) continue;
-        if (bandasDelEvento.has(bandaId)) continue; // no es "otra" banda
-        resultado.push({
-          id: `auto:${ev.id}:${usuarioId}:${bandaId}`,
-          origen: "automatico",
-          usuarioId,
-          nombre: nombreDe(usuarioId),
-          bandaId,
-          instrumentos: instrumentosDe(usuarioId, bandaId),
-          fechaInicio: inicio,
-          fechaFin: fin,
-        });
-      }
-    }
-  }
-
   // Brief "Rediseño de Ausencias §1": nunca fechas pasadas -- una ausencia
-  // (manual o automática) cuyo rango ya terminó no aporta nada, solo ruido.
-  // "Futuro" incluye hoy (fechaFin >= hoy, no >).
+  // cuyo rango ya terminó no aporta nada, solo ruido. "Futuro" incluye hoy
+  // (fechaFin >= hoy, no >).
   const hoy = fechaISO(ahoraEnZonaApp());
   return resultado.filter((a) => a.fechaFin >= hoy);
 }
