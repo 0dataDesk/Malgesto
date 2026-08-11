@@ -5,6 +5,7 @@ import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, memb
 import { obtenerSetlists } from "@/lib/setlistsData";
 import { crearSetlistAction } from "@/app/set-list/actions";
 import { TabBar } from "@/components/shell/TabBar";
+import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda";
 
 // Brief "Set List: selector de banda previo": mismo patrón que Canciones y
 // Finanzas — reemplaza los chips de filtro que vivían dentro de la vista por
@@ -49,16 +50,9 @@ export default async function SetListPage({
             Elegí la banda antes de ver sus Set Lists.
           </p>
 
-          <div className="mt-5 flex flex-col gap-2.5">
+          <div className="mt-5 grid grid-cols-2 gap-3">
             {bandasConBloque.map((m) => (
-              <Link
-                key={m.bandaId}
-                href={`/set-list?banda=${m.bandaId}`}
-                className="flex items-center justify-between rounded-2xl p-4 text-base font-bold no-underline"
-                style={{ background: m.color, color: "oklch(0.99 0.01 82)" }}
-              >
-                <span>{m.bandaNombre}</span>
-              </Link>
+              <TarjetaSeleccionarBanda key={m.bandaId} membresia={m} href={`/set-list?banda=${m.bandaId}`} />
             ))}
           </div>
         </div>

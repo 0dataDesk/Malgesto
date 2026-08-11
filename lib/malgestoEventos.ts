@@ -43,6 +43,7 @@ type BandaEmbebida = {
   nombre: string;
   color: string;
   emoji: string | null;
+  genero: string | null;
   canciones_habilitado: boolean;
   setlist_habilitado: boolean;
   seteos_habilitado: boolean;
@@ -77,7 +78,7 @@ export async function obtenerMembresias(usuarioId: string): Promise<Membresia[]>
   const { data } = await admin
     .from("miembros_banda")
     .select(
-      "rol, bloques_visibles, bandas(id, nombre, color, emoji, canciones_habilitado, setlist_habilitado, seteos_habilitado, finanzas_habilitado, stage_plot_habilitado)"
+      "rol, bloques_visibles, bandas(id, nombre, color, emoji, genero, canciones_habilitado, setlist_habilitado, seteos_habilitado, finanzas_habilitado, stage_plot_habilitado)"
     )
     .eq("usuario_id", usuarioId)
     .eq("activo", true);
@@ -92,6 +93,7 @@ export async function obtenerMembresias(usuarioId: string): Promise<Membresia[]>
       // pasar) de una membresía sin banda embebida.
       color: banda?.color ?? "oklch(0.6 0.02 55)",
       emoji: banda?.emoji ?? null,
+      genero: banda?.genero ?? null,
       rol: m.rol,
       cancionesHabilitado: banda?.canciones_habilitado ?? true,
       setlistHabilitado: banda?.setlist_habilitado ?? true,

@@ -6,6 +6,7 @@ import { obtenerOCrearStagePlot } from "@/lib/stagePlotData";
 import { TabBar } from "@/components/shell/TabBar";
 import { StagePlotLienzo } from "@/components/stagePlot/StagePlotLienzo";
 import { StagePlotAcciones } from "@/components/stagePlot/StagePlotAcciones";
+import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda";
 
 // Vista de solo lectura, pensada para compartir con el sonidista del venue
 // sin pasar por el editor (Brief Stage Plot §4) — mismo patrón de selector
@@ -50,16 +51,9 @@ export default async function StagePlotPage({
             Elegí la banda antes de ver su stage plot.
           </p>
 
-          <div className="mt-5 flex flex-col gap-2.5">
+          <div className="mt-5 grid grid-cols-2 gap-3">
             {bandasConBloque.map((m) => (
-              <Link
-                key={m.bandaId}
-                href={`/stage-plot?banda=${m.bandaId}`}
-                className="flex items-center justify-between rounded-2xl p-4 text-base font-bold no-underline"
-                style={{ background: m.color, color: "oklch(0.99 0.01 82)" }}
-              >
-                <span>{m.bandaNombre}</span>
-              </Link>
+              <TarjetaSeleccionarBanda key={m.bandaId} membresia={m} href={`/stage-plot?banda=${m.bandaId}`} />
             ))}
           </div>
         </div>

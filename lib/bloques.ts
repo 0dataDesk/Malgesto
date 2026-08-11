@@ -10,6 +10,9 @@ export type Membresia = {
   // Brief "Rediseño de Ausencias §5": opcional -- si la banda no tiene
   // emoji capturado, el calendario sigue usando el punto de color.
   emoji: string | null;
+  // Brief "Selector '¿Qué banda?'...": texto secundario debajo del nombre
+  // en la tarjeta de selección -- null si la banda no lo tiene cargado.
+  genero: string | null;
   rol: string;
   cancionesHabilitado: boolean;
   setlistHabilitado: boolean;

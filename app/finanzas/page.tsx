@@ -7,6 +7,7 @@ import { formatoMoneda, eventoYaPaso } from "@/lib/eventoUI";
 import { TabBar } from "@/components/shell/TabBar";
 import { NuevoMovimientoForm } from "@/components/finanzas/NuevoMovimientoForm";
 import { MovimientoFila } from "@/components/finanzas/MovimientoFila";
+import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda";
 
 // Brief "Finanzas: ingresos automáticos de shows futuros...": un movimiento
 // manual siempre cuenta (decisión explícita del usuario); uno automático
@@ -76,19 +77,20 @@ export default async function FinanzasPage({
             Elegí la banda antes de ver sus movimientos.
           </p>
 
-          <div className="mt-5 flex flex-col gap-2.5">
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            {/* Brief "Selector '¿Qué banda?'...", con excepción a pedido: la
+                tarjeta de Finanzas mantiene el balance visible (agregado por
+                un brief previo para no repetir el error de guardar un
+                movimiento en la banda equivocada -- ver feedback
+                malgesto-finanzas-band-selector) como dato extra debajo del
+                género, en vez de perderlo al adoptar el diseño de tarjeta
+                nuevo. */}
             {bandasConBloque.map((m) => (
-              <Link
-                key={m.bandaId}
-                href={`/finanzas?banda=${m.bandaId}`}
-                className="flex items-center justify-between rounded-2xl p-4 text-base font-bold no-underline"
-                style={{ background: m.color, color: "oklch(0.99 0.01 82)" }}
-              >
-                <span>{m.bandaNombre}</span>
-                <span className="font-mono text-sm" style={{ color: "oklch(0.99 0.01 82 / 0.8)" }}>
+              <TarjetaSeleccionarBanda key={m.bandaId} membresia={m} href={`/finanzas?banda=${m.bandaId}`}>
+                <span className="font-mono text-xs font-bold" style={{ color: "oklch(0.4 0.02 55)" }}>
                   {formatoMoneda(balancePorBanda.get(m.bandaId) ?? 0)}
                 </span>
-              </Link>
+              </TarjetaSeleccionarBanda>
             ))}
           </div>
         </div>

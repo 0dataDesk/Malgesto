@@ -6,6 +6,7 @@ import { obtenerCanciones } from "@/lib/cancionesData";
 import { colorRaizAcorde } from "@/lib/cancionTeoria";
 import { formatoMMSS } from "@/lib/duracion";
 import { TabBar } from "@/components/shell/TabBar";
+import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda";
 
 // Brief "Canciones: selector de banda previo" — mismo patrón que Finanzas
 // (Brief de corrección §1 de Finanzas): sin ?banda= válido y con más de una
@@ -55,16 +56,9 @@ export default async function CancionesPage({
             Elegí la banda antes de ver su repertorio.
           </p>
 
-          <div className="mt-5 flex flex-col gap-2.5">
+          <div className="mt-5 grid grid-cols-2 gap-3">
             {bandasConBloque.map((m) => (
-              <Link
-                key={m.bandaId}
-                href={`/canciones?banda=${m.bandaId}`}
-                className="flex items-center justify-between rounded-2xl p-4 text-base font-bold no-underline"
-                style={{ background: m.color, color: "oklch(0.99 0.01 82)" }}
-              >
-                <span>{m.bandaNombre}</span>
-              </Link>
+              <TarjetaSeleccionarBanda key={m.bandaId} membresia={m} href={`/canciones?banda=${m.bandaId}`} />
             ))}
           </div>
         </div>
