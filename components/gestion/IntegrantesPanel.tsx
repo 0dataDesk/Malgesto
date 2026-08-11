@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import type { BandaSimple, PersonaPendiente, Integrante, Plaza, BandaDeIntegrante, RolInvitable, InvitacionPorBanda } from "@/lib/gestionData";
 import type { NombreBloque } from "@/lib/bloques";
+import type { DisenoDispositivo, CategoriaCatalogo, DispositivoAsignado } from "@/lib/dispositivosData";
 import { etiquetaPlaza } from "@/lib/instrumentoCatalogo";
 import { colorConAlpha } from "@/lib/eventoUI";
 import { ToggleChip } from "@/components/ui/ToggleChip";
@@ -18,6 +19,9 @@ import {
   actualizarBloquesVisiblesAction,
   inactivarPersonaAction,
   eliminarPersonaAction,
+  asignarDisenoDispositivoAction,
+  marcarConsolaAction,
+  quitarDispositivoAction,
 } from "@/app/gestion/actions";
 
 // Catálogo de bloques opcionales restringibles por persona (Brief 21 §1) —
@@ -121,6 +125,89 @@ function formatearFecha(iso: string): string {
   return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
+const ETIQUETA_CATEGORIA: Record<CategoriaCatalogo, string> = { amplificador: "Amplificador(es)", pedal: "Pedal(es)" };
+
+// Amplificador(es)/Pedal(es) (brief "Seteos — catálogo de diseños" §1): lista
+// de diseños ya asignados de esa categoría + un dropdown para asignar uno más
+// del catálogo (sin alta de diseño nuevo acá, solo elegir de los que ya
+// existen). Sin límite de plazas -- a diferencia de instrumento, puede haber
+// varios pedales.
+function SeccionDispositivos({
+  categoria,
+  asignados,
+  disponibles,
+  onAsignar,
+  onQuitar,
+  pendingAsignar,
+  pendingQuitarId,
+}: {
+  categoria: CategoriaCatalogo;
+  asignados: DispositivoAsignado[];
+  disponibles: DisenoDispositivo[];
+  onAsignar: (disenoId: string) => void;
+  onQuitar: (dispositivoId: string) => void;
+  pendingAsignar: boolean;
+  pendingQuitarId: string | null;
+}) {
+  return (
+    <div className="mt-2">
+      <span className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+        {ETIQUETA_CATEGORIA[categoria]}
+      </span>
+
+      {asignados.length > 0 && (
+        <div className="mb-1.5 flex flex-col gap-1.5">
+          {asignados.map((d) => (
+            <div
+              key={d.id}
+              className="flex items-center justify-between gap-2 rounded-lg py-1.5 pl-2.5 pr-1.5"
+              style={{ background: "oklch(0.93 0.016 78)" }}
+            >
+              <span className="text-xs font-semibold" style={{ color: "oklch(0.4 0.02 55)" }}>
+                {d.disenoMarca} {d.disenoModelo}
+                {d.apodo && <span style={{ color: "oklch(0.55 0.02 55)" }}> · {d.apodo}</span>}
+              </span>
+              <button
+                type="button"
+                onClick={() => onQuitar(d.id)}
+                disabled={pendingQuitarId === d.id}
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] disabled:opacity-50"
+                style={{ background: "oklch(0.85 0.016 78)" }}
+                aria-label={`Quitar ${ETIQUETA_CATEGORIA[categoria].toLowerCase()}`}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {disponibles.length === 0 ? (
+        <p className="text-xs italic" style={{ color: "oklch(0.55 0.02 55)" }}>
+          Todavía no hay {categoria === "amplificador" ? "amplis" : "pedales"} en el catálogo — pídele a Jorge que lo cargue.
+        </p>
+      ) : (
+        <select
+          value=""
+          onChange={(e) => {
+            if (e.target.value) onAsignar(e.target.value);
+          }}
+          disabled={pendingAsignar}
+          className="w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none disabled:opacity-60"
+          style={{ background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" }}
+        >
+          <option value="">+ Asignar {categoria === "amplificador" ? "amplificador" : "pedal"} del catálogo…</option>
+          {disponibles.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.marca} {d.modelo}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+}
+
 const ETIQUETA_ESTADO: Record<Integrante["estado"], string> = { invitado: "Invitado", activo: "Activo", inactivo: "Inactivo" };
 const COLOR_ESTADO: Record<Integrante["estado"], string> = {
   invitado: "oklch(0.6 0.1 70)",
@@ -154,12 +241,16 @@ function FilaIntegrante({
   bandas,
   plazas,
   ocupacionPlazas,
+  disenosAmplificador,
+  disenosPedal,
   onEliminado,
 }: {
   integrante: Integrante;
   bandas: BandaSimple[];
   plazas: Plaza[];
   ocupacionPlazas: Map<string, { usuarioId: string; nombre: string }>;
+  disenosAmplificador: DisenoDispositivo[];
+  disenosPedal: DisenoDispositivo[];
   onEliminado: () => void;
 }) {
   const [expandido, setExpandido] = useState(false);
@@ -174,6 +265,10 @@ function FilaIntegrante({
   const [pendingPlaza, setPendingPlaza] = useState<string | null>(null);
   const [errorPlaza, setErrorPlaza] = useState<string | null>(null);
   const [plazaPickerBandaId, setPlazaPickerBandaId] = useState<string | null>(null);
+  const [pendingDispositivoBandaId, setPendingDispositivoBandaId] = useState<string | null>(null);
+  const [pendingQuitarDispositivoId, setPendingQuitarDispositivoId] = useState<string | null>(null);
+  const [pendingConsolaBandaId, setPendingConsolaBandaId] = useState<string | null>(null);
+  const [errorDispositivo, setErrorDispositivo] = useState<string | null>(null);
   const [pendingInactivar, setPendingInactivar] = useState(false);
   const [pendingEliminar, setPendingEliminar] = useState(false);
   const [errorPeligro, setErrorPeligro] = useState<string | null>(null);
@@ -219,7 +314,10 @@ function FilaIntegrante({
             return prev.map((b) => (b.bandaId === bandaId ? { ...b, activo: !asignada } : b));
           }
           const info = bandas.find((b) => b.id === bandaId);
-          return [...prev, { bandaId, bandaNombre: info?.nombre ?? "Banda", activo: true, rol: "miembro", plazas: [], bloquesVisibles: null }];
+          return [
+            ...prev,
+            { bandaId, bandaNombre: info?.nombre ?? "Banda", activo: true, rol: "miembro", plazas: [], bloquesVisibles: null, dispositivos: [] },
+          ];
         });
       })
       .finally(() => setPendingBanda(null));
@@ -286,6 +384,52 @@ function FilaIntegrante({
       })
       .catch((e) => setErrorPlaza(e instanceof Error ? e.message : "No se pudo actualizar el instrumento."))
       .finally(() => setPendingPlaza(null));
+  };
+
+  // Brief "Seteos — catálogo de diseños" §1: asignar un diseño existente del
+  // catálogo (amplificador/pedal) a esta persona en esta banda.
+  const asignarDiseno = (bandaId: string, categoria: CategoriaCatalogo, disenoId: string) => {
+    if (!integrante.usuarioId) return;
+    setErrorDispositivo(null);
+    setPendingDispositivoBandaId(bandaId);
+    asignarDisenoDispositivoAction(integrante.usuarioId, bandaId, categoria, disenoId)
+      .then((dispositivo) => {
+        setBandasLocal((prev) => prev.map((b) => (b.bandaId === bandaId ? { ...b, dispositivos: [...b.dispositivos, dispositivo] } : b)));
+      })
+      .catch((e) => setErrorDispositivo(e instanceof Error ? e.message : "No se pudo asignar."))
+      .finally(() => setPendingDispositivoBandaId(null));
+  };
+
+  const quitarDispositivo = (bandaId: string, dispositivoId: string) => {
+    setErrorDispositivo(null);
+    setPendingQuitarDispositivoId(dispositivoId);
+    quitarDispositivoAction(dispositivoId)
+      .then(() => {
+        setBandasLocal((prev) =>
+          prev.map((b) => (b.bandaId === bandaId ? { ...b, dispositivos: b.dispositivos.filter((d) => d.id !== dispositivoId) } : b))
+        );
+      })
+      .catch((e) => setErrorDispositivo(e instanceof Error ? e.message : "No se pudo quitar."))
+      .finally(() => setPendingQuitarDispositivoId(null));
+  };
+
+  // Consola es un marcador único por banda (brief §1 punto "Consola") — tildar
+  // crea la fila categoria=consola, destildar la borra (mismo camino que
+  // quitarDispositivo, vía el id de esa fila).
+  const toggleConsola = (bandaId: string, consolaActual: DispositivoAsignado | undefined) => {
+    if (!integrante.usuarioId) return;
+    setErrorDispositivo(null);
+    if (consolaActual) {
+      quitarDispositivo(bandaId, consolaActual.id);
+      return;
+    }
+    setPendingConsolaBandaId(bandaId);
+    marcarConsolaAction(integrante.usuarioId, bandaId)
+      .then((dispositivo) => {
+        setBandasLocal((prev) => prev.map((b) => (b.bandaId === bandaId ? { ...b, dispositivos: [...b.dispositivos, dispositivo] } : b)));
+      })
+      .catch((e) => setErrorDispositivo(e instanceof Error ? e.message : "No se pudo marcar."))
+      .finally(() => setPendingConsolaBandaId(null));
   };
 
   // Brief "Eliminar integrante" / "Inactivar": Inactivar reusa el mismo
@@ -611,6 +755,50 @@ function FilaIntegrante({
                     </div>
                   )}
 
+                  {/* Brief "Seteos — catálogo de diseños" §1: Amplificador(es)/
+                      Pedal(es) asignados a esta persona en esta banda, más el
+                      marcador de Consola. Reemplaza el rol que tenía "Mis
+                      dispositivos" en Seteos como lugar de alta. */}
+                  <SeccionDispositivos
+                    categoria="amplificador"
+                    asignados={asignada.dispositivos.filter((d) => d.categoria === "amplificador")}
+                    disponibles={disenosAmplificador}
+                    onAsignar={(disenoId) => asignarDiseno(b.id, "amplificador", disenoId)}
+                    onQuitar={(dispositivoId) => quitarDispositivo(b.id, dispositivoId)}
+                    pendingAsignar={pendingDispositivoBandaId === b.id}
+                    pendingQuitarId={pendingQuitarDispositivoId}
+                  />
+                  <SeccionDispositivos
+                    categoria="pedal"
+                    asignados={asignada.dispositivos.filter((d) => d.categoria === "pedal")}
+                    disponibles={disenosPedal}
+                    onAsignar={(disenoId) => asignarDiseno(b.id, "pedal", disenoId)}
+                    onQuitar={(dispositivoId) => quitarDispositivo(b.id, dispositivoId)}
+                    pendingAsignar={pendingDispositivoBandaId === b.id}
+                    pendingQuitarId={pendingQuitarDispositivoId}
+                  />
+                  {(() => {
+                    const consola = asignada.dispositivos.find((d) => d.categoria === "consola");
+                    return (
+                      <div className="mt-2">
+                        <span className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                          Consola
+                        </span>
+                        <ToggleChip
+                          label="Va directo a consola"
+                          active={!!consola}
+                          disabled={pendingConsolaBandaId === b.id || pendingQuitarDispositivoId === consola?.id}
+                          onClick={() => toggleConsola(b.id, consola)}
+                        />
+                      </div>
+                    );
+                  })()}
+                  {errorDispositivo && (
+                    <p className="mt-1.5 text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
+                      {errorDispositivo}
+                    </p>
+                  )}
+
                   {/* 4. Bloques visibles */}
                   {bloquesActivosBanda.length > 0 && (
                     <div className="mt-2">
@@ -702,12 +890,16 @@ export function IntegrantesPanel({
   integrantes: integrantesIniciales,
   plazas,
   plazasReservadas,
+  disenosAmplificador,
+  disenosPedal,
 }: {
   bandas: BandaSimple[];
   personasPendientes: PersonaPendiente[];
   integrantes: Integrante[];
   plazas: Plaza[];
   plazasReservadas: string[];
+  disenosAmplificador: DisenoDispositivo[];
+  disenosPedal: DisenoDispositivo[];
 }) {
   const [personasPendientes, setPersonasPendientes] = useState(personasPendientesIniciales);
   // Brief "Eliminar integrante": mismo patrón que LugaresPanel — el borrado
@@ -879,6 +1071,8 @@ export function IntegrantesPanel({
             bandas={bandas}
             plazas={plazas}
             ocupacionPlazas={ocupacionPlazas}
+            disenosAmplificador={disenosAmplificador}
+            disenosPedal={disenosPedal}
             onEliminado={() => i.usuarioId && setIntegrantes((prev) => prev.filter((x) => x.usuarioId !== i.usuarioId))}
           />
         )),
@@ -895,6 +1089,8 @@ export function IntegrantesPanel({
             bandas={bandas}
             plazas={plazas}
             ocupacionPlazas={ocupacionPlazas}
+            disenosAmplificador={disenosAmplificador}
+            disenosPedal={disenosPedal}
             onEliminado={() => i.usuarioId && setIntegrantes((prev) => prev.filter((x) => x.usuarioId !== i.usuarioId))}
           />
         )),
@@ -911,6 +1107,8 @@ export function IntegrantesPanel({
             bandas={bandas}
             plazas={plazas}
             ocupacionPlazas={ocupacionPlazas}
+            disenosAmplificador={disenosAmplificador}
+            disenosPedal={disenosPedal}
             onEliminado={() => i.usuarioId && setIntegrantes((prev) => prev.filter((x) => x.usuarioId !== i.usuarioId))}
           />
         )),

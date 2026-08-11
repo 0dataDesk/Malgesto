@@ -1,57 +1,28 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requerirMembresia } from "@/lib/malgestoAccess";
-import { supabaseServerAuth } from "@/lib/supabase/serverClient";
-import {
-  crearDispositivo,
-  crearSeteo,
-  actualizarSeteo,
-  type Control,
-  type TipoControl,
-  type ActualizarSeteoInput,
-} from "@/lib/dispositivosData";
+import { crearSeteoParaCancion, actualizarValoresSeteo, type ControlDiseno, type Seteo } from "@/lib/dispositivosData";
 
-async function usuarioActualId(): Promise<string> {
-  const supabase = await supabaseServerAuth();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("No hay sesión activa.");
-  return user.id;
-}
-
-export async function crearDispositivoAction(
+export async function crearSeteoParaCancionAction(
+  dispositivoId: string,
   bandaId: string,
-  nombre: string,
-  tipoControl: TipoControl,
-  controles: Control[]
-) {
+  cancionId: string,
+  controles: ControlDiseno[]
+): Promise<Seteo> {
   await requerirMembresia(bandaId);
-  const usuarioId = await usuarioActualId();
-  const dispositivoId = await crearDispositivo({ bandaId, usuarioId, nombre, tipoControl, controles });
-  revalidatePath("/seteos");
-  redirect(`/seteos/${dispositivoId}`);
-}
-
-export async function crearSeteoAction(dispositivoId: string, bandaId: string, controles: Control[]): Promise<string> {
-  await requerirMembresia(bandaId);
-  const valoresDefault = Object.fromEntries(controles.map((c) => [c.id, c.valorDefault]));
-  const seteoId = await crearSeteo(dispositivoId, "Nuevo seteo", valoresDefault);
+  const seteo = await crearSeteoParaCancion(dispositivoId, cancionId, controles);
   revalidatePath(`/seteos/${dispositivoId}`);
-  revalidatePath("/seteos");
-  return seteoId;
+  return seteo;
 }
 
-export async function actualizarSeteoAction(
+export async function actualizarValoresSeteoAction(
   seteoId: string,
   dispositivoId: string,
   bandaId: string,
-  input: ActualizarSeteoInput
-) {
+  valores: Record<string, number>
+): Promise<void> {
   await requerirMembresia(bandaId);
-  await actualizarSeteo(seteoId, dispositivoId, input);
+  await actualizarValoresSeteo(seteoId, valores);
   revalidatePath(`/seteos/${dispositivoId}`);
-  revalidatePath("/seteos");
 }

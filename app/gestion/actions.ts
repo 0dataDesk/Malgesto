@@ -27,6 +27,7 @@ import {
   type InvitacionPorBanda,
 } from "@/lib/gestionData";
 import { crearLugar, actualizarLugar, actualizarLugarBandas, eliminarLugar } from "@/lib/lugaresData";
+import { asignarDiseno, marcarConsola, quitarDispositivo, type CategoriaCatalogo, type DispositivoAsignado } from "@/lib/dispositivosData";
 
 export async function crearBandaAction(nombre: string): Promise<string> {
   const usuarioId = await requerirSuperadmin();
@@ -170,6 +171,38 @@ export async function inactivarPersonaAction(usuarioId: string): Promise<void> {
 export async function eliminarPersonaAction(usuarioId: string): Promise<void> {
   await requerirSuperadmin();
   await eliminarPersona(usuarioId);
+  revalidatePath("/gestion");
+}
+
+// Brief "Seteos — catálogo de diseños" §1: asignar un diseño existente del
+// catálogo (amplificador o pedal) a un integrante en una banda, desde
+// Gestión > Integrantes — reemplaza el alta libre que antes vivía en Seteos.
+export async function asignarDisenoDispositivoAction(
+  usuarioId: string,
+  bandaId: string,
+  categoria: CategoriaCatalogo,
+  disenoId: string
+): Promise<DispositivoAsignado> {
+  await requerirSuperadmin();
+  const dispositivo = await asignarDiseno(bandaId, usuarioId, categoria, disenoId);
+  revalidatePath("/gestion");
+  return dispositivo;
+}
+
+// Marca "va directo a consola" para un integrante en una banda (marcador
+// único, sin diseño ni sub-lista).
+export async function marcarConsolaAction(usuarioId: string, bandaId: string): Promise<DispositivoAsignado> {
+  await requerirSuperadmin();
+  const dispositivo = await marcarConsola(bandaId, usuarioId);
+  revalidatePath("/gestion");
+  return dispositivo;
+}
+
+// Quita una asignación (amplificador/pedal/consola) — usado tanto para "×" en
+// Amplificador(es)/Pedal(es) como para destildar Consola.
+export async function quitarDispositivoAction(dispositivoId: string): Promise<void> {
+  await requerirSuperadmin();
+  await quitarDispositivo(dispositivoId);
   revalidatePath("/gestion");
 }
 

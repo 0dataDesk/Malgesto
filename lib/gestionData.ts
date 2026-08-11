@@ -1,5 +1,6 @@
 import "server-only";
 import { supabaseMalgesto } from "@/lib/supabase/malgesto";
+import type { DispositivoAsignado } from "@/lib/dispositivosData";
 
 export type BandaSimple = {
   id: string;
@@ -383,6 +384,9 @@ export type BandaDeIntegrante = {
   rol: string;
   plazas: PlazaAsignada[];
   bloquesVisibles: string[] | null;
+  // Brief "Seteos — catálogo de diseños" §1: amplificador(es)/pedal(es)/
+  // consola asignados a esta persona en esta banda.
+  dispositivos: DispositivoAsignado[];
 };
 
 export type Integrante = {
@@ -395,17 +399,52 @@ export type Integrante = {
   bandas: BandaDeIntegrante[];
 };
 
+type DispositivoRow = {
+  id: string;
+  banda_id: string;
+  usuario_id: string;
+  categoria: string;
+  diseno_id: string | null;
+  nombre: string | null;
+  disenos_dispositivo: { marca: string; modelo: string } | null;
+};
+
 export async function obtenerIntegrantes(): Promise<Integrante[]> {
   const admin = supabaseMalgesto();
-  const [{ data: bandas }, { data: miembros }, { data: invitacionesPendientes }, { data: authData }, { data: personas }, { data: personaPlazas }] =
-    await Promise.all([
-      admin.from("bandas").select("id, nombre"),
-      admin.from("miembros_banda").select("usuario_id, banda_id, rol, activo, bloques_visibles"),
-      admin.from("invitaciones").select("email").eq("estado", "pendiente"),
-      admin.auth.admin.listUsers({ page: 1, perPage: 200 }),
-      admin.from("personas").select("usuario_id, nombre_mostrar, fecha_nacimiento"),
-      admin.from("persona_plazas").select("persona_id, plazas(id, banda_id, instrumento, etiqueta)"),
-    ]);
+  const [
+    { data: bandas },
+    { data: miembros },
+    { data: invitacionesPendientes },
+    { data: authData },
+    { data: personas },
+    { data: personaPlazas },
+    { data: dispositivos },
+  ] = await Promise.all([
+    admin.from("bandas").select("id, nombre"),
+    admin.from("miembros_banda").select("usuario_id, banda_id, rol, activo, bloques_visibles"),
+    admin.from("invitaciones").select("email").eq("estado", "pendiente"),
+    admin.auth.admin.listUsers({ page: 1, perPage: 200 }),
+    admin.from("personas").select("usuario_id, nombre_mostrar, fecha_nacimiento"),
+    admin.from("persona_plazas").select("persona_id, plazas(id, banda_id, instrumento, etiqueta)"),
+    admin.from("dispositivos").select("id, banda_id, usuario_id, categoria, diseno_id, nombre, disenos_dispositivo(marca, modelo)"),
+  ]);
+
+  const dispositivosPorPersonaYBanda = new Map<string, DispositivoAsignado[]>();
+  for (const d of (dispositivos ?? []) as unknown as DispositivoRow[]) {
+    const key = `${d.usuario_id}:${d.banda_id}`;
+    const lista = dispositivosPorPersonaYBanda.get(key) ?? [];
+    lista.push({
+      id: d.id,
+      bandaId: d.banda_id,
+      usuarioId: d.usuario_id,
+      categoria: d.categoria as DispositivoAsignado["categoria"],
+      disenoId: d.diseno_id,
+      disenoMarca: d.disenos_dispositivo?.marca ?? null,
+      disenoModelo: d.disenos_dispositivo?.modelo ?? null,
+      apodo: d.nombre,
+    });
+    dispositivosPorPersonaYBanda.set(key, lista);
+  }
 
   const bandaPorId = new Map((bandas ?? []).map((b) => [b.id, b.nombre]));
   const emailPorUsuarioId = new Map((authData?.users ?? []).map((u) => [u.id, u.email ?? "(sin correo)"]));
@@ -450,6 +489,7 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
       rol: m.rol,
       plazas: plazasPorPersonaYBanda.get(`${m.usuario_id}:${m.banda_id}`) ?? [],
       bloquesVisibles: (m.bloques_visibles as string[] | null) ?? null,
+      dispositivos: dispositivosPorPersonaYBanda.get(`${m.usuario_id}:${m.banda_id}`) ?? [],
     });
     if (m.activo) acc.tieneActivo = true;
   }

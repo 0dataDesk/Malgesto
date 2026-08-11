@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { BandaSimple, PersonaPendiente, Integrante, Plaza } from "@/lib/gestionData";
 import type { Lugar } from "@/lib/lugaresData";
+import type { DisenoDispositivo } from "@/lib/dispositivosData";
 import { SECCIONES, type Seccion } from "@/lib/gestionSecciones";
 import { BandasPanel } from "./BandasPanel";
 import { IntegrantesPanel } from "./IntegrantesPanel";
@@ -23,6 +24,8 @@ export function GestionShell({
   lugares,
   plazas,
   plazasReservadas,
+  disenosAmplificador,
+  disenosPedal,
 }: {
   seccionInicial: Seccion;
   bandas: BandaSimple[];
@@ -31,6 +34,8 @@ export function GestionShell({
   lugares: Lugar[];
   plazas: Plaza[];
   plazasReservadas: string[];
+  disenosAmplificador: DisenoDispositivo[];
+  disenosPedal: DisenoDispositivo[];
 }) {
   const router = useRouter();
   const [seccion, setSeccion] = useState<Seccion>(seccionInicial);
@@ -86,6 +91,8 @@ export function GestionShell({
               integrantes={integrantes}
               plazas={plazas}
               plazasReservadas={plazasReservadas}
+              disenosAmplificador={disenosAmplificador}
+              disenosPedal={disenosPedal}
             />
           )}
           {seccion === "lugares" && <LugaresPanel bandas={bandas} lugares={lugares} />}

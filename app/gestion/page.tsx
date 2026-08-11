@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { esSuperadmin, obtenerBandasTodas, obtenerPersonasPendientes, obtenerIntegrantes, obtenerPlazas, obtenerPlazasReservadas } from "@/lib/gestionData";
 import { obtenerLugaresTodos } from "@/lib/lugaresData";
+import { obtenerDisenosPorCategoria } from "@/lib/dispositivosData";
 import { GestionShell } from "@/components/gestion/GestionShell";
 import { SECCIONES, type Seccion } from "@/lib/gestionSecciones";
 
@@ -37,10 +38,12 @@ export default async function GestionPage({
     obtenerIntegrantes(),
   ]);
   const bandaIds = bandas.map((b) => b.id);
-  const [lugares, plazas, plazasReservadas] = await Promise.all([
+  const [lugares, plazas, plazasReservadas, disenosAmplificador, disenosPedal] = await Promise.all([
     obtenerLugaresTodos(),
     obtenerPlazas(bandaIds),
     obtenerPlazasReservadas(),
+    obtenerDisenosPorCategoria("amplificador"),
+    obtenerDisenosPorCategoria("pedal"),
   ]);
 
   return (
@@ -52,6 +55,8 @@ export default async function GestionPage({
       lugares={lugares}
       plazas={plazas}
       plazasReservadas={plazasReservadas}
+      disenosAmplificador={disenosAmplificador}
+      disenosPedal={disenosPedal}
     />
   );
 }
