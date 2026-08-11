@@ -73,10 +73,6 @@ export function CalendarioShell({
   // calculado por índice) — se resuelve una sola vez acá y se pasa a
   // MesView/AgendaView, en vez de que cada uno arme su propio mapa.
   const colorPorBanda = useMemo(() => new Map(membresias.map((m) => [m.bandaId, m.color])), [membresias]);
-  // Brief "Rediseño de Ausencias §5": emoji opcional por banda, mismo
-  // patrón que colorPorBanda -- MesView usa el emoji en vez del punto de
-  // color cuando existe, y sigue con el punto cuando es null.
-  const emojiPorBanda = useMemo(() => new Map(membresias.map((m) => [m.bandaId, m.emoji])), [membresias]);
 
   // Para la grilla del mes / selección de día: ventana centro±1 año, así
   // navegar meses hacia atrás o adelante sigue mostrando el cumpleaños
@@ -318,7 +314,6 @@ export function CalendarioShell({
             eventos={eventosFiltrados}
             ausencias={ausenciasFiltradas}
             colorPorBanda={colorPorBanda}
-            emojiPorBanda={emojiPorBanda}
             diaSeleccionado={diaSeleccionado}
             onDiaClick={onDiaClick}
             onEventoClick={(e) => setEventoSeleccionadoId(e.id)}

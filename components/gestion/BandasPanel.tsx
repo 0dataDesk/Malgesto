@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import type { BandaSimple, ActualizacionBanda, Plaza } from "@/lib/gestionData";
 import { INSTRUMENTOS, ETIQUETA_INSTRUMENTO, etiquetaPlaza, type Instrumento } from "@/lib/instrumentoCatalogo";
 import { colorConAlpha } from "@/lib/eventoUI";
+import { textoLegibleSobre } from "@/lib/colorContraste";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import { crearBandaAction, actualizarBandaAction, crearPlazaAction, eliminarPlazaAction } from "@/app/gestion/actions";
 
@@ -486,62 +487,73 @@ export function BandasPanel({ bandas: bandasIniciales, plazas: plazasIniciales }
           {verArchivadas ? "No hay bandas archivadas." : "Todavía no hay bandas."}
         </p>
       ) : (
-        listado.map((b) => (
-          <button
-            key={b.id}
-            type="button"
-            onClick={() => setBandaSeleccionadaId(b.id)}
-            className="rounded-2xl p-4 text-left"
-            style={{
-              background: colorConAlpha(b.color, 0.08),
-              borderTop: "1px solid oklch(0.89 0.013 78)",
-              borderRight: "1px solid oklch(0.89 0.013 78)",
-              borderBottom: "1px solid oklch(0.89 0.013 78)",
-              borderLeft: `4px solid ${b.color}`,
-            }}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-base font-bold" style={{ color: b.color }}>
-                {b.nombre}
+        listado.map((b) => {
+          // Fix de contraste: bandas.color hoy convive en dos formatos
+          // (oklch de la paleta vieja, #hex del selector libre nuevo) --
+          // texto en el color de la banda a secas se vuelve ilegible con
+          // hex saturado (ver Leocadio/Davis Don/Juana LR). Se calcula
+          // sobre el mismo string que ya arma el `background` de abajo, así
+          // el contraste se mide contra lo que realmente se ve en pantalla,
+          // no contra un supuesto de formato.
+          const fondoTarjeta = colorConAlpha(b.color, 0.08);
+          const colorTexto = textoLegibleSobre(fondoTarjeta);
+          return (
+            <button
+              key={b.id}
+              type="button"
+              onClick={() => setBandaSeleccionadaId(b.id)}
+              className="rounded-2xl p-4 text-left"
+              style={{
+                background: fondoTarjeta,
+                borderTop: "1px solid oklch(0.89 0.013 78)",
+                borderRight: "1px solid oklch(0.89 0.013 78)",
+                borderBottom: "1px solid oklch(0.89 0.013 78)",
+                borderLeft: `4px solid ${b.color}`,
+              }}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-base font-bold" style={{ color: colorTexto }}>
+                  {b.nombre}
+                </div>
+                {b.genero && (
+                  <span className="font-mono text-xs" style={{ color: colorTexto }}>
+                    {b.genero}
+                  </span>
+                )}
               </div>
-              {b.genero && (
-                <span className="font-mono text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
-                  {b.genero}
-                </span>
-              )}
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
-                Calendario
-              </span>
-              {b.cancionesHabilitado && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
-                  Canciones
+                  Calendario
                 </span>
-              )}
-              {b.setlistHabilitado && (
-                <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
-                  Set List
-                </span>
-              )}
-              {b.seteosHabilitado && (
-                <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
-                  Seteos
-                </span>
-              )}
-              {b.finanzasHabilitado && (
-                <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
-                  Finanzas
-                </span>
-              )}
-              {b.stagePlotHabilitado && (
-                <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
-                  Stage Plot
-                </span>
-              )}
-            </div>
-          </button>
-        ))
+                {b.cancionesHabilitado && (
+                  <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
+                    Canciones
+                  </span>
+                )}
+                {b.setlistHabilitado && (
+                  <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
+                    Set List
+                  </span>
+                )}
+                {b.seteosHabilitado && (
+                  <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
+                    Seteos
+                  </span>
+                )}
+                {b.finanzasHabilitado && (
+                  <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
+                    Finanzas
+                  </span>
+                )}
+                {b.stagePlotHabilitado && (
+                  <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={PILL_BLOQUE}>
+                    Stage Plot
+                  </span>
+                )}
+              </div>
+            </button>
+          );
+        })
       )}
     </div>
   );
