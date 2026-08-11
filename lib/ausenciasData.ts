@@ -37,10 +37,16 @@ export async function crearIncidencia(usuarioId: string, fechaInicio: string, fe
 // ajena aunque conociera su id (Brief §1: "cada quien solo gestiona las
 // suyas"). RLS está activo pero sin políticas (mismo patrón que el resto de
 // la app, ver contexto del brief) así que este chequeo en el WHERE es el
-// único candado real.
-export async function eliminarIncidencia(usuarioId: string, incidenciaId: string): Promise<void> {
+// único candado real. Brief "Superadmin puede declarar/borrar ausencias de
+// cualquier integrante": `comoSuperadmin` salta ese candado -- el caller
+// (crearIncidenciaAction en app/inicio/actions.ts) es responsable de
+// verificar server-side que quien llama realmente lo es antes de pasar
+// `true`, este archivo no vuelve a chequear sesión.
+export async function eliminarIncidencia(usuarioId: string, incidenciaId: string, comoSuperadmin = false): Promise<void> {
   const admin = supabaseMalgesto();
-  const { error } = await admin.from("incidencias").delete().eq("id", incidenciaId).eq("usuario_id", usuarioId);
+  let query = admin.from("incidencias").delete().eq("id", incidenciaId);
+  if (!comoSuperadmin) query = query.eq("usuario_id", usuarioId);
+  const { error } = await query;
   if (error) throw new Error(error.message);
 }
 

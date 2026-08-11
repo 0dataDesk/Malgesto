@@ -17,6 +17,7 @@ import {
 } from "@/lib/malgestoEventos";
 import { crearSetlist } from "@/lib/setlistsData";
 import { crearIncidencia, eliminarIncidencia, type Ausencia } from "@/lib/ausenciasData";
+import { esSuperadmin } from "@/lib/gestionData";
 
 // Brief 18 §3: editar/eliminar eventos (y asignarles gira/Set List) es solo
 // para superadmin — crear se amplió a administrador también, ver
@@ -174,18 +175,33 @@ async function usuarioActualId(): Promise<string> {
 // crearEventoAction/requerirEscrituraEnBanda: cualquier integrante puede
 // crear una Ausencia, solo para sí mismo -- mismo guard (ninguno más que la
 // sesión) que ya tenía esta acción en app/disponibilidad/actions.ts.
-export async function crearIncidenciaAction(fechaInicio: string, fechaFin: string): Promise<Ausencia> {
+// Brief "Superadmin puede declarar/borrar ausencias de cualquier
+// integrante": `usuarioIdObjetivo` deja que un superadmin declare a nombre
+// de otra persona -- pero nunca se confía en lo que mande el cliente sin
+// verificar acá mismo, server-side, que quien llama realmente es
+// superadmin. Si no lo es (o el objetivo coincide con el propio usuario,
+// el caso normal de siempre) se usa el usuario de la sesión, igual que
+// antes.
+export async function crearIncidenciaAction(fechaInicio: string, fechaFin: string, usuarioIdObjetivo?: string): Promise<Ausencia> {
   const usuarioId = await usuarioActualId();
+  let usuarioFinal = usuarioId;
+  if (usuarioIdObjetivo && usuarioIdObjetivo !== usuarioId) {
+    if (!(await esSuperadmin(usuarioId))) {
+      throw new Error("Solo superadmin puede declarar una ausencia a nombre de otra persona.");
+    }
+    usuarioFinal = usuarioIdObjetivo;
+  }
   if (!fechaInicio || !fechaFin) throw new Error("Completá las dos fechas.");
   if (fechaFin < fechaInicio) throw new Error("La fecha de fin no puede ser anterior a la de inicio.");
-  const incidencia = await crearIncidencia(usuarioId, fechaInicio, fechaFin);
+  const incidencia = await crearIncidencia(usuarioFinal, fechaInicio, fechaFin);
   revalidatePath("/inicio");
   return incidencia;
 }
 
 export async function eliminarIncidenciaAction(incidenciaId: string): Promise<void> {
   const usuarioId = await usuarioActualId();
-  await eliminarIncidencia(usuarioId, incidenciaId);
+  const comoSuperadmin = await esSuperadmin(usuarioId);
+  await eliminarIncidencia(usuarioId, incidenciaId, comoSuperadmin);
   revalidatePath("/inicio");
 }
 

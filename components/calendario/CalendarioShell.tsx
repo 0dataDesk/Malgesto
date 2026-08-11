@@ -8,6 +8,7 @@ import type { Lugar } from "@/lib/lugaresData";
 import type { PersonaConCumple } from "@/lib/cumpleanosVirtual";
 import { generarCumpleanosVirtuales } from "@/lib/cumpleanosVirtual";
 import type { AusenciaPersona } from "@/lib/ausenciasData";
+import type { Integrante } from "@/lib/gestionData";
 import { nombreMesAno, sumarMeses, esMismoDia, hora, fechaISO } from "@/lib/fechas";
 import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 import { COLOR_TIPO, ETIQUETA_TIPO, eventoYaPaso } from "@/lib/eventoUI";
@@ -31,6 +32,7 @@ export function CalendarioShell({
   lugares,
   cumpleanos,
   ausencias,
+  integrantes,
   userEmail,
   usuarioId,
 }: {
@@ -40,6 +42,7 @@ export function CalendarioShell({
   lugares: Lugar[];
   cumpleanos: PersonaConCumple[];
   ausencias: AusenciaPersona[];
+  integrantes: Integrante[];
   userEmail: string;
   usuarioId: string;
 }) {
@@ -378,8 +381,13 @@ export function CalendarioShell({
                     )}
                     {/* Brief "Rediseño de Ausencias": borrar solo la propia y solo
                         si es manual -- un conflicto automático no es una fila,
-                        no hay nada que borrar. */}
-                    {a.origen === "manual" && a.usuarioId === usuarioId && (
+                        no hay nada que borrar. Brief "Superadmin puede
+                        declarar/borrar ausencias de cualquier integrante" §4:
+                        superadmin puede borrar cualquier ausencia manual, no
+                        solo la propia -- el guard real vive server-side en
+                        eliminarIncidenciaAction, esto solo decide si mostrar
+                        el botón. */}
+                    {a.origen === "manual" && (a.usuarioId === usuarioId || esSuperadmin) && (
                       <button
                         type="button"
                         onClick={() => borrarAusencia(a.id)}
@@ -455,6 +463,9 @@ export function CalendarioShell({
           setlists={setlists}
           lugares={lugares}
           ausencias={ausencias}
+          esSuperadmin={esSuperadmin}
+          integrantes={integrantes}
+          usuarioId={usuarioId}
           eventoExistente={eventoEnEdicion}
           fechaSeleccionada={fechaParaForm}
           onCancelar={() => setMostrarForm(false)}

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import type { Membresia, TipoEvento, Evento, NuevoEventoInput } from "@/lib/malgestoEventos";
 import type { Lugar } from "@/lib/lugaresData";
 import type { AusenciaPersona } from "@/lib/ausenciasData";
+import type { Integrante } from "@/lib/gestionData";
 import { COLOR_TIPO, ETIQUETA_TIPO } from "@/lib/eventoUI";
 import { fechaISO } from "@/lib/fechas";
 import { ToggleChip } from "@/components/ui/ToggleChip";
@@ -83,6 +84,9 @@ export function NuevoEventoForm({
   setlists,
   lugares,
   ausencias,
+  esSuperadmin,
+  integrantes,
+  usuarioId,
   eventoExistente,
   fechaSeleccionada,
   onCreado,
@@ -93,6 +97,13 @@ export function NuevoEventoForm({
   setlists: SetlistOpcion[];
   lugares: Lugar[];
   ausencias: AusenciaPersona[];
+  // Brief "Superadmin puede declarar/borrar ausencias de cualquier
+  // integrante" §5: solo superadmin ve el selector "¿Para quién?" dentro del
+  // sub-form de Ausencia -- para cualquier otro integrante el form se ve
+  // exactamente igual que siempre.
+  esSuperadmin: boolean;
+  integrantes: Integrante[];
+  usuarioId: string;
   eventoExistente?: Evento;
   fechaSeleccionada: Date;
   onCreado: () => void;
@@ -125,6 +136,10 @@ export function NuevoEventoForm({
   const [ausenciaDesde, setAusenciaDesde] = useState(fechaISO(fechaSeleccionada));
   const [ausenciaRango, setAusenciaRango] = useState(false);
   const [ausenciaHasta, setAusenciaHasta] = useState(fechaISO(fechaSeleccionada));
+  // "" = Yo mismo (default) -- se traduce a `undefined` recién al enviar,
+  // para no romper el caso normal (cualquier integrante declarando su
+  // propia ausencia) contra crearIncidenciaAction.
+  const [ausenciaParaUsuarioId, setAusenciaParaUsuarioId] = useState("");
   // Brief "Estado Tentativo...": default Confirmado -- solo aplica a
   // show/gira, se ignora (forzado a "confirmado") para el resto en onSubmit.
   const [tentativo, setTentativo] = useState(eventoExistente?.estado === "tentativo");
@@ -252,7 +267,7 @@ export function NuevoEventoForm({
     }
     startTransition(async () => {
       try {
-        await crearIncidenciaAction(ausenciaDesde, fin);
+        await crearIncidenciaAction(ausenciaDesde, fin, ausenciaParaUsuarioId || undefined);
         onCreado();
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo guardar la ausencia.");
@@ -478,6 +493,27 @@ export function NuevoEventoForm({
               ausencia es de la persona, no de una banda puntual). */}
           {tipo === "ausencia" && (
             <div className="flex flex-col gap-3">
+              {/* Brief "Superadmin puede declarar/borrar ausencias de
+                  cualquier integrante" §5: solo visible para superadmin --
+                  cualquier otro integrante nunca ve este selector, declara
+                  siempre para sí mismo como hasta ahora. */}
+              {esSuperadmin && (
+                <div>
+                  <span className={labelCls} style={labelStyle}>
+                    ¿Para quién?
+                  </span>
+                  <select className={inputCls} style={inputStyle} value={ausenciaParaUsuarioId} onChange={(e) => setAusenciaParaUsuarioId(e.target.value)}>
+                    <option value="">Yo mismo</option>
+                    {integrantes
+                      .filter((i): i is Integrante & { usuarioId: string } => !!i.usuarioId && i.usuarioId !== usuarioId)
+                      .map((i) => (
+                        <option key={i.usuarioId} value={i.usuarioId}>
+                          {i.nombreMostrar || i.email}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <span className={labelCls} style={labelStyle}>
                   {ausenciaRango ? "Desde" : "Fecha"}

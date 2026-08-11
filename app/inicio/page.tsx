@@ -5,6 +5,7 @@ import { obtenerSetlists } from "@/lib/setlistsData";
 import { obtenerLugares } from "@/lib/lugaresData";
 import { obtenerCumpleanosDeMisBandas } from "@/lib/cumpleanos";
 import { obtenerAusencias } from "@/lib/ausenciasData";
+import { obtenerIntegrantes } from "@/lib/gestionData";
 import { CalendarioShell } from "@/components/calendario/CalendarioShell";
 
 // 1 banda -> directo al calendario de esa banda (hoy el único bloque que
@@ -26,13 +27,20 @@ export default async function InicioPage() {
     redirect("/sin-acceso");
   }
 
+  // Brief "Superadmin puede declarar/borrar ausencias de cualquier
+  // integrante" §2: la lista de integrantes (para el selector "¿Para
+  // quién?") solo se pide si hace falta -- nadie más que un superadmin
+  // puede llegar a usarla.
+  const superadmin = esSuperadminDeMembresias(membresias);
+
   const bandaIds = membresias.map((m) => m.bandaId);
-  const [eventos, setlists, lugares, cumpleanos, ausencias] = await Promise.all([
+  const [eventos, setlists, lugares, cumpleanos, ausencias, integrantes] = await Promise.all([
     obtenerEventos(bandaIds),
     obtenerSetlists(bandaIds),
     obtenerLugares(bandaIds),
-    obtenerCumpleanosDeMisBandas(bandaIds, esSuperadminDeMembresias(membresias)),
+    obtenerCumpleanosDeMisBandas(bandaIds, superadmin),
     obtenerAusencias(bandaIds),
+    superadmin ? obtenerIntegrantes() : Promise.resolve([]),
   ]);
 
   return (
@@ -43,6 +51,7 @@ export default async function InicioPage() {
       lugares={lugares}
       cumpleanos={cumpleanos}
       ausencias={ausencias}
+      integrantes={integrantes}
       userEmail={user.email}
       usuarioId={user.id}
     />
