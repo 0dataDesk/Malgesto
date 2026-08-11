@@ -1,12 +1,60 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import type { Evento } from "@/lib/malgestoEventos";
 import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_TENTATIVO, formatoMoneda, colorConAlpha, eventoYaPaso } from "@/lib/eventoUI";
 import { enZonaApp } from "@/lib/zonaHoraria";
 import { eliminarEventoAction, asignarEstadoAction, crearSetlistDesdeEventoAction } from "@/app/inicio/actions";
 
 type SetlistOpcion = { id: string; nombre: string };
+
+function IconoPin() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 21s-7-7.05-7-12a7 7 0 0 1 14 0c0 4.95-7 12-7 12Z" />
+      <circle cx="12" cy="9" r="2.5" />
+    </svg>
+  );
+}
+
+function IconoLista() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+    </svg>
+  );
+}
+
+// Brief "EventoDetalle — ubicación y Set List como botones" §2: fila
+// compacta y clickeable en un solo patrón para Ubicación/Set List, en vez de
+// la tarjeta label-arriba-texto-abajo (+ un botón "Abrir en Maps" aparte)
+// que ocupaba mucho más alto. Sin `href`, la fila sigue mostrando lo que
+// haya pero no es clickeable (ej. lugar sin link de Maps todavía cargado).
+function FilaAccion({ href, externo, children }: { href?: string | null; externo?: boolean; children: React.ReactNode }) {
+  const className = "mt-2.5 flex items-center gap-2.5 rounded-2xl px-3 py-2.5 no-underline";
+  const style = { background: "oklch(0.93 0.016 78)", color: "oklch(0.55 0.02 55)" };
+
+  if (!href) {
+    return (
+      <div className={className} style={style}>
+        {children}
+      </div>
+    );
+  }
+  if (externo) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={className} style={style}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link href={href} className={className} style={style}>
+      {children}
+    </Link>
+  );
+}
 
 // Detalle de evento (pantalla 07). `inline` (Brief 8 §5) lo renderiza sin el
 // overlay fijo — usado cuando el día seleccionado en el Calendario tiene un
@@ -173,32 +221,22 @@ export function EventoDetalle({
       </div>
 
       {hayUbicacion && (
-        <div className="mt-2.5 rounded-2xl p-3" style={{ background: "oklch(0.93 0.016 78)" }}>
-          <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
-            Ubicación
+        <FilaAccion href={linkMaps} externo>
+          <IconoPin />
+          <div className="min-w-0 flex-1">
+            {nombreUbicacion && (
+              <div className="truncate text-[15px] font-semibold" style={{ color: "oklch(0.24 0.02 55)" }}>
+                {nombreUbicacion}
+              </div>
+            )}
+            {evento.ciudad && (
+              <div className="truncate text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+                {evento.ciudad}
+              </div>
+            )}
           </div>
-          {nombreUbicacion && (
-            <div className="mt-1 text-[15px]" style={{ color: "oklch(0.24 0.02 55)" }}>
-              {nombreUbicacion}
-            </div>
-          )}
-          {evento.ciudad && (
-            <div className="mt-0.5 text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
-              {evento.ciudad}
-            </div>
-          )}
-          {linkMaps && (
-            <a
-              href={linkMaps}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold no-underline"
-              style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
-            >
-              Abrir en Maps ↗
-            </a>
-          )}
-        </div>
+          {linkMaps && <span className="shrink-0 text-xs">↗</span>}
+        </FilaAccion>
       )}
 
       {giraAsignada && (
@@ -213,14 +251,13 @@ export function EventoDetalle({
       )}
 
       {setlistAsignado && (
-        <div className="mt-2.5 rounded-2xl p-3" style={{ background: "oklch(0.93 0.016 78)" }}>
-          <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
-            Set List
-          </div>
-          <div className="mt-1 text-[15px]" style={{ color: "oklch(0.24 0.02 55)" }}>
+        <FilaAccion href={`/set-list/${setlistAsignado.id}`}>
+          <IconoLista />
+          <div className="min-w-0 flex-1 truncate text-[15px] font-semibold" style={{ color: "oklch(0.24 0.02 55)" }}>
             {setlistAsignado.nombre}
           </div>
-        </div>
+          <span className="shrink-0 text-xs">›</span>
+        </FilaAccion>
       )}
 
       {!setlistAsignado && puedeEditar && (evento.tipo === "show" || evento.tipo === "ensayo") && (
@@ -274,11 +311,11 @@ export function EventoDetalle({
       )}
 
       {evento.ingresoEsperado !== null && (
-        <div className="mt-2.5 rounded-2xl p-3" style={{ background: "oklch(0.24 0.02 55)" }}>
-          <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.74 0.12 78)" }}>
+        <div className="mt-2.5 rounded-2xl p-3" style={{ background: "oklch(0.93 0.016 78)" }}>
+          <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
             Ingreso esperado
           </div>
-          <div className="mt-1 font-mono text-2xl font-bold" style={{ color: "oklch(0.96 0.012 82)" }}>
+          <div className="mt-1 font-mono text-2xl font-bold" style={{ color: "oklch(0.64 0.15 34)" }}>
             {formatoMoneda(evento.ingresoEsperado)}
           </div>
         </div>
