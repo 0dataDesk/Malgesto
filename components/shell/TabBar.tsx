@@ -203,14 +203,21 @@ export function TabBar({
       </div>
 
       {/* Brief §4: el menú de vistas se muda de abajo-derecha a
-          arriba-centrado — mismo comportamiento flotante, solo cambia la
-          posición (no se oculta al scrollear, eso es exclusivo de §6). */}
+          arriba-centrado — mismo comportamiento flotante, misma posición.
+          Brief "TabBar — el menú de vistas también se oculta al
+          scrollear": revierte la decisión de §4 de no ocultarlo -- mismo
+          `oculto` de arriba, mismas 3 propiedades que ya usa el cluster de
+          Gestión/Cerrar sesión, solo que el translateY se combina con el
+          translateX(-50%) que ya centraba el menú (un solo `transform`, no
+          se puede tener los dos por separado). */}
       <div
-        className="fixed z-20 flex items-center gap-1.5 rounded-full p-1.5"
+        className="fixed z-20 flex items-center gap-1.5 rounded-full p-1.5 transition-all duration-200"
         style={{
           top: 14,
           left: "50%",
-          transform: "translateX(-50%)",
+          opacity: oculto ? 0 : 1,
+          transform: oculto ? "translate(-50%, -10px)" : "translate(-50%, 0)",
+          pointerEvents: oculto ? "none" : "auto",
           background: "oklch(0.99 0.008 82 / 0.95)",
           border: "1px solid oklch(0.89 0.013 78)",
           boxShadow: "0 10px 26px -10px rgba(0,0,0,0.28)",
