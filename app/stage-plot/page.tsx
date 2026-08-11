@@ -4,6 +4,7 @@ import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
 import { obtenerOCrearStagePlot } from "@/lib/stagePlotData";
 import { TabBar } from "@/components/shell/TabBar";
+import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
 import { StagePlotLienzo } from "@/components/stagePlot/StagePlotLienzo";
 import { StagePlotAcciones } from "@/components/stagePlot/StagePlotAcciones";
 import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda";
@@ -37,7 +38,7 @@ export default async function StagePlotPage({
   if (!bandaValida && bandasConBloque.length > 1) {
     return (
       <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
-        <div className="mx-auto max-w-2xl px-5 pt-20">
+        <EspacioSuperior>
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
             Stage Plot
           </div>
@@ -56,7 +57,7 @@ export default async function StagePlotPage({
               <TarjetaSeleccionarBanda key={m.bandaId} membresia={m} href={`/stage-plot?banda=${m.bandaId}`} />
             ))}
           </div>
-        </div>
+        </EspacioSuperior>
 
         <TabBar
           activa="stage_plot"
@@ -80,7 +81,7 @@ export default async function StagePlotPage({
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
-      <div className="mx-auto max-w-3xl px-5 pt-20">
+      <EspacioSuperior maxWidth="max-w-3xl">
         <div className="flex items-center gap-2.5">
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
             {nombreBandaActiva}
@@ -123,7 +124,7 @@ export default async function StagePlotPage({
         <div className="mt-4">
           <StagePlotAcciones items={stagePlot.items} bandaNombre={nombreBandaActiva} shareToken={stagePlot.shareToken} />
         </div>
-      </div>
+      </EspacioSuperior>
 
       <TabBar
         activa="stage_plot"

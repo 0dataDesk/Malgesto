@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { cerrarSesion } from "@/app/auth/actions";
+import { useOcultarAlScrollear } from "@/lib/useOcultarAlScrollear";
 
 // Brief 18 §4: la barra inferior de 4 pestañas (fija, ~70px de alto) se
 // reemplaza por botones flotantes — mismo patrón visual que Gestión/Cerrar
@@ -13,26 +13,9 @@ import { cerrarSesion } from "@/app/auth/actions";
 // Brief "Colores de calendario, botón Hoy...": el menú de vistas se mudó de
 // abajo-derecha a arriba-centrado (§4), y Gestión/Cerrar sesión ahora se
 // ocultan al scrollear igual que la fila "Todas tus bandas" de Calendario
-// (§6) — pero esa fila vive en estado local de CalendarioShell, que no
-// existe en Canciones/Seteos/Finanzas/Stage Plot (TabBar se monta en las 6
-// vistas). Por eso el listener de scroll vive acá adentro, en capture phase
-// sobre window: los eventos de scroll no burbujean, pero si se escuchan en
-// fase de captura sí se detectan aunque el scroll ocurra en un div interno
-// (el layout de Calendario, con su propio overflow-y-auto) en vez de en la
-// ventana entera (el resto de las vistas, con scroll normal de documento) —
-// un solo mecanismo cubre ambos casos sin plumbing por página.
-function useOcultarAlScrollear(): boolean {
-  const [oculto, setOculto] = useState(false);
-  useEffect(() => {
-    const onScroll = (e: Event) => {
-      const top = e.target instanceof Document ? window.scrollY : (e.target as HTMLElement).scrollTop;
-      setOculto(top > 8);
-    };
-    window.addEventListener("scroll", onScroll, true);
-    return () => window.removeEventListener("scroll", onScroll, true);
-  }, []);
-  return oculto;
-}
+// (§6). Brief "Colapsar el espacio superior reservado...": el hook
+// useOcultarAlScrollear se mudó a lib/ para que EspacioSuperior lo reuse sin
+// duplicar el listener -- misma lógica, sin cambios.
 
 function CerrarSesionBoton({ userEmail }: { userEmail?: string }) {
   return (

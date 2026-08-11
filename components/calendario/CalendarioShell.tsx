@@ -18,6 +18,7 @@ import { EventoDetalle } from "./EventoDetalle";
 import { NuevoEventoForm } from "./NuevoEventoForm";
 import { BandaFilterChips } from "./BandaFilterChips";
 import { TabBar } from "@/components/shell/TabBar";
+import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
 
 const fuenteEncabezado = { fontFamily: "var(--font-bricolage), sans-serif" };
 
@@ -270,12 +271,16 @@ export function CalendarioShell({
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden" style={{ background: "oklch(0.965 0.012 82)" }}>
-      {/* Brief "...menú de vistas arriba centrado...": pt-20 en vez de pt-5
-          para que el título no quede debajo de la pill flotante de vistas,
-          que ahora vive arriba-centro (antes abajo-derecha, no competía con
-          este espacio). Mismo ajuste replicado en las otras 5 vistas que
-          montan TabBar. */}
-      <div className="mx-auto w-full max-w-2xl shrink-0 px-5 pt-20">
+      {/* Brief "...menú de vistas arriba centrado...": el título no debe
+          quedar debajo de la pill flotante de vistas, que vive arriba-centro
+          (antes abajo-derecha, no competía con este espacio). Brief
+          "Colapsar el espacio superior reservado...": ese padding ahora se
+          anima con EspacioSuperior en vez de un pt-20 fijo -- w-full/shrink-0
+          se pasan por className porque acá este div es el hijo NO
+          scrolleable de un flex-col (ver el div hermano de abajo, con su
+          propio overflow-y-auto vía flex-1), y encogerse rompería el layout
+          si el contenido total excede la altura de pantalla. */}
+      <EspacioSuperior className="w-full shrink-0">
         <div
           className="overflow-hidden transition-all duration-200"
           style={{ maxHeight: scrolleado ? 0 : 40, opacity: scrolleado ? 0 : 1 }}
@@ -327,7 +332,7 @@ export function CalendarioShell({
             onEventoClick={(e) => setEventoSeleccionadoId(e.id)}
           />
         </div>
-      </div>
+      </EspacioSuperior>
 
       <div
         className="mx-auto w-full max-w-2xl flex-1 overflow-y-auto px-5 pb-20 pt-4"

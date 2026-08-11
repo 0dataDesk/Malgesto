@@ -5,6 +5,7 @@ import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, memb
 import { obtenerSetlists } from "@/lib/setlistsData";
 import { crearSetlistAction } from "@/app/set-list/actions";
 import { TabBar } from "@/components/shell/TabBar";
+import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
 import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda";
 
 // Brief "Set List: selector de banda previo": mismo patrón que Canciones y
@@ -36,7 +37,7 @@ export default async function SetListPage({
   if (!bandaValida && bandasConBloque.length > 1) {
     return (
       <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
-        <div className="mx-auto max-w-2xl px-5 pt-20">
+        <EspacioSuperior>
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
             Set List
           </div>
@@ -55,7 +56,7 @@ export default async function SetListPage({
               <TarjetaSeleccionarBanda key={m.bandaId} membresia={m} href={`/set-list?banda=${m.bandaId}`} />
             ))}
           </div>
-        </div>
+        </EspacioSuperior>
 
         <TabBar
           activa="setlist"
@@ -78,7 +79,7 @@ export default async function SetListPage({
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
-      <div className="mx-auto max-w-2xl px-5 pt-20">
+      <EspacioSuperior>
         <div className="flex items-center gap-2.5">
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
             {nombreBandaActiva}
@@ -147,7 +148,7 @@ export default async function SetListPage({
             + Nuevo set
           </button>
         </form>
-      </div>
+      </EspacioSuperior>
 
       <TabBar
         activa="setlist"

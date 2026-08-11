@@ -5,6 +5,7 @@ import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, memb
 import { obtenerDispositivos } from "@/lib/dispositivosData";
 import { colorConAlpha } from "@/lib/eventoUI";
 import { TabBar } from "@/components/shell/TabBar";
+import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
 import { NuevoDispositivoForm } from "@/components/dispositivos/NuevoDispositivoForm";
 
 function resumenSeteos(cantidadGeneral: number, cantidadPorCancion: number): string {
@@ -46,7 +47,7 @@ export default async function SeteosPage({
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
-      <div className="mx-auto max-w-2xl px-5 pt-20">
+      <EspacioSuperior>
         <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
           {nombreBandaActiva}
         </div>
@@ -110,7 +111,7 @@ export default async function SeteosPage({
         </div>
 
         <NuevoDispositivoForm bandaId={bandaActiva} />
-      </div>
+      </EspacioSuperior>
 
       <TabBar
         activa="seteos"

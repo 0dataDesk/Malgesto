@@ -5,6 +5,7 @@ import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, memb
 import { obtenerMovimientos, type Movimiento } from "@/lib/finanzasData";
 import { formatoMoneda, eventoYaPaso } from "@/lib/eventoUI";
 import { TabBar } from "@/components/shell/TabBar";
+import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
 import { NuevoMovimientoForm } from "@/components/finanzas/NuevoMovimientoForm";
 import { MovimientoFila } from "@/components/finanzas/MovimientoFila";
 import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda";
@@ -63,7 +64,7 @@ export default async function FinanzasPage({
 
     return (
       <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
-        <div className="mx-auto max-w-2xl px-5 pt-20">
+        <EspacioSuperior>
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
             Finanzas
           </div>
@@ -93,7 +94,7 @@ export default async function FinanzasPage({
               </TarjetaSeleccionarBanda>
             ))}
           </div>
-        </div>
+        </EspacioSuperior>
 
         <TabBar
           activa="finanzas"
@@ -125,7 +126,7 @@ export default async function FinanzasPage({
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
-      <div className="mx-auto max-w-2xl px-5 pt-20">
+      <EspacioSuperior>
         <div className="flex items-center gap-2.5">
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
             {nombreBandaActiva}
@@ -174,7 +175,7 @@ export default async function FinanzasPage({
         {puedeEscribir && (
           <NuevoMovimientoForm bandaId={bandaActiva} eventos={eventos.map((e) => ({ id: e.id, titulo: e.titulo }))} />
         )}
-      </div>
+      </EspacioSuperior>
 
       <TabBar
         activa="finanzas"
