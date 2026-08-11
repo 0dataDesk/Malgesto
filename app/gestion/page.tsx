@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
-import { esSuperadmin, obtenerBandasTodas, obtenerPersonasPendientes, obtenerIntegrantes, obtenerPlazas } from "@/lib/gestionData";
+import { esSuperadmin, obtenerBandasTodas, obtenerPersonasPendientes, obtenerIntegrantes, obtenerPlazas, obtenerPlazasReservadas } from "@/lib/gestionData";
 import { obtenerLugaresTodos } from "@/lib/lugaresData";
 import { GestionShell } from "@/components/gestion/GestionShell";
 import { SECCIONES, type Seccion } from "@/lib/gestionSecciones";
@@ -37,7 +37,11 @@ export default async function GestionPage({
     obtenerIntegrantes(),
   ]);
   const bandaIds = bandas.map((b) => b.id);
-  const [lugares, plazas] = await Promise.all([obtenerLugaresTodos(), obtenerPlazas(bandaIds)]);
+  const [lugares, plazas, plazasReservadas] = await Promise.all([
+    obtenerLugaresTodos(),
+    obtenerPlazas(bandaIds),
+    obtenerPlazasReservadas(),
+  ]);
 
   return (
     <GestionShell
@@ -47,6 +51,7 @@ export default async function GestionPage({
       integrantes={integrantes}
       lugares={lugares}
       plazas={plazas}
+      plazasReservadas={plazasReservadas}
     />
   );
 }

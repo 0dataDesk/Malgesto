@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import type { BandaSimple, PersonaPendiente, Integrante, Plaza, BandaDeIntegrante, RolInvitable } from "@/lib/gestionData";
+import { useMemo, useRef, useState, useTransition } from "react";
+import type { BandaSimple, PersonaPendiente, Integrante, Plaza, BandaDeIntegrante, RolInvitable, InvitacionPorBanda } from "@/lib/gestionData";
 import type { NombreBloque } from "@/lib/bloques";
 import { etiquetaPlaza } from "@/lib/instrumentoCatalogo";
 import { colorConAlpha } from "@/lib/eventoUI";
@@ -29,6 +29,10 @@ const BLOQUES: { key: NombreBloque; label: string; activo: (b: BandaSimple) => b
   { key: "finanzas", label: "Finanzas", activo: (b) => b.finanzasHabilitado },
 ];
 
+function bloquesActivosDeBanda(banda: BandaSimple): NombreBloque[] {
+  return BLOQUES.filter((bl) => bl.activo(banda)).map((bl) => bl.key);
+}
+
 function bloqueVisible(banda: BandaDeIntegrante, bloque: NombreBloque): boolean {
   if (!banda.bloquesVisibles) return true;
   return banda.bloquesVisibles.includes(bloque);
@@ -55,8 +59,8 @@ const SOMBRA_CARD = "0 2px 8px -4px rgba(0,0,0,0.18)";
 
 // Sub-acordeón genérico cerrado por defecto (Brief "Rediseño visual de
 // Gestión" §4) — mismo patrón visual/interactivo que GrupoIntegrantes pero
-// a menor escala, para "Bandas asignadas" y "Bloques visibles" dentro de
-// cada integrante expandido.
+// a menor escala, para "Bandas asignadas" dentro de cada integrante
+// expandido.
 function SubAcordeon({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   const [abierto, setAbierto] = useState(false);
   return (
@@ -77,6 +81,42 @@ function SubAcordeon({ titulo, children }: { titulo: string; children: React.Rea
   );
 }
 
+// Brief "Rediseño de Gestión > Integrantes" §1/§3: mismo acordeón (header
+// clickeable en toda la franja, cerrado por defecto, chevron que rota) para
+// las 4 secciones de Integrantes (Pendientes/Activos/Invitados/Inactivos) y
+// para "Invitar / asignar persona" — un solo patrón reusado, ninguno nuevo.
+function AcordeonGrupo({
+  titulo,
+  count,
+  abierto,
+  onToggle,
+  children,
+}: {
+  titulo: string;
+  count?: number;
+  abierto: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl" style={{ background: BG_SUNKEN, border: `1px solid ${BORDE_SUNKEN}` }}>
+      <button type="button" onClick={onToggle} className="flex w-full items-center justify-between px-3.5 py-3 text-left">
+        <span className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+          {titulo}
+          {count !== undefined && ` (${count})`}
+        </span>
+        <span
+          className="text-xs"
+          style={{ color: "oklch(0.5 0.02 55)", transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+        >
+          ▾
+        </span>
+      </button>
+      {abierto && <div className="flex flex-col gap-2 px-3.5 pb-3.5">{children}</div>}
+    </div>
+  );
+}
+
 function formatearFecha(iso: string): string {
   return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
@@ -88,15 +128,38 @@ const COLOR_ESTADO: Record<Integrante["estado"], string> = {
   inactivo: "oklch(0.55 0.02 55)",
 };
 
+// Íconos circulares de Brief "Rediseño de Gestión > Integrantes" §6 — mismo
+// patrón de botón circular + svg inline a mano que ya usa MovimientoFila
+// para "eliminar movimiento" (h-6 w-6 rounded-full, stroke currentColor).
+function IconoEliminar() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
+function IconoOjoTachado() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3l18 18" />
+      <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+      <path d="M9.9 4.24A9.8 9.8 0 0 1 12 4c5 0 9 4 10 8a10.6 10.6 0 0 1-2.16 3.53M6.6 6.6A10.6 10.6 0 0 0 2 12c1 4 5 8 10 8a9.8 9.8 0 0 0 3.4-.6" />
+    </svg>
+  );
+}
+
 function FilaIntegrante({
   integrante,
   bandas,
   plazas,
+  ocupacionPlazas,
   onEliminado,
 }: {
   integrante: Integrante;
   bandas: BandaSimple[];
   plazas: Plaza[];
+  ocupacionPlazas: Map<string, { usuarioId: string; nombre: string }>;
   onEliminado: () => void;
 }) {
   const [expandido, setExpandido] = useState(false);
@@ -108,6 +171,9 @@ function FilaIntegrante({
   const [bandasLocal, setBandasLocal] = useState(integrante.bandas);
   const [pendingBanda, setPendingBanda] = useState<string | null>(null);
   const [pendingRol, setPendingRol] = useState<string | null>(null);
+  const [pendingPlaza, setPendingPlaza] = useState<string | null>(null);
+  const [errorPlaza, setErrorPlaza] = useState<string | null>(null);
+  const [plazaPickerBandaId, setPlazaPickerBandaId] = useState<string | null>(null);
   const [pendingInactivar, setPendingInactivar] = useState(false);
   const [pendingEliminar, setPendingEliminar] = useState(false);
   const [errorPeligro, setErrorPeligro] = useState<string | null>(null);
@@ -187,23 +253,34 @@ function FilaIntegrante({
     });
   };
 
+  // Brief "Rediseño de Gestión > Integrantes" §4: a diferencia del resto de
+  // los toggles de este componente, éste sí necesita feedback de error
+  // visible — es el único camino donde el usuario puede chocar con una plaza
+  // recién tomada por otra persona (mismo 23505 que ya traducía
+  // asignarPersonaAPlaza server-side, acá solo se muestra).
   const togglePlaza = (bandaId: string, plazaId: string) => {
     if (!integrante.usuarioId) return;
     const banda = bandasLocal.find((b) => b.bandaId === bandaId);
     const tiene = banda?.plazas.some((p) => p.plazaId === plazaId);
+    setErrorPlaza(null);
+    setPendingPlaza(plazaId);
     const accion = tiene
       ? quitarPersonaDePlazaAction(integrante.usuarioId, plazaId)
       : asignarPersonaAPlazaAction(integrante.usuarioId, plazaId);
-    accion.then(() => {
-      setBandasLocal((prev) =>
-        prev.map((b) => {
-          if (b.bandaId !== bandaId) return b;
-          if (tiene) return { ...b, plazas: b.plazas.filter((p) => p.plazaId !== plazaId) };
-          const info = plazas.find((p) => p.id === plazaId);
-          return { ...b, plazas: [...b.plazas, { plazaId, instrumento: info?.instrumento ?? "otro", etiqueta: info?.etiqueta ?? null }] };
-        })
-      );
-    });
+    accion
+      .then(() => {
+        setBandasLocal((prev) =>
+          prev.map((b) => {
+            if (b.bandaId !== bandaId) return b;
+            if (tiene) return { ...b, plazas: b.plazas.filter((p) => p.plazaId !== plazaId) };
+            const info = plazas.find((p) => p.id === plazaId);
+            return { ...b, plazas: [...b.plazas, { plazaId, instrumento: info?.instrumento ?? "otro", etiqueta: info?.etiqueta ?? null }] };
+          })
+        );
+        setPlazaPickerBandaId(null);
+      })
+      .catch((e) => setErrorPlaza(e instanceof Error ? e.message : "No se pudo actualizar el instrumento."))
+      .finally(() => setPendingPlaza(null));
   };
 
   // Brief "Eliminar integrante" / "Inactivar": Inactivar reusa el mismo
@@ -238,8 +315,8 @@ function FilaIntegrante({
 
   return (
     <div className="rounded-2xl p-3.5" style={{ background: BG_CARD, border: "1px solid oklch(0.89 0.013 78)", boxShadow: SOMBRA_CARD }}>
-      <button type="button" onClick={() => setExpandido((v) => !v)} className="flex w-full items-center justify-between gap-3 text-left">
-        <div className="min-w-0">
+      <div className="flex w-full items-center justify-between gap-3">
+        <button type="button" onClick={() => setExpandido((v) => !v)} className="min-w-0 flex-1 text-left">
           <div className="flex items-center gap-1.5">
             <div className="truncate text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
               {integrante.nombreMostrar || integrante.email}
@@ -273,14 +350,55 @@ function FilaIntegrante({
               </span>
             )}
           </div>
+        </button>
+
+        {/* Brief "Rediseño de Gestión > Integrantes" §6: Inactivar/Eliminar
+            pasan de botones de texto al fondo de la tarjeta expandida a
+            íconos circulares acá arriba, a la altura del badge de estado —
+            visibles con la tarjeta colapsada o no. Misma lógica de negocio
+            de siempre (mismos handlers, mismo gate de bandasActivas.length
+            para Inactivar, mismo confirm() para Eliminar), solo cambia
+            dónde y cómo se disparan. */}
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span
+            className="shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase"
+            style={{ background: BG_SUNKEN, color: COLOR_ESTADO[integrante.estado] }}
+          >
+            {ETIQUETA_ESTADO[integrante.estado]}
+          </span>
+          {integrante.usuarioId && bandasActivas.length > 0 && (
+            <button
+              type="button"
+              onClick={inactivar}
+              disabled={pendingInactivar}
+              aria-label="Inactivar"
+              title="Oculta al integrante sin borrar su historial"
+              className="flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-50"
+              style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+            >
+              <IconoOjoTachado />
+            </button>
+          )}
+          {integrante.usuarioId && (
+            <button
+              type="button"
+              onClick={eliminar}
+              disabled={pendingEliminar}
+              aria-label="Eliminar cuenta"
+              title="Eliminar cuenta (borrado permanente)"
+              className="flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-50"
+              style={{ background: "oklch(0.6 0.15 25 / 0.12)", color: "oklch(0.5 0.18 25)" }}
+            >
+              <IconoEliminar />
+            </button>
+          )}
         </div>
-        <span
-          className="shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase"
-          style={{ background: BG_SUNKEN, color: COLOR_ESTADO[integrante.estado] }}
-        >
-          {ETIQUETA_ESTADO[integrante.estado]}
-        </span>
-      </button>
+      </div>
+      {errorPeligro && (
+        <p className="mt-1.5 text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
+          {errorPeligro}
+        </p>
+      )}
 
       {expandido && integrante.usuarioId && (
         <div className="mt-3 flex flex-col gap-2.5 border-t pt-3" style={{ borderColor: "oklch(0.9 0.012 78)" }}>
@@ -324,206 +442,267 @@ function FilaIntegrante({
             )}
           </div>
 
+          {/* Brief "Rediseño de Gestión > Integrantes" §5: tarjeta unificada
+              por banda -- nombre, rol, plazas y bloques visibles juntos, en
+              vez de dos acordeones separados (Bandas asignadas / Bloques
+              visibles) que no se leían como relacionados. */}
           <SubAcordeon titulo="Bandas asignadas">
             {bandas.map((b) => {
               const asignada = bandaAsignada(b.id);
               const plazasDeLaBanda = plazas.filter((p) => p.bandaId === b.id);
-              return (
-                <div key={b.id}>
+              const bloquesActivosBanda = bloquesActivosDeBanda(b);
+              const plazasParaAgregar = plazasDeLaBanda.filter((p) => !asignada?.plazas.some((ap) => ap.plazaId === p.id));
+
+              if (!asignada) {
+                return (
                   <ToggleChip
+                    key={b.id}
                     label={b.nombre}
-                    active={!!asignada}
+                    active={false}
                     onClick={() => toggleBanda(b.id)}
                     color={b.color}
                     disabled={pendingBanda === b.id}
                   />
-                  {asignada && (
-                    <div className="ml-2 mt-1.5 flex flex-col gap-1.5">
-                      {/* Brief "3 pendientes" §2: rol por banda, editable
-                          acá — salvo que ya sea superadmin en esta banda
-                          puntual, caso en el que no se muestra el selector
-                          en absoluto (esa restricción se mantiene). */}
-                      {asignada.rol === "superadmin" ? (
-                        <span className="text-xs italic" style={{ color: "oklch(0.55 0.02 55)" }}>
-                          Superadmin en esta banda — no editable acá
-                        </span>
-                      ) : (
-                        <div className="flex gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => cambiarRol(b.id, "miembro")}
-                            disabled={pendingRol === b.id}
-                            className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
-                            style={asignada.rol === "miembro" ? ROL_ACTIVO : ROL_INACTIVO}
-                          >
-                            Miembro
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => cambiarRol(b.id, "administrador")}
-                            disabled={pendingRol === b.id}
-                            className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
-                            style={asignada.rol === "administrador" ? ROL_ACTIVO : ROL_INACTIVO}
-                          >
-                            Administrador
-                          </button>
+                );
+              }
+
+              return (
+                <div key={b.id} className="rounded-xl p-3" style={{ background: BG_CARD, border: `1px solid ${colorConAlpha(b.color, 0.4)}` }}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-bold" style={{ color: b.color }}>
+                      {b.nombre}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => toggleBanda(b.id)}
+                      disabled={pendingBanda === b.id}
+                      className="shrink-0 font-mono text-[10px] font-bold uppercase disabled:opacity-50"
+                      style={{ color: "oklch(0.55 0.02 55)" }}
+                    >
+                      Quitar
+                    </button>
+                  </div>
+
+                  {/* 2. Rol */}
+                  {asignada.rol === "superadmin" ? (
+                    <span className="mt-1.5 block text-xs italic" style={{ color: "oklch(0.55 0.02 55)" }}>
+                      Superadmin en esta banda — no editable acá
+                    </span>
+                  ) : (
+                    <div className="mt-1.5 flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => cambiarRol(b.id, "miembro")}
+                        disabled={pendingRol === b.id}
+                        className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
+                        style={asignada.rol === "miembro" ? ROL_ACTIVO : ROL_INACTIVO}
+                      >
+                        Miembro
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => cambiarRol(b.id, "administrador")}
+                        disabled={pendingRol === b.id}
+                        className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
+                        style={asignada.rol === "administrador" ? ROL_ACTIVO : ROL_INACTIVO}
+                      >
+                        Administrador
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 3. Plaza(s)/instrumento(s) -- Brief §4: ocupadas por otra
+                      persona quedan deshabilitadas mostrando quién la tiene,
+                      "+ Agregar otra plaza" habilita asignar más de una (ej.
+                      batería + coro). */}
+                  {plazasDeLaBanda.length === 0 ? (
+                    <p className="mt-1.5 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+                      Esta banda todavía no tiene instrumentos definidos.
+                    </p>
+                  ) : (
+                    <div className="mt-2">
+                      <span className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                        Instrumentos
+                      </span>
+                      {asignada.plazas.length > 0 && (
+                        <div className="mb-1.5 flex flex-wrap gap-1.5">
+                          {asignada.plazas.map((p) => (
+                            <span
+                              key={p.plazaId}
+                              className="flex items-center gap-2 rounded-full py-1 pl-3 pr-1.5 text-xs font-semibold"
+                              style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+                            >
+                              {etiquetaPlaza(p.instrumento, p.etiqueta)}
+                              <button
+                                type="button"
+                                onClick={() => togglePlaza(b.id, p.plazaId)}
+                                disabled={pendingPlaza === p.plazaId}
+                                className="flex h-4 w-4 items-center justify-center rounded-full text-[10px] disabled:opacity-50"
+                                style={{ background: "oklch(0.85 0.016 78)" }}
+                                aria-label="Quitar instrumento"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
                         </div>
                       )}
-                      {plazasDeLaBanda.length === 0 ? (
-                        <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
-                          Esta banda todavía no tiene instrumentos definidos.
+
+                      {plazaPickerBandaId === b.id ? (
+                        <div className="rounded-lg p-2" style={{ background: BG_SUNKEN, border: `1px solid ${BORDE_SUNKEN}` }}>
+                          {plazasParaAgregar.length === 0 ? (
+                            <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+                              No hay más instrumentos disponibles en esta banda.
+                            </p>
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5">
+                              {plazasParaAgregar.map((p) => {
+                                const ocupante = ocupacionPlazas.get(p.id);
+                                const ocupadaPorOtro = ocupante && ocupante.usuarioId !== integrante.usuarioId;
+                                return ocupadaPorOtro ? (
+                                  <span
+                                    key={p.id}
+                                    className="rounded-[20px] px-2.5 py-[5px] text-xs font-semibold"
+                                    style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.6 0.02 55)" }}
+                                  >
+                                    {etiquetaPlaza(p.instrumento, p.etiqueta)} — ocupada por {ocupante.nombre}
+                                  </span>
+                                ) : (
+                                  <ToggleChip
+                                    key={p.id}
+                                    label={etiquetaPlaza(p.instrumento, p.etiqueta)}
+                                    active={false}
+                                    disabled={pendingPlaza === p.id}
+                                    onClick={() => togglePlaza(b.id, p.id)}
+                                  />
+                                );
+                              })}
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setPlazaPickerBandaId(null)}
+                            className="mt-1.5 text-xs font-semibold"
+                            style={{ color: "oklch(0.55 0.02 55)" }}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setPlazaPickerBandaId(b.id)}
+                          className="rounded-lg border border-dashed px-2.5 py-1 text-xs font-semibold"
+                          style={{ borderColor: "oklch(0.8 0.02 60)", color: "oklch(0.5 0.02 55)" }}
+                        >
+                          + Agregar otra plaza
+                        </button>
+                      )}
+                      {errorPlaza && (
+                        <p className="mt-1.5 text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
+                          {errorPlaza}
                         </p>
-                      ) : (
-                        <div className="flex flex-wrap gap-1.5">
-                          {plazasDeLaBanda.map((p) => {
-                            const activo = asignada.plazas.some((ap) => ap.plazaId === p.id);
-                            return (
-                              <ToggleChip
-                                key={p.id}
-                                label={etiquetaPlaza(p.instrumento, p.etiqueta)}
-                                active={activo}
-                                onClick={() => togglePlaza(b.id, p.id)}
-                              />
-                            );
-                          })}
-                        </div>
                       )}
+                    </div>
+                  )}
+
+                  {/* 4. Bloques visibles */}
+                  {bloquesActivosBanda.length > 0 && (
+                    <div className="mt-2">
+                      <span className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                        Bloques visibles
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {bloquesActivosBanda.map((bl) => {
+                          const label = BLOQUES.find((x) => x.key === bl)!.label;
+                          return (
+                            <ToggleChip
+                              key={bl}
+                              label={label}
+                              active={bloqueVisible(asignada, bl)}
+                              onClick={() => togglePermisoBloque(b.id, bl, bloquesActivosBanda)}
+                            />
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
               );
             })}
           </SubAcordeon>
-
-          {bandasActivas.length > 0 && (
-            <SubAcordeon titulo="Bloques visibles">
-              {bandasActivas.map((banda) => {
-                const bandaInfo = bandas.find((b) => b.id === banda.bandaId);
-                const bloquesActivosBanda = bandaInfo ? BLOQUES.filter((bl) => bl.activo(bandaInfo)) : [];
-                if (bloquesActivosBanda.length === 0) return null;
-                return (
-                  <div key={banda.bandaId}>
-                    <span className="mb-1 block text-xs font-bold" style={{ color: colorDeBanda(banda.bandaId) }}>
-                      {banda.bandaNombre}
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {bloquesActivosBanda.map((bl) => (
-                        <ToggleChip
-                          key={bl.key}
-                          label={bl.label}
-                          active={bloqueVisible(banda, bl.key)}
-                          onClick={() => togglePermisoBloque(banda.bandaId, bl.key, bloquesActivosBanda.map((x) => x.key))}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </SubAcordeon>
-          )}
-
-          <div className="flex gap-2 border-t pt-3" style={{ borderColor: "oklch(0.9 0.012 78)" }}>
-            {bandasActivas.length > 0 && (
-              <button
-                type="button"
-                onClick={inactivar}
-                disabled={pendingInactivar}
-                className="flex-1 rounded-lg py-2 text-xs font-bold disabled:opacity-60"
-                style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
-              >
-                {pendingInactivar ? "Inactivando…" : "Inactivar"}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={eliminar}
-              disabled={pendingEliminar}
-              className="flex-1 rounded-lg py-2 text-xs font-bold disabled:opacity-60"
-              style={{ background: "oklch(0.6 0.15 25 / 0.12)", color: "oklch(0.5 0.18 25)", border: "1px solid oklch(0.6 0.15 25 / 0.35)" }}
-            >
-              {pendingEliminar ? "Eliminando…" : "Eliminar cuenta"}
-            </button>
-          </div>
-          {errorPeligro && (
-            <p className="text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
-              {errorPeligro}
-            </p>
-          )}
         </div>
       )}
     </div>
   );
 }
 
-// Brief "Acordeones por estado en Integrantes": agrupa la lista (que puede
-// volverse larga) por estado, colapsada por default -- el usuario decide
-// qué grupo abrir en vez de ver todo de golpe. El conteo en el encabezado
-// da contexto sin necesidad de abrir.
-//
-// Brief "Rediseño visual de Gestión" §1: el llamador filtra los grupos
-// vacíos antes de montar este componente (ni encabezado ni "(0)"), así que
-// acá siempre hay al menos un integrante — no hace falta un estado vacío.
-// §2: fondo BG_SUNKEN para que las tarjetas blancas de cada integrante
-// (con su propia sombra) se noten "por encima" de este acordeón.
-function GrupoIntegrantes({
-  titulo,
-  integrantes,
-  bandas,
-  plazas,
-  onEliminado,
+function FilaPendiente({
+  persona,
+  onAsignar,
+  onIgnorar,
+  pendingIgnorar,
 }: {
-  titulo: string;
-  integrantes: Integrante[];
-  bandas: BandaSimple[];
-  plazas: Plaza[];
-  onEliminado: (usuarioId: string) => void;
+  persona: PersonaPendiente;
+  onAsignar: (p: PersonaPendiente) => void;
+  onIgnorar: (usuarioId: string) => void;
+  pendingIgnorar: boolean;
 }) {
-  const [abierto, setAbierto] = useState(false);
-
   return (
-    <div className="rounded-xl" style={{ background: BG_SUNKEN, border: `1px solid ${BORDE_SUNKEN}` }}>
-      <button
-        type="button"
-        onClick={() => setAbierto((v) => !v)}
-        className="flex w-full items-center justify-between px-3.5 py-3 text-left"
-      >
-        <span className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
-          {titulo} ({integrantes.length})
-        </span>
-        <span
-          className="text-xs"
-          style={{ color: "oklch(0.5 0.02 55)", transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
-        >
-          ▾
-        </span>
-      </button>
-      {abierto && (
-        <div className="flex flex-col gap-2 px-3.5 pb-3.5">
-          {integrantes.map((i) => (
-            <FilaIntegrante
-              key={i.usuarioId ?? i.email}
-              integrante={i}
-              bandas={bandas}
-              plazas={plazas}
-              onEliminado={() => i.usuarioId && onEliminado(i.usuarioId)}
-            />
-          ))}
+    <div
+      className="flex items-center justify-between gap-3 rounded-xl p-3"
+      style={{ background: BG_CARD, border: "1px solid oklch(0.89 0.013 78)" }}
+    >
+      <div className="min-w-0">
+        <div className="truncate text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+          {persona.email}
         </div>
-      )}
+        <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+          Primer acceso: {formatearFecha(persona.primerAcceso)}
+        </div>
+      </div>
+      <div className="flex shrink-0 gap-1.5">
+        <button
+          type="button"
+          onClick={() => onAsignar(persona)}
+          className="rounded-lg px-2.5 py-1.5 text-xs font-bold"
+          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+        >
+          Asignar
+        </button>
+        <button
+          type="button"
+          onClick={() => onIgnorar(persona.usuarioId)}
+          disabled={pendingIgnorar}
+          className="rounded-lg px-2.5 py-1.5 text-xs font-bold disabled:opacity-60"
+          style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+        >
+          Ignorar
+        </button>
+      </div>
     </div>
   );
 }
+
+// Configuración por banda del formulario de invitar -- Brief "Rediseño de
+// Gestión > Integrantes" §2: rol/plaza/bloques se eligen por banda desde el
+// arranque, ya no después de aceptar. `bloques` guarda los tildados; si al
+// enviar cubre TODOS los activos de esa banda se traduce a null (mismo
+// criterio que togglePermisoBloque, sin restricción).
+type ConfigBandaInvitar = { rol: RolInvitable; plazaId: string | null; bloques: Set<NombreBloque> };
 
 export function IntegrantesPanel({
   bandas,
   personasPendientes: personasPendientesIniciales,
   integrantes: integrantesIniciales,
   plazas,
+  plazasReservadas,
 }: {
   bandas: BandaSimple[];
   personasPendientes: PersonaPendiente[];
   integrantes: Integrante[];
   plazas: Plaza[];
+  plazasReservadas: string[];
 }) {
   const [personasPendientes, setPersonasPendientes] = useState(personasPendientesIniciales);
   // Brief "Eliminar integrante": mismo patrón que LugaresPanel — el borrado
@@ -531,27 +710,89 @@ export function IntegrantesPanel({
   // esta lista al toque via callback, sin depender del próximo refresh.
   const [integrantes, setIntegrantes] = useState(integrantesIniciales);
 
+  const [invitarAbierto, setInvitarAbierto] = useState(false);
   const [email, setEmail] = useState("");
-  const [rolInvitar, setRolInvitar] = useState<RolInvitable>("miembro");
+  const [nombreMostrarInvitar, setNombreMostrarInvitar] = useState("");
   const [bandaIdsInvitar, setBandaIdsInvitar] = useState<Set<string>>(new Set());
+  const [configPorBanda, setConfigPorBanda] = useState<Map<string, ConfigBandaInvitar>>(new Map());
   const [avisoInvitar, setAvisoInvitar] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
   const [pendingInvitar, startInvitarTransition] = useTransition();
   const [pendingIgnorar, setPendingIgnorar] = useState<string | null>(null);
 
   const formInvitarRef = useRef<HTMLDivElement>(null);
 
+  // Brief §4/§2: quién ocupa cada plaza HOY (persona_plazas, vía las plazas
+  // que ya trae cada integrante) -- una sola fuente para "deshabilitar plaza
+  // ocupada" en la ficha de un integrante y para "plazas disponibles" en el
+  // formulario de invitar. Recalculado desde `integrantes`, que sí vive en
+  // estado de este componente (a diferencia de las mutaciones de plaza
+  // dentro de cada FilaIntegrante, que quedan en su estado local -- ver nota
+  // de la reserva no transaccional en malgestoAccess.ts: el índice único de
+  // la base es la garantía real, esto es solo la ayuda visual).
+  const ocupacionPlazas = useMemo(() => {
+    const mapa = new Map<string, { usuarioId: string; nombre: string }>();
+    for (const i of integrantes) {
+      if (!i.usuarioId) continue;
+      for (const b of i.bandas) {
+        for (const p of b.plazas) {
+          mapa.set(p.plazaId, { usuarioId: i.usuarioId, nombre: i.nombreMostrar || i.email });
+        }
+      }
+    }
+    return mapa;
+  }, [integrantes]);
+
+  const plazasReservadasSet = useMemo(() => new Set(plazasReservadas), [plazasReservadas]);
+
+  const plazasDisponibles = (bandaId: string): Plaza[] =>
+    plazas.filter((p) => p.bandaId === bandaId && !ocupacionPlazas.has(p.id) && !plazasReservadasSet.has(p.id));
+
   const toggleBandaInvitar = (bandaId: string) => {
     setBandaIdsInvitar((prev) => {
       const next = new Set(prev);
-      if (next.has(bandaId)) next.delete(bandaId);
-      else next.add(bandaId);
+      if (next.has(bandaId)) {
+        next.delete(bandaId);
+        setConfigPorBanda((prevConfig) => {
+          const siguiente = new Map(prevConfig);
+          siguiente.delete(bandaId);
+          return siguiente;
+        });
+      } else {
+        next.add(bandaId);
+        const banda = bandas.find((b) => b.id === bandaId);
+        setConfigPorBanda((prevConfig) => {
+          const siguiente = new Map(prevConfig);
+          siguiente.set(bandaId, { rol: "miembro", plazaId: null, bloques: new Set(banda ? bloquesActivosDeBanda(banda) : []) });
+          return siguiente;
+        });
+      }
       return next;
     });
+  };
+
+  const actualizarConfigBanda = (bandaId: string, cambios: Partial<ConfigBandaInvitar>) => {
+    setConfigPorBanda((prev) => {
+      const actual = prev.get(bandaId);
+      if (!actual) return prev;
+      const siguiente = new Map(prev);
+      siguiente.set(bandaId, { ...actual, ...cambios });
+      return siguiente;
+    });
+  };
+
+  const toggleBloqueInvitar = (bandaId: string, bloque: NombreBloque) => {
+    const actual = configPorBanda.get(bandaId);
+    if (!actual) return;
+    const bloquesNuevos = new Set(actual.bloques);
+    if (bloquesNuevos.has(bloque)) bloquesNuevos.delete(bloque);
+    else bloquesNuevos.add(bloque);
+    actualizarConfigBanda(bandaId, { bloques: bloquesNuevos });
   };
 
   const asignarDesdePendiente = (persona: PersonaPendiente) => {
     setEmail(persona.email);
     setAvisoInvitar(null);
+    setInvitarAbierto(true);
     formInvitarRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -569,9 +810,17 @@ export function IntegrantesPanel({
       setAvisoInvitar({ tipo: "error", texto: "Completá correo y al menos una banda." });
       return;
     }
+    const invitaciones: InvitacionPorBanda[] = Array.from(bandaIdsInvitar).map((bandaId) => {
+      const cfg = configPorBanda.get(bandaId)!;
+      const banda = bandas.find((b) => b.id === bandaId)!;
+      const activos = bloquesActivosDeBanda(banda);
+      const bloquesVisibles = activos.every((bl) => cfg.bloques.has(bl)) ? null : activos.filter((bl) => cfg.bloques.has(bl));
+      return { bandaId, rol: cfg.rol, plazaId: cfg.plazaId, bloquesVisibles };
+    });
+
     startInvitarTransition(async () => {
       try {
-        const resultado = await invitarPersonaAction(email.trim(), Array.from(bandaIdsInvitar), rolInvitar);
+        const resultado = await invitarPersonaAction(email.trim(), nombreMostrarInvitar.trim() || null, invitaciones);
         if (!resultado.ok) {
           setAvisoInvitar({ tipo: "error", texto: resultado.motivo });
           return;
@@ -580,121 +829,244 @@ export function IntegrantesPanel({
         const emailInvitado = email.trim().toLowerCase();
         setPersonasPendientes((prev) => prev.filter((p) => p.email.toLowerCase() !== emailInvitado));
         setEmail("");
-        setRolInvitar("miembro");
+        setNombreMostrarInvitar("");
         setBandaIdsInvitar(new Set());
+        setConfigPorBanda(new Map());
       } catch (e) {
         setAvisoInvitar({ tipo: "error", texto: e instanceof Error ? e.message : "No se pudo invitar." });
       }
     });
   };
 
+  // Brief §3: Pendientes se muda adentro de "Integrantes", al mismo nivel
+  // que Activos/Invitados/Inactivos -- los 4 comparten el mismo acordeón
+  // (AcordeonGrupo) y la misma regla de "conteo 0 no se muestra".
+  const [gruposAbiertos, setGruposAbiertos] = useState<Record<string, boolean>>({});
+  const toggleGrupo = (titulo: string) => setGruposAbiertos((prev) => ({ ...prev, [titulo]: !prev[titulo] }));
+
+  const grupos = [
+    {
+      titulo: "Pendientes",
+      count: personasPendientes.length,
+      contenido: (
+        <>
+          {personasPendientes.map((p) => (
+            <FilaPendiente
+              key={p.usuarioId}
+              persona={p}
+              onAsignar={asignarDesdePendiente}
+              onIgnorar={ignorarPendiente}
+              pendingIgnorar={pendingIgnorar === p.usuarioId}
+            />
+          ))}
+        </>
+      ),
+    },
+    {
+      titulo: "Activos",
+      count: integrantes.filter((i) => i.estado === "activo").length,
+      contenido: integrantes
+        .filter((i) => i.estado === "activo")
+        .map((i) => (
+          <FilaIntegrante
+            key={i.usuarioId ?? i.email}
+            integrante={i}
+            bandas={bandas}
+            plazas={plazas}
+            ocupacionPlazas={ocupacionPlazas}
+            onEliminado={() => i.usuarioId && setIntegrantes((prev) => prev.filter((x) => x.usuarioId !== i.usuarioId))}
+          />
+        )),
+    },
+    {
+      titulo: "Invitados",
+      count: integrantes.filter((i) => i.estado === "invitado").length,
+      contenido: integrantes
+        .filter((i) => i.estado === "invitado")
+        .map((i) => (
+          <FilaIntegrante
+            key={i.usuarioId ?? i.email}
+            integrante={i}
+            bandas={bandas}
+            plazas={plazas}
+            ocupacionPlazas={ocupacionPlazas}
+            onEliminado={() => i.usuarioId && setIntegrantes((prev) => prev.filter((x) => x.usuarioId !== i.usuarioId))}
+          />
+        )),
+    },
+    {
+      titulo: "Inactivos",
+      count: integrantes.filter((i) => i.estado === "inactivo").length,
+      contenido: integrantes
+        .filter((i) => i.estado === "inactivo")
+        .map((i) => (
+          <FilaIntegrante
+            key={i.usuarioId ?? i.email}
+            integrante={i}
+            bandas={bandas}
+            plazas={plazas}
+            ocupacionPlazas={ocupacionPlazas}
+            onEliminado={() => i.usuarioId && setIntegrantes((prev) => prev.filter((x) => x.usuarioId !== i.usuarioId))}
+          />
+        )),
+    },
+  ].filter((g) => g.count > 0);
+
   return (
     <div className="flex flex-col gap-3">
-      <section ref={formInvitarRef} className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
-        <h3 className="mb-3 text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
-          Invitar / asignar persona
-        </h3>
-        <div className="flex flex-col gap-2.5">
-          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@gmail.com" className={inputCls} style={inputStyle} />
-          <div>
-            {/* Brief "Nuevo nivel de rol: Miembro administrador": acá se
-                elige entre los 2 niveles no sensibles — superadmin sigue sin
-                poder otorgarse desde este flujo ni desde ningún otro lado de
-                la UI (Brief "3 pendientes" §1). */}
-            <label className="mb-1.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
-              Rol
-            </label>
-            <div className="flex gap-1.5">
-              <button
-                type="button"
-                onClick={() => setRolInvitar("miembro")}
-                className="rounded-lg px-3 py-1.5 text-sm font-bold"
-                style={rolInvitar === "miembro" ? ROL_ACTIVO : ROL_INACTIVO}
-              >
-                Miembro
-              </button>
-              <button
-                type="button"
-                onClick={() => setRolInvitar("administrador")}
-                className="rounded-lg px-3 py-1.5 text-sm font-bold"
-                style={rolInvitar === "administrador" ? ROL_ACTIVO : ROL_INACTIVO}
-              >
-                Administrador
-              </button>
-            </div>
-          </div>
-          <div>
-            <label className="mb-1.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
-              Bandas
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {bandas.map((b) => (
-                <ToggleChip key={b.id} label={b.nombre} active={bandaIdsInvitar.has(b.id)} onClick={() => toggleBandaInvitar(b.id)} color={b.color} />
-              ))}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={invitar}
-            disabled={pendingInvitar}
-            className="rounded-xl px-4 py-2.5 text-sm font-bold disabled:opacity-60"
-            style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+      {/* Brief "Rediseño de Gestión > Integrantes" §1: acordeón colapsado por
+          defecto, mismo patrón que el resto de la pantalla. */}
+      <section ref={formInvitarRef} className="rounded-2xl" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+        <button
+          type="button"
+          onClick={() => setInvitarAbierto((v) => !v)}
+          className="flex w-full items-center justify-between px-4 py-3.5 text-left"
+        >
+          <h3 className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+            Invitar / asignar persona
+          </h3>
+          <span
+            className="text-xs"
+            style={{ color: "oklch(0.5 0.02 55)", transform: invitarAbierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
           >
-            {pendingInvitar ? "Invitando..." : "Invitar"}
-          </button>
-        </div>
-        {avisoInvitar && (
-          <p className="mt-2 text-xs" style={{ color: avisoInvitar.tipo === "ok" ? "oklch(0.5 0.13 148)" : "oklch(0.55 0.15 25)" }}>
-            {avisoInvitar.texto}
-          </p>
-        )}
-      </section>
+            ▾
+          </span>
+        </button>
 
-      <section className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
-        <h3 className="mb-3 text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
-          Personas pendientes de asignar
-        </h3>
-        {personasPendientes.length === 0 ? (
-          <p className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
-            No hay nadie esperando acceso.
-          </p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {personasPendientes.map((p) => (
-              <div
-                key={p.usuarioId}
-                className="flex items-center justify-between gap-3 rounded-xl p-3"
-                style={{ background: "oklch(0.965 0.012 82)", border: "1px solid oklch(0.89 0.013 78)" }}
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
-                    {p.email}
-                  </div>
-                  <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
-                    Primer acceso: {formatearFecha(p.primerAcceso)}
-                  </div>
-                </div>
-                <div className="flex shrink-0 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => asignarDesdePendiente(p)}
-                    className="rounded-lg px-2.5 py-1.5 text-xs font-bold"
-                    style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
-                  >
-                    Asignar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => ignorarPendiente(p.usuarioId)}
-                    disabled={pendingIgnorar === p.usuarioId}
-                    className="rounded-lg px-2.5 py-1.5 text-xs font-bold disabled:opacity-60"
-                    style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
-                  >
-                    Ignorar
-                  </button>
+        {invitarAbierto && (
+          <div className="px-4 pb-4">
+            <div className="flex flex-col gap-2.5">
+              <div>
+                <label className="mb-1.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                  Correo
+                </label>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@gmail.com" className={`${inputCls} w-full`} style={inputStyle} />
+              </div>
+
+              <div>
+                {/* Brief §2: opcional, se propone como nombre_mostrar recién
+                    si la persona todavía no tiene uno guardado al aceptar. */}
+                <label className="mb-1.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                  Nombre a mostrar (opcional)
+                </label>
+                <input
+                  value={nombreMostrarInvitar}
+                  onChange={(e) => setNombreMostrarInvitar(e.target.value)}
+                  placeholder="Ej. Alf"
+                  className={`${inputCls} w-full`}
+                  style={inputStyle}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                  Bandas
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {bandas.map((b) => (
+                    <ToggleChip key={b.id} label={b.nombre} active={bandaIdsInvitar.has(b.id)} onClick={() => toggleBandaInvitar(b.id)} color={b.color} />
+                  ))}
                 </div>
               </div>
-            ))}
+
+              {/* Brief §2: una sub-tarjeta por banda seleccionada, con rol +
+                  plaza + bloques propios de esa banda. */}
+              {Array.from(bandaIdsInvitar).map((bandaId) => {
+                const banda = bandas.find((b) => b.id === bandaId);
+                const cfg = configPorBanda.get(bandaId);
+                if (!banda || !cfg) return null;
+                const disponibles = plazasDisponibles(bandaId);
+                const activos = bloquesActivosDeBanda(banda);
+
+                return (
+                  <div key={bandaId} className="rounded-xl p-3" style={{ background: BG_SUNKEN, border: `1px solid ${BORDE_SUNKEN}` }}>
+                    <span className="text-xs font-bold" style={{ color: banda.color }}>
+                      {banda.nombre}
+                    </span>
+
+                    <div className="mt-2">
+                      <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                        Rol en esta banda
+                      </label>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => actualizarConfigBanda(bandaId, { rol: "miembro" })}
+                          className="rounded-lg px-3 py-1.5 text-sm font-bold"
+                          style={cfg.rol === "miembro" ? ROL_ACTIVO : ROL_INACTIVO}
+                        >
+                          Miembro
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => actualizarConfigBanda(bandaId, { rol: "administrador" })}
+                          className="rounded-lg px-3 py-1.5 text-sm font-bold"
+                          style={cfg.rol === "administrador" ? ROL_ACTIVO : ROL_INACTIVO}
+                        >
+                          Administrador
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-2">
+                      <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                        Plaza / instrumento
+                      </label>
+                      {disponibles.length === 0 ? (
+                        <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+                          No hay plazas disponibles en esta banda.
+                        </p>
+                      ) : (
+                        <select
+                          className={`${inputCls} w-full`}
+                          style={inputStyle}
+                          value={cfg.plazaId ?? ""}
+                          onChange={(e) => actualizarConfigBanda(bandaId, { plazaId: e.target.value || null })}
+                        >
+                          <option value="">Sin instrumento asignado por ahora</option>
+                          {disponibles.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {etiquetaPlaza(p.instrumento, p.etiqueta)}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+
+                    {activos.length > 0 && (
+                      <div className="mt-2">
+                        <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                          Bloques visibles
+                        </label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {activos.map((bl) => {
+                            const label = BLOQUES.find((x) => x.key === bl)!.label;
+                            return (
+                              <ToggleChip key={bl} label={label} active={cfg.bloques.has(bl)} onClick={() => toggleBloqueInvitar(bandaId, bl)} />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={invitar}
+                disabled={pendingInvitar}
+                className="rounded-xl px-4 py-2.5 text-sm font-bold disabled:opacity-60"
+                style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+              >
+                {pendingInvitar ? "Invitando..." : "Invitar"}
+              </button>
+            </div>
+            {avisoInvitar && (
+              <p className="mt-2 text-xs" style={{ color: avisoInvitar.tipo === "ok" ? "oklch(0.5 0.13 148)" : "oklch(0.55 0.15 25)" }}>
+                {avisoInvitar.texto}
+              </p>
+            )}
           </div>
         )}
       </section>
@@ -703,30 +1075,17 @@ export function IntegrantesPanel({
         <h3 className="mb-3 text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
           Integrantes
         </h3>
-        {integrantes.length === 0 ? (
+        {grupos.length === 0 ? (
           <p className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
-            Todavía no hay integrantes.
+            Todavía no hay nadie: ni integrantes, invitados, ni personas esperando acceso.
           </p>
         ) : (
           <div className="flex flex-col gap-2.5">
-            {/* Brief "Rediseño visual de Gestión" §1: grupo sin nadie adentro
-                no se monta — ni el acordeón ni su "(0)". */}
-            {[
-              { titulo: "Activos", lista: integrantes.filter((i) => i.estado === "activo") },
-              { titulo: "Invitados", lista: integrantes.filter((i) => i.estado === "invitado") },
-              { titulo: "Inactivos", lista: integrantes.filter((i) => i.estado === "inactivo") },
-            ]
-              .filter((g) => g.lista.length > 0)
-              .map((g) => (
-                <GrupoIntegrantes
-                  key={g.titulo}
-                  titulo={g.titulo}
-                  integrantes={g.lista}
-                  bandas={bandas}
-                  plazas={plazas}
-                  onEliminado={(usuarioId) => setIntegrantes((prev) => prev.filter((i) => i.usuarioId !== usuarioId))}
-                />
-              ))}
+            {grupos.map((g) => (
+              <AcordeonGrupo key={g.titulo} titulo={g.titulo} count={g.count} abierto={!!gruposAbiertos[g.titulo]} onToggle={() => toggleGrupo(g.titulo)}>
+                {g.contenido}
+              </AcordeonGrupo>
+            ))}
           </div>
         )}
       </section>

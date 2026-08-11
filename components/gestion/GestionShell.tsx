@@ -22,6 +22,7 @@ export function GestionShell({
   integrantes,
   lugares,
   plazas,
+  plazasReservadas,
 }: {
   seccionInicial: Seccion;
   bandas: BandaSimple[];
@@ -29,6 +30,7 @@ export function GestionShell({
   integrantes: Integrante[];
   lugares: Lugar[];
   plazas: Plaza[];
+  plazasReservadas: string[];
 }) {
   const router = useRouter();
   const [seccion, setSeccion] = useState<Seccion>(seccionInicial);
@@ -83,6 +85,7 @@ export function GestionShell({
               personasPendientes={personasPendientes}
               integrantes={integrantes}
               plazas={plazas}
+              plazasReservadas={plazasReservadas}
             />
           )}
           {seccion === "lugares" && <LugaresPanel bandas={bandas} lugares={lugares} />}

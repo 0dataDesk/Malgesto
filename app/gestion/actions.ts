@@ -24,6 +24,7 @@ import {
   type ResultadoInvitacion,
   type ActualizacionBanda,
   type RolInvitable,
+  type InvitacionPorBanda,
 } from "@/lib/gestionData";
 import { crearLugar, actualizarLugar, actualizarLugarBandas, eliminarLugar } from "@/lib/lugaresData";
 
@@ -81,11 +82,19 @@ export async function quitarPersonaDePlazaAction(usuarioId: string, plazaId: str
 // pero acotado en runtime a los 2 niveles no sensibles — el tipo RolInvitable
 // ya excluye "superadmin" en compilación, pero un server action es un
 // endpoint de red como cualquier otro (alguien podría llamarlo directo con
-// un payload armado a mano), así que igual se valida acá.
-export async function invitarPersonaAction(email: string, bandaIds: string[], rol: RolInvitable): Promise<ResultadoInvitacion> {
+// un payload armado a mano), así que igual se valida acá. Brief "Rediseño de
+// Gestión > Integrantes" §2: el rol ahora viaja por banda dentro de cada
+// InvitacionPorBanda, así que se valida cada una por separado.
+export async function invitarPersonaAction(
+  email: string,
+  nombreMostrarPropuesto: string | null,
+  invitacionesPorBanda: InvitacionPorBanda[]
+): Promise<ResultadoInvitacion> {
   await requerirSuperadmin();
-  if (rol !== "miembro" && rol !== "administrador") throw new Error("Rol inválido.");
-  const resultado = await invitarPersona(email, bandaIds, rol);
+  for (const item of invitacionesPorBanda) {
+    if (item.rol !== "miembro" && item.rol !== "administrador") throw new Error("Rol inválido.");
+  }
+  const resultado = await invitarPersona(email, nombreMostrarPropuesto, invitacionesPorBanda);
   revalidatePath("/gestion");
   return resultado;
 }

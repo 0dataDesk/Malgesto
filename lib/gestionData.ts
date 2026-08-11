@@ -208,6 +208,18 @@ export async function quitarPersonaDePlaza(usuarioId: string, plazaId: string): 
   if (error) throw new Error(error.message);
 }
 
+// Brief "Rediseño de Gestión > Integrantes" §2: plazas que una invitación
+// pendiente ya reservó (invitaciones.plaza_id, protegido por el índice único
+// parcial invitaciones_plaza_pendiente_unique) -- junto con persona_plazas,
+// es lo que el formulario de invitar resta para armar "disponibles" por
+// banda. Se listan sueltas (no por banda) porque el llamador ya tiene todas
+// las plazas de todas las bandas y filtra client-side.
+export async function obtenerPlazasReservadas(): Promise<string[]> {
+  const admin = supabaseMalgesto();
+  const { data } = await admin.from("invitaciones").select("plaza_id").eq("estado", "pendiente").not("plaza_id", "is", null);
+  return (data ?? []).map((i) => i.plaza_id as string);
+}
+
 // Todos los usuarios de auth.users (vía Admin Auth API — la app nunca
 // consulta el esquema auth directamente, ni siquiera con la service role)
 // que no tengan fila en miembros_banda, ni invitación pendiente por su
@@ -248,17 +260,35 @@ export async function ignorarPersonaPendiente(usuarioId: string): Promise<void> 
 
 export type RolInvitable = "miembro" | "administrador";
 
+// Brief "Rediseño de Gestión > Integrantes" §2: rol, plaza y bloques
+// visibles ahora se eligen por banda al invitar (antes era un único rol
+// global para todas las bandas seleccionadas) -- cada entrada se traduce 1:1
+// en una fila de `invitaciones`. `plazaId: null` = "sin instrumento asignado
+// por ahora"; `bloquesVisibles: null` = sin restricción (mismo criterio que
+// ya usa miembros_banda.bloques_visibles, ver actualizarBloquesVisibles).
+export type InvitacionPorBanda = {
+  bandaId: string;
+  rol: RolInvitable;
+  plazaId: string | null;
+  bloquesVisibles: string[] | null;
+};
+
 // Invitar/asignar (Brief 9 §10-11, rol elegible desde Brief "Nuevo nivel de
-// rol: Miembro administrador"): multi-banda de una, con el mismo rol para
-// todas las bandas seleccionadas. Superadmin sigue sin poder otorgarse desde
-// acá — por eso el tipo del parámetro ni siquiera lo contempla. No hay una
-// acción separada para cederlo sobre alguien ya existente (se quitó por
-// Brief "3 pendientes" §1: estaba sin conectar a ninguna UI y tenía un bug
-// latente al revertir); si hace falta en el futuro, se construye de nuevo
-// con la lógica correcta en ese momento.
-export async function invitarPersona(email: string, bandaIds: string[], rol: RolInvitable): Promise<ResultadoInvitacion> {
+// rol: Miembro administrador", ahora una configuración completa por banda
+// desde Brief "Rediseño de Gestión > Integrantes" §2). Superadmin sigue sin
+// poder otorgarse desde acá — por eso RolInvitable ni siquiera lo contempla.
+// No hay una acción separada para cederlo sobre alguien ya existente (se
+// quitó por Brief "3 pendientes" §1: estaba sin conectar a ninguna UI y
+// tenía un bug latente al revertir); si hace falta en el futuro, se
+// construye de nuevo con la lógica correcta en ese momento.
+export async function invitarPersona(
+  email: string,
+  nombreMostrarPropuesto: string | null,
+  invitacionesPorBanda: InvitacionPorBanda[]
+): Promise<ResultadoInvitacion> {
   const admin = supabaseMalgesto();
   const emailNormalizado = email.trim().toLowerCase();
+  const nombrePropuesto = nombreMostrarPropuesto?.trim() || null;
 
   const { data: authData } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
   const usuarioExistente = authData?.users.find((u) => u.email?.toLowerCase() === emailNormalizado);
@@ -266,13 +296,13 @@ export async function invitarPersona(email: string, bandaIds: string[], rol: Rol
   const errores: string[] = [];
   let algunaOk = false;
 
-  for (const bandaId of bandaIds) {
+  for (const item of invitacionesPorBanda) {
     if (usuarioExistente) {
       const { data: yaMiembro } = await admin
         .from("miembros_banda")
         .select("id")
         .eq("usuario_id", usuarioExistente.id)
-        .eq("banda_id", bandaId)
+        .eq("banda_id", item.bandaId)
         .eq("activo", true)
         .limit(1);
       if (yaMiembro && yaMiembro.length > 0) {
@@ -285,7 +315,7 @@ export async function invitarPersona(email: string, bandaIds: string[], rol: Rol
       .from("invitaciones")
       .select("id")
       .eq("email", emailNormalizado)
-      .eq("banda_id", bandaId)
+      .eq("banda_id", item.bandaId)
       .eq("estado", "pendiente")
       .limit(1);
     if (invitacionExistente && invitacionExistente.length > 0) {
@@ -293,9 +323,27 @@ export async function invitarPersona(email: string, bandaIds: string[], rol: Rol
       continue;
     }
 
-    const { error } = await admin.from("invitaciones").insert({ email: emailNormalizado, banda_id: bandaId, rol, estado: "pendiente" });
+    const { error } = await admin.from("invitaciones").insert({
+      email: emailNormalizado,
+      banda_id: item.bandaId,
+      rol: item.rol,
+      estado: "pendiente",
+      plaza_id: item.plazaId,
+      bloques_visibles: item.bloquesVisibles,
+      nombre_mostrar_propuesto: nombrePropuesto,
+    });
     if (error) {
-      errores.push(error.message);
+      // La reserva de plaza es inmediata al mandar la invitación, protegida
+      // por invitaciones_plaza_pendiente_unique (índice único parcial sobre
+      // plaza_id donde estado='pendiente') -- si dos invitaciones para la
+      // misma plaza se mandan casi a la vez, la segunda pisa acá con 23505 y
+      // se traduce a un mensaje que tiene sentido para quien invita, no el
+      // texto crudo del constraint.
+      if (error.code === "23505" && error.message.includes("invitaciones_plaza_pendiente_unique")) {
+        errores.push("esa plaza se acaba de ocupar, elegí otra");
+      } else {
+        errores.push(error.message);
+      }
       continue;
     }
     algunaOk = true;

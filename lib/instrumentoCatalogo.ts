@@ -22,7 +22,10 @@ export const ETIQUETA_INSTRUMENTO: Record<Instrumento, string> = {
   bateria: "Batería",
   acordeon: "Acordeón",
   teclado_piano: "Teclado/Piano",
-  voz: "Voz",
+  // Brief "Rediseño de Gestión > Integrantes" §4: Voz y Coro son plazas
+  // independientes en base (ya lo eran) -- la etiqueta lo deja explícito
+  // para que no se lean como "la misma cosa" en el selector.
+  voz: "Voz principal",
   coro: "Coro",
   otro: "Otro",
 };

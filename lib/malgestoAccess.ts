@@ -100,7 +100,7 @@ export async function resolverAccesoUsuario(usuarioId: string, email: string): P
 
   const { data: invitacionesPendientes } = await admin
     .from("invitaciones")
-    .select("id, banda_id, rol")
+    .select("id, banda_id, rol, plaza_id, bloques_visibles, nombre_mostrar_propuesto")
     .eq("email", email)
     .eq("estado", "pendiente");
 
@@ -113,8 +113,36 @@ export async function resolverAccesoUsuario(usuarioId: string, email: string): P
       usuario_id: usuarioId,
       banda_id: inv.banda_id,
       rol: inv.rol,
+      bloques_visibles: inv.bloques_visibles,
     }))
   );
+
+  // Brief "Rediseño de Gestión > Integrantes" §2: la plaza reservada al
+  // invitar se confirma acá. Sin transacción real -- este cliente no expone
+  // RPC/transacciones y el resto de esta capa (ver eliminarPersona más abajo)
+  // ya asume llamadas secuenciales -- así que si la plaza puntual quedó
+  // ocupada en el medio por una asignación DIRECTA a otra persona desde
+  // "editar integrante" (el único camino que la reserva de invitaciones no
+  // cubre: el índice único parcial solo protege invitación contra invitación,
+  // no invitación contra asignación directa), el insert cae en 23505 acá y se
+  // ignora esa plaza puntual en vez de bloquear la aceptación entera -- la
+  // persona igual entra a la banda, solo queda sin ese instrumento asignado.
+  for (const inv of invitacionesPendientes) {
+    if (!inv.plaza_id) continue;
+    const { error } = await admin.from("persona_plazas").insert({ persona_id: usuarioId, plaza_id: inv.plaza_id });
+    if (error && error.code !== "23505") throw new Error(error.message);
+  }
+
+  // Brief §2 punto 3: si la persona ya tiene nombre_mostrar (por ejemplo, ya
+  // existía en el sistema por otra banda) no se pisa -- se usa el propuesto
+  // solo para completar un nombre vacío.
+  const nombrePropuesto = invitacionesPendientes.find((inv) => inv.nombre_mostrar_propuesto?.trim())?.nombre_mostrar_propuesto ?? null;
+  if (nombrePropuesto) {
+    const { data: personaExistente } = await admin.from("personas").select("nombre_mostrar").eq("usuario_id", usuarioId).maybeSingle();
+    if (!personaExistente?.nombre_mostrar) {
+      await admin.from("personas").upsert({ usuario_id: usuarioId, nombre_mostrar: nombrePropuesto }, { onConflict: "usuario_id" });
+    }
+  }
 
   await admin
     .from("invitaciones")
