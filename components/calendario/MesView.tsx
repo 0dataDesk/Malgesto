@@ -35,6 +35,12 @@ function esOverflowMesSiguiente(dia: Date, mesVisible: Date): boolean {
   return dia.getFullYear() === siguiente.getFullYear() && dia.getMonth() === siguiente.getMonth();
 }
 
+// Brief "Calendario — 'Hoy' cambia de negro a naranja de marca": mismo
+// naranja de acento que ya usa el resto de la app (COLOR_DEFECTO en
+// BandasPanel, COLOR_TIPO.show en eventoUI.ts) -- antes el negro se
+// confundía con el gris oscuro de "mesSiguiente".
+const FONDO_HOY = "oklch(0.64 0.15 34)";
+
 export function MesView({
   mes,
   eventos,
@@ -156,7 +162,7 @@ export function MesView({
               style={{
                 paddingTop: 7,
                 paddingBottom: 7,
-                background: esHoy ? "oklch(0.24 0.02 55)" : bg,
+                background: esHoy ? FONDO_HOY : bg,
                 borderRadius: esHoy ? 9 : radius,
                 boxShadow: anillos.length > 0 ? anillos.join(", ") : "none",
                 // Brief "Calendario — sistema de colores": "mesSiguiente"
@@ -169,7 +175,7 @@ export function MesView({
                 // oscuro fijo de siempre se mantienen sin cambios para los
                 // demás casos (sin relleno).
                 color: esHoy
-                  ? "oklch(0.99 0.01 82)"
+                  ? textoLegibleSobre(FONDO_HOY)
                   : bg !== "transparent"
                     ? textoLegibleSobre(bg)
                     : fueraDeMes
