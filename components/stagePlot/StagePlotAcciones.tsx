@@ -7,24 +7,16 @@ import { descargarStagePlotPng } from "./stagePlotExport";
 const botonCls = "rounded-lg px-3.5 py-2 text-xs font-bold disabled:opacity-60";
 const botonStyle = { background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" };
 
-// Las dos formas de "compartir" del Brief: descarga de imagen (siempre
-// disponible, cero dependencias nuevas) y copiar el link público de solo
-// lectura /plot/[token] (fuera del proxy de auth a propósito — ver
-// proxy.ts). shareToken viaja server-side y se compone acá con
+// Brief "Rediseño de Stage Plot — Entrega 1" §4/§5: las dos acciones ya no
+// viven juntas en un solo componente -- "Copiar link" es la única acción
+// (más "Editar") de la vista previa interna del superadmin/admin; el botón
+// de descarga se corrió al link público, la única pantalla donde tiene
+// sentido para quien la recibe (el sonidista del venue, sin cuenta en
+// Malgesto). shareToken viaja server-side y se compone acá con
 // window.location.origin porque el dominio de producción no está
 // hardcodeado en ningún lado del repo.
-export function StagePlotAcciones({ items, bandaNombre, shareToken }: { items: StagePlotItem[]; bandaNombre: string; shareToken: string }) {
-  const [descargando, setDescargando] = useState(false);
+export function BotonCopiarLink({ shareToken }: { shareToken: string }) {
   const [copiado, setCopiado] = useState(false);
-
-  const descargar = async () => {
-    setDescargando(true);
-    try {
-      await descargarStagePlotPng(items, bandaNombre);
-    } finally {
-      setDescargando(false);
-    }
-  };
 
   const copiarLink = async () => {
     const url = `${window.location.origin}/plot/${shareToken}`;
@@ -34,13 +26,27 @@ export function StagePlotAcciones({ items, bandaNombre, shareToken }: { items: S
   };
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <button type="button" onClick={descargar} disabled={descargando || items.length === 0} className={botonCls} style={botonStyle}>
-        {descargando ? "Generando…" : "Descargar imagen (PNG)"}
-      </button>
-      <button type="button" onClick={copiarLink} className={botonCls} style={botonStyle}>
-        {copiado ? "¡Copiado!" : "Copiar link público"}
-      </button>
-    </div>
+    <button type="button" onClick={copiarLink} className={botonCls} style={botonStyle}>
+      {copiado ? "¡Copiado!" : "Copiar link público"}
+    </button>
+  );
+}
+
+export function BotonDescargarImagen({ items, bandaNombre, bandaColor }: { items: StagePlotItem[]; bandaNombre: string; bandaColor: string }) {
+  const [descargando, setDescargando] = useState(false);
+
+  const descargar = async () => {
+    setDescargando(true);
+    try {
+      await descargarStagePlotPng(items, bandaNombre, bandaColor);
+    } finally {
+      setDescargando(false);
+    }
+  };
+
+  return (
+    <button type="button" onClick={descargar} disabled={descargando || items.length === 0} className={botonCls} style={botonStyle}>
+      {descargando ? "Generando…" : "Descargar imagen (PNG)"}
+    </button>
   );
 }

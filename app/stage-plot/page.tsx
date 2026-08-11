@@ -6,7 +6,7 @@ import { obtenerOCrearStagePlot } from "@/lib/stagePlotData";
 import { TabBar } from "@/components/shell/TabBar";
 import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
 import { StagePlotLienzo } from "@/components/stagePlot/StagePlotLienzo";
-import { StagePlotAcciones } from "@/components/stagePlot/StagePlotAcciones";
+import { BotonCopiarLink } from "@/components/stagePlot/StagePlotAcciones";
 import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda";
 
 // Vista de solo lectura, pensada para compartir con el sonidista del venue
@@ -73,9 +73,10 @@ export default async function StagePlotPage({
   }
 
   const bandaActiva = bandaValida ? bandaParam! : bandasConBloque[0].bandaId;
-  const nombreBandaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
-  const rolEnBanda = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.rol;
-  const puedeEscribir = rolEnBanda === "administrador" || rolEnBanda === "superadmin";
+  const membresiaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva);
+  const nombreBandaActiva = membresiaActiva?.bandaNombre ?? "";
+  const colorBandaActiva = membresiaActiva?.color ?? "oklch(0.6 0.02 55)";
+  const puedeEscribir = membresiaActiva?.rol === "administrador" || membresiaActiva?.rol === "superadmin";
 
   const stagePlot = await obtenerOCrearStagePlot(bandaActiva);
 
@@ -118,11 +119,14 @@ export default async function StagePlotPage({
                 : `${nombreBandaActiva} todavía no tiene un stage plot armado.`}
             </p>
           ) : null}
-          <StagePlotLienzo items={stagePlot.items} />
+          <StagePlotLienzo items={stagePlot.items} bandaColor={colorBandaActiva} />
         </div>
 
+        {/* Brief "Rediseño de Stage Plot — Entrega 1" §5: "Copiar link
+            público" es la única acción de esta vista además de "Editar" --
+            la descarga se corrió al link público (app/plot/[token]). */}
         <div className="mt-4">
-          <StagePlotAcciones items={stagePlot.items} bandaNombre={nombreBandaActiva} shareToken={stagePlot.shareToken} />
+          <BotonCopiarLink shareToken={stagePlot.shareToken} />
         </div>
       </EspacioSuperior>
 

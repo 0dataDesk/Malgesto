@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { obtenerStagePlotPorToken } from "@/lib/stagePlotData";
 import { StagePlotLienzo } from "@/components/stagePlot/StagePlotLienzo";
-import { StagePlotAcciones } from "@/components/stagePlot/StagePlotAcciones";
+import { BotonDescargarImagen } from "@/components/stagePlot/StagePlotAcciones";
 
 // Ruta pública a propósito (Brief Stage Plot §5, "link público de solo
 // lectura") — deliberadamente fuera de proxy.ts/proxyClient.ts (ver
@@ -35,12 +35,15 @@ export default async function StagePlotPublicoPage({ params }: { params: Promise
               Esta banda todavía no armó su stage plot.
             </p>
           ) : null}
-          <StagePlotLienzo items={stagePlot.items} />
+          <StagePlotLienzo items={stagePlot.items} bandaColor={bandaColor} />
         </div>
 
+        {/* Brief "Rediseño de Stage Plot — Entrega 1" §5: la descarga vive
+            acá -- es la única pantalla que ve quien recibe el link
+            (sonidista del venue, sin cuenta en Malgesto). */}
         {stagePlot.items.length > 0 && (
           <div className="mt-4">
-            <StagePlotAcciones items={stagePlot.items} bandaNombre={bandaNombre} shareToken={stagePlot.shareToken} />
+            <BotonDescargarImagen items={stagePlot.items} bandaNombre={bandaNombre} bandaColor={bandaColor} />
           </div>
         )}
       </div>
