@@ -72,6 +72,14 @@ export async function obtenerLugaresTodos(): Promise<Lugar[]> {
   return lugaresConBandas(admin, (data ?? []).map((l) => l.id));
 }
 
+// Un lugar puntual por id -- para la pantalla de edición aparte de Gestión >
+// Lugares (Brief "Rediseño de Gestión > Lugares" v2 §2).
+export async function obtenerLugarPorId(id: string): Promise<Lugar | null> {
+  const admin = supabaseMalgesto();
+  const lugares = await lugaresConBandas(admin, [id]);
+  return lugares[0] ?? null;
+}
+
 export async function crearLugar(bandaIds: string[], nombre: string, linkMaps: string): Promise<Lugar> {
   const admin = supabaseMalgesto();
   const { data, error } = await admin.from("lugares").insert({ nombre, link_maps: linkMaps }).select("id, nombre, link_maps").single();

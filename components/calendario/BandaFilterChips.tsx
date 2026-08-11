@@ -1,6 +1,7 @@
 "use client";
 
 import type { Membresia } from "@/lib/malgestoEventos";
+import { EmojiOPunto } from "@/components/ui/EmojiOPunto";
 
 // Chips de banda de la vista de Mes — el filtro real del Calendario
 // (Brief 8 §3). `activas` empieza con TODAS las bandas prendidas (Brief 9
@@ -12,9 +13,9 @@ import type { Membresia } from "@/lib/malgestoEventos";
 // círculo pequeño solo del color de la banda (fijo, no calculado), para
 // caber en la misma fila que el título del mes.
 // Brief "Rediseño de Ausencias, emoji de banda...": si la banda tiene emoji
-// capturado, el chip lo muestra en vez del punto de color -- mismo tamaño
-// de círculo (5x5, mismo target de tap/click), el emoji va centrado dentro.
-// Sin emoji, sigue siendo el punto de color sólido de siempre.
+// capturado, el chip lo muestra en vez del punto de color -- el fallback en
+// sí vive en EmojiOPunto (compartido con la tarjeta de Lugares), acá solo
+// se agrega el estado de activo/inactivo (opacidad + escala).
 export function BandaFilterChips({
   membresias,
   activas,
@@ -36,14 +37,10 @@ export function BandaFilterChips({
             aria-label={m.bandaNombre}
             aria-pressed={activo}
             title={m.bandaNombre}
-            className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full transition-all"
-            style={{
-              background: m.emoji ? "transparent" : m.color,
-              opacity: activo ? 1 : 0.32,
-              transform: activo ? "scale(1)" : "scale(0.85)",
-            }}
+            className="shrink-0 transition-all"
+            style={{ opacity: activo ? 1 : 0.32, transform: activo ? "scale(1)" : "scale(0.85)" }}
           >
-            {m.emoji && <span style={{ fontSize: 13, lineHeight: 1 }}>{m.emoji}</span>}
+            <EmojiOPunto emoji={m.emoji} color={m.color} size={20} fontSize={13} />
           </button>
         );
       })}
