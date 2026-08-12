@@ -17,6 +17,9 @@ export type ControlDiseno = {
   max: number | null;
   valorDefault: number | null;
   orden: number;
+  // Solo aplica a tipo="perilla" — "rotativa" (default visual cuando es
+  // null) o "deslizante" (se dibuja como SliderVertical en vez de Knob).
+  estilo: "rotativa" | "deslizante" | null;
 };
 
 export type DisenoCompleto = DisenoDispositivo & { controles: ControlDiseno[] };
@@ -69,6 +72,7 @@ function mapControl(c: {
   max: number | null;
   valor_default: number | null;
   orden: number;
+  estilo: string | null;
 }): ControlDiseno {
   return {
     id: c.id,
@@ -80,6 +84,7 @@ function mapControl(c: {
     max: c.max,
     valorDefault: c.valor_default,
     orden: c.orden,
+    estilo: c.estilo as "rotativa" | "deslizante" | null,
   };
 }
 
@@ -216,7 +221,7 @@ export async function obtenerDispositivoCompleto(dispositivoId: string): Promise
   const { data } = await admin
     .from("dispositivos")
     .select(
-      "id, banda_id, usuario_id, categoria, diseno_id, nombre, disenos_dispositivo(id, categoria, marca, modelo, diseno_controles(id, tipo, nombre, pos_x, pos_y, min, max, valor_default, orden)), seteos(id, nombre, valores, cancion_id, es_general, canciones(id, titulo))"
+      "id, banda_id, usuario_id, categoria, diseno_id, nombre, disenos_dispositivo(id, categoria, marca, modelo, diseno_controles(id, tipo, nombre, pos_x, pos_y, min, max, valor_default, orden, estilo)), seteos(id, nombre, valores, cancion_id, es_general, canciones(id, titulo))"
     )
     .eq("id", dispositivoId)
     .single();

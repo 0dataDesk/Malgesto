@@ -2,6 +2,7 @@
 
 import type { ControlDiseno } from "@/lib/dispositivosData";
 import { Knob } from "./Knob";
+import { SliderVertical } from "./SliderVertical";
 import { Boton } from "./Boton";
 import { ControlDecorativo } from "./ControlDecorativo";
 
@@ -29,9 +30,12 @@ export function PanelDispositivo({
     >
       {controles.map((c) => (
         <div key={c.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${c.posX}%`, top: `${c.posY}%` }}>
-          {c.tipo === "perilla" && (
-            <Knob control={c} valor={valores[c.id] ?? c.valorDefault ?? 0} onChange={(v) => onChange(c.id, v)} />
-          )}
+          {c.tipo === "perilla" &&
+            (c.estilo === "deslizante" ? (
+              <SliderVertical control={c} valor={valores[c.id] ?? c.valorDefault ?? 0} onChange={(v) => onChange(c.id, v)} />
+            ) : (
+              <Knob control={c} valor={valores[c.id] ?? c.valorDefault ?? 0} onChange={(v) => onChange(c.id, v)} />
+            ))}
           {c.tipo === "boton" && (
             <Boton control={c} valor={valores[c.id] ?? c.valorDefault ?? 0} onChange={(v) => onChange(c.id, v)} />
           )}
