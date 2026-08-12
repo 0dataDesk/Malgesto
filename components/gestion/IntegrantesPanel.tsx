@@ -486,35 +486,7 @@ function FilaIntegrante({
               </span>
             )}
           </div>
-          <div className="truncate font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
-            {integrante.email}
-          </div>
-          <div className="mt-1 flex flex-wrap gap-1">
-            {bandasActivas.length > 0 ? (
-              bandasActivas.map((b) => {
-                const color = colorDeBanda(b.bandaId);
-                return (
-                  <span
-                    key={b.bandaId}
-                    className="shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase"
-                    style={{ background: colorConAlpha(color, 0.15), color }}
-                  >
-                    {b.bandaNombre}
-                  </span>
-                );
-              })
-            ) : (
-              <span className="font-mono text-[9px] font-bold uppercase" style={{ color: "oklch(0.6 0.02 55)" }}>
-                Sin banda asignada
-              </span>
-            )}
-          </div>
         </button>
-
-        {/* Brief "Gestión > Integrantes — acordeones anidados..." §1: los 2
-            íconos de Inactivar/Eliminar se mudan adentro de la tarjeta
-            expandida (ver más abajo) -- colapsada solo se ve el badge de
-            estado acá. */}
         <div className="flex shrink-0 items-center gap-1.5">
           <span
             className="shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase"
@@ -524,6 +496,67 @@ function FilaIntegrante({
           </span>
         </div>
       </div>
+
+      {/* Brief "Integrantes — compactar filas de acciones" §1: Ocultar/Eliminar
+          comparten fila con el email (en vez de su propia fila aparte),
+          mismo criterio de alineación que el badge de estado en la fila del
+          nombre -- solo visibles con la tarjeta expandida, igual que antes. */}
+      <div className="flex w-full items-center justify-between gap-3">
+        <button type="button" onClick={() => setExpandido((v) => !v)} className="min-w-0 flex-1 text-left">
+          <div className="truncate font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+            {integrante.email}
+          </div>
+        </button>
+        {expandido && integrante.usuarioId && (
+          <div className="flex shrink-0 items-center gap-1.5">
+            {bandasActivas.length > 0 && (
+              <button
+                type="button"
+                onClick={inactivar}
+                disabled={pendingInactivar}
+                aria-label="Inactivar"
+                title="Oculta al integrante sin borrar su historial"
+                className="flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-50"
+                style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+              >
+                <IconoOjoTachado />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={eliminar}
+              disabled={pendingEliminar}
+              aria-label="Eliminar cuenta"
+              title="Eliminar cuenta (borrado permanente)"
+              className="flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-50"
+              style={{ background: "oklch(0.6 0.15 25 / 0.12)", color: "oklch(0.5 0.18 25)" }}
+            >
+              <IconoEliminar />
+            </button>
+          </div>
+        )}
+      </div>
+
+      <button type="button" onClick={() => setExpandido((v) => !v)} className="mt-1 flex min-w-0 flex-wrap gap-1 text-left">
+        {bandasActivas.length > 0 ? (
+          bandasActivas.map((b) => {
+            const color = colorDeBanda(b.bandaId);
+            return (
+              <span
+                key={b.bandaId}
+                className="shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase"
+                style={{ background: colorConAlpha(color, 0.15), color }}
+              >
+                {b.bandaNombre}
+              </span>
+            );
+          })
+        ) : (
+          <span className="font-mono text-[9px] font-bold uppercase" style={{ color: "oklch(0.6 0.02 55)" }}>
+            Sin banda asignada
+          </span>
+        )}
+      </button>
       {errorPeligro && (
         <p className="mt-1.5 text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
           {errorPeligro}
@@ -638,40 +671,32 @@ function FilaIntegrante({
 
               return (
                 <div key={b.id} className="rounded-xl p-3" style={{ background: BG_CARD, border: `1px solid ${colorConAlpha(b.color, 0.4)}` }}>
-                  {/* Brief "Gestión > Integrantes — acordeones anidados..."
-                      §2: cada tarjeta de banda es colapsable -- colapsada
-                      solo nombre + color, nada más. */}
-                  <button type="button" onClick={() => toggleBandaAbierta(b.id)} className="flex w-full items-center gap-2 text-left">
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: b.color }} />
-                    <span className="min-w-0 flex-1 truncate text-sm font-bold" style={{ color: b.color }}>
-                      {b.nombre}
-                    </span>
-                    <span
-                      className="shrink-0 text-[10px]"
-                      style={{ color: "oklch(0.55 0.02 55)", transform: abierta ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+                  {/* Brief "Integrantes — compactar filas de acciones" §2: sin
+                      chevron (clickear el nombre ya colapsa/expande, es
+                      redundante) -- "Quitar" pasa a compartir esta misma fila,
+                      en el lugar donde estaba el chevron. */}
+                  <div className="flex w-full items-center gap-2">
+                    <button type="button" onClick={() => toggleBandaAbierta(b.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: b.color }} />
+                      <span className="min-w-0 flex-1 truncate text-sm font-bold" style={{ color: b.color }}>
+                        {b.nombre}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleBanda(b.id)}
+                      disabled={pendingBanda === b.id}
+                      aria-label="Quitar de esta banda"
+                      title="Quitar de esta banda"
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full disabled:opacity-50"
+                      style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.5 0.02 55)" }}
                     >
-                      ▾
-                    </span>
-                  </button>
+                      <IconoEliminar />
+                    </button>
+                  </div>
 
                   {abierta && (
                     <div className="mt-2.5 flex flex-col gap-2.5">
-                      {/* Brief §3: "QUITAR" en texto pasa a ícono de tache
-                          chico, mismo criterio que eliminar cuenta. */}
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => toggleBanda(b.id)}
-                          disabled={pendingBanda === b.id}
-                          aria-label="Quitar de esta banda"
-                          title="Quitar de esta banda"
-                          className="flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-50"
-                          style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.5 0.02 55)" }}
-                        >
-                          <IconoEliminar />
-                        </button>
-                      </div>
-
                       {/* Rol */}
                       {asignada.rol === "superadmin" ? (
                         <span className="text-xs italic" style={{ color: "oklch(0.55 0.02 55)" }}>
