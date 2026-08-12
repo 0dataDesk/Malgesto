@@ -124,6 +124,24 @@ function PanelLibre({ controles, valores, onChange, tema }: PanelProps) {
 // rectas, fondo del panel (color_fondo), etiqueta del grupo arriba. El
 // acento es el borde exterior del panel completo. Controles con grupo=null
 // se dibujan sueltos, sin caja.
+// Dentro de un grupo en posición libre, el aspect ratio de la caja se deriva
+// del rango real de pos_x/pos_y de sus controles en vez de un valor fijo --
+// así una caja con controles repartidos en un área casi cuadrada (ej. el
+// grupo "Panel" consolidado del Tone Mallet, brief "...una sola caja, sin
+// títulos de sub-grupo" §5) no queda apretada verticalmente por una
+// proporción pensada para otro grupo, sin depender de qué dispositivo o
+// grupo sea. Clamp para evitar cajas absurdamente angostas/anchas si algún
+// diseño futuro tiene un rango de posiciones muy parejo en un eje.
+function aspectRatioPosicionLibre(controles: ControlDiseno[]): string {
+  const xs = controles.map((c) => c.posX ?? 50);
+  const ys = controles.map((c) => c.posY ?? 50);
+  const spreadX = Math.max(...xs) - Math.min(...xs);
+  const spreadY = Math.max(...ys) - Math.min(...ys);
+  if (spreadX <= 0 || spreadY <= 0) return "3 / 2";
+  const ratio = Math.min(2.2, Math.max(0.8, spreadX / spreadY));
+  return `${ratio} / 1`;
+}
+
 function grupoHabilitado(nombreGrupo: string, controles: ControlDiseno[], valores: Record<string, number>): boolean {
   const controlador = controles.find((c) => c.controlaGrupo === nombreGrupo);
   if (!controlador) return true;
@@ -163,6 +181,12 @@ function PanelAgrupado({ controles, valores, onChange, tema }: PanelProps) {
     .map(([nombre, ctrls]) => ({ nombre, controles: [...ctrls].sort((a, b) => a.orden - b.orden) }))
     .sort((a, b) => Math.min(...a.controles.map((c) => c.orden)) - Math.min(...b.controles.map((c) => c.orden)));
 
+  // Brief "Tone Mallet — una sola caja, sin títulos de sub-grupo": si el
+  // diseño entero tiene un solo grupo, el título de esa caja es redundante
+  // (el nombre del dispositivo ya se ve arriba del panel) — genérico, no
+  // depende de qué grupo sea ni de qué diseño.
+  const unicoGrupo = grupos.length === 1;
+
   return (
     <div className="w-full rounded-2xl p-4" style={{ background: tema.fondo, border: `4px solid ${tema.acento}` }}>
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start">
@@ -184,11 +208,13 @@ function PanelAgrupado({ controles, valores, onChange, tema }: PanelProps) {
               className={`min-w-0 p-3 ${posicionLibre ? "w-full" : "w-full sm:w-auto"}`}
               style={{ background: tema.fondo, border: `3px solid ${tema.texto}` }}
             >
-              <div className="mb-2 text-[9px] font-bold uppercase tracking-wider" style={{ color: tema.textoSecundario }}>
-                {g.nombre}
-              </div>
+              {!unicoGrupo && (
+                <div className="mb-2 text-[9px] font-bold uppercase tracking-wider" style={{ color: tema.textoSecundario }}>
+                  {g.nombre}
+                </div>
+              )}
               {posicionLibre ? (
-                <div className="relative w-full" style={{ aspectRatio: "3 / 2" }}>
+                <div className="relative w-full" style={{ aspectRatio: aspectRatioPosicionLibre(g.controles) }}>
                   {g.controles.map((c) => (
                     <div key={c.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${c.posX}%`, top: `${c.posY}%` }}>
                       {renderControl(c, valores, onChange, !habilitado, tema, controles)}
