@@ -66,3 +66,19 @@ export function algunaBandaConBloque(membresias: Membresia[], bloque: NombreBloq
 export function membresiasConBloque(membresias: Membresia[], bloque: NombreBloque, superadmin: boolean): Membresia[] {
   return membresias.filter((m) => bloqueVisible(m, bloque, superadmin));
 }
+
+// Bloques posibles por banda son Calendario (siempre activo) + los 5
+// toggleables -- se cuenta así en vez de a mano en cada uso para que el
+// criterio de orden (Gestión > Bandas, y Gestión > Integrantes > Bandas
+// asignadas) use la misma fuente. Firma estructural (no `Membresia` ni
+// `BandaSimple` directamente) para que sirva para cualquier objeto con estos
+// 5 campos sin acoplar este archivo -- sin "server-only" -- a gestionData.ts.
+export function contarBloquesActivos(b: {
+  cancionesHabilitado: boolean;
+  setlistHabilitado: boolean;
+  seteosHabilitado: boolean;
+  finanzasHabilitado: boolean;
+  stagePlotHabilitado: boolean;
+}): number {
+  return 1 + [b.cancionesHabilitado, b.setlistHabilitado, b.seteosHabilitado, b.finanzasHabilitado, b.stagePlotHabilitado].filter(Boolean).length;
+}

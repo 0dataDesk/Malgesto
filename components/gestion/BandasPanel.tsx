@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import type { BandaSimple, ActualizacionBanda, Plaza } from "@/lib/gestionData";
+import { contarBloquesActivos } from "@/lib/bloques";
 import { INSTRUMENTOS, ETIQUETA_INSTRUMENTO, etiquetaPlaza, type Instrumento } from "@/lib/instrumentoCatalogo";
 import { textoLegibleSobre } from "@/lib/colorContraste";
 import { ToggleChip } from "@/components/ui/ToggleChip";
@@ -565,13 +566,6 @@ function BotonCrearBanda({ onCreada }: { onCreada: (id: string, nombre: string) 
       </div>
     </>
   );
-}
-
-// Brief §8: bloques posibles por banda son Calendario (siempre activo) +
-// los 5 toggleables -- se cuenta así en vez de a mano en cada uso para que
-// el criterio de orden y una futura visualización usen la misma fuente.
-function contarBloquesActivos(b: BandaSimple): number {
-  return 1 + [b.cancionesHabilitado, b.setlistHabilitado, b.seteosHabilitado, b.finanzasHabilitado, b.stagePlotHabilitado].filter(Boolean).length;
 }
 
 // Brief §3: badge circular del emoji de la banda, protagonista visual --

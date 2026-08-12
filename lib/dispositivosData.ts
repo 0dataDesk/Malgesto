@@ -242,6 +242,42 @@ export async function quitarDispositivo(dispositivoId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+// Consola automática (brief "Gestión > Integrantes — acordeones anidados,
+// orden, consola automática" §2): "va directo a consola" ya no es una acción
+// manual — se deriva del estado real de amplificadores de esa persona en esa
+// banda. Se llama después de cualquier alta/baja de amplificador/pedal (es
+// idempotente y barata, así que no hace falta filtrar por categoría acá:
+// siempre refleja el estado actual). Sin amplificadores → asegura que exista
+// la fila consola (la crea si falta) y la devuelve; con al menos uno →
+// asegura que NO exista (la borra si estaba) y devuelve null. El caller usa
+// el valor devuelto para sincronizar su propio estado en vez de adivinar.
+export async function sincronizarConsola(bandaId: string, usuarioId: string): Promise<DispositivoAsignado | null> {
+  const admin = supabaseMalgesto();
+  const { data: amplificadores } = await admin
+    .from("dispositivos")
+    .select("id")
+    .eq("banda_id", bandaId)
+    .eq("usuario_id", usuarioId)
+    .eq("categoria", "amplificador")
+    .limit(1);
+
+  if (amplificadores && amplificadores.length > 0) {
+    const { data: consolaExistente } = await admin
+      .from("dispositivos")
+      .select("id")
+      .eq("banda_id", bandaId)
+      .eq("usuario_id", usuarioId)
+      .eq("categoria", "consola")
+      .limit(1);
+    if (consolaExistente && consolaExistente.length > 0) {
+      await quitarDispositivo(consolaExistente[0].id);
+    }
+    return null;
+  }
+
+  return marcarConsola(bandaId, usuarioId);
+}
+
 // Switch de habilitado/deshabilitado en Seteos (brief "Seteos — selector
 // único global..." §2) — no borra nada, solo saca al dispositivo de la
 // lista principal hacia el acordeón "Deshabilitados".

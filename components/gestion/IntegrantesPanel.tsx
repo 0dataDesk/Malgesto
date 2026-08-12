@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import type { BandaSimple, PersonaPendiente, Integrante, Plaza, BandaDeIntegrante, RolInvitable, InvitacionPorBanda } from "@/lib/gestionData";
 import type { NombreBloque } from "@/lib/bloques";
+import { contarBloquesActivos } from "@/lib/bloques";
 import type { DisenoDispositivo, CategoriaCatalogo, DispositivoAsignado } from "@/lib/dispositivosData";
 import { etiquetaPlaza } from "@/lib/instrumentoCatalogo";
 import { colorConAlpha } from "@/lib/eventoUI";
@@ -20,7 +21,6 @@ import {
   inactivarPersonaAction,
   eliminarPersonaAction,
   asignarDisenoDispositivoAction,
-  marcarConsolaAction,
   quitarDispositivoAction,
 } from "@/app/gestion/actions";
 
@@ -267,19 +267,33 @@ function FilaIntegrante({
   const [plazaPickerBandaId, setPlazaPickerBandaId] = useState<string | null>(null);
   const [pendingDispositivoBandaId, setPendingDispositivoBandaId] = useState<string | null>(null);
   const [pendingQuitarDispositivoId, setPendingQuitarDispositivoId] = useState<string | null>(null);
-  const [pendingConsolaBandaId, setPendingConsolaBandaId] = useState<string | null>(null);
   const [errorDispositivo, setErrorDispositivo] = useState<string | null>(null);
+  // Brief "Gestión > Integrantes — acordeones anidados..." §2: cada tarjeta
+  // de banda es colapsable, independiente de las demás y del colapso del
+  // integrante en sí — set de bandaIds actualmente expandidas.
+  const [bandasAbiertas, setBandasAbiertas] = useState<Set<string>>(new Set());
   const [pendingInactivar, setPendingInactivar] = useState(false);
   const [pendingEliminar, setPendingEliminar] = useState(false);
   const [errorPeligro, setErrorPeligro] = useState<string | null>(null);
 
   const bandaAsignada = (bandaId: string) => bandasLocal.find((b) => b.bandaId === bandaId && b.activo);
   const bandasActivas = bandasLocal.filter((b) => b.activo);
-  // Brief "Integrantes — orden de bandas en 'Bandas asignadas'" §9: las
-  // bandas donde SÍ está asignado (tarjeta expandida) van arriba, las que no
-  // (pill gris) abajo -- sort estable, así dentro de cada grupo se conserva
-  // el orden alfabético que ya trae `bandas`.
-  const bandasOrdenParaAsignacion = [...bandas].sort((a, b) => Number(!bandaAsignada(a.id)) - Number(!bandaAsignada(b.id)));
+  // Brief "Gestión > Integrantes — acordeones anidados, orden, consola
+  // automática" §2: mismo criterio que la lista principal de Bandas -- de
+  // mayor a menor cantidad de bloques activos, alfabético como desempate
+  // (reemplaza el orden "asignada primero" de un brief anterior).
+  const bandasOrdenParaAsignacion = [...bandas].sort(
+    (a, b) => contarBloquesActivos(b) - contarBloquesActivos(a) || a.nombre.localeCompare(b.nombre)
+  );
+
+  const toggleBandaAbierta = (bandaId: string) => {
+    setBandasAbiertas((prev) => {
+      const next = new Set(prev);
+      if (next.has(bandaId)) next.delete(bandaId);
+      else next.add(bandaId);
+      return next;
+    });
+  };
   // Brief "Rediseño visual de Gestión" §6: BandaDeIntegrante no trae color
   // propio (solo bandaId/bandaNombre) — se resuelve contra `bandas`, la
   // misma lista completa que ya recibe este componente.
@@ -387,49 +401,45 @@ function FilaIntegrante({
   };
 
   // Brief "Seteos — catálogo de diseños" §1: asignar un diseño existente del
-  // catálogo (amplificador/pedal) a esta persona en esta banda.
+  // catálogo (amplificador/pedal) a esta persona en esta banda. Brief
+  // "...consola automática" §2: la acción también sincroniza la fila de
+  // consola server-side y devuelve su estado resultante -- se reemplaza
+  // cualquier entrada de consola vieja en el estado local por la que
+  // devuelve el server, en vez de adivinar si cambió.
   const asignarDiseno = (bandaId: string, categoria: CategoriaCatalogo, disenoId: string) => {
     if (!integrante.usuarioId) return;
     setErrorDispositivo(null);
     setPendingDispositivoBandaId(bandaId);
     asignarDisenoDispositivoAction(integrante.usuarioId, bandaId, categoria, disenoId)
-      .then((dispositivo) => {
-        setBandasLocal((prev) => prev.map((b) => (b.bandaId === bandaId ? { ...b, dispositivos: [...b.dispositivos, dispositivo] } : b)));
+      .then(({ dispositivo, consola }) => {
+        setBandasLocal((prev) =>
+          prev.map((b) => {
+            if (b.bandaId !== bandaId) return b;
+            const sinConsolaVieja = b.dispositivos.filter((d) => d.categoria !== "consola");
+            return { ...b, dispositivos: [...sinConsolaVieja, dispositivo, ...(consola ? [consola] : [])] };
+          })
+        );
       })
       .catch((e) => setErrorDispositivo(e instanceof Error ? e.message : "No se pudo asignar."))
       .finally(() => setPendingDispositivoBandaId(null));
   };
 
   const quitarDispositivo = (bandaId: string, dispositivoId: string) => {
+    if (!integrante.usuarioId) return;
     setErrorDispositivo(null);
     setPendingQuitarDispositivoId(dispositivoId);
-    quitarDispositivoAction(dispositivoId)
-      .then(() => {
+    quitarDispositivoAction(integrante.usuarioId, bandaId, dispositivoId)
+      .then(({ consola }) => {
         setBandasLocal((prev) =>
-          prev.map((b) => (b.bandaId === bandaId ? { ...b, dispositivos: b.dispositivos.filter((d) => d.id !== dispositivoId) } : b))
+          prev.map((b) => {
+            if (b.bandaId !== bandaId) return b;
+            const sinBorradoNiConsolaVieja = b.dispositivos.filter((d) => d.id !== dispositivoId && d.categoria !== "consola");
+            return { ...b, dispositivos: [...sinBorradoNiConsolaVieja, ...(consola ? [consola] : [])] };
+          })
         );
       })
       .catch((e) => setErrorDispositivo(e instanceof Error ? e.message : "No se pudo quitar."))
       .finally(() => setPendingQuitarDispositivoId(null));
-  };
-
-  // Consola es un marcador único por banda (brief §1 punto "Consola") — tildar
-  // crea la fila categoria=consola, destildar la borra (mismo camino que
-  // quitarDispositivo, vía el id de esa fila).
-  const toggleConsola = (bandaId: string, consolaActual: DispositivoAsignado | undefined) => {
-    if (!integrante.usuarioId) return;
-    setErrorDispositivo(null);
-    if (consolaActual) {
-      quitarDispositivo(bandaId, consolaActual.id);
-      return;
-    }
-    setPendingConsolaBandaId(bandaId);
-    marcarConsolaAction(integrante.usuarioId, bandaId)
-      .then((dispositivo) => {
-        setBandasLocal((prev) => prev.map((b) => (b.bandaId === bandaId ? { ...b, dispositivos: [...b.dispositivos, dispositivo] } : b)));
-      })
-      .catch((e) => setErrorDispositivo(e instanceof Error ? e.message : "No se pudo marcar."))
-      .finally(() => setPendingConsolaBandaId(null));
   };
 
   // Brief "Eliminar integrante" / "Inactivar": Inactivar reusa el mismo
@@ -501,13 +511,10 @@ function FilaIntegrante({
           </div>
         </button>
 
-        {/* Brief "Rediseño de Gestión > Integrantes" §6: Inactivar/Eliminar
-            pasan de botones de texto al fondo de la tarjeta expandida a
-            íconos circulares acá arriba, a la altura del badge de estado —
-            visibles con la tarjeta colapsada o no. Misma lógica de negocio
-            de siempre (mismos handlers, mismo gate de bandasActivas.length
-            para Inactivar, mismo confirm() para Eliminar), solo cambia
-            dónde y cómo se disparan. */}
+        {/* Brief "Gestión > Integrantes — acordeones anidados..." §1: los 2
+            íconos de Inactivar/Eliminar se mudan adentro de la tarjeta
+            expandida (ver más abajo) -- colapsada solo se ve el badge de
+            estado acá. */}
         <div className="flex shrink-0 items-center gap-1.5">
           <span
             className="shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase"
@@ -515,20 +522,33 @@ function FilaIntegrante({
           >
             {ETIQUETA_ESTADO[integrante.estado]}
           </span>
-          {integrante.usuarioId && bandasActivas.length > 0 && (
-            <button
-              type="button"
-              onClick={inactivar}
-              disabled={pendingInactivar}
-              aria-label="Inactivar"
-              title="Oculta al integrante sin borrar su historial"
-              className="flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-50"
-              style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
-            >
-              <IconoOjoTachado />
-            </button>
-          )}
-          {integrante.usuarioId && (
+        </div>
+      </div>
+      {errorPeligro && (
+        <p className="mt-1.5 text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
+          {errorPeligro}
+        </p>
+      )}
+
+      {expandido && integrante.usuarioId && (
+        <div className="mt-3 flex flex-col gap-2.5 border-t pt-3" style={{ borderColor: "oklch(0.9 0.012 78)" }}>
+          {/* Brief §1: mismos handlers/gates de siempre (Inactivar solo con
+              bandasActivas.length > 0, Eliminar con el mismo confirm()),
+              ahora visibles solo con la tarjeta expandida. */}
+          <div className="flex items-center justify-end gap-1.5">
+            {bandasActivas.length > 0 && (
+              <button
+                type="button"
+                onClick={inactivar}
+                disabled={pendingInactivar}
+                aria-label="Inactivar"
+                title="Oculta al integrante sin borrar su historial"
+                className="flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-50"
+                style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+              >
+                <IconoOjoTachado />
+              </button>
+            )}
             <button
               type="button"
               onClick={eliminar}
@@ -540,38 +560,36 @@ function FilaIntegrante({
             >
               <IconoEliminar />
             </button>
-          )}
-        </div>
-      </div>
-      {errorPeligro && (
-        <p className="mt-1.5 text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
-          {errorPeligro}
-        </p>
-      )}
+          </div>
 
-      {expandido && integrante.usuarioId && (
-        <div className="mt-3 flex flex-col gap-2.5 border-t pt-3" style={{ borderColor: "oklch(0.9 0.012 78)" }}>
           <div>
-            <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
-              Nombre para mostrar
-            </label>
-            <input
-              value={nombreMostrar}
-              onChange={(e) => setNombreMostrar(e.target.value)}
-              className="w-full rounded-lg border px-2.5 py-1.5 text-sm outline-none"
-              style={inputStyle}
-            />
-
-            <label className="mb-1 mt-2.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
-              Fecha de nacimiento
-            </label>
-            <input
-              type="date"
-              value={fechaNacimiento}
-              onChange={(e) => setFechaNacimiento(e.target.value)}
-              className="w-full rounded-lg border px-2.5 py-1.5 text-sm outline-none"
-              style={inputStyle}
-            />
+            {/* Brief §4: Nombre para mostrar (2/3) y Fecha de nacimiento
+                (1/3) comparten una sola fila en vez de apilarse. */}
+            <div className="flex gap-2">
+              <div className="flex-[2]">
+                <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                  Nombre para mostrar
+                </label>
+                <input
+                  value={nombreMostrar}
+                  onChange={(e) => setNombreMostrar(e.target.value)}
+                  className="w-full rounded-lg border px-2.5 py-1.5 text-sm outline-none"
+                  style={inputStyle}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                  Nacimiento
+                </label>
+                <input
+                  type="date"
+                  value={fechaNacimiento}
+                  onChange={(e) => setFechaNacimiento(e.target.value)}
+                  className="w-full rounded-lg border px-2.5 py-1.5 text-sm outline-none"
+                  style={inputStyle}
+                />
+              </div>
+            </div>
 
             {hayCambiosDatos && (
               <button
@@ -615,209 +633,223 @@ function FilaIntegrante({
                 );
               }
 
+              const abierta = bandasAbiertas.has(b.id);
+              const consola = asignada.dispositivos.find((d) => d.categoria === "consola");
+
               return (
                 <div key={b.id} className="rounded-xl p-3" style={{ background: BG_CARD, border: `1px solid ${colorConAlpha(b.color, 0.4)}` }}>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-bold" style={{ color: b.color }}>
+                  {/* Brief "Gestión > Integrantes — acordeones anidados..."
+                      §2: cada tarjeta de banda es colapsable -- colapsada
+                      solo nombre + color, nada más. */}
+                  <button type="button" onClick={() => toggleBandaAbierta(b.id)} className="flex w-full items-center gap-2 text-left">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: b.color }} />
+                    <span className="min-w-0 flex-1 truncate text-sm font-bold" style={{ color: b.color }}>
                       {b.nombre}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => toggleBanda(b.id)}
-                      disabled={pendingBanda === b.id}
-                      className="shrink-0 font-mono text-[10px] font-bold uppercase disabled:opacity-50"
-                      style={{ color: "oklch(0.55 0.02 55)" }}
+                    <span
+                      className="shrink-0 text-[10px]"
+                      style={{ color: "oklch(0.55 0.02 55)", transform: abierta ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
                     >
-                      Quitar
-                    </button>
-                  </div>
-
-                  {/* 2. Rol */}
-                  {asignada.rol === "superadmin" ? (
-                    <span className="mt-1.5 block text-xs italic" style={{ color: "oklch(0.55 0.02 55)" }}>
-                      Superadmin en esta banda — no editable acá
+                      ▾
                     </span>
-                  ) : (
-                    <div className="mt-1.5 flex gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => cambiarRol(b.id, "miembro")}
-                        disabled={pendingRol === b.id}
-                        className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
-                        style={asignada.rol === "miembro" ? ROL_ACTIVO : ROL_INACTIVO}
-                      >
-                        Miembro
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => cambiarRol(b.id, "administrador")}
-                        disabled={pendingRol === b.id}
-                        className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
-                        style={asignada.rol === "administrador" ? ROL_ACTIVO : ROL_INACTIVO}
-                      >
-                        Administrador
-                      </button>
-                    </div>
-                  )}
+                  </button>
 
-                  {/* 3. Plaza(s)/instrumento(s) -- Brief §4: ocupadas por otra
-                      persona quedan deshabilitadas mostrando quién la tiene,
-                      "+ Agregar otra plaza" habilita asignar más de una (ej.
-                      batería + coro). */}
-                  {plazasDeLaBanda.length === 0 ? (
-                    <p className="mt-1.5 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
-                      Esta banda todavía no tiene instrumentos definidos.
-                    </p>
-                  ) : (
-                    <div className="mt-2">
-                      <span className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
-                        Instrumentos
-                      </span>
-                      {asignada.plazas.length > 0 && (
-                        <div className="mb-1.5 flex flex-wrap gap-1.5">
-                          {asignada.plazas.map((p) => (
-                            <span
-                              key={p.plazaId}
-                              className="flex items-center gap-2 rounded-full py-1 pl-3 pr-1.5 text-xs font-semibold"
-                              style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
-                            >
-                              {etiquetaPlaza(p.instrumento, p.etiqueta)}
-                              <button
-                                type="button"
-                                onClick={() => togglePlaza(b.id, p.plazaId)}
-                                disabled={pendingPlaza === p.plazaId}
-                                className="flex h-4 w-4 items-center justify-center rounded-full text-[10px] disabled:opacity-50"
-                                style={{ background: "oklch(0.85 0.016 78)" }}
-                                aria-label="Quitar instrumento"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      {plazaPickerBandaId === b.id ? (
-                        <div className="rounded-lg p-2" style={{ background: BG_SUNKEN, border: `1px solid ${BORDE_SUNKEN}` }}>
-                          {plazasParaAgregar.length === 0 ? (
-                            <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
-                              No hay más instrumentos disponibles en esta banda.
-                            </p>
-                          ) : (
-                            <div className="flex flex-wrap gap-1.5">
-                              {plazasParaAgregar.map((p) => {
-                                const ocupante = ocupacionPlazas.get(p.id);
-                                const ocupadaPorOtro = ocupante && ocupante.usuarioId !== integrante.usuarioId;
-                                return ocupadaPorOtro ? (
-                                  <span
-                                    key={p.id}
-                                    className="rounded-[20px] px-2.5 py-[5px] text-xs font-semibold"
-                                    style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.6 0.02 55)" }}
-                                  >
-                                    {etiquetaPlaza(p.instrumento, p.etiqueta)} — ocupada por {ocupante.nombre}
-                                  </span>
-                                ) : (
-                                  <ToggleChip
-                                    key={p.id}
-                                    label={etiquetaPlaza(p.instrumento, p.etiqueta)}
-                                    active={false}
-                                    disabled={pendingPlaza === p.id}
-                                    onClick={() => togglePlaza(b.id, p.id)}
-                                  />
-                                );
-                              })}
-                            </div>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setPlazaPickerBandaId(null)}
-                            className="mt-1.5 text-xs font-semibold"
-                            style={{ color: "oklch(0.55 0.02 55)" }}
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      ) : (
+                  {abierta && (
+                    <div className="mt-2.5 flex flex-col gap-2.5">
+                      {/* Brief §3: "QUITAR" en texto pasa a ícono de tache
+                          chico, mismo criterio que eliminar cuenta. */}
+                      <div className="flex justify-end">
                         <button
                           type="button"
-                          onClick={() => setPlazaPickerBandaId(b.id)}
-                          className="rounded-lg border border-dashed px-2.5 py-1 text-xs font-semibold"
-                          style={{ borderColor: "oklch(0.8 0.02 60)", color: "oklch(0.5 0.02 55)" }}
+                          onClick={() => toggleBanda(b.id)}
+                          disabled={pendingBanda === b.id}
+                          aria-label="Quitar de esta banda"
+                          title="Quitar de esta banda"
+                          className="flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-50"
+                          style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.5 0.02 55)" }}
                         >
-                          + Agregar otra plaza
+                          <IconoEliminar />
                         </button>
-                      )}
-                      {errorPlaza && (
-                        <p className="mt-1.5 text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
-                          {errorPlaza}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                      </div>
 
-                  {/* Brief "Seteos — catálogo de diseños" §1: Amplificador(es)/
-                      Pedal(es) asignados a esta persona en esta banda, más el
-                      marcador de Consola. Reemplaza el rol que tenía "Mis
-                      dispositivos" en Seteos como lugar de alta. */}
-                  <SeccionDispositivos
-                    categoria="amplificador"
-                    asignados={asignada.dispositivos.filter((d) => d.categoria === "amplificador")}
-                    disponibles={disenosAmplificador}
-                    onAsignar={(disenoId) => asignarDiseno(b.id, "amplificador", disenoId)}
-                    onQuitar={(dispositivoId) => quitarDispositivo(b.id, dispositivoId)}
-                    pendingAsignar={pendingDispositivoBandaId === b.id}
-                    pendingQuitarId={pendingQuitarDispositivoId}
-                  />
-                  <SeccionDispositivos
-                    categoria="pedal"
-                    asignados={asignada.dispositivos.filter((d) => d.categoria === "pedal")}
-                    disponibles={disenosPedal}
-                    onAsignar={(disenoId) => asignarDiseno(b.id, "pedal", disenoId)}
-                    onQuitar={(dispositivoId) => quitarDispositivo(b.id, dispositivoId)}
-                    pendingAsignar={pendingDispositivoBandaId === b.id}
-                    pendingQuitarId={pendingQuitarDispositivoId}
-                  />
-                  {(() => {
-                    const consola = asignada.dispositivos.find((d) => d.categoria === "consola");
-                    return (
-                      <div className="mt-2">
-                        <span className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
-                          Consola
+                      {/* Rol */}
+                      {asignada.rol === "superadmin" ? (
+                        <span className="text-xs italic" style={{ color: "oklch(0.55 0.02 55)" }}>
+                          Superadmin en esta banda — no editable acá
                         </span>
-                        <ToggleChip
-                          label="Va directo a consola"
-                          active={!!consola}
-                          disabled={pendingConsolaBandaId === b.id || pendingQuitarDispositivoId === consola?.id}
-                          onClick={() => toggleConsola(b.id, consola)}
-                        />
-                      </div>
-                    );
-                  })()}
-                  {errorDispositivo && (
-                    <p className="mt-1.5 text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
-                      {errorDispositivo}
-                    </p>
-                  )}
+                      ) : (
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => cambiarRol(b.id, "miembro")}
+                            disabled={pendingRol === b.id}
+                            className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
+                            style={asignada.rol === "miembro" ? ROL_ACTIVO : ROL_INACTIVO}
+                          >
+                            Miembro
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => cambiarRol(b.id, "administrador")}
+                            disabled={pendingRol === b.id}
+                            className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
+                            style={asignada.rol === "administrador" ? ROL_ACTIVO : ROL_INACTIVO}
+                          >
+                            Administrador
+                          </button>
+                        </div>
+                      )}
 
-                  {/* 4. Bloques visibles */}
-                  {bloquesActivosBanda.length > 0 && (
-                    <div className="mt-2">
-                      <span className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
-                        Bloques visibles
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {bloquesActivosBanda.map((bl) => {
-                          const label = BLOQUES.find((x) => x.key === bl)!.label;
-                          return (
-                            <ToggleChip
-                              key={bl}
-                              label={label}
-                              active={bloqueVisible(asignada, bl)}
-                              onClick={() => togglePermisoBloque(b.id, bl, bloquesActivosBanda)}
-                            />
-                          );
-                        })}
-                      </div>
+                      {/* Brief §2: 3 acordeones internos -- Instrumentos,
+                          Seteo, Bloques visibles, en ese orden. */}
+                      <SubAcordeon titulo="Instrumentos">
+                        {plazasDeLaBanda.length === 0 ? (
+                          <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+                            Esta banda todavía no tiene instrumentos definidos.
+                          </p>
+                        ) : (
+                          <div>
+                            {asignada.plazas.length > 0 && (
+                              <div className="mb-1.5 flex flex-wrap gap-1.5">
+                                {asignada.plazas.map((p) => (
+                                  <span
+                                    key={p.plazaId}
+                                    className="flex items-center gap-2 rounded-full py-1 pl-3 pr-1.5 text-xs font-semibold"
+                                    style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+                                  >
+                                    {etiquetaPlaza(p.instrumento, p.etiqueta)}
+                                    <button
+                                      type="button"
+                                      onClick={() => togglePlaza(b.id, p.plazaId)}
+                                      disabled={pendingPlaza === p.plazaId}
+                                      className="flex h-4 w-4 items-center justify-center rounded-full text-[10px] disabled:opacity-50"
+                                      style={{ background: "oklch(0.85 0.016 78)" }}
+                                      aria-label="Quitar instrumento"
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {plazaPickerBandaId === b.id ? (
+                              <div className="rounded-lg p-2" style={{ background: BG_SUNKEN, border: `1px solid ${BORDE_SUNKEN}` }}>
+                                {plazasParaAgregar.length === 0 ? (
+                                  <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+                                    No hay más instrumentos disponibles en esta banda.
+                                  </p>
+                                ) : (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {plazasParaAgregar.map((p) => {
+                                      const ocupante = ocupacionPlazas.get(p.id);
+                                      const ocupadaPorOtro = ocupante && ocupante.usuarioId !== integrante.usuarioId;
+                                      return ocupadaPorOtro ? (
+                                        <span
+                                          key={p.id}
+                                          className="rounded-[20px] px-2.5 py-[5px] text-xs font-semibold"
+                                          style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.6 0.02 55)" }}
+                                        >
+                                          {etiquetaPlaza(p.instrumento, p.etiqueta)} — ocupada por {ocupante.nombre}
+                                        </span>
+                                      ) : (
+                                        <ToggleChip
+                                          key={p.id}
+                                          label={etiquetaPlaza(p.instrumento, p.etiqueta)}
+                                          active={false}
+                                          disabled={pendingPlaza === p.id}
+                                          onClick={() => togglePlaza(b.id, p.id)}
+                                        />
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => setPlazaPickerBandaId(null)}
+                                  className="mt-1.5 text-xs font-semibold"
+                                  style={{ color: "oklch(0.55 0.02 55)" }}
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setPlazaPickerBandaId(b.id)}
+                                className="rounded-lg border border-dashed px-2.5 py-1 text-xs font-semibold"
+                                style={{ borderColor: "oklch(0.8 0.02 60)", color: "oklch(0.5 0.02 55)" }}
+                              >
+                                + Agregar otra plaza
+                              </button>
+                            )}
+                            {errorPlaza && (
+                              <p className="mt-1.5 text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
+                                {errorPlaza}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </SubAcordeon>
+
+                      <SubAcordeon titulo="Seteo">
+                        <SeccionDispositivos
+                          categoria="amplificador"
+                          asignados={asignada.dispositivos.filter((d) => d.categoria === "amplificador")}
+                          disponibles={disenosAmplificador}
+                          onAsignar={(disenoId) => asignarDiseno(b.id, "amplificador", disenoId)}
+                          onQuitar={(dispositivoId) => quitarDispositivo(b.id, dispositivoId)}
+                          pendingAsignar={pendingDispositivoBandaId === b.id}
+                          pendingQuitarId={pendingQuitarDispositivoId}
+                        />
+                        <SeccionDispositivos
+                          categoria="pedal"
+                          asignados={asignada.dispositivos.filter((d) => d.categoria === "pedal")}
+                          disponibles={disenosPedal}
+                          onAsignar={(disenoId) => asignarDiseno(b.id, "pedal", disenoId)}
+                          onQuitar={(dispositivoId) => quitarDispositivo(b.id, dispositivoId)}
+                          pendingAsignar={pendingDispositivoBandaId === b.id}
+                          pendingQuitarId={pendingQuitarDispositivoId}
+                        />
+                        {/* Brief §2 punto "Seteo": ya no es un botón manual --
+                            indicador de solo lectura derivado del server
+                            (sincronizarConsola en asignarDiseno/quitarDispositivo
+                            arriba: sin amplificadores asignados = encendido). */}
+                        <div className="mt-2">
+                          <span className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                            Consola
+                          </span>
+                          <span
+                            className="inline-block rounded-lg px-2.5 py-1 text-xs font-bold"
+                            style={consola ? ROL_ACTIVO : ROL_INACTIVO}
+                          >
+                            {consola ? "Va directo a consola" : "No va directo a consola"}
+                          </span>
+                        </div>
+                        {errorDispositivo && (
+                          <p className="mt-1.5 text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
+                            {errorDispositivo}
+                          </p>
+                        )}
+                      </SubAcordeon>
+
+                      {bloquesActivosBanda.length > 0 && (
+                        <SubAcordeon titulo="Bloques visibles">
+                          <div className="flex flex-wrap gap-1.5">
+                            {bloquesActivosBanda.map((bl) => {
+                              const label = BLOQUES.find((x) => x.key === bl)!.label;
+                              return (
+                                <ToggleChip
+                                  key={bl}
+                                  label={label}
+                                  active={bloqueVisible(asignada, bl)}
+                                  onClick={() => togglePermisoBloque(b.id, bl, bloquesActivosBanda)}
+                                />
+                              );
+                            })}
+                          </div>
+                        </SubAcordeon>
+                      )}
                     </div>
                   )}
                 </div>

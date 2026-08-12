@@ -27,7 +27,7 @@ import {
   type InvitacionPorBanda,
 } from "@/lib/gestionData";
 import { crearLugar, actualizarLugar, actualizarLugarBandas, eliminarLugar } from "@/lib/lugaresData";
-import { asignarDiseno, marcarConsola, quitarDispositivo, type CategoriaCatalogo, type DispositivoAsignado } from "@/lib/dispositivosData";
+import { asignarDiseno, sincronizarConsola, quitarDispositivo, type CategoriaCatalogo, type DispositivoAsignado } from "@/lib/dispositivosData";
 
 export async function crearBandaAction(nombre: string): Promise<string> {
   const usuarioId = await requerirSuperadmin();
@@ -177,33 +177,38 @@ export async function eliminarPersonaAction(usuarioId: string): Promise<void> {
 // Brief "Seteos — catálogo de diseños" §1: asignar un diseño existente del
 // catálogo (amplificador o pedal) a un integrante en una banda, desde
 // Gestión > Integrantes — reemplaza el alta libre que antes vivía en Seteos.
+//
+// Brief "Gestión > Integrantes — acordeones anidados, orden, consola
+// automática" §2: "va directo a consola" ya no se controla a mano — cada
+// alta/baja de dispositivo sincroniza la fila de consola en la misma
+// operación (sincronizarConsola es idempotente, corre siempre sin importar
+// la categoría) y devuelve su estado resultante para que el cliente
+// actualice su vista sin adivinar.
 export async function asignarDisenoDispositivoAction(
   usuarioId: string,
   bandaId: string,
   categoria: CategoriaCatalogo,
   disenoId: string
-): Promise<DispositivoAsignado> {
+): Promise<{ dispositivo: DispositivoAsignado; consola: DispositivoAsignado | null }> {
   await requerirSuperadmin();
   const dispositivo = await asignarDiseno(bandaId, usuarioId, categoria, disenoId);
+  const consola = await sincronizarConsola(bandaId, usuarioId);
   revalidatePath("/gestion");
-  return dispositivo;
+  return { dispositivo, consola };
 }
 
-// Marca "va directo a consola" para un integrante en una banda (marcador
-// único, sin diseño ni sub-lista).
-export async function marcarConsolaAction(usuarioId: string, bandaId: string): Promise<DispositivoAsignado> {
-  await requerirSuperadmin();
-  const dispositivo = await marcarConsola(bandaId, usuarioId);
-  revalidatePath("/gestion");
-  return dispositivo;
-}
-
-// Quita una asignación (amplificador/pedal/consola) — usado tanto para "×" en
-// Amplificador(es)/Pedal(es) como para destildar Consola.
-export async function quitarDispositivoAction(dispositivoId: string): Promise<void> {
+// Quita una asignación (amplificador/pedal) — usado para "×" en
+// Amplificador(es)/Pedal(es). Sincroniza consola después (ver arriba).
+export async function quitarDispositivoAction(
+  usuarioId: string,
+  bandaId: string,
+  dispositivoId: string
+): Promise<{ consola: DispositivoAsignado | null }> {
   await requerirSuperadmin();
   await quitarDispositivo(dispositivoId);
+  const consola = await sincronizarConsola(bandaId, usuarioId);
   revalidatePath("/gestion");
+  return { consola };
 }
 
 export async function crearLugarAction(bandaIds: string[], nombre: string, linkMaps: string) {
