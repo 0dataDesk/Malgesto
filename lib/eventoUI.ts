@@ -63,7 +63,7 @@ export type IntensidadFondoDia = "pasado" | "normal" | "mesSiguiente";
 export const FONDO_GRISES: Record<IntensidadFondoDia, string> = {
   pasado: "oklch(0.915 0.008 55)",
   normal: "oklch(0.82 0.012 55)",
-  mesSiguiente: "#3F3F42",
+  mesSiguiente: "#5A5A60",
 };
 
 export const ETIQUETA_TIPO: Record<TipoEvento, string> = {
