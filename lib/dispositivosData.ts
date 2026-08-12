@@ -11,8 +11,10 @@ export type ControlDiseno = {
   id: string;
   tipo: TipoControl;
   nombre: string;
-  posX: number;
-  posY: number;
+  // Ya no son la fuente de verdad del layout (ver "grupo") — quedan por
+  // compatibilidad, pueden ser null en diseños nuevos.
+  posX: number | null;
+  posY: number | null;
   min: number | null;
   max: number | null;
   valorDefault: number | null;
@@ -20,6 +22,11 @@ export type ControlDiseno = {
   // Solo aplica a tipo="perilla" — "rotativa" (default visual cuando es
   // null) o "deslizante" (se dibuja como SliderVertical en vez de Knob).
   estilo: "rotativa" | "deslizante" | null;
+  // Caja/sección visual a la que pertenece (ej. "Preamp", "Contour") — mismo
+  // grupo se dibuja junto en un marco. Null = control independiente, sin
+  // caja. Fuente de verdad del layout del panel (brief "Seteos — rediseño de
+  // navegación, layout agrupado y selector de canción").
+  grupo: string | null;
 };
 
 export type DisenoCompleto = DisenoDispositivo & { controles: ControlDiseno[] };
@@ -36,11 +43,6 @@ export type DispositivoAsignado = {
   disenoMarca: string | null;
   disenoModelo: string | null;
   apodo: string | null;
-};
-
-export type DispositivoConConteo = DispositivoAsignado & {
-  cantidadGeneral: number;
-  cantidadPorCancion: number;
 };
 
 export type Seteo = {
@@ -66,13 +68,14 @@ function mapControl(c: {
   id: string;
   tipo: string;
   nombre: string;
-  pos_x: number;
-  pos_y: number;
+  pos_x: number | null;
+  pos_y: number | null;
   min: number | null;
   max: number | null;
   valor_default: number | null;
   orden: number;
   estilo: string | null;
+  grupo: string | null;
 }): ControlDiseno {
   return {
     id: c.id,
@@ -85,6 +88,7 @@ function mapControl(c: {
     valorDefault: c.valor_default,
     orden: c.orden,
     estilo: c.estilo as "rotativa" | "deslizante" | null,
+    grupo: c.grupo,
   };
 }
 
@@ -187,52 +191,12 @@ export async function quitarDispositivo(dispositivoId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-// Pantalla Seteos "Mis dispositivos" — solo amplificador/pedal (consola no
-// tiene diseño ni controles, no aparece acá) del usuario actual en la banda
-// activa, con conteo de seteos para el badge "Falta seteo general".
-export async function obtenerDispositivosDeUsuario(bandaIds: string[], usuarioId: string): Promise<DispositivoConConteo[]> {
-  if (bandaIds.length === 0) return [];
-  const admin = supabaseMalgesto();
-  const { data } = await admin
-    .from("dispositivos")
-    .select(
-      "id, banda_id, usuario_id, categoria, diseno_id, nombre, disenos_dispositivo(marca, modelo), seteos(id, es_general, cancion_id)"
-    )
-    .in("banda_id", bandaIds)
-    .eq("usuario_id", usuarioId)
-    .in("categoria", ["amplificador", "pedal"]);
+const SELECT_DISPOSITIVO_COMPLETO =
+  "id, banda_id, usuario_id, categoria, diseno_id, nombre, disenos_dispositivo(id, categoria, marca, modelo, diseno_controles(id, tipo, nombre, pos_x, pos_y, min, max, valor_default, orden, estilo, grupo)), seteos(id, nombre, valores, cancion_id, es_general, canciones(id, titulo))";
 
-  return ((data ?? []) as unknown as (DispositivoRow & { seteos: { id: string; es_general: boolean; cancion_id: string | null }[] })[]).map(
-    (d) => {
-      const seteos = d.seteos ?? [];
-      return {
-        ...mapDispositivo(d),
-        cantidadGeneral: seteos.filter((s) => s.es_general).length,
-        cantidadPorCancion: seteos.filter((s) => s.cancion_id).length,
-      };
-    }
-  );
-}
-
-// Detalle de dispositivo (Seteos): asignación + diseño completo (controles
-// posicionados) + todos sus seteos (título de canción resuelto).
-export async function obtenerDispositivoCompleto(dispositivoId: string): Promise<DispositivoCompleto | null> {
-  const admin = supabaseMalgesto();
-  const { data } = await admin
-    .from("dispositivos")
-    .select(
-      "id, banda_id, usuario_id, categoria, diseno_id, nombre, disenos_dispositivo(id, categoria, marca, modelo, diseno_controles(id, tipo, nombre, pos_x, pos_y, min, max, valor_default, orden, estilo)), seteos(id, nombre, valores, cancion_id, es_general, canciones(id, titulo))"
-    )
-    .eq("id", dispositivoId)
-    .single();
-
-  if (!data) return null;
-
-  const disenoRaw = data.disenos_dispositivo as unknown as
-    | (DisenoDispositivo & { diseno_controles: Parameters<typeof mapControl>[0][] })
-    | null;
-
-  const seteosRaw = (data.seteos ?? []) as unknown as {
+type DispositivoCompletoRow = DispositivoRow & {
+  disenos_dispositivo: (DisenoDispositivo & { diseno_controles: Parameters<typeof mapControl>[0][] }) | null;
+  seteos: {
     id: string;
     nombre: string;
     valores: unknown;
@@ -240,9 +204,12 @@ export async function obtenerDispositivoCompleto(dispositivoId: string): Promise
     es_general: boolean;
     canciones: { id: string; titulo: string } | null;
   }[];
+};
 
+function mapDispositivoCompleto(d: DispositivoCompletoRow): DispositivoCompleto {
+  const disenoRaw = d.disenos_dispositivo;
   return {
-    ...mapDispositivo(data as unknown as DispositivoRow),
+    ...mapDispositivo(d),
     diseno: disenoRaw
       ? {
           id: disenoRaw.id,
@@ -252,9 +219,9 @@ export async function obtenerDispositivoCompleto(dispositivoId: string): Promise
           controles: disenoRaw.diseno_controles.map(mapControl).sort((a, b) => a.orden - b.orden),
         }
       : null,
-    seteos: seteosRaw.map((s) => ({
+    seteos: (d.seteos ?? []).map((s) => ({
       id: s.id,
-      dispositivoId,
+      dispositivoId: d.id,
       nombre: s.nombre,
       valores: (s.valores as Record<string, number> | null) ?? {},
       cancionId: s.cancion_id,
@@ -262,6 +229,24 @@ export async function obtenerDispositivoCompleto(dispositivoId: string): Promise
       esGeneral: s.es_general,
     })),
   };
+}
+
+// Pantalla Seteos: todos los dispositivos (amplificador/pedal — consola no
+// tiene diseño ni controles, no aparece acá) del usuario actual en la banda
+// activa, con diseño completo (controles) y seteos — se renderizan directo
+// en la misma pantalla, sin pantalla de detalle aparte.
+export async function obtenerDispositivosCompletosDeUsuario(bandaIds: string[], usuarioId: string): Promise<DispositivoCompleto[]> {
+  if (bandaIds.length === 0) return [];
+  const admin = supabaseMalgesto();
+  const { data } = await admin
+    .from("dispositivos")
+    .select(SELECT_DISPOSITIVO_COMPLETO)
+    .in("banda_id", bandaIds)
+    .eq("usuario_id", usuarioId)
+    .in("categoria", ["amplificador", "pedal"])
+    .order("created_at", { ascending: true });
+
+  return ((data ?? []) as unknown as DispositivoCompletoRow[]).map(mapDispositivoCompleto);
 }
 
 // Seteo general obligatorio (brief §4): se crea con los valor_default de cada

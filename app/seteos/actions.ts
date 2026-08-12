@@ -12,7 +12,7 @@ export async function crearSeteoParaCancionAction(
 ): Promise<Seteo> {
   await requerirMembresia(bandaId);
   const seteo = await crearSeteoParaCancion(dispositivoId, cancionId, controles);
-  revalidatePath(`/seteos/${dispositivoId}`);
+  revalidatePath("/seteos");
   return seteo;
 }
 
@@ -24,5 +24,5 @@ export async function actualizarValoresSeteoAction(
 ): Promise<void> {
   await requerirMembresia(bandaId);
   await actualizarValoresSeteo(seteoId, valores);
-  revalidatePath(`/seteos/${dispositivoId}`);
+  revalidatePath("/seteos");
 }

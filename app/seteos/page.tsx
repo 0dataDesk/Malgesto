@@ -2,24 +2,17 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
-import { obtenerDispositivosDeUsuario } from "@/lib/dispositivosData";
+import { obtenerDispositivosCompletosDeUsuario, crearSeteoGeneralConDefaults, type Seteo } from "@/lib/dispositivosData";
+import { obtenerCanciones } from "@/lib/cancionesData";
 import { TabBar } from "@/components/shell/TabBar";
 import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
 import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda";
+import { DispositivoPanel } from "@/components/dispositivos/DispositivoPanel";
 
-function resumenSeteos(cantidadGeneral: number, cantidadPorCancion: number): string {
-  const partes: string[] = [];
-  if (cantidadGeneral > 0) partes.push("1 general");
-  if (cantidadPorCancion > 0) partes.push(`${cantidadPorCancion} por canción`);
-  return partes.join(" + ");
-}
-
-const ETIQUETA_CATEGORIA: Record<string, string> = { amplificador: "Amplificador", pedal: "Pedal" };
-
-// Pantalla "Seteos" (brief "Seteos — catálogo de diseños"): ya no es donde se
-// dan de alta dispositivos (eso pasó a Gestión > Integrantes) — acá solo se
-// listan los ya asignados al usuario actual en la banda activa y se entra a
-// su detalle a editar seteos. Selector de banda con el mismo patrón de
+// Pantalla "Seteos" (brief "Seteos — rediseño de navegación, layout agrupado
+// y selector de canción"): sin pantalla intermedia de lista — aterriza
+// directo en el panel completo de cada dispositivo asignado al usuario
+// actual, ya en modo General. Selector de banda con el mismo patrón de
 // tarjetas que Canciones/Finanzas/Set List/Stage Plot.
 export default async function SeteosPage({
   searchParams,
@@ -83,7 +76,24 @@ export default async function SeteosPage({
   const bandaActiva = bandaValida ? bandaParam! : bandasConBloque[0].bandaId;
   const nombreBandaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
 
-  const dispositivos = await obtenerDispositivosDeUsuario([bandaActiva], user.id);
+  const [dispositivos, canciones] = await Promise.all([
+    obtenerDispositivosCompletosDeUsuario([bandaActiva], user.id),
+    obtenerCanciones([bandaActiva]),
+  ]);
+
+  // Brief §4 (Seteo general obligatorio): si un dispositivo todavía no tiene
+  // uno, se crea acá mismo con los valor_default del diseño, antes de
+  // mostrar la pantalla — así siempre aterriza directo en modo General.
+  const dispositivosConGeneral = await Promise.all(
+    dispositivos.map(async (d) => {
+      if (!d.diseno || d.seteos.some((s) => s.esGeneral)) return d;
+      const general = await crearSeteoGeneralConDefaults(d.id, d.diseno.controles);
+      const seteos: Seteo[] = [...d.seteos, general];
+      return { ...d, seteos };
+    })
+  );
+
+  const cancionesOpciones = canciones.map((c) => ({ id: c.id, titulo: c.titulo }));
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
@@ -105,47 +115,31 @@ export default async function SeteosPage({
           >
             Seteos
           </h2>
-          <span className="font-mono text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
-            {dispositivos.length}
-          </span>
         </div>
 
-        <div className="mt-4 flex flex-col gap-2.5">
-          {dispositivos.length === 0 && (
+        <div className="mt-4 flex flex-col gap-4">
+          {dispositivosConGeneral.length === 0 && (
             <p className="mt-6 text-center text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
               Todavía no tenés dispositivos asignados en {nombreBandaActiva}. Pedile a un administrador que te asigne uno desde
               Gestión &gt; Integrantes.
             </p>
           )}
-          {dispositivos.map((d) => (
-            <Link
-              key={d.id}
-              href={`/seteos/${d.id}`}
-              className="flex items-center justify-between gap-3 rounded-2xl p-4 no-underline"
-              style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}
-            >
-              <div>
-                <div
-                  className="text-[19px] font-bold"
-                  style={{ color: "oklch(0.24 0.02 55)", fontFamily: "var(--font-bricolage), sans-serif" }}
-                >
-                  {d.apodo || `${d.disenoMarca} ${d.disenoModelo}`}
-                </div>
-                <div className="mt-1 font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
-                  {ETIQUETA_CATEGORIA[d.categoria] ?? d.categoria} · {d.disenoMarca} {d.disenoModelo}
-                  {resumenSeteos(d.cantidadGeneral, d.cantidadPorCancion) && ` · ${resumenSeteos(d.cantidadGeneral, d.cantidadPorCancion)}`}
-                </div>
-              </div>
-              {d.cantidadGeneral === 0 && (
-                <span
-                  className="shrink-0 rounded-full px-2.5 py-1 font-mono text-[10px] font-bold uppercase"
-                  style={{ background: "oklch(0.6 0.15 40 / 0.15)", color: "oklch(0.5 0.18 40)" }}
-                >
-                  Falta seteo general
-                </span>
-              )}
-            </Link>
-          ))}
+          {dispositivosConGeneral.map(
+            (d) =>
+              d.diseno && (
+                <DispositivoPanel
+                  key={d.id}
+                  bandaId={bandaActiva}
+                  dispositivoId={d.id}
+                  disenoMarca={d.diseno.marca}
+                  disenoModelo={d.diseno.modelo}
+                  apodo={d.apodo}
+                  controles={d.diseno.controles}
+                  seteosIniciales={d.seteos}
+                  cancionesDisponibles={cancionesOpciones}
+                />
+              )
+          )}
         </div>
       </EspacioSuperior>
 
