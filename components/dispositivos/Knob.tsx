@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import type { ControlDiseno } from "@/lib/dispositivosData";
+import type { TemaDispositivo } from "./PanelDispositivo";
 
 // Perilla rotable (Seteos, brief "Seteos — catálogo") — drag vertical con
 // pointer events (funciona igual en mobile que en desktop) más scroll-wheel
@@ -9,23 +10,30 @@ import type { ControlDiseno } from "@/lib/dispositivosData";
 // perilla real (izquierda mín, derecha máx).
 //
 // coloresInvertidos (brief "Hartke HA3500 — reagrupar cajas..."): normal es
-// cuerpo oscuro con indicador claro; invertido es cuerpo claro con indicador
-// oscuro — swap directo de la misma paleta ya usada acá, sin agregar colores
-// nuevos.
+// cuerpo "superficie" (derivado de tema.fondo) con indicador tema.acento;
+// invertido es cuerpo tema.texto (claro) con indicador tema.fondo (oscuro) —
+// mismos 3 tokens de marca, sin agregar colores nuevos.
 //
 // disabled (brief §5, bypass de grupo): la perilla queda deshabilitada
 // visualmente sin perder su valor guardado — ni el drag ni el scroll-wheel
 // disparan onChange.
+//
+// El valor mostrado se redondea al entero más cercano (brief "Seteos — fix
+// de navegación..." §2) — el valor interno (onChange) sigue siendo el que
+// sea, esto es solo de presentación. Si el control tiene `unidad` (ej. "Hz"
+// en el Mid Freq del Tone Mallet), se agrega como sufijo.
 export function Knob({
   control,
   valor,
   onChange,
   disabled = false,
+  tema,
 }: {
   control: ControlDiseno;
   valor: number;
   onChange: (v: number) => void;
   disabled?: boolean;
+  tema: TemaDispositivo;
 }) {
   const min = control.min ?? 0;
   const max = control.max ?? 10;
@@ -34,9 +42,9 @@ export function Knob({
   const fraccion = (valor - min) / rango;
   const angulo = -135 + fraccion * 270;
 
-  const bgCuerpo = control.coloresInvertidos ? "oklch(0.9 0.012 82)" : "oklch(0.3 0.025 55)";
-  const borderCuerpo = control.coloresInvertidos ? "oklch(0.72 0.02 70)" : "oklch(0.4 0.03 55)";
-  const colorIndicador = control.coloresInvertidos ? "oklch(0.25 0.02 55)" : "oklch(0.64 0.15 34)";
+  const bgCuerpo = control.coloresInvertidos ? tema.texto : tema.superficie;
+  const borderCuerpo = control.coloresInvertidos ? tema.fondo : tema.acento;
+  const colorIndicador = control.coloresInvertidos ? tema.fondo : tema.acento;
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (disabled) return;
@@ -88,10 +96,11 @@ export function Knob({
         />
       </div>
       <div className="text-center">
-        <div className="font-mono text-[11px] font-bold" style={{ color: "oklch(0.95 0.012 82)" }}>
-          {valor}
+        <div className="font-mono text-[11px] font-bold" style={{ color: tema.texto }}>
+          {Math.round(valor)}
+          {control.unidad ? ` ${control.unidad}` : ""}
         </div>
-        <div className="font-mono text-[9px] uppercase tracking-wide" style={{ color: "oklch(0.65 0.03 60)" }}>
+        <div className="font-mono text-[9px] uppercase tracking-wide" style={{ color: tema.textoSecundario }}>
           {control.nombre}
         </div>
       </div>

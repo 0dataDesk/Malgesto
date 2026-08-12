@@ -3,9 +3,21 @@ import { supabaseMalgesto } from "@/lib/supabase/malgesto";
 
 export type CategoriaCatalogo = "amplificador" | "pedal";
 export type CategoriaDispositivo = CategoriaCatalogo | "consola";
-export type TipoControl = "perilla" | "boton" | "luz" | "entrada" | "salida";
+export type TipoControl = "perilla" | "boton" | "luz" | "entrada" | "salida" | "referencia";
 
-export type DisenoDispositivo = { id: string; categoria: CategoriaCatalogo; marca: string; modelo: string };
+export type DisenoDispositivo = {
+  id: string;
+  categoria: CategoriaCatalogo;
+  marca: string;
+  modelo: string;
+  // Colores reales de marca (brief "Seteos — fix de navegación, colores de
+  // marca..." §4) — fuente de los colores del panel, en vez de los tokens de
+  // la app. Nullable: diseños viejos sin cargar todavía caen a un fallback
+  // neutro (ver construirTema en PanelDispositivo.tsx).
+  colorFondo: string | null;
+  colorAcento: string | null;
+  colorTexto: string | null;
+};
 
 export type ControlDiseno = {
   id: string;
@@ -37,6 +49,14 @@ export type ControlDiseno = {
   // valor actual es igual a su max. Brief "Hartke HA3500 — ..." §5: mecanismo
   // genérico en vez de hardcodear el nombre "In/Out".
   controlaGrupo: string | null;
+  // Texto informativo opcional (ej. la nota de polaridad del DC IN del Tone
+  // Mallet) — se muestra como texto chico junto a cualquier control
+  // decorativo que la tenga, no solo entradas. Brief "Seteos — fix de
+  // navegación, colores de marca..." §5.
+  nota: string | null;
+  // Sufijo del valor mostrado (ej. "Hz" en el Mid Freq del Tone Mallet) —
+  // solo aplica a tipo="perilla".
+  unidad: string | null;
 };
 
 export type DisenoCompleto = DisenoDispositivo & { controles: ControlDiseno[] };
@@ -91,6 +111,8 @@ function mapControl(c: {
   grupo: string | null;
   colores_invertidos: boolean;
   controla_grupo: string | null;
+  nota: string | null;
+  unidad: string | null;
 }): ControlDiseno {
   return {
     id: c.id,
@@ -106,6 +128,8 @@ function mapControl(c: {
     grupo: c.grupo,
     coloresInvertidos: c.colores_invertidos,
     controlaGrupo: c.controla_grupo,
+    nota: c.nota,
+    unidad: c.unidad,
   };
 }
 
@@ -115,11 +139,19 @@ export async function obtenerDisenosPorCategoria(categoria: CategoriaCatalogo): 
   const admin = supabaseMalgesto();
   const { data } = await admin
     .from("disenos_dispositivo")
-    .select("id, categoria, marca, modelo")
+    .select("id, categoria, marca, modelo, color_fondo, color_acento, color_texto")
     .eq("categoria", categoria)
     .order("marca", { ascending: true })
     .order("modelo", { ascending: true });
-  return (data ?? []) as DisenoDispositivo[];
+  return (data ?? []).map((d) => ({
+    id: d.id,
+    categoria: d.categoria as CategoriaCatalogo,
+    marca: d.marca,
+    modelo: d.modelo,
+    colorFondo: d.color_fondo,
+    colorAcento: d.color_acento,
+    colorTexto: d.color_texto,
+  }));
 }
 
 type DispositivoRow = {
@@ -220,10 +252,21 @@ export async function actualizarHabilitadoDispositivo(dispositivoId: string, hab
 }
 
 const SELECT_DISPOSITIVO_COMPLETO =
-  "id, banda_id, usuario_id, categoria, diseno_id, nombre, habilitado, disenos_dispositivo(id, categoria, marca, modelo, diseno_controles(id, tipo, nombre, pos_x, pos_y, min, max, valor_default, orden, estilo, grupo, colores_invertidos, controla_grupo)), seteos(id, nombre, valores, cancion_id, es_general, canciones(id, titulo))";
+  "id, banda_id, usuario_id, categoria, diseno_id, nombre, habilitado, disenos_dispositivo(id, categoria, marca, modelo, color_fondo, color_acento, color_texto, diseno_controles(id, tipo, nombre, pos_x, pos_y, min, max, valor_default, orden, estilo, grupo, colores_invertidos, controla_grupo, nota, unidad)), seteos(id, nombre, valores, cancion_id, es_general, canciones(id, titulo))";
+
+type DisenoDispositivoRow = {
+  id: string;
+  categoria: string;
+  marca: string;
+  modelo: string;
+  color_fondo: string | null;
+  color_acento: string | null;
+  color_texto: string | null;
+  diseno_controles: Parameters<typeof mapControl>[0][];
+};
 
 type DispositivoCompletoRow = DispositivoRow & {
-  disenos_dispositivo: (DisenoDispositivo & { diseno_controles: Parameters<typeof mapControl>[0][] }) | null;
+  disenos_dispositivo: DisenoDispositivoRow | null;
   seteos: {
     id: string;
     nombre: string;
@@ -241,9 +284,12 @@ function mapDispositivoCompleto(d: DispositivoCompletoRow): DispositivoCompleto 
     diseno: disenoRaw
       ? {
           id: disenoRaw.id,
-          categoria: disenoRaw.categoria,
+          categoria: disenoRaw.categoria as CategoriaCatalogo,
           marca: disenoRaw.marca,
           modelo: disenoRaw.modelo,
+          colorFondo: disenoRaw.color_fondo,
+          colorAcento: disenoRaw.color_acento,
+          colorTexto: disenoRaw.color_texto,
           controles: disenoRaw.diseno_controles.map(mapControl).sort((a, b) => a.orden - b.orden),
         }
       : null,

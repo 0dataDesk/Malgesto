@@ -1,6 +1,7 @@
 "use client";
 
 import type { ControlDiseno } from "@/lib/dispositivosData";
+import type { TemaDispositivo } from "./PanelDispositivo";
 
 // Perilla estilo "deslizante" (Seteos, brief "PanelDispositivo — usar estilo
 // para elegir Knob vs. SliderVertical") — <input type="range"> nativo
@@ -18,16 +19,21 @@ const LARGO_INPUT = Math.round(54 * 1.3);
 // disabled (brief §5, bypass de grupo): el fader queda deshabilitado
 // visualmente sin perder su valor guardado — el atributo nativo `disabled`
 // del <input type="range"> ya impide arrastrarlo.
+//
+// El valor mostrado se redondea al entero más cercano (brief "Seteos — fix
+// de navegación..." §2), con `unidad` como sufijo si el control la tiene.
 export function SliderVertical({
   control,
   valor,
   onChange,
   disabled = false,
+  tema,
 }: {
   control: ControlDiseno;
   valor: number;
   onChange: (v: number) => void;
   disabled?: boolean;
+  tema: TemaDispositivo;
 }) {
   const min = control.min ?? 0;
   const max = control.max ?? 10;
@@ -43,15 +49,16 @@ export function SliderVertical({
           value={valor}
           disabled={disabled}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="h-2 accent-[oklch(0.64_0.15_34)] disabled:cursor-not-allowed"
-          style={{ width: LARGO_INPUT, transform: "rotate(-90deg)" }}
+          className="h-2 disabled:cursor-not-allowed"
+          style={{ width: LARGO_INPUT, transform: "rotate(-90deg)", accentColor: tema.acento }}
         />
       </div>
       <div className="text-center">
-        <div className="font-mono text-[11px] font-bold" style={{ color: "oklch(0.95 0.012 82)" }}>
-          {valor}
+        <div className="font-mono text-[11px] font-bold" style={{ color: tema.texto }}>
+          {Math.round(valor)}
+          {control.unidad ? ` ${control.unidad}` : ""}
         </div>
-        <div className="font-mono text-[9px] uppercase tracking-wide" style={{ color: "oklch(0.65 0.03 60)" }}>
+        <div className="font-mono text-[9px] uppercase tracking-wide" style={{ color: tema.textoSecundario }}>
           {control.nombre}
         </div>
       </div>

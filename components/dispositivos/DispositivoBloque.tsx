@@ -21,6 +21,12 @@ export type DispositivoConSeteos = {
   habilitado: boolean;
   controles: ControlDiseno[];
   seteos: Seteo[];
+  // Colores reales de marca del diseño (brief "Seteos — fix de navegación,
+  // colores de marca..." §4) — el panel del dispositivo los usa en vez de
+  // los tokens de color de la app.
+  colorFondo: string | null;
+  colorAcento: string | null;
+  colorTexto: string | null;
 };
 
 const TEXTO_OSCURO = "oklch(0.24 0.02 55)";
@@ -167,7 +173,14 @@ export function DispositivoBloque({
             </p>
           )}
           {!creando && seteoActual && (
-            <PanelDispositivo controles={dispositivo.controles} valores={seteoActual.valores} onChange={cambiarValor} />
+            <PanelDispositivo
+              controles={dispositivo.controles}
+              valores={seteoActual.valores}
+              onChange={cambiarValor}
+              colorFondo={dispositivo.colorFondo}
+              colorAcento={dispositivo.colorAcento}
+              colorTexto={dispositivo.colorTexto}
+            />
           )}
         </div>
       )}

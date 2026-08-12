@@ -1,6 +1,7 @@
 "use client";
 
 import type { ControlDiseno } from "@/lib/dispositivosData";
+import type { TemaDispositivo } from "./PanelDispositivo";
 
 // Botón/interruptor (Seteos, brief "Seteos — catálogo") — a diferencia de la
 // perilla, es discreto: min..max (enteros) se dibujan como posiciones de un
@@ -36,11 +37,13 @@ export function Boton({
   valor,
   onChange,
   disabled = false,
+  tema,
 }: {
   control: ControlDiseno;
   valor: number;
   onChange: (v: number) => void;
   disabled?: boolean;
+  tema: TemaDispositivo;
 }) {
   const min = control.min ?? 0;
   const max = control.max ?? 1;
@@ -49,7 +52,7 @@ export function Boton({
 
   return (
     <div className="flex flex-col items-center gap-1.5" style={{ opacity: disabled ? 0.35 : 1 }}>
-      <div className="flex overflow-hidden rounded-lg" style={{ border: "1px solid oklch(0.4 0.03 55)" }}>
+      <div className="flex overflow-hidden rounded-lg" style={{ border: `1px solid ${tema.acento}` }}>
         {Array.from({ length: pasos }, (_, i) => min + i).map((posicion) => {
           const activo = Math.round(valor) === posicion;
           const etiqueta = etiquetas?.get(posicion);
@@ -63,8 +66,8 @@ export function Boton({
                 etiqueta ? "px-2.5 text-[9px] uppercase tracking-wide" : "w-7 text-[10px]"
               }`}
               style={{
-                background: activo ? "oklch(0.64 0.15 34)" : "oklch(0.3 0.025 55)",
-                color: activo ? "oklch(0.99 0.01 82)" : "oklch(0.65 0.03 60)",
+                background: activo ? tema.acento : tema.superficie,
+                color: activo ? tema.texto : tema.textoSecundario,
               }}
               aria-label={`${control.nombre}: ${etiqueta ?? `posición ${posicion}`}`}
             >
@@ -74,7 +77,7 @@ export function Boton({
         })}
       </div>
       {!etiquetas && (
-        <div className="font-mono text-[9px] uppercase tracking-wide" style={{ color: "oklch(0.65 0.03 60)" }}>
+        <div className="font-mono text-[9px] uppercase tracking-wide" style={{ color: tema.textoSecundario }}>
           {control.nombre}
         </div>
       )}

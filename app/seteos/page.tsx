@@ -108,6 +108,9 @@ export default async function SeteosPage({
       habilitado: d.habilitado,
       controles: d.diseno!.controles,
       seteos: d.seteos,
+      colorFondo: d.diseno!.colorFondo,
+      colorAcento: d.diseno!.colorAcento,
+      colorTexto: d.diseno!.colorTexto,
     }));
 
   return (
