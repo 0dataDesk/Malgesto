@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import type { ControlDiseno } from "@/lib/dispositivosData";
 import { Knob } from "./Knob";
 import { SliderVertical } from "./SliderVertical";
@@ -142,6 +143,20 @@ function aspectRatioPosicionLibre(controles: ControlDiseno[]): string {
   return `${ratio} / 1`;
 }
 
+// Brief "PanelDispositivo — etiquetas multilínea genéricas y responsivo en
+// móvil" §2: en el layout posicionado (pos_x/pos_y absolutos), el lienzo
+// completo (perillas, botones, luces -- no el texto de sus etiquetas, que
+// tiene su propio piso legible vía clamp() en cada componente) se escala
+// hacia abajo en viewport angosto para que no se encimen entre sí, en vez
+// de mantener su tamaño fijo mientras el espacio entre posiciones (que sí
+// es proporcional al ancho del contenedor) se achica. 1 a partir de ~420px
+// de ancho (el tamaño con el que se diseñaron los controles), con un piso
+// de 0.7 en pantallas muy angostas. Se define como variable CSS en el
+// contenedor de este layout -- cada componente de control la consume vía
+// `var(--escala-control, 1)`, así que en el layout de flow (Hartke), donde
+// no se define, el fallback de 1 no cambia nada.
+const ESCALA_CONTROL_POSICION_LIBRE = "clamp(0.7, calc(100vw / 420px), 1)";
+
 function grupoHabilitado(nombreGrupo: string, controles: ControlDiseno[], valores: Record<string, number>): boolean {
   const controlador = controles.find((c) => c.controlaGrupo === nombreGrupo);
   if (!controlador) return true;
@@ -214,7 +229,13 @@ function PanelAgrupado({ controles, valores, onChange, tema }: PanelProps) {
                 </div>
               )}
               {posicionLibre ? (
-                <div className="relative w-full" style={{ aspectRatio: aspectRatioPosicionLibre(g.controles) }}>
+                <div
+                  className="relative w-full"
+                  style={{
+                    aspectRatio: aspectRatioPosicionLibre(g.controles),
+                    ...({ "--escala-control": ESCALA_CONTROL_POSICION_LIBRE } as CSSProperties),
+                  }}
+                >
                   {g.controles.map((c) => (
                     <div key={c.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${c.posX}%`, top: `${c.posY}%` }}>
                       {renderControl(c, valores, onChange, !habilitado, tema, controles)}

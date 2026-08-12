@@ -2,6 +2,7 @@
 
 import type { ControlDiseno } from "@/lib/dispositivosData";
 import type { TemaDispositivo } from "./PanelDispositivo";
+import { EtiquetaMultilinea } from "./EtiquetaMultilinea";
 
 // Botón/interruptor (Seteos, brief "Seteos — catálogo") — a diferencia de la
 // perilla, es discreto: min..max (enteros) se dibujan como posiciones de un
@@ -55,8 +56,13 @@ export function Boton({
       {/* Regla de color (brief "PanelDispositivo — regla de color exterior/
           interior..."): color_acento es exclusivo del borde exterior del
           panel -- el contorno del botón usa color_texto. El fondo activo
-          sigue en acento, sin cambios ahí. */}
-      <div className="flex overflow-hidden rounded-lg" style={{ border: `1px solid ${tema.texto}` }}>
+          sigue en acento, sin cambios ahí. `--escala-control` (brief
+          "...responsivo en móvil" §2): escala el botón como unidad en el
+          layout posicionado angosto, sin efecto en el flow del Hartke. */}
+      <div
+        className="flex overflow-hidden rounded-lg"
+        style={{ border: `1px solid ${tema.texto}`, transform: "scale(var(--escala-control, 1))" }}
+      >
         {Array.from({ length: pasos }, (_, i) => min + i).map((posicion) => {
           const activo = Math.round(valor) === posicion;
           const etiqueta = etiquetas?.get(posicion);
@@ -81,8 +87,8 @@ export function Boton({
         })}
       </div>
       {!etiquetas && (
-        <div className="font-mono text-[9px] uppercase tracking-wide" style={{ color: tema.textoSecundario }}>
-          {control.nombre}
+        <div className="font-mono uppercase tracking-wide" style={{ color: tema.textoSecundario, fontSize: "clamp(7.5px, 2.1vw, 9px)" }}>
+          <EtiquetaMultilinea texto={control.nombre} />
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@
 
 import type { ControlDiseno } from "@/lib/dispositivosData";
 import type { TemaDispositivo } from "./PanelDispositivo";
+import { EtiquetaMultilinea } from "./EtiquetaMultilinea";
 
 // Perilla estilo "deslizante" (Seteos, brief "PanelDispositivo — usar estilo
 // para elegir Knob vs. SliderVertical") — <input type="range"> nativo
@@ -40,7 +41,10 @@ export function SliderVertical({
 
   return (
     <div className="flex flex-col items-center gap-1.5" style={{ opacity: disabled ? 0.35 : 1 }}>
-      <div className="flex w-9 items-center justify-center overflow-hidden" style={{ height: ALTO_CONTENEDOR }}>
+      <div
+        className="flex w-9 items-center justify-center overflow-hidden"
+        style={{ height: ALTO_CONTENEDOR, transform: "scale(var(--escala-control, 1))" }}
+      >
         <input
           type="range"
           min={min}
@@ -54,12 +58,12 @@ export function SliderVertical({
         />
       </div>
       <div className="text-center">
-        <div className="font-mono text-[11px] font-bold" style={{ color: tema.texto }}>
+        <div className="font-mono font-bold" style={{ color: tema.texto, fontSize: "clamp(9px, 2.6vw, 11px)" }}>
           {Math.round(valor)}
           {control.unidad ? ` ${control.unidad}` : ""}
         </div>
-        <div className="font-mono text-[9px] uppercase tracking-wide" style={{ color: tema.textoSecundario }}>
-          {control.nombre}
+        <div className="font-mono uppercase tracking-wide" style={{ color: tema.textoSecundario, fontSize: "clamp(7.5px, 2.1vw, 9px)" }}>
+          <EtiquetaMultilinea texto={control.nombre} />
         </div>
       </div>
     </div>

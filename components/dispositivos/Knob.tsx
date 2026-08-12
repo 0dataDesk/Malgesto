@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import type { ControlDiseno } from "@/lib/dispositivosData";
 import type { TemaDispositivo } from "./PanelDispositivo";
+import { EtiquetaMultilinea } from "./EtiquetaMultilinea";
 
 // Perilla rotable (Seteos, brief "Seteos — catálogo") — drag vertical con
 // pointer events (funciona igual en mobile que en desktop) más scroll-wheel
@@ -28,6 +29,12 @@ import type { TemaDispositivo } from "./PanelDispositivo";
 // de navegación..." §2) — el valor interno (onChange) sigue siendo el que
 // sea, esto es solo de presentación. Si el control tiene `unidad` (ej. "Hz"
 // en el Mid Freq del Tone Mallet), se agrega como sufijo.
+//
+// `--escala-control` (brief "...responsivo en móvil" §2): la perilla (círculo
+// + indicador) se escala como unidad vía esta variable CSS heredada desde el
+// contenedor del layout posicionado, sin efecto (scale(1)) en el layout de
+// flow del Hartke, donde no se define. El texto (valor + nombre) no comparte
+// esta escala -- usa su propio piso legible vía clamp(), ver abajo.
 export function Knob({
   control,
   valor,
@@ -94,6 +101,7 @@ export function Knob({
           boxShadow: "inset 0 2px 4px rgba(0,0,0,0.4)",
           cursor: disabled ? "not-allowed" : "ns-resize",
           touchAction: "none",
+          transform: "scale(var(--escala-control, 1))",
         }}
       >
         <div
@@ -102,12 +110,12 @@ export function Knob({
         />
       </div>
       <div className="text-center">
-        <div className="font-mono text-[11px] font-bold" style={{ color: tema.texto }}>
+        <div className="font-mono font-bold" style={{ color: tema.texto, fontSize: "clamp(9px, 2.6vw, 11px)" }}>
           {Math.round(valor)}
           {control.unidad ? ` ${control.unidad}` : ""}
         </div>
-        <div className="font-mono text-[9px] uppercase tracking-wide" style={{ color: tema.textoSecundario }}>
-          {control.nombre}
+        <div className="font-mono uppercase tracking-wide" style={{ color: tema.textoSecundario, fontSize: "clamp(7.5px, 2.1vw, 9px)" }}>
+          <EtiquetaMultilinea texto={control.nombre} />
         </div>
       </div>
     </div>
