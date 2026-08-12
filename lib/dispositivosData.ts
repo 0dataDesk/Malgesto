@@ -57,6 +57,13 @@ export type ControlDiseno = {
   // Sufijo del valor mostrado (ej. "Hz" en el Mid Freq del Tone Mallet) —
   // solo aplica a tipo="perilla".
   unidad: string | null;
+  // Solo aplica a tipo="luz" — id de otro control del mismo diseño cuyo
+  // valor determina si esta luz se dibuja encendida (valor === max del
+  // control referenciado) o apagada. La luz no es interactiva por sí misma,
+  // solo refleja. Null = luz sin comportamiento asociado (siempre "encendida"
+  // visualmente, como antes). Brief "PanelDispositivo — regla de color
+  // exterior/interior, layout posicionado del Mallet, luz refleja botón".
+  reflejaControlId: string | null;
 };
 
 export type DisenoCompleto = DisenoDispositivo & { controles: ControlDiseno[] };
@@ -113,6 +120,7 @@ function mapControl(c: {
   controla_grupo: string | null;
   nota: string | null;
   unidad: string | null;
+  refleja_control_id: string | null;
 }): ControlDiseno {
   return {
     id: c.id,
@@ -130,6 +138,7 @@ function mapControl(c: {
     controlaGrupo: c.controla_grupo,
     nota: c.nota,
     unidad: c.unidad,
+    reflejaControlId: c.refleja_control_id,
   };
 }
 
@@ -288,7 +297,7 @@ export async function actualizarHabilitadoDispositivo(dispositivoId: string, hab
 }
 
 const SELECT_DISPOSITIVO_COMPLETO =
-  "id, banda_id, usuario_id, categoria, diseno_id, nombre, habilitado, disenos_dispositivo(id, categoria, marca, modelo, color_fondo, color_acento, color_texto, diseno_controles(id, tipo, nombre, pos_x, pos_y, min, max, valor_default, orden, estilo, grupo, colores_invertidos, controla_grupo, nota, unidad)), seteos(id, nombre, valores, cancion_id, es_general, canciones(id, titulo))";
+  "id, banda_id, usuario_id, categoria, diseno_id, nombre, habilitado, disenos_dispositivo(id, categoria, marca, modelo, color_fondo, color_acento, color_texto, diseno_controles(id, tipo, nombre, pos_x, pos_y, min, max, valor_default, orden, estilo, grupo, colores_invertidos, controla_grupo, nota, unidad, refleja_control_id)), seteos(id, nombre, valores, cancion_id, es_general, canciones(id, titulo))";
 
 type DisenoDispositivoRow = {
   id: string;

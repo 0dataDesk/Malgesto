@@ -14,6 +14,12 @@ import type { TemaDispositivo } from "./PanelDispositivo";
 // invertido es cuerpo tema.texto (claro) con indicador tema.fondo (oscuro) —
 // mismos 3 tokens de marca, sin agregar colores nuevos.
 //
+// Regla de color (brief "PanelDispositivo — regla de color exterior/
+// interior..."): color_acento queda reservado exclusivamente al borde
+// exterior del panel completo — el contorno de la perilla usa color_texto
+// en su lugar. El indicador (línea) sigue en acento (invertido: fondo), sin
+// cambios ahí.
+//
 // disabled (brief §5, bypass de grupo): la perilla queda deshabilitada
 // visualmente sin perder su valor guardado — ni el drag ni el scroll-wheel
 // disparan onChange.
@@ -43,7 +49,7 @@ export function Knob({
   const angulo = -135 + fraccion * 270;
 
   const bgCuerpo = control.coloresInvertidos ? tema.texto : tema.superficie;
-  const borderCuerpo = control.coloresInvertidos ? tema.fondo : tema.acento;
+  const borderCuerpo = control.coloresInvertidos ? tema.fondo : tema.texto;
   const colorIndicador = control.coloresInvertidos ? tema.fondo : tema.acento;
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {

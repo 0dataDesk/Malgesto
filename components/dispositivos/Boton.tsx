@@ -52,7 +52,11 @@ export function Boton({
 
   return (
     <div className="flex flex-col items-center gap-1.5" style={{ opacity: disabled ? 0.35 : 1 }}>
-      <div className="flex overflow-hidden rounded-lg" style={{ border: `1px solid ${tema.acento}` }}>
+      {/* Regla de color (brief "PanelDispositivo — regla de color exterior/
+          interior..."): color_acento es exclusivo del borde exterior del
+          panel -- el contorno del botón usa color_texto. El fondo activo
+          sigue en acento, sin cambios ahí. */}
+      <div className="flex overflow-hidden rounded-lg" style={{ border: `1px solid ${tema.texto}` }}>
         {Array.from({ length: pasos }, (_, i) => min + i).map((posicion) => {
           const activo = Math.round(valor) === posicion;
           const etiqueta = etiquetas?.get(posicion);
