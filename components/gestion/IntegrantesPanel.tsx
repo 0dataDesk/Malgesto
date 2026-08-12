@@ -565,36 +565,6 @@ function FilaIntegrante({
 
       {expandido && integrante.usuarioId && (
         <div className="mt-3 flex flex-col gap-2.5 border-t pt-3" style={{ borderColor: "oklch(0.9 0.012 78)" }}>
-          {/* Brief §1: mismos handlers/gates de siempre (Inactivar solo con
-              bandasActivas.length > 0, Eliminar con el mismo confirm()),
-              ahora visibles solo con la tarjeta expandida. */}
-          <div className="flex items-center justify-end gap-1.5">
-            {bandasActivas.length > 0 && (
-              <button
-                type="button"
-                onClick={inactivar}
-                disabled={pendingInactivar}
-                aria-label="Inactivar"
-                title="Oculta al integrante sin borrar su historial"
-                className="flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-50"
-                style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
-              >
-                <IconoOjoTachado />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={eliminar}
-              disabled={pendingEliminar}
-              aria-label="Eliminar cuenta"
-              title="Eliminar cuenta (borrado permanente)"
-              className="flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-50"
-              style={{ background: "oklch(0.6 0.15 25 / 0.12)", color: "oklch(0.5 0.18 25)" }}
-            >
-              <IconoEliminar />
-            </button>
-          </div>
-
           <div>
             {/* Brief §4: Nombre para mostrar (2/3) y Fecha de nacimiento
                 (1/3) comparten una sola fila en vez de apilarse. */}
