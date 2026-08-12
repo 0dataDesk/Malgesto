@@ -74,6 +74,11 @@ export function MesView({
           const fueraDeMes = !mismoMesAno(dia, mes);
           const esHoy = esMismoDia(dia, hoy);
           const esSeleccionado = !!diaSeleccionado && esMismoDia(dia, diaSeleccionado);
+          // Brief "Calendario — puntos de banda menos intensos en días
+          // pasados": hoisteado al tope del .map (antes vivía solo dentro del
+          // if de tieneShow/tieneEnsayo) para poder reusarlo también en el
+          // punto de banda más abajo, sin recalcular.
+          const pasado = esDiaPasado(dia, hoy);
           const eventosDelDia = eventos.filter(
             (e) => e.tipo !== "gira" && esMismoDia(enZonaApp(e.fechaInicio), dia)
           );
@@ -124,7 +129,6 @@ export function MesView({
             const tieneCumple = eventosDelDia.some((e) => e.tipo === "cumpleanos");
 
             if (tieneShow || tieneEnsayo) {
-              const pasado = esDiaPasado(dia, hoy);
               const mesSiguiente = !pasado && fueraDeMes && esOverflowMesSiguiente(dia, mes);
               const intensidad: IntensidadFondoDia = pasado ? "pasado" : mesSiguiente ? "mesSiguiente" : "normal";
               const gris = FONDO_GRISES[intensidad];
@@ -204,7 +208,7 @@ export function MesView({
                     <span
                       key={bandaId}
                       className="h-[6px] w-[6px] rounded-full"
-                      style={{ background: colorPorBanda.get(bandaId) ?? "oklch(0.6 0.02 55)" }}
+                      style={{ background: colorPorBanda.get(bandaId) ?? "oklch(0.6 0.02 55)", opacity: pasado ? 0.4 : 1 }}
                     />
                   ))}
               </div>
