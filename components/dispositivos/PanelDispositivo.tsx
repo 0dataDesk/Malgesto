@@ -12,17 +12,24 @@ import { ControlDecorativo } from "./ControlDecorativo";
 // canción" §4).
 const ACENTO_PANEL = "oklch(0.52 0.16 255)";
 
-function renderControl(c: ControlDiseno, valores: Record<string, number>, onChange: (controlId: string, valor: number) => void) {
+function renderControl(
+  c: ControlDiseno,
+  valores: Record<string, number>,
+  onChange: (controlId: string, valor: number) => void,
+  disabled = false
+) {
   if (c.tipo === "perilla") {
     const valor = valores[c.id] ?? c.valorDefault ?? 0;
     return c.estilo === "deslizante" ? (
-      <SliderVertical key={c.id} control={c} valor={valor} onChange={(v) => onChange(c.id, v)} />
+      <SliderVertical key={c.id} control={c} valor={valor} onChange={(v) => onChange(c.id, v)} disabled={disabled} />
     ) : (
-      <Knob key={c.id} control={c} valor={valor} onChange={(v) => onChange(c.id, v)} />
+      <Knob key={c.id} control={c} valor={valor} onChange={(v) => onChange(c.id, v)} disabled={disabled} />
     );
   }
   if (c.tipo === "boton") {
-    return <Boton key={c.id} control={c} valor={valores[c.id] ?? c.valorDefault ?? 0} onChange={(v) => onChange(c.id, v)} />;
+    return (
+      <Boton key={c.id} control={c} valor={valores[c.id] ?? c.valorDefault ?? 0} onChange={(v) => onChange(c.id, v)} disabled={disabled} />
+    );
   }
   return <ControlDecorativo key={c.id} control={c} />;
 }
@@ -68,6 +75,21 @@ function PanelLibre({ controles, valores, onChange }: PanelProps) {
 // se apilan en una columna; en pantallas más anchas se acomodan una al lado
 // de la otra y envuelven — cada caja envuelve sus propios controles
 // internamente si no entran en una fila.
+// Un control puede "controlar" un grupo entero (brief "Hartke HA3500 —
+// reagrupar cajas..." §5, ej. el In/Out del Hartke bypasea el Graphic
+// Equalizer) — genérico por `controlaGrupo`, sin hardcodear ningún nombre de
+// control. Un grupo gateado está habilitado cuando el valor actual de su
+// controlador es igual al máximo de ese controlador (la posición "prendida"
+// del on/off); sin controlador, siempre está habilitado.
+function grupoHabilitado(nombreGrupo: string, controles: ControlDiseno[], valores: Record<string, number>): boolean {
+  const controlador = controles.find((c) => c.controlaGrupo === nombreGrupo);
+  if (!controlador) return true;
+  // Mismo fallback que Boton.tsx para min/max nulos (binario 0/1 por defecto).
+  const max = controlador.max ?? 1;
+  const valorActual = valores[controlador.id] ?? controlador.valorDefault ?? max;
+  return valorActual === max;
+}
+
 function PanelAgrupado({ controles, valores, onChange }: PanelProps) {
   const sueltos = controles.filter((c) => c.grupo === null).sort((a, b) => a.orden - b.orden);
 
@@ -90,12 +112,33 @@ function PanelAgrupado({ controles, valores, onChange }: PanelProps) {
             {sueltos.map((c) => renderControl(c, valores, onChange))}
           </div>
         )}
-        {grupos.map((g) => (
-          <div key={g.nombre} className="w-full min-w-0 border border-white/60 bg-black p-3 sm:w-auto">
-            <div className="mb-2 text-[9px] font-bold uppercase tracking-wider text-white/70">{g.nombre}</div>
-            <div className="flex flex-wrap items-end gap-x-3 gap-y-3">{g.controles.map((c) => renderControl(c, valores, onChange))}</div>
-          </div>
-        ))}
+        {grupos.map((g) => {
+          const habilitado = grupoHabilitado(g.nombre, controles, valores);
+          // Cajas de solo botones se centran (ej. "Controles"); cajas de
+          // solo faders deslizantes fuerzan un grid de 5 columnas en vez de
+          // envolver por ancho disponible (ej. el ecualizador gráfico, para
+          // que siempre queden 2 filas de 5 parejas, no 6+4 según la
+          // pantalla). Ninguna de las dos reglas depende del nombre del
+          // grupo, solo de qué tipo de controles contiene.
+          const soloBotones = g.controles.every((c) => c.tipo === "boton");
+          const soloDeslizantes = g.controles.every((c) => c.tipo === "perilla" && c.estilo === "deslizante");
+          return (
+            <div key={g.nombre} className="w-full min-w-0 border border-white/60 bg-black p-3 sm:w-auto">
+              <div className="mb-2 text-[9px] font-bold uppercase tracking-wider text-white/70">{g.nombre}</div>
+              <div
+                className={
+                  soloDeslizantes
+                    ? "grid grid-cols-5 justify-items-center gap-x-2 gap-y-3"
+                    : soloBotones
+                      ? "flex flex-wrap items-center justify-center gap-x-3 gap-y-3"
+                      : "flex flex-wrap items-end gap-x-3 gap-y-3"
+                }
+              >
+                {g.controles.map((c) => renderControl(c, valores, onChange, !habilitado))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

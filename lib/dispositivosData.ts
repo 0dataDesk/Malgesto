@@ -27,6 +27,16 @@ export type ControlDiseno = {
   // caja. Fuente de verdad del layout del panel (brief "Seteos — rediseño de
   // navegación, layout agrupado y selector de canción").
   grupo: string | null;
+  // Solo aplica a tipo="perilla" — invierte la paleta de colores del Knob
+  // (cuerpo claro/indicador oscuro en vez de al revés). Brief "Hartke
+  // HA3500 — reagrupar cajas...", ej. el Master Volume.
+  coloresInvertidos: boolean;
+  // Nombre del grupo que este control habilita/deshabilita (ej. el "In/Out"
+  // del Hartke controla "Graphic Equalizer") — null = no controla nada.
+  // Solo tiene sentido en botones on/off; el control está "activo" cuando su
+  // valor actual es igual a su max. Brief "Hartke HA3500 — ..." §5: mecanismo
+  // genérico en vez de hardcodear el nombre "In/Out".
+  controlaGrupo: string | null;
 };
 
 export type DisenoCompleto = DisenoDispositivo & { controles: ControlDiseno[] };
@@ -76,6 +86,8 @@ function mapControl(c: {
   orden: number;
   estilo: string | null;
   grupo: string | null;
+  colores_invertidos: boolean;
+  controla_grupo: string | null;
 }): ControlDiseno {
   return {
     id: c.id,
@@ -89,6 +101,8 @@ function mapControl(c: {
     orden: c.orden,
     estilo: c.estilo as "rotativa" | "deslizante" | null,
     grupo: c.grupo,
+    coloresInvertidos: c.colores_invertidos,
+    controlaGrupo: c.controla_grupo,
   };
 }
 
@@ -192,7 +206,7 @@ export async function quitarDispositivo(dispositivoId: string): Promise<void> {
 }
 
 const SELECT_DISPOSITIVO_COMPLETO =
-  "id, banda_id, usuario_id, categoria, diseno_id, nombre, disenos_dispositivo(id, categoria, marca, modelo, diseno_controles(id, tipo, nombre, pos_x, pos_y, min, max, valor_default, orden, estilo, grupo)), seteos(id, nombre, valores, cancion_id, es_general, canciones(id, titulo))";
+  "id, banda_id, usuario_id, categoria, diseno_id, nombre, disenos_dispositivo(id, categoria, marca, modelo, diseno_controles(id, tipo, nombre, pos_x, pos_y, min, max, valor_default, orden, estilo, grupo, colores_invertidos, controla_grupo)), seteos(id, nombre, valores, cancion_id, es_general, canciones(id, titulo))";
 
 type DispositivoCompletoRow = DispositivoRow & {
   disenos_dispositivo: (DisenoDispositivo & { diseno_controles: Parameters<typeof mapControl>[0][] }) | null;
