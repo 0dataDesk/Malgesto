@@ -377,6 +377,12 @@ export type EstadoIntegrante = "invitado" | "activo" | "inactivo";
 
 export type PlazaAsignada = { plazaId: string; instrumento: string; etiqueta: string | null };
 
+// Brief "Voz — nuevo botón cíclico en la fila de Rol, fuera de
+// Instrumentos": campo independiente de las plazas de instrumento (esas ya
+// no aceptan voz/coro, ver migración de ese brief) -- un solo botón cíclico
+// por persona+banda en vez de una plaza que solo una persona puede ocupar.
+export type Voz = "sin_voz" | "principal" | "coro";
+
 export type BandaDeIntegrante = {
   bandaId: string;
   bandaNombre: string;
@@ -387,6 +393,7 @@ export type BandaDeIntegrante = {
   // Brief "Seteos — catálogo de diseños" §1: amplificador(es)/pedal(es)/
   // consola asignados a esta persona en esta banda.
   dispositivos: DispositivoAsignado[];
+  voz: Voz;
 };
 
 export type Integrante = {
@@ -422,7 +429,7 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
     { data: dispositivos },
   ] = await Promise.all([
     admin.from("bandas").select("id, nombre"),
-    admin.from("miembros_banda").select("usuario_id, banda_id, rol, activo, bloques_visibles"),
+    admin.from("miembros_banda").select("usuario_id, banda_id, rol, activo, bloques_visibles, voz"),
     admin.from("invitaciones").select("email").eq("estado", "pendiente"),
     admin.auth.admin.listUsers({ page: 1, perPage: 200 }),
     admin.from("personas").select("usuario_id, nombre_mostrar, fecha_nacimiento"),
@@ -492,6 +499,7 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
       plazas: plazasPorPersonaYBanda.get(`${m.usuario_id}:${m.banda_id}`) ?? [],
       bloquesVisibles: (m.bloques_visibles as string[] | null) ?? null,
       dispositivos: dispositivosPorPersonaYBanda.get(`${m.usuario_id}:${m.banda_id}`) ?? [],
+      voz: (m.voz as Voz) ?? "sin_voz",
     });
     if (m.activo) acc.tieneActivo = true;
   }
@@ -583,6 +591,16 @@ export async function actualizarRol(usuarioId: string, bandaId: string, rol: Rol
     .eq("usuario_id", usuarioId)
     .eq("banda_id", bandaId)
     .neq("rol", "superadmin");
+  if (error) throw new Error(error.message);
+}
+
+// Brief "Voz — nuevo botón cíclico en la fila de Rol, fuera de
+// Instrumentos" §2: a diferencia de rol, no hay restricción de superadmin
+// acá -- la voz es un atributo propio de la persona en esa banda,
+// independiente de su nivel de permisos.
+export async function actualizarVoz(usuarioId: string, bandaId: string, voz: Voz): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin.from("miembros_banda").update({ voz }).eq("usuario_id", usuarioId).eq("banda_id", bandaId);
   if (error) throw new Error(error.message);
 }
 

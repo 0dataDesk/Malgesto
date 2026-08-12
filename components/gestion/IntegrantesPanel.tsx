@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
-import type { BandaSimple, PersonaPendiente, Integrante, Plaza, BandaDeIntegrante, RolInvitable, InvitacionPorBanda } from "@/lib/gestionData";
+import type { BandaSimple, PersonaPendiente, Integrante, Plaza, BandaDeIntegrante, RolInvitable, InvitacionPorBanda, Voz } from "@/lib/gestionData";
 import type { NombreBloque } from "@/lib/bloques";
 import { contarBloquesActivos } from "@/lib/bloques";
 import type { DisenoDispositivo, CategoriaCatalogo, DispositivoAsignado } from "@/lib/dispositivosData";
@@ -15,6 +15,7 @@ import {
   removerDeBandaAction,
   asignarABandaAction,
   actualizarRolAction,
+  actualizarVozAction,
   asignarPersonaAPlazaAction,
   quitarPersonaDePlazaAction,
   actualizarBloquesVisiblesAction,
@@ -49,6 +50,14 @@ const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.8
 // mayor/menor en CancionForm) para una elección excluyente entre 2 opciones.
 const ROL_ACTIVO = { background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" };
 const ROL_INACTIVO = { background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" };
+
+// Brief "Voz — nuevo botón cíclico en la fila de Rol, fuera de
+// Instrumentos" §2: un solo botón que cicla Sin voz → Voz Principal → Coro
+// → Sin voz, en vez de un grupo de opciones separadas como Rol -- mismo
+// criterio visual/de tamaño (ROL_ACTIVO/ROL_INACTIVO), activo cuando no es
+// "sin_voz".
+const ETIQUETA_VOZ: Record<Voz, string> = { sin_voz: "Sin voz", principal: "Voz Principal", coro: "Coro" };
+const SIGUIENTE_VOZ: Record<Voz, Voz> = { sin_voz: "principal", principal: "coro", coro: "sin_voz" };
 
 // Brief "Rediseño visual de Gestión" §2: jerarquía de tonos reusando lo que
 // ya existe en la app — BG_SUNKEN es el mismo gris de fondo de página
@@ -262,6 +271,7 @@ function FilaIntegrante({
   const [bandasLocal, setBandasLocal] = useState(integrante.bandas);
   const [pendingBanda, setPendingBanda] = useState<string | null>(null);
   const [pendingRol, setPendingRol] = useState<string | null>(null);
+  const [pendingVoz, setPendingVoz] = useState<string | null>(null);
   const [pendingPlaza, setPendingPlaza] = useState<string | null>(null);
   const [errorPlaza, setErrorPlaza] = useState<string | null>(null);
   const [plazaPickerBandaId, setPlazaPickerBandaId] = useState<string | null>(null);
@@ -330,7 +340,16 @@ function FilaIntegrante({
           const info = bandas.find((b) => b.id === bandaId);
           return [
             ...prev,
-            { bandaId, bandaNombre: info?.nombre ?? "Banda", activo: true, rol: "miembro", plazas: [], bloquesVisibles: null, dispositivos: [] },
+            {
+              bandaId,
+              bandaNombre: info?.nombre ?? "Banda",
+              activo: true,
+              rol: "miembro",
+              plazas: [],
+              bloquesVisibles: null,
+              dispositivos: [],
+              voz: "sin_voz",
+            },
           ];
         });
       })
@@ -349,6 +368,20 @@ function FilaIntegrante({
         setBandasLocal((prev) => prev.map((b) => (b.bandaId === bandaId ? { ...b, rol } : b)));
       })
       .finally(() => setPendingRol(null));
+  };
+
+  // Brief "Voz — nuevo botón cíclico en la fila de Rol, fuera de
+  // Instrumentos" §2: cicla al siguiente estado y persiste -- siempre a
+  // partir del valor actual en bandasLocal, no de un estado propio separado.
+  const cambiarVoz = (bandaId: string, actual: Voz) => {
+    if (!integrante.usuarioId) return;
+    const siguiente = SIGUIENTE_VOZ[actual];
+    setPendingVoz(bandaId);
+    actualizarVozAction(integrante.usuarioId, bandaId, siguiente)
+      .then(() => {
+        setBandasLocal((prev) => prev.map((b) => (b.bandaId === bandaId ? { ...b, voz: siguiente } : b)));
+      })
+      .finally(() => setPendingVoz(null));
   };
 
   // Brief 21 §1: al tildar/destildar un bloque, si el resultado cubre TODOS
@@ -667,33 +700,48 @@ function FilaIntegrante({
 
                   {abierta && (
                     <div className="mt-2.5 flex flex-col gap-2.5">
-                      {/* Rol */}
-                      {asignada.rol === "superadmin" ? (
-                        <span className="text-xs italic" style={{ color: "oklch(0.55 0.02 55)" }}>
-                          Superadmin en esta banda — no editable acá
-                        </span>
-                      ) : (
-                        <div className="flex gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => cambiarRol(b.id, "miembro")}
-                            disabled={pendingRol === b.id}
-                            className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
-                            style={asignada.rol === "miembro" ? ROL_ACTIVO : ROL_INACTIVO}
-                          >
-                            Miembro
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => cambiarRol(b.id, "administrador")}
-                            disabled={pendingRol === b.id}
-                            className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
-                            style={asignada.rol === "administrador" ? ROL_ACTIVO : ROL_INACTIVO}
-                          >
-                            Administrador
-                          </button>
-                        </div>
-                      )}
+                      {/* Rol + Voz (brief "Voz — nuevo botón cíclico en la
+                          fila de Rol, fuera de Instrumentos" §2): la voz
+                          comparte fila con Rol, a la derecha -- independiente
+                          de si esta membresía es superadmin (no editable acá)
+                          o no. */}
+                      <div className="flex items-center justify-between gap-1.5">
+                        {asignada.rol === "superadmin" ? (
+                          <span className="text-xs italic" style={{ color: "oklch(0.55 0.02 55)" }}>
+                            Superadmin en esta banda — no editable acá
+                          </span>
+                        ) : (
+                          <div className="flex gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => cambiarRol(b.id, "miembro")}
+                              disabled={pendingRol === b.id}
+                              className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
+                              style={asignada.rol === "miembro" ? ROL_ACTIVO : ROL_INACTIVO}
+                            >
+                              Miembro
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => cambiarRol(b.id, "administrador")}
+                              disabled={pendingRol === b.id}
+                              className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
+                              style={asignada.rol === "administrador" ? ROL_ACTIVO : ROL_INACTIVO}
+                            >
+                              Administrador
+                            </button>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => cambiarVoz(b.id, asignada.voz)}
+                          disabled={pendingVoz === b.id}
+                          className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
+                          style={asignada.voz !== "sin_voz" ? ROL_ACTIVO : ROL_INACTIVO}
+                        >
+                          {ETIQUETA_VOZ[asignada.voz]}
+                        </button>
+                      </div>
 
                       {/* Brief §2: 3 acordeones internos -- Instrumentos,
                           Seteo, Bloques visibles, en ese orden. */}

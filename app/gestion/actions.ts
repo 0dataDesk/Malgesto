@@ -18,6 +18,7 @@ import {
   removerDeBanda,
   asignarABanda,
   actualizarRol,
+  actualizarVoz,
   actualizarBloquesVisibles,
   inactivarPersona,
   eliminarPersona,
@@ -25,6 +26,7 @@ import {
   type ActualizacionBanda,
   type RolInvitable,
   type InvitacionPorBanda,
+  type Voz,
 } from "@/lib/gestionData";
 import { crearLugar, actualizarLugar, actualizarLugarBandas, eliminarLugar } from "@/lib/lugaresData";
 import { asignarDiseno, sincronizarConsola, quitarDispositivo, type CategoriaCatalogo, type DispositivoAsignado } from "@/lib/dispositivosData";
@@ -148,6 +150,18 @@ export async function actualizarRolAction(usuarioId: string, bandaId: string, ro
   await requerirSuperadmin();
   if (rol !== "miembro" && rol !== "administrador") throw new Error("Rol inválido.");
   await actualizarRol(usuarioId, bandaId, rol);
+  revalidatePath("/gestion");
+}
+
+// Brief "Voz — nuevo botón cíclico en la fila de Rol, fuera de
+// Instrumentos" §2: mismo par de guards que actualizarRolAction --
+// requerirSuperadmin más la validación en runtime de que el valor pedido es
+// uno de los 3 estados válidos (actualizarVoz no lo revalida, confía en
+// este candado).
+export async function actualizarVozAction(usuarioId: string, bandaId: string, voz: Voz): Promise<void> {
+  await requerirSuperadmin();
+  if (voz !== "sin_voz" && voz !== "principal" && voz !== "coro") throw new Error("Voz inválida.");
+  await actualizarVoz(usuarioId, bandaId, voz);
   revalidatePath("/gestion");
 }
 
