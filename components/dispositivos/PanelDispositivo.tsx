@@ -114,13 +114,12 @@ function PanelAgrupado({ controles, valores, onChange }: PanelProps) {
         )}
         {grupos.map((g) => {
           const habilitado = grupoHabilitado(g.nombre, controles, valores);
-          // Cajas de solo botones se centran (ej. "Controles"); cajas de
-          // solo faders deslizantes fuerzan un grid de 5 columnas en vez de
-          // envolver por ancho disponible (ej. el ecualizador gráfico, para
-          // que siempre queden 2 filas de 5 parejas, no 6+4 según la
-          // pantalla). Ninguna de las dos reglas depende del nombre del
-          // grupo, solo de qué tipo de controles contiene.
-          const soloBotones = g.controles.every((c) => c.tipo === "boton");
+          // Toda caja centra su contenido horizontal y verticalmente dentro
+          // del marco (brief "Seteos — selector único global..." §3) — no
+          // depende del tipo de control. La única excepción es la caja de
+          // solo faders deslizantes, que fuerza un grid de 5 columnas en vez
+          // de envolver por ancho disponible (ej. el ecualizador gráfico,
+          // para que siempre queden 2 filas de 5, no 6+4 según la pantalla).
           const soloDeslizantes = g.controles.every((c) => c.tipo === "perilla" && c.estilo === "deslizante");
           return (
             <div key={g.nombre} className="w-full min-w-0 border border-white/60 bg-black p-3 sm:w-auto">
@@ -129,9 +128,7 @@ function PanelAgrupado({ controles, valores, onChange }: PanelProps) {
                 className={
                   soloDeslizantes
                     ? "grid grid-cols-5 justify-items-center gap-x-2 gap-y-3"
-                    : soloBotones
-                      ? "flex flex-wrap items-center justify-center gap-x-3 gap-y-3"
-                      : "flex flex-wrap items-end gap-x-3 gap-y-3"
+                    : "flex flex-wrap items-center justify-center gap-x-3 gap-y-3"
                 }
               >
                 {g.controles.map((c) => renderControl(c, valores, onChange, !habilitado))}

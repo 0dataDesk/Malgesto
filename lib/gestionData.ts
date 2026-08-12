@@ -406,6 +406,7 @@ type DispositivoRow = {
   categoria: string;
   diseno_id: string | null;
   nombre: string | null;
+  habilitado: boolean;
   disenos_dispositivo: { marca: string; modelo: string } | null;
 };
 
@@ -426,7 +427,7 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
     admin.auth.admin.listUsers({ page: 1, perPage: 200 }),
     admin.from("personas").select("usuario_id, nombre_mostrar, fecha_nacimiento"),
     admin.from("persona_plazas").select("persona_id, plazas(id, banda_id, instrumento, etiqueta)"),
-    admin.from("dispositivos").select("id, banda_id, usuario_id, categoria, diseno_id, nombre, disenos_dispositivo(marca, modelo)"),
+    admin.from("dispositivos").select("id, banda_id, usuario_id, categoria, diseno_id, nombre, habilitado, disenos_dispositivo(marca, modelo)"),
   ]);
 
   const dispositivosPorPersonaYBanda = new Map<string, DispositivoAsignado[]>();
@@ -442,6 +443,7 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
       disenoMarca: d.disenos_dispositivo?.marca ?? null,
       disenoModelo: d.disenos_dispositivo?.modelo ?? null,
       apodo: d.nombre,
+      habilitado: d.habilitado,
     });
     dispositivosPorPersonaYBanda.set(key, lista);
   }

@@ -7,7 +7,8 @@ import { obtenerCanciones } from "@/lib/cancionesData";
 import { TabBar } from "@/components/shell/TabBar";
 import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
 import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda";
-import { DispositivoPanel } from "@/components/dispositivos/DispositivoPanel";
+import { SeteosLista } from "@/components/dispositivos/SeteosLista";
+import type { DispositivoConSeteos } from "@/components/dispositivos/DispositivoBloque";
 
 // Pantalla "Seteos" (brief "Seteos — rediseño de navegación, layout agrupado
 // y selector de canción"): sin pantalla intermedia de lista — aterriza
@@ -95,6 +96,20 @@ export default async function SeteosPage({
 
   const cancionesOpciones = canciones.map((c) => ({ id: c.id, titulo: c.titulo }));
 
+  const dispositivosParaLista: DispositivoConSeteos[] = dispositivosConGeneral
+    .filter((d) => d.diseno !== null)
+    .map((d) => ({
+      id: d.id,
+      bandaId: d.bandaId,
+      categoria: d.categoria,
+      disenoMarca: d.diseno!.marca,
+      disenoModelo: d.diseno!.modelo,
+      apodo: d.apodo,
+      habilitado: d.habilitado,
+      controles: d.diseno!.controles,
+      seteos: d.seteos,
+    }));
+
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
       <EspacioSuperior>
@@ -117,29 +132,8 @@ export default async function SeteosPage({
           </h2>
         </div>
 
-        <div className="mt-4 flex flex-col gap-4">
-          {dispositivosConGeneral.length === 0 && (
-            <p className="mt-6 text-center text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
-              Todavía no tenés dispositivos asignados en {nombreBandaActiva}. Pedile a un administrador que te asigne uno desde
-              Gestión &gt; Integrantes.
-            </p>
-          )}
-          {dispositivosConGeneral.map(
-            (d) =>
-              d.diseno && (
-                <DispositivoPanel
-                  key={d.id}
-                  bandaId={bandaActiva}
-                  dispositivoId={d.id}
-                  disenoMarca={d.diseno.marca}
-                  disenoModelo={d.diseno.modelo}
-                  apodo={d.apodo}
-                  controles={d.diseno.controles}
-                  seteosIniciales={d.seteos}
-                  cancionesDisponibles={cancionesOpciones}
-                />
-              )
-          )}
+        <div className="mt-4">
+          <SeteosLista dispositivosIniciales={dispositivosParaLista} cancionesDisponibles={cancionesOpciones} nombreBanda={nombreBandaActiva} />
         </div>
       </EspacioSuperior>
 

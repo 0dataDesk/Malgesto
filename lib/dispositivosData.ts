@@ -53,6 +53,9 @@ export type DispositivoAsignado = {
   disenoMarca: string | null;
   disenoModelo: string | null;
   apodo: string | null;
+  // Brief "Seteos — selector único global..." §2: apagado = no aparece en la
+  // lista principal de Seteos, vive colapsado en el acordeón "Deshabilitados".
+  habilitado: boolean;
 };
 
 export type Seteo = {
@@ -126,6 +129,7 @@ type DispositivoRow = {
   categoria: string;
   diseno_id: string | null;
   nombre: string | null;
+  habilitado: boolean;
   disenos_dispositivo: { marca: string; modelo: string } | null;
 };
 
@@ -139,6 +143,7 @@ function mapDispositivo(d: DispositivoRow): DispositivoAsignado {
     disenoMarca: d.disenos_dispositivo?.marca ?? null,
     disenoModelo: d.disenos_dispositivo?.modelo ?? null,
     apodo: d.nombre,
+    habilitado: d.habilitado,
   };
 }
 
@@ -150,7 +155,7 @@ export async function obtenerDispositivosAsignados(bandaIds: string[]): Promise<
   const admin = supabaseMalgesto();
   const { data } = await admin
     .from("dispositivos")
-    .select("id, banda_id, usuario_id, categoria, diseno_id, nombre, disenos_dispositivo(marca, modelo)")
+    .select("id, banda_id, usuario_id, categoria, diseno_id, nombre, habilitado, disenos_dispositivo(marca, modelo)")
     .in("banda_id", bandaIds);
   return ((data ?? []) as unknown as DispositivoRow[]).map(mapDispositivo);
 }
@@ -169,7 +174,7 @@ export async function asignarDiseno(
   const { data, error } = await admin
     .from("dispositivos")
     .insert({ banda_id: bandaId, usuario_id: usuarioId, categoria, diseno_id: disenoId })
-    .select("id, banda_id, usuario_id, categoria, diseno_id, nombre, disenos_dispositivo(marca, modelo)")
+    .select("id, banda_id, usuario_id, categoria, diseno_id, nombre, habilitado, disenos_dispositivo(marca, modelo)")
     .single();
   if (error || !data) throw new Error(error?.message ?? "No se pudo asignar el diseño.");
   return mapDispositivo(data as unknown as DispositivoRow);
@@ -181,7 +186,7 @@ export async function marcarConsola(bandaId: string, usuarioId: string): Promise
   const admin = supabaseMalgesto();
   const { data: existente } = await admin
     .from("dispositivos")
-    .select("id, banda_id, usuario_id, categoria, diseno_id, nombre, disenos_dispositivo(marca, modelo)")
+    .select("id, banda_id, usuario_id, categoria, diseno_id, nombre, habilitado, disenos_dispositivo(marca, modelo)")
     .eq("banda_id", bandaId)
     .eq("usuario_id", usuarioId)
     .eq("categoria", "consola")
@@ -191,7 +196,7 @@ export async function marcarConsola(bandaId: string, usuarioId: string): Promise
   const { data, error } = await admin
     .from("dispositivos")
     .insert({ banda_id: bandaId, usuario_id: usuarioId, categoria: "consola", diseno_id: null })
-    .select("id, banda_id, usuario_id, categoria, diseno_id, nombre, disenos_dispositivo(marca, modelo)")
+    .select("id, banda_id, usuario_id, categoria, diseno_id, nombre, habilitado, disenos_dispositivo(marca, modelo)")
     .single();
   if (error || !data) throw new Error(error?.message ?? "No se pudo marcar consola.");
   return mapDispositivo(data as unknown as DispositivoRow);
@@ -205,8 +210,17 @@ export async function quitarDispositivo(dispositivoId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+// Switch de habilitado/deshabilitado en Seteos (brief "Seteos — selector
+// único global..." §2) — no borra nada, solo saca al dispositivo de la
+// lista principal hacia el acordeón "Deshabilitados".
+export async function actualizarHabilitadoDispositivo(dispositivoId: string, habilitado: boolean): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin.from("dispositivos").update({ habilitado }).eq("id", dispositivoId);
+  if (error) throw new Error(error.message);
+}
+
 const SELECT_DISPOSITIVO_COMPLETO =
-  "id, banda_id, usuario_id, categoria, diseno_id, nombre, disenos_dispositivo(id, categoria, marca, modelo, diseno_controles(id, tipo, nombre, pos_x, pos_y, min, max, valor_default, orden, estilo, grupo, colores_invertidos, controla_grupo)), seteos(id, nombre, valores, cancion_id, es_general, canciones(id, titulo))";
+  "id, banda_id, usuario_id, categoria, diseno_id, nombre, habilitado, disenos_dispositivo(id, categoria, marca, modelo, diseno_controles(id, tipo, nombre, pos_x, pos_y, min, max, valor_default, orden, estilo, grupo, colores_invertidos, controla_grupo)), seteos(id, nombre, valores, cancion_id, es_general, canciones(id, titulo))";
 
 type DispositivoCompletoRow = DispositivoRow & {
   disenos_dispositivo: (DisenoDispositivo & { diseno_controles: Parameters<typeof mapControl>[0][] }) | null;
