@@ -1,15 +1,16 @@
 "use client";
 
 import type { StagePlotItem } from "@/lib/stagePlotData";
-import { ETIQUETA_TIPO, GLIFO_TIPO, GLIFO_INSTRUMENTO, FORMA_TIPO, COLOR_ESCENARIO, type TipoItem, type FormaItem } from "@/lib/stagePlotCatalogo";
+import { ETIQUETA_TIPO, GLIFO_TIPO, GLIFO_INSTRUMENTO, FORMA_TIPO, COLOR_ESCENARIO, type TipoItem, type FormaItem, type TipoEscenario } from "@/lib/stagePlotCatalogo";
 import { colorConAlpha } from "@/lib/eventoUI";
 import { textoLegibleSobre } from "@/lib/colorContraste";
 
 // Brief "Rediseño de Stage Plot — Entrega 1" §1: lo que viaja al soltar un
 // ítem nuevo desde la paleta -- antes solo era el tipo (texto plano en
-// dataTransfer), ahora también la plaza cuando aplica (musico/mic), así
-// que el payload es JSON en vez de un string suelto.
-export type PayloadNuevoItem = { tipo: TipoItem; plazaId: string | null };
+// dataTransfer), ahora también la plaza/dispositivo cuando aplica, así que
+// el payload es JSON en vez de un string suelto. Brief "Stage Plot —
+// Entrega 2" §4: se suma `dispositivoId` para amplificador.
+export type PayloadNuevoItem = { tipo: TipoItem; plazaId: string | null; dispositivoId: string | null };
 
 function tamanoForma(forma: FormaItem): { w: number; h: number } {
   switch (forma) {
@@ -19,12 +20,18 @@ function tamanoForma(forma: FormaItem): { w: number; h: number } {
       return { w: 30, h: 30 };
     case "rectangulo":
       return { w: 56, h: 38 };
+    // Brief "Stage Plot — Entrega 2" §5: "ligeramente más grande que
+    // DI/AC" -- antes era notoriamente más grande (80x52), ahora la
+    // diferencia es sutil.
     case "rectangulo-punteado":
-      return { w: 80, h: 52 };
+      return { w: 52, h: 40 };
     case "rombo":
       return { w: 38, h: 38 };
     case "triangulo":
       return { w: 40, h: 38 };
+    // §2/§5: "mismo tamaño que DI/AC".
+    case "pedalera":
+      return { w: 46, h: 30 };
   }
 }
 
@@ -32,7 +39,23 @@ function tamanoForma(forma: FormaItem): { w: number; h: number } {
 // forma, reusado por cada ítem del lienzo. `glifo` es el texto corto
 // dentro del ícono (para músico, el instrumento real vía
 // GLIFO_INSTRUMENTO -- no un glifo fijo por tipo, ver stagePlotCatalogo).
-function IconoForma({ forma, color, glifo }: { forma: FormaItem; color: string; glifo: string }) {
+// Brief "Stage Plot — Entrega 2" §2: `cantidadPedales` solo aplica a
+// forma="pedalera" -- dibuja una grilla de 6 casillas, tantas prendidas
+// como pedales reales tenga la persona dueña (ya acotado a 6 en
+// stagePlotData).
+function IconoForma({
+  forma,
+  color,
+  glifo,
+  colorBorde = "white",
+  cantidadPedales = 0,
+}: {
+  forma: FormaItem;
+  color: string;
+  glifo: string;
+  colorBorde?: string;
+  cantidadPedales?: number;
+}) {
   const { w, h } = tamanoForma(forma);
   const colorTexto = textoLegibleSobre(color);
 
@@ -44,7 +67,7 @@ function IconoForma({ forma, color, glifo }: { forma: FormaItem; color: string; 
       const cy = h / 2;
       return (
         <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-          <circle cx={cx} cy={cy} r={r} fill={color} stroke="white" strokeWidth="2" />
+          <circle cx={cx} cy={cy} r={r} fill={color} stroke={colorBorde} strokeWidth="2" />
           {glifo && (
             <text x={cx} y={cy + (forma === "circulo" ? 4 : 3)} textAnchor="middle" fontFamily="monospace" fontSize={forma === "circulo" ? 10 : 7.5} fontWeight="700" fill={colorTexto}>
               {glifo}
@@ -56,7 +79,7 @@ function IconoForma({ forma, color, glifo }: { forma: FormaItem; color: string; 
     case "rectangulo":
       return (
         <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-          <rect x="1" y="1" width={w - 2} height={h - 2} rx="6" fill={color} stroke="white" strokeWidth="2" />
+          <rect x="1" y="1" width={w - 2} height={h - 2} rx="6" fill={color} stroke={colorBorde} strokeWidth="2" />
           <text x={w / 2} y={h / 2 + 4} textAnchor="middle" fontFamily="monospace" fontSize="10" fontWeight="700" fill={colorTexto}>
             {glifo}
           </text>
@@ -89,7 +112,75 @@ function IconoForma({ forma, color, glifo }: { forma: FormaItem; color: string; 
           </text>
         </svg>
       );
+    case "pedalera": {
+      const columnas = 3;
+      const filas = 2;
+      const pad = 5;
+      const gap = 3;
+      const cellW = (w - pad * 2 - gap * (columnas - 1)) / columnas;
+      const cellH = (h - pad * 2 - gap * (filas - 1)) / filas;
+      const casillas = Array.from({ length: columnas * filas }, (_, idx) => {
+        const prendida = idx < cantidadPedales;
+        const x = pad + (idx % columnas) * (cellW + gap);
+        const y = pad + Math.floor(idx / columnas) * (cellH + gap);
+        return (
+          <rect
+            key={idx}
+            x={x}
+            y={y}
+            width={cellW}
+            height={cellH}
+            rx="1.5"
+            fill={prendida ? "white" : "none"}
+            fillOpacity={prendida ? 0.95 : 1}
+            stroke="white"
+            strokeOpacity={prendida ? 1 : 0.4}
+            strokeWidth="1.2"
+          />
+        );
+      });
+      return (
+        <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+          <rect x="1" y="1" width={w - 2} height={h - 2} rx="6" fill={color} stroke="white" strokeWidth="2" />
+          {casillas}
+        </svg>
+      );
+    }
   }
+}
+
+// Brief "Stage Plot — Entrega 2" §1/§3: el indicador de voz ya no es un
+// ítem "mic" aparte para arrastrar -- es un círculo chico pegado al frente
+// (borde inferior derecho) del ícono principal, automático según
+// `item.tieneVoz`. Mismo lenguaje visual que el "mic" de Entrega 1 (círculo
+// chico, color de banda), ahora resuelto acá en vez de en un ítem propio.
+export function IconoConVoz({
+  forma,
+  color,
+  glifo,
+  colorBorde = "white",
+  tieneVoz = false,
+  cantidadPedales = 0,
+}: {
+  forma: FormaItem;
+  color: string;
+  glifo: string;
+  colorBorde?: string;
+  tieneVoz?: boolean;
+  cantidadPedales?: number;
+}) {
+  const { w, h } = tamanoForma(forma);
+  return (
+    <div className="relative" style={{ width: w, height: h }}>
+      <IconoForma forma={forma} color={color} glifo={glifo} colorBorde={colorBorde} cantidadPedales={cantidadPedales} />
+      {tieneVoz && (
+        <span
+          className="absolute rounded-full"
+          style={{ width: 15, height: 15, right: -4, bottom: -4, background: color, border: "2px solid white", boxShadow: "0 1px 3px rgba(0,0,0,0.35)" }}
+        />
+      )}
+    </div>
+  );
 }
 
 function glifoDe(item: StagePlotItem): string {
@@ -99,12 +190,60 @@ function glifoDe(item: StagePlotItem): string {
   return GLIFO_TIPO[item.tipo];
 }
 
+// Brief "Stage Plot — Entrega 2" §4: color por tipo de dueño -- ítems de
+// una persona (musico/mic/teclado/pedalera) usan el color de la banda,
+// amplificador usa los colores reales de marca del diseño asignado (nunca
+// un color genérico de la app), el resto usa su color neutro fijo de
+// escenario.
+function colorDeItem(item: StagePlotItem, bandaColor: string): string {
+  if (item.tipo === "amplificador") return item.colorFondo ?? bandaColor;
+  if (item.tipo === "musico" || item.tipo === "mic" || item.tipo === "teclado" || item.tipo === "pedalera") return bandaColor;
+  return COLOR_ESCENARIO[item.tipo as TipoEscenario];
+}
+
+// Brief §4: "usando los colores reales de marca del diseño" cubre AMBOS
+// colores del diseño, no solo el de fondo -- colorAcento se usa como borde
+// del rectángulo en vez del blanco genérico de siempre, así el amplificador
+// se ve con su identidad completa (ej. Hartke: fondo azul, borde/acento
+// distinto), igual que en su panel de Seteos.
+function bordeDeItem(item: StagePlotItem): string {
+  if (item.tipo === "amplificador") return item.colorAcento ?? "white";
+  return "white";
+}
+
 function etiquetaVisible(item: StagePlotItem): string | null {
-  if (item.tipo === "musico" || item.tipo === "mic") {
+  if (item.tipo === "musico" || item.tipo === "mic" || item.tipo === "teclado") {
     if (!item.nombrePersona || !item.instrumento) return null;
     return `${item.instrumento} · ${item.nombrePersona}`;
   }
+  if (item.tipo === "pedalera") {
+    return item.nombrePersona ? `Pedalera · ${item.nombrePersona}` : "Pedalera";
+  }
+  if (item.tipo === "amplificador") {
+    if (!item.disenoNombre || !item.nombrePersona) return null;
+    return `${item.disenoNombre} · ${item.nombrePersona}`;
+  }
   return item.etiqueta;
+}
+
+// Brief "Stage Plot — Entrega 2" §6: guías puramente visuales, sin
+// interacción -- una cruz continua muy discreta (4 cuadrantes) y una
+// cuadrícula punteada aún más discreta (9 celdas), para diferenciarlas
+// entre sí a simple vista. `pointer-events-none` para no interferir con
+// drag/click de los ítems reales; viewBox 0-100 porque los ítems ya se
+// posicionan en ese mismo sistema de porcentaje.
+function GuiasLienzo() {
+  const colorGuia = "oklch(0.5 0.02 55)";
+  return (
+    <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <line x1="50" y1="0" x2="50" y2="100" stroke={colorGuia} strokeOpacity="0.16" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+      <line x1="0" y1="50" x2="100" y2="50" stroke={colorGuia} strokeOpacity="0.16" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+      <line x1="33.333" y1="0" x2="33.333" y2="100" stroke={colorGuia} strokeOpacity="0.09" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
+      <line x1="66.667" y1="0" x2="66.667" y2="100" stroke={colorGuia} strokeOpacity="0.09" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
+      <line x1="0" y1="33.333" x2="100" y2="33.333" stroke={colorGuia} strokeOpacity="0.09" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
+      <line x1="0" y1="66.667" x2="100" y2="66.667" stroke={colorGuia} strokeOpacity="0.09" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
 }
 
 // Lienzo fijo, proporción "hoja horizontal" (16:9) — es un diagrama
@@ -146,81 +285,84 @@ export function StagePlotLienzo({
   };
 
   return (
-    <div
-      className="relative w-full select-none overflow-hidden rounded-2xl"
-      style={{ aspectRatio: "16 / 9", background: "oklch(0.99 0.008 82)", border: "2px solid oklch(0.82 0.016 78)" }}
-      onDragOver={interactivo ? (e) => e.preventDefault() : undefined}
-      onDrop={
-        interactivo
-          ? (e) => {
-              e.preventDefault();
-              const { posX, posY } = calcularPosicion(e);
-              const nuevoJson = e.dataTransfer.getData("text/stage-plot-nuevo");
-              const itemId = e.dataTransfer.getData("text/stage-plot-item");
-              if (nuevoJson) {
-                try {
-                  onSoltarNuevo?.(JSON.parse(nuevoJson) as PayloadNuevoItem, posX, posY);
-                } catch {
-                  // dataTransfer corrupto/ajeno -- se ignora el drop en vez de tronar.
-                }
-              } else if (itemId) onSoltarMover?.(itemId, posX, posY);
-            }
-          : undefined
-      }
-    >
-      {/* Marco de referencia "frente del escenario" — puramente visual, orienta
-          al sonidista sin implicar medidas reales. */}
+    <div className="flex flex-col gap-1.5">
       <div
-        className="pointer-events-none absolute bottom-0 left-0 right-0 text-center font-mono text-[10px] uppercase tracking-[0.2em]"
-        style={{ color: "oklch(0.7 0.02 55)", paddingBottom: 6 }}
+        className="relative w-full select-none overflow-hidden rounded-2xl"
+        style={{ aspectRatio: "16 / 9", background: "oklch(0.99 0.008 82)", border: "2px solid oklch(0.82 0.016 78)" }}
+        onDragOver={interactivo ? (e) => e.preventDefault() : undefined}
+        onDrop={
+          interactivo
+            ? (e) => {
+                e.preventDefault();
+                const { posX, posY } = calcularPosicion(e);
+                const nuevoJson = e.dataTransfer.getData("text/stage-plot-nuevo");
+                const itemId = e.dataTransfer.getData("text/stage-plot-item");
+                if (nuevoJson) {
+                  try {
+                    onSoltarNuevo?.(JSON.parse(nuevoJson) as PayloadNuevoItem, posX, posY);
+                  } catch {
+                    // dataTransfer corrupto/ajeno -- se ignora el drop en vez de tronar.
+                  }
+                } else if (itemId) onSoltarMover?.(itemId, posX, posY);
+              }
+            : undefined
+        }
       >
-        Frente del escenario (público)
+        <GuiasLienzo />
+
+        {items.map((item) => {
+          const activo = item.id === seleccionadoId;
+          const forma = FORMA_TIPO[item.tipo];
+          const color = colorDeItem(item, bandaColor);
+          const colorBorde = bordeDeItem(item);
+          const etiqueta = etiquetaVisible(item);
+          return (
+            <div
+              key={item.id}
+              draggable={interactivo}
+              onDragStart={
+                interactivo
+                  ? (e) => {
+                      e.dataTransfer.setData("text/stage-plot-item", item.id);
+                      e.dataTransfer.effectAllowed = "move";
+                    }
+                  : undefined
+              }
+              onClick={interactivo ? () => onSeleccionarItem?.(item.id) : undefined}
+              className="absolute flex flex-col items-center"
+              style={{
+                left: `${item.posX}%`,
+                top: `${item.posY}%`,
+                transform: "translate(-50%, -50%)",
+                cursor: interactivo ? "grab" : "default",
+              }}
+            >
+              <div
+                className="rounded-full"
+                style={{ boxShadow: activo ? "0 0 0 3px oklch(0.99 0.01 82), 0 0 0 5px oklch(0.24 0.02 55)" : "0 4px 10px -4px rgba(0,0,0,0.4)" }}
+                title={ETIQUETA_TIPO[item.tipo]}
+              >
+                <IconoConVoz forma={forma} color={color} glifo={glifoDe(item)} colorBorde={colorBorde} tieneVoz={item.tieneVoz} cantidadPedales={item.cantidadPedales} />
+              </div>
+              {etiqueta && (
+                <span
+                  className="mt-1 max-w-[110px] truncate rounded px-1.5 py-0.5 text-center font-mono text-[9px] font-semibold"
+                  style={{ background: "oklch(0.99 0.008 82 / 0.92)", color: "oklch(0.3 0.02 55)", border: "1px solid oklch(0.86 0.016 78)" }}
+                >
+                  {etiqueta}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {items.map((item) => {
-        const activo = item.id === seleccionadoId;
-        const forma = FORMA_TIPO[item.tipo];
-        const color = item.tipo === "musico" || item.tipo === "mic" ? bandaColor : COLOR_ESCENARIO[item.tipo];
-        const etiqueta = etiquetaVisible(item);
-        return (
-          <div
-            key={item.id}
-            draggable={interactivo}
-            onDragStart={
-              interactivo
-                ? (e) => {
-                    e.dataTransfer.setData("text/stage-plot-item", item.id);
-                    e.dataTransfer.effectAllowed = "move";
-                  }
-                : undefined
-            }
-            onClick={interactivo ? () => onSeleccionarItem?.(item.id) : undefined}
-            className="absolute flex flex-col items-center"
-            style={{
-              left: `${item.posX}%`,
-              top: `${item.posY}%`,
-              transform: "translate(-50%, -50%)",
-              cursor: interactivo ? "grab" : "default",
-            }}
-          >
-            <div
-              className="rounded-full"
-              style={{ boxShadow: activo ? "0 0 0 3px oklch(0.99 0.01 82), 0 0 0 5px oklch(0.24 0.02 55)" : "0 4px 10px -4px rgba(0,0,0,0.4)" }}
-              title={ETIQUETA_TIPO[item.tipo]}
-            >
-              <IconoForma forma={forma} color={color} glifo={glifoDe(item)} />
-            </div>
-            {etiqueta && (
-              <span
-                className="mt-1 max-w-[110px] truncate rounded px-1.5 py-0.5 text-center font-mono text-[9px] font-semibold"
-                style={{ background: "oklch(0.99 0.008 82 / 0.92)", color: "oklch(0.3 0.02 55)", border: "1px solid oklch(0.86 0.016 78)" }}
-              >
-                {etiqueta}
-              </span>
-            )}
-          </div>
-        );
-      })}
+      {/* Brief "Stage Plot — Entrega 2" §6: fuera del recuadro con las
+          guías, no pegado al borde interior (antes era un overlay
+          absoluto dentro del mismo div con la cruz/cuadrícula). */}
+      <div className="text-center font-mono text-[10px] uppercase tracking-[0.2em]" style={{ color: "oklch(0.7 0.02 55)" }}>
+        Frente del escenario (público)
+      </div>
     </div>
   );
 }

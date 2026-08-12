@@ -1,28 +1,60 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { StagePlotItem, PlazaConPersona } from "@/lib/stagePlotData";
-import { ETIQUETA_TIPO, GLIFO_INSTRUMENTO, COLOR_ESCENARIO, type TipoItem } from "@/lib/stagePlotCatalogo";
+import type { StagePlotItem, PlazaConPersona, AmplificadorAsignado } from "@/lib/stagePlotData";
+import {
+  ETIQUETA_TIPO,
+  GLIFO_TIPO,
+  GLIFO_INSTRUMENTO,
+  FORMA_TIPO,
+  COLOR_ESCENARIO,
+  tieneEtiquetaEditable,
+  type TipoEscenario,
+} from "@/lib/stagePlotCatalogo";
 import { etiquetaPlaza } from "@/lib/instrumentoCatalogo";
 import { crearItemAction, moverItemAction, actualizarEtiquetaItemAction, eliminarItemAction } from "@/app/stage-plot/actions";
-import { StagePlotLienzo, type PayloadNuevoItem } from "./StagePlotLienzo";
+import { StagePlotLienzo, IconoConVoz, type PayloadNuevoItem } from "./StagePlotLienzo";
 
 const inputCls = "w-full rounded-lg border px-3 py-2 text-sm outline-none";
 const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
 
-const PLACEHOLDER_ETIQUETA: Record<Exclude<TipoItem, "musico" | "mic">, string> = {
-  monitor: 'Ej. "Mix 1", "Mix 3 stereo"',
+const PLACEHOLDER_ETIQUETA: Record<TipoEscenario, string> = {
+  mix: 'Ej. "Mix 1", "Mix 3 stereo"',
+  side_fill: 'Ej. "Mix 7" (se numera igual que Mix)',
   di: 'Ej. "DI bajo"',
-  power: 'Ej. "Power 1 - stage right"',
+  power: 'Ej. "AC 1 - stage right"',
   riser: 'Ej. "2x1m, 40cm alto"',
 };
 
 // Chip arrastrable genérico de la paleta (Brief "Rediseño de Stage Plot —
 // Entrega 1" §1): arrastrado con Drag and Drop nativo, mismo mecanismo de
 // siempre (sin dependencias nuevas), pero ahora el payload es JSON
-// (tipo + plazaId) en vez de un tipo suelto -- ver PayloadNuevoItem en
-// StagePlotLienzo.
-function ChipArrastrable({ payload, color, glifo, titulo, subtitulo }: { payload: PayloadNuevoItem; color: string; glifo: string; titulo: string; subtitulo?: string }) {
+// (tipo + plazaId/dispositivoId) en vez de un tipo suelto -- ver
+// PayloadNuevoItem en StagePlotLienzo. Brief "Stage Plot — Entrega 2": el
+// ícono de la píldora ya no es un círculo fijo -- reusa IconoConVoz (mismo
+// componente que dibuja los ítems en el lienzo) para que la paleta se vea
+// idéntica a lo que se va a soltar, badges de voz/pedalera incluidos.
+function ChipArrastrable({
+  payload,
+  forma,
+  color,
+  glifo,
+  colorBorde,
+  tieneVoz,
+  cantidadPedales,
+  titulo,
+  subtitulo,
+}: {
+  payload: PayloadNuevoItem;
+  forma: Parameters<typeof IconoConVoz>[0]["forma"];
+  color: string;
+  glifo: string;
+  colorBorde?: string;
+  tieneVoz?: boolean;
+  cantidadPedales?: number;
+  titulo: string;
+  subtitulo?: string;
+}) {
   return (
     <div
       draggable
@@ -33,12 +65,7 @@ function ChipArrastrable({ payload, color, glifo, titulo, subtitulo }: { payload
       className="flex cursor-grab items-center gap-2 rounded-full py-1.5 pl-2 pr-3"
       style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.86 0.016 78)" }}
     >
-      <span
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-mono text-[8px] font-bold"
-        style={{ background: color, color: "oklch(0.99 0.01 82)" }}
-      >
-        {glifo}
-      </span>
+      <IconoConVoz forma={forma} color={color} glifo={glifo} colorBorde={colorBorde} tieneVoz={tieneVoz} cantidadPedales={cantidadPedales} />
       <div className="leading-tight">
         {/* Brief §1: instrumento como dato principal, más visible que el
             nombre -- por eso va primero y en negrita, el nombre queda
@@ -56,21 +83,17 @@ function ChipArrastrable({ payload, color, glifo, titulo, subtitulo }: { payload
   );
 }
 
-const ESCENARIO: { tipo: Exclude<TipoItem, "musico" | "mic">; glifo: string }[] = [
-  { tipo: "monitor", glifo: "MON" },
-  { tipo: "di", glifo: "DI" },
-  { tipo: "power", glifo: "PWR" },
-  { tipo: "riser", glifo: "RSR" },
-];
+const TIPOS_ESCENARIO: TipoEscenario[] = ["mix", "side_fill", "di", "power", "riser"];
 
-// Brief §1: paleta generada desde datos reales de la banda, no un catálogo
-// fijo -- "Integrantes" (toda plaza con persona asignada), "Micrófono"
-// (solo voz/coro, ya que son las que llevan mic vocal) y "Escenario"
-// (genéricos, siempre iguales, sin plaza). Una banda sin plazas ve
-// Integrantes/Micrófono vacíos y Escenario disponible igual.
-function PaletaIconos({ plazas, bandaColor }: { plazas: PlazaConPersona[]; bandaColor: string }) {
-  const mics = plazas.filter((p) => p.esVozOCoro);
-
+// Brief "Stage Plot — Entrega 2" §1: paleta generada desde datos reales de
+// la banda -- "Integrantes" (toda plaza con persona asignada, una sola
+// variante fija de músico/teclado por combinación real de voz, + un botón
+// de "+ Pedalera" aparte si esa persona tiene pedales en Seteos), "Seteo"
+// (un ítem por amplificador realmente asignado, §4) y "Escenario"
+// (genéricos, siempre iguales, sin plaza/dispositivo). "Micrófono" como
+// sección aparte queda obsoleta (Entrega 1) -- la voz ahora es un atributo
+// visual automático del propio ícono, ver IconoConVoz.
+function PaletaIconos({ plazas, amplificadores, bandaColor }: { plazas: PlazaConPersona[]; amplificadores: AmplificadorAsignado[]; bandaColor: string }) {
   return (
     <div className="flex flex-col gap-3">
       <div>
@@ -83,34 +106,56 @@ function PaletaIconos({ plazas, bandaColor }: { plazas: PlazaConPersona[]; banda
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {plazas.map((p) => (
-              <ChipArrastrable
-                key={p.plazaId}
-                payload={{ tipo: "musico", plazaId: p.plazaId }}
-                color={bandaColor}
-                glifo={GLIFO_INSTRUMENTO[p.instrumento]}
-                titulo={etiquetaPlaza(p.instrumento, p.etiqueta)}
-                subtitulo={p.nombrePersona}
-              />
-            ))}
+            {plazas.map((p) => {
+              // Brief §3: teclado es un elemento aparte (forma distinta, no
+              // circular), nunca el círculo genérico de músico, y nunca
+              // ofrece pedalera aunque la persona tenga pedales en Seteos.
+              const esTeclado = p.instrumento === "teclado_piano";
+              return (
+                <div key={p.plazaId} className="flex items-center gap-1.5">
+                  <ChipArrastrable
+                    payload={{ tipo: esTeclado ? "teclado" : "musico", plazaId: p.plazaId, dispositivoId: null }}
+                    forma={esTeclado ? "rectangulo" : "circulo"}
+                    color={bandaColor}
+                    glifo={esTeclado ? GLIFO_TIPO.teclado : GLIFO_INSTRUMENTO[p.instrumento]}
+                    tieneVoz={p.tieneVoz}
+                    titulo={etiquetaPlaza(p.instrumento, p.etiqueta)}
+                    subtitulo={p.nombrePersona}
+                  />
+                  {!esTeclado && p.cantidadPedales > 0 && (
+                    <ChipArrastrable
+                      payload={{ tipo: "pedalera", plazaId: p.plazaId, dispositivoId: null }}
+                      forma="pedalera"
+                      color={bandaColor}
+                      glifo=""
+                      cantidadPedales={p.cantidadPedales}
+                      titulo="+ Pedalera"
+                      subtitulo={`${Math.min(p.cantidadPedales, 6)} pedal${p.cantidadPedales === 1 ? "" : "es"}`}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {mics.length > 0 && (
+      {amplificadores.length > 0 && (
         <div>
           <span className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.02 55)" }}>
-            Micrófono
+            Seteo
           </span>
           <div className="flex flex-wrap gap-2">
-            {mics.map((p) => (
+            {amplificadores.map((a) => (
               <ChipArrastrable
-                key={p.plazaId}
-                payload={{ tipo: "mic", plazaId: p.plazaId }}
-                color={bandaColor}
-                glifo="MIC"
-                titulo={etiquetaPlaza(p.instrumento, p.etiqueta)}
-                subtitulo={p.nombrePersona}
+                key={a.dispositivoId}
+                payload={{ tipo: "amplificador", plazaId: null, dispositivoId: a.dispositivoId }}
+                forma="rectangulo"
+                color={a.colorFondo}
+                colorBorde={a.colorAcento}
+                glifo={GLIFO_TIPO.amplificador}
+                titulo={a.disenoNombre}
+                subtitulo={a.nombrePersona}
               />
             ))}
           </div>
@@ -122,13 +167,26 @@ function PaletaIconos({ plazas, bandaColor }: { plazas: PlazaConPersona[]; banda
           Escenario
         </span>
         <div className="flex flex-wrap gap-2">
-          {ESCENARIO.map((e) => (
-            <ChipArrastrable key={e.tipo} payload={{ tipo: e.tipo, plazaId: null }} color={COLOR_ESCENARIO[e.tipo]} glifo={e.glifo} titulo={ETIQUETA_TIPO[e.tipo]} />
+          {TIPOS_ESCENARIO.map((tipo) => (
+            <ChipArrastrable
+              key={tipo}
+              payload={{ tipo, plazaId: null, dispositivoId: null }}
+              forma={FORMA_TIPO[tipo]}
+              color={COLOR_ESCENARIO[tipo]}
+              glifo={GLIFO_TIPO[tipo]}
+              titulo={ETIQUETA_TIPO[tipo]}
+            />
           ))}
         </div>
       </div>
     </div>
   );
+}
+
+function etiquetaSeleccionado(item: StagePlotItem): string {
+  if (item.tipo === "amplificador") return `${item.disenoNombre} · ${item.nombrePersona}`;
+  if (item.tipo === "pedalera") return `Pedalera · ${item.nombrePersona}`;
+  return `${item.instrumento} · ${item.nombrePersona}`;
 }
 
 export function StagePlotEditor({
@@ -137,12 +195,14 @@ export function StagePlotEditor({
   stagePlotId,
   itemsIniciales,
   plazas,
+  amplificadores,
 }: {
   bandaId: string;
   bandaColor: string;
   stagePlotId: string;
   itemsIniciales: StagePlotItem[];
   plazas: PlazaConPersona[];
+  amplificadores: AmplificadorAsignado[];
 }) {
   const [items, setItems] = useState(itemsIniciales);
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(null);
@@ -151,20 +211,21 @@ export function StagePlotEditor({
   const [error, setError] = useState<string | null>(null);
 
   const seleccionado = items.find((i) => i.id === seleccionadoId) ?? null;
-  // Brief §3: musico/mic no llevan etiqueta editable -- su identidad sale
-  // de la plaza, no de texto capturado en el lienzo.
-  const etiquetaEditable = seleccionado && seleccionado.tipo !== "musico" && seleccionado.tipo !== "mic";
+  // Brief §3 (Entrega 1) / Entrega 2: solo los elementos de escenario sin
+  // dueño llevan etiqueta editable -- el resto resuelve su identidad desde
+  // la plaza o dispositivo asignado.
+  const etiquetaEditable = seleccionado && tieneEtiquetaEditable(seleccionado.tipo);
 
   const seleccionar = (itemId: string) => {
     setSeleccionadoId(itemId);
     setEtiquetaDraft(items.find((i) => i.id === itemId)?.etiqueta ?? "");
   };
 
-  const soltarNuevo = ({ tipo, plazaId }: PayloadNuevoItem, posX: number, posY: number) => {
+  const soltarNuevo = ({ tipo, plazaId, dispositivoId }: PayloadNuevoItem, posX: number, posY: number) => {
     setError(null);
     startTransition(async () => {
       try {
-        const item = await crearItemAction(bandaId, stagePlotId, tipo, plazaId, posX, posY);
+        const item = await crearItemAction(bandaId, stagePlotId, tipo, plazaId, dispositivoId, posX, posY);
         setItems((prev) => [...prev, item]);
         seleccionar(item.id);
       } catch (e) {
@@ -225,7 +286,7 @@ export function StagePlotEditor({
           Arrastrá un ícono de la paleta al lienzo para colocarlo. Ya puesto, se puede volver a arrastrar para reposicionarlo, o tocarlo para
           editarle la etiqueta o eliminarlo.
         </p>
-        <PaletaIconos plazas={plazas} bandaColor={bandaColor} />
+        <PaletaIconos plazas={plazas} amplificadores={amplificadores} bandaColor={bandaColor} />
       </div>
 
       <StagePlotLienzo
@@ -256,7 +317,7 @@ export function StagePlotEditor({
                 <input
                   value={etiquetaDraft}
                   onChange={(e) => setEtiquetaDraft(e.target.value)}
-                  placeholder={PLACEHOLDER_ETIQUETA[seleccionado.tipo as Exclude<TipoItem, "musico" | "mic">]}
+                  placeholder={PLACEHOLDER_ETIQUETA[seleccionado.tipo as TipoEscenario]}
                   className={inputCls}
                   style={inputStyle}
                   maxLength={60}
@@ -273,11 +334,11 @@ export function StagePlotEditor({
               </div>
             </>
           ) : (
-            // Brief §3: nombre + instrumento leídos de la plaza, no
-            // editables como texto libre acá -- si hace falta cambiarlos,
-            // se edita la plaza/persona en Gestión, no el ítem del lienzo.
+            // Brief §3 (Entrega 1): nombre + instrumento/diseño leídos de la
+            // plaza o dispositivo, no editables como texto libre acá -- si
+            // hace falta cambiarlos, se edita en Gestión/Seteos, no acá.
             <p className="text-sm" style={{ color: "oklch(0.35 0.02 55)" }}>
-              {seleccionado.instrumento} · {seleccionado.nombrePersona}
+              {etiquetaSeleccionado(seleccionado)}
             </p>
           )}
 

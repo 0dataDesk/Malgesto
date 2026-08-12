@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias } from "@/lib/malgestoEventos";
-import { obtenerOCrearStagePlot, obtenerPlazasConPersonaDeBanda } from "@/lib/stagePlotData";
+import { obtenerOCrearStagePlot, obtenerPlazasConPersonaDeBanda, obtenerAmplificadoresDeBanda } from "@/lib/stagePlotData";
 import { StagePlotEditor } from "@/components/stagePlot/StagePlotEditor";
 
 // Mismo patrón que /canciones/nueva: banda resuelta por ?banda=, con
@@ -28,7 +28,11 @@ export default async function EditarStagePlotPage({
   if (!banda) redirect("/stage-plot");
   if (banda.rol !== "administrador" && banda.rol !== "superadmin") redirect(`/stage-plot?banda=${banda.bandaId}`);
 
-  const [stagePlot, plazas] = await Promise.all([obtenerOCrearStagePlot(banda.bandaId), obtenerPlazasConPersonaDeBanda(banda.bandaId)]);
+  const [stagePlot, plazas, amplificadores] = await Promise.all([
+    obtenerOCrearStagePlot(banda.bandaId),
+    obtenerPlazasConPersonaDeBanda(banda.bandaId),
+    obtenerAmplificadoresDeBanda(banda.bandaId),
+  ]);
 
   return (
     <div className="min-h-screen box-border px-6 py-8 md:px-16 md:py-11" style={{ background: "oklch(0.965 0.012 82)", color: "oklch(0.24 0.02 55)" }}>
@@ -43,6 +47,7 @@ export default async function EditarStagePlotPage({
         stagePlotId={stagePlot.id}
         itemsIniciales={stagePlot.items}
         plazas={plazas}
+        amplificadores={amplificadores}
       />
     </div>
   );

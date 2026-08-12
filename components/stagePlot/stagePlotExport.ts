@@ -1,5 +1,5 @@
 import type { StagePlotItem } from "@/lib/stagePlotData";
-import { GLIFO_TIPO, GLIFO_INSTRUMENTO, FORMA_TIPO, COLOR_ESCENARIO, type FormaItem } from "@/lib/stagePlotCatalogo";
+import { GLIFO_TIPO, GLIFO_INSTRUMENTO, FORMA_TIPO, COLOR_ESCENARIO, type FormaItem, type TipoEscenario } from "@/lib/stagePlotCatalogo";
 import { MESES } from "@/lib/eventoUI";
 import { ahoraEnZonaApp } from "@/lib/zonaHoraria";
 
@@ -19,37 +19,112 @@ function glifoDe(item: StagePlotItem): string {
   return GLIFO_TIPO[item.tipo];
 }
 
+// Brief "Stage Plot — Entrega 2" §1/§2/§4: mismo criterio que
+// etiquetaVisible en StagePlotLienzo.tsx (no comparten código -- este
+// archivo arma un string SVG, el otro es DOM/React -- pero sí el mismo
+// catálogo y las mismas reglas por tipo, para que la imagen exportada se
+// vea igual que el lienzo interactivo).
 function etiquetaVisible(item: StagePlotItem): string | null {
-  if (item.tipo === "musico" || item.tipo === "mic") {
+  if (item.tipo === "musico" || item.tipo === "mic" || item.tipo === "teclado") {
     if (!item.nombrePersona || !item.instrumento) return null;
     return `${item.instrumento} · ${item.nombrePersona}`;
+  }
+  if (item.tipo === "pedalera") {
+    return item.nombrePersona ? `Pedalera · ${item.nombrePersona}` : "Pedalera";
+  }
+  if (item.tipo === "amplificador") {
+    if (!item.disenoNombre || !item.nombrePersona) return null;
+    return `${item.disenoNombre} · ${item.nombrePersona}`;
   }
   return item.etiqueta;
 }
 
-// Brief "Rediseño de Stage Plot — Entrega 1" §2: mismas 6 formas que el
+// §4: musico/mic/teclado/pedalera son ítems de una persona (color de
+// banda); amplificador usa los colores reales de marca del diseño
+// asignado; el resto usa su color neutro fijo de escenario.
+function colorDeItem(item: StagePlotItem, bandaColor: string): string {
+  if (item.tipo === "amplificador") return item.colorFondo ?? bandaColor;
+  if (item.tipo === "musico" || item.tipo === "mic" || item.tipo === "teclado" || item.tipo === "pedalera") return bandaColor;
+  return COLOR_ESCENARIO[item.tipo as TipoEscenario];
+}
+
+// §4: colorAcento como borde del rectángulo de amplificador en vez del
+// blanco genérico -- ambos colores de marca del diseño quedan visibles,
+// igual que en su panel de Seteos.
+function bordeDeItem(item: StagePlotItem): string {
+  if (item.tipo === "amplificador") return item.colorAcento ?? "white";
+  return "white";
+}
+
+// Brief §1/§3: desplazamiento del centro del badge de voz respecto al
+// centro de cada forma -- no hay un tamaño único (cada forma tiene su
+// propio ancho/alto en este archivo, ver formaSvg), así que el offset está
+// calibrado a mano por forma para que quede "pegado al frente" (borde
+// inferior derecho) igual que en StagePlotLienzo.
+const OFFSET_VOZ: Record<FormaItem, { dx: number; dy: number }> = {
+  circulo: { dx: 26, dy: 26 },
+  "circulo-chico": { dx: 17, dy: 17 },
+  rectangulo: { dx: 34, dy: 22 },
+  "rectangulo-punteado": { dx: 32, dy: 24 },
+  rombo: { dx: 17, dy: 17 },
+  triangulo: { dx: 24, dy: 18 },
+  pedalera: { dx: 27, dy: 16 },
+};
+
+function badgeVozSvg(forma: FormaItem, cx: number, cy: number, color: string): string {
+  const { dx, dy } = OFFSET_VOZ[forma];
+  return `<circle cx="${cx + dx}" cy="${cy + dy}" r="10" fill="${color}" stroke="white" stroke-width="2.5" />`;
+}
+
+// Brief "Rediseño de Stage Plot — Entrega 1" §2: mismas formas que el
 // lienzo interactivo (StagePlotLienzo), reimplementadas acá en SVG puro
 // centrado en (cx, cy) -- los dos no comparten código (uno es DOM/CSS, el
 // otro un string SVG armado a mano) pero sí el mismo catálogo de tamaños/
 // colores, para que el documento exportado se vea como una versión prolija
-// del lienzo, no como algo distinto.
-function formaSvg(forma: FormaItem, cx: number, cy: number, color: string, colorTexto: string, glifo: string): string {
+// del lienzo, no como algo distinto. Brief "Stage Plot — Entrega 2" §2:
+// "pedalera" dibuja una grilla de 6 casillas en vez de glifo, tantas
+// prendidas como `cantidadPedales` (ya acotado a 6 en stagePlotData).
+function formaSvg(forma: FormaItem, cx: number, cy: number, color: string, colorTexto: string, glifo: string, colorBorde: string, cantidadPedales: number): string {
   const texto = (x: number, y: number, size: number, fill: string) =>
     glifo ? `<text x="${x}" y="${y}" text-anchor="middle" font-family="ui-monospace, monospace" font-size="${size}" font-weight="700" fill="${fill}">${escaparXml(glifo)}</text>` : "";
 
   switch (forma) {
     case "circulo":
-      return `<circle cx="${cx}" cy="${cy}" r="30" fill="${color}" stroke="white" stroke-width="2.5" />${texto(cx, cy + 4, 12, colorTexto)}`;
+      return `<circle cx="${cx}" cy="${cy}" r="30" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" />${texto(cx, cy + 4, 12, colorTexto)}`;
     case "circulo-chico":
-      return `<circle cx="${cx}" cy="${cy}" r="20" fill="${color}" stroke="white" stroke-width="2.5" />${texto(cx, cy + 3, 9, colorTexto)}`;
+      return `<circle cx="${cx}" cy="${cy}" r="20" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" />${texto(cx, cy + 3, 9, colorTexto)}`;
     case "rectangulo":
-      return `<rect x="${cx - 38}" y="${cy - 26}" width="76" height="52" rx="8" fill="${color}" stroke="white" stroke-width="2.5" />${texto(cx, cy + 5, 12, colorTexto)}`;
+      return `<rect x="${cx - 38}" y="${cy - 26}" width="76" height="52" rx="8" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" />${texto(cx, cy + 5, 12, colorTexto)}`;
     case "rectangulo-punteado":
-      return `<rect x="${cx - 54}" y="${cy - 35}" width="108" height="70" rx="10" fill="${color}" fill-opacity="0.12" stroke="${color}" stroke-width="3" stroke-dasharray="9 7" />${texto(cx, cy + 5, 13, color)}`;
+      // Brief §5: "ligeramente más grande que DI/AC" -- antes 108x70, ahora
+      // la diferencia con DI/power es sutil (ver tamanoForma en
+      // StagePlotLienzo.tsx para el equivalente DOM).
+      return `<rect x="${cx - 35}" y="${cy - 27}" width="70" height="54" rx="9" fill="${color}" fill-opacity="0.12" stroke="${color}" stroke-width="3" stroke-dasharray="9 7" />${texto(cx, cy + 5, 12, color)}`;
     case "rombo":
-      return `<rect x="${cx - 18}" y="${cy - 18}" width="36" height="36" rx="4" fill="${color}" stroke="white" stroke-width="2.5" transform="rotate(45 ${cx} ${cy})" />${texto(cx, cy + 4, 10, colorTexto)}`;
+      return `<rect x="${cx - 18}" y="${cy - 18}" width="36" height="36" rx="4" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" transform="rotate(45 ${cx} ${cy})" />${texto(cx, cy + 4, 10, colorTexto)}`;
     case "triangulo":
-      return `<polygon points="${cx},${cy - 27} ${cx + 27},${cy + 22} ${cx - 27},${cy + 22}" fill="${color}" stroke="white" stroke-width="2.5" stroke-linejoin="round" />${texto(cx, cy + 16, 10, colorTexto)}`;
+      return `<polygon points="${cx},${cy - 27} ${cx + 27},${cy + 22} ${cx - 27},${cy + 22}" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" stroke-linejoin="round" />${texto(cx, cy + 16, 10, colorTexto)}`;
+    case "pedalera": {
+      const w = 62;
+      const h = 40;
+      const x0 = cx - w / 2;
+      const y0 = cy - h / 2;
+      const fondo = `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" rx="9" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" />`;
+      const columnas = 3;
+      const filas = 2;
+      const pad = 7;
+      const gap = 4;
+      const cellW = (w - pad * 2 - gap * (columnas - 1)) / columnas;
+      const cellH = (h - pad * 2 - gap * (filas - 1)) / filas;
+      let casillas = "";
+      for (let idx = 0; idx < columnas * filas; idx++) {
+        const prendida = idx < cantidadPedales;
+        const x = x0 + pad + (idx % columnas) * (cellW + gap);
+        const y = y0 + pad + Math.floor(idx / columnas) * (cellH + gap);
+        casillas += `<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" rx="2" fill="${prendida ? "white" : "none"}" fill-opacity="${prendida ? 0.95 : 1}" stroke="white" stroke-opacity="${prendida ? 1 : 0.4}" stroke-width="1.6" />`;
+      }
+      return fondo + casillas;
+    }
   }
 }
 
@@ -59,8 +134,9 @@ function formaSvg(forma: FormaItem, cx: number, cy: number, color: string, color
 // por percepción, sin el pipeline oklch completo) porque este archivo corre
 // también fuera de React y no vale la pena duplicar el parser de color
 // completo para un caso tan acotado: los únicos fondos acá son
-// COLOR_ESCENARIO (fijos, conocidos) y bandaColor (oklch o hex, ambos ya
-// vienen validados desde bandas.color).
+// COLOR_ESCENARIO (fijos, conocidos), bandaColor (oklch o hex, ambos ya
+// vienen validados desde bandas.color) y colorFondo de amplificador (hex,
+// ver fallback en stagePlotData.ts).
 function textoParaFondo(color: string): string {
   const hex = color.match(/^#([0-9a-f]{6})$/i);
   if (hex) {
@@ -85,21 +161,24 @@ function construirSvg(items: StagePlotItem[], bandaNombre: string, bandaColor: s
   const LIENZO_ALTO = ALTO - HEADER_ALTO - 60;
 
   const colorBanda = textoParaFondo(bandaColor);
+  const esDeBanda = (tipo: StagePlotItem["tipo"]) => tipo === "musico" || tipo === "mic" || tipo === "teclado" || tipo === "pedalera";
 
   const iconos = items
     .map((item) => {
       const cx = MARGEN + (item.posX / 100) * (ANCHO - MARGEN * 2);
       const cy = LIENZO_Y + (item.posY / 100) * LIENZO_ALTO;
       const forma = FORMA_TIPO[item.tipo];
-      const color = item.tipo === "musico" || item.tipo === "mic" ? bandaColor : COLOR_ESCENARIO[item.tipo];
-      const colorTexto = item.tipo === "musico" || item.tipo === "mic" ? colorBanda : textoParaFondo(color);
+      const color = colorDeItem(item, bandaColor);
+      const colorBorde = bordeDeItem(item);
+      const colorTexto = esDeBanda(item.tipo) ? colorBanda : textoParaFondo(color);
       const glifo = glifoDe(item);
       const etiqueta = etiquetaVisible(item);
+      const badgeVoz = item.tieneVoz ? badgeVozSvg(forma, cx, cy, color) : "";
       const etiquetaSvg = etiqueta
         ? `<rect x="${cx - 70}" y="${cy + 38}" width="140" height="26" rx="5" fill="white" fill-opacity="0.94" stroke="#d8d0c4" />
            <text x="${cx}" y="${cy + 55}" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" font-weight="600" fill="#4a453f">${escaparXml(etiqueta)}</text>`
         : "";
-      return `<g>${formaSvg(forma, cx, cy, color, colorTexto, glifo)}${etiquetaSvg}</g>`;
+      return `<g>${formaSvg(forma, cx, cy, color, colorTexto, glifo, colorBorde, item.cantidadPedales)}${badgeVoz}${etiquetaSvg}</g>`;
     })
     .join("\n");
 
