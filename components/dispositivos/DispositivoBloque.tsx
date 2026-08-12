@@ -33,11 +33,12 @@ const TEXTO_OSCURO = "oklch(0.24 0.02 55)";
 const TEXTO_GRIS = "oklch(0.5 0.02 55)";
 const ROJO = "oklch(0.55 0.15 25)";
 
-// Interruptor visual simple (pista + círculo que se desliza) — brief "Seteos
-// — selector único global..." §2: "un switch de habilitado/deshabilitado",
-// más literal que el ToggleChip (pill de texto) que ya usa el resto de la
-// app para booleanos.
-function Switch({ activo, onClick, disabled }: { activo: boolean; onClick: () => void; disabled?: boolean }) {
+// Foco/LED de habilitado (brief "DispositivoBloque — el switch de
+// habilitado se ve como foco/LED"): mismo lenguaje visual que ya usa
+// ControlDecorativo para `tipo='luz'` (círculo + glow al estar prendido),
+// en vez del switch tipo interruptor clásico — mismo comportamiento
+// clickeable de antes, solo cambia la forma.
+function LedHabilitado({ activo, onClick, disabled }: { activo: boolean; onClick: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
@@ -46,12 +47,14 @@ function Switch({ activo, onClick, disabled }: { activo: boolean; onClick: () =>
       aria-label={activo ? "Deshabilitar dispositivo" : "Habilitar dispositivo"}
       onClick={onClick}
       disabled={disabled}
-      className="relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50"
-      style={{ background: activo ? "oklch(0.64 0.15 34)" : "oklch(0.85 0.013 78)" }}
+      className="shrink-0 rounded-full p-2 disabled:opacity-50"
     >
       <span
-        className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all"
-        style={{ left: activo ? 22 : 2, boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }}
+        className="block h-3 w-3 rounded-full transition-all"
+        style={{
+          background: activo ? "oklch(0.72 0.19 25)" : "oklch(0.8 0.013 78)",
+          boxShadow: activo ? "0 0 6px 1px oklch(0.72 0.19 25 / 0.7)" : "none",
+        }}
       />
     </button>
   );
@@ -152,7 +155,7 @@ export function DispositivoBloque({
               {estadoGuardado === "guardando" ? "Guardando…" : estadoGuardado === "error" ? "Error" : "Guardado"}
             </span>
           )}
-          <Switch
+          <LedHabilitado
             activo={dispositivo.habilitado}
             disabled={pendingHabilitado}
             onClick={() => onHabilitadoChange(dispositivo.id, !dispositivo.habilitado)}
