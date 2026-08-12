@@ -81,7 +81,5 @@ export const GLIFO_INSTRUMENTO: Record<Instrumento, string> = {
   bateria: "BAT",
   acordeon: "ACO",
   teclado_piano: "TEC",
-  voz: "VOZ",
-  coro: "COR",
   otro: "OTR",
 };

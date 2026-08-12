@@ -173,10 +173,12 @@ export async function obtenerStagePlotPorToken(token: string): Promise<StagePlot
 
 // Brief §1: la paleta del editor -- una plaza entra acá solo si tiene una
 // persona asignada hoy (persona_plazas); sin persona no hay a quién
-// dibujar, así que ni aparece. `esVozOCoro` es lo que separa la sección
-// "Micrófono" (Brief: "solo aparecen las plazas de tipo voz o coro") del
-// resto en "Integrantes" (todas, incluida voz/coro -- una cantante también
-// es "músico" en el lienzo, además de llevar mic).
+// dibujar, así que ni aparece. `esVozOCoro` separaba la sección "Micrófono"
+// del resto en "Integrantes" -- desde el brief "Quitar voz/coro del
+// catálogo de instrumentos" ya no existen plazas de ese tipo (el constraint
+// de plazas.instrumento las rechaza), así que esto queda siempre en false y
+// "Micrófono" se ve vacía en StagePlotEditor hasta la Entrega 2 (que
+// resuelve mic vía miembros_banda.voz, no vía plazas).
 export type PlazaConPersona = {
   plazaId: string;
   instrumento: Instrumento;
@@ -218,7 +220,7 @@ export async function obtenerPlazasConPersonaDeBanda(bandaId: string): Promise<P
       etiqueta: p.etiqueta,
       usuarioId,
       nombrePersona: nombreDe(usuarioId),
-      esVozOCoro: p.instrumento === "voz" || p.instrumento === "coro",
+      esVozOCoro: false,
     });
   }
   return resultado;

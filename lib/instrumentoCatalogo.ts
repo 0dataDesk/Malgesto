@@ -2,6 +2,10 @@
 // "server-only": lo usa tanto el editor de bandas/integrantes (cliente) como
 // la data layer (servidor), y debe coincidir exactamente con el check
 // constraint de malgesto.plazas.instrumento.
+// Brief "Quitar voz/coro del catálogo de instrumentos" — voz/coro salieron
+// de acá porque plazas.instrumento ya no las acepta (CHECK constraint de un
+// brief anterior); "Voz" ahora vive aparte, como atributo cíclico de persona
+// (ver `Voz`/`actualizarVoz` en gestionData.ts), no como plaza de catálogo.
 export const INSTRUMENTOS = [
   "bajo",
   "guitarra_principal",
@@ -9,8 +13,6 @@ export const INSTRUMENTOS = [
   "bateria",
   "acordeon",
   "teclado_piano",
-  "voz",
-  "coro",
   "otro",
 ] as const;
 export type Instrumento = (typeof INSTRUMENTOS)[number];
@@ -22,11 +24,6 @@ export const ETIQUETA_INSTRUMENTO: Record<Instrumento, string> = {
   bateria: "Batería",
   acordeon: "Acordeón",
   teclado_piano: "Teclado/Piano",
-  // Brief "Rediseño de Gestión > Integrantes" §4: Voz y Coro son plazas
-  // independientes en base (ya lo eran) -- la etiqueta lo deja explícito
-  // para que no se lean como "la misma cosa" en el selector.
-  voz: "Voz principal",
-  coro: "Coro",
   otro: "Otro",
 };
 
