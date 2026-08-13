@@ -75,10 +75,16 @@ export function tieneEtiquetaEditable(tipo: TipoItem): boolean {
 // ítem sin depender solo del color. StagePlotLienzo (DOM) y
 // stagePlotExport.ts (SVG) leen esto mismo para no divergir. Brief "Stage
 // Plot — Entrega 2, ajustes visuales" §3-11: "rectangulo-plano" (amplificador,
-// más aplanado que el rectángulo genérico de teclado) y
-// "trapecio-invertido"/"trapecio-invertido-45" (Mix / Side Fill, corte
-// transversal de una cuña de monitor real) se suman como formas propias en
-// vez de reusar "rectangulo" -- ya no deben verse ni medir igual entre sí.
+// más aplanado que el rectángulo genérico de teclado) y "trapecio-invertido"
+// (Mix / Side Fill, corte transversal de una cuña de monitor real) se suman
+// como formas propias en vez de reusar "rectangulo" -- ya no deben verse ni
+// medir igual entre sí. Brief "paleta unificada, acordeones, orientaciones y
+// fondos falsos" §5/§6: Mix y Side Fill vuelven a compartir UNA sola forma
+// ("trapecio-invertido-45" se elimina) -- la orientación (Mix arriba/izq/der,
+// Side Fill L/R espejadas) ya no está fija en la forma, se resuelve en
+// tiempo de render a partir de `item.rotacion` (StagePlotLienzo/
+// stagePlotExport aplican `rotate(item.rotacion)` sobre esta misma forma
+// base "viendo hacia arriba").
 export type FormaItem =
   | "circulo"
   | "circulo-chico"
@@ -86,7 +92,6 @@ export type FormaItem =
   | "rectangulo-plano"
   | "rectangulo-punteado"
   | "trapecio-invertido"
-  | "trapecio-invertido-45"
   | "rombo"
   | "triangulo"
   | "pedalera";
@@ -105,8 +110,9 @@ export const FORMA_TIPO: Record<TipoItem, FormaItem> = {
   // Brief "ajustes visuales" §6: trapecio invertido (más ancho arriba,
   // angosto abajo) -- corte transversal de una cuña de monitor real.
   mix: "trapecio-invertido",
-  // Brief "ajustes visuales" §7: mismo trapecio que Mix, rotado ~45°.
-  side_fill: "trapecio-invertido-45",
+  // Brief "paleta unificada..." §5: misma forma base que Mix -- la
+  // orientación espejada L/R es un `rotacion` distinto, no una forma aparte.
+  side_fill: "trapecio-invertido",
   di: "rombo",
   power: "triangulo",
   // Brief §2 (Entrega 1): "para diferenciarlo visualmente del monitor -- es
@@ -167,6 +173,17 @@ export const COLOR_PEDALERA = "oklch(0.55 0 0)";
 // más claro, stagePlotExport un segundo círculo concéntrico.
 export const COLOR_MIC_FONDO = "#3a3a3a";
 export const COLOR_MIC_DETALLE = "#6e6e6e";
+
+// Brief "paleta unificada..." §7: casilla OCUPADA (con pedal) = gris,
+// casilla LIBRE = blanco -- antes era al revés (ocupada blanca, libre
+// transparente/apenas un contorno), lo que hacía que las libres "se
+// sintieran" grises (por transparencia sobre el fondo gris de la pedalera)
+// y las ocupadas blancas. Acá van fijos y con relleno sólido los dos
+// estados para que el contraste sea inequívoco contra el fondo gris medio
+// de la pedalera (COLOR_PEDALERA) -- un gris más oscuro para "ocupada" (se
+// nota como bloque lleno) y blanco puro para "libre".
+export const COLOR_PEDAL_OCUPADO = "#4a4a4a";
+export const COLOR_PEDAL_LIBRE = "#ffffff";
 
 export function esTipoItemValido(valor: string): valor is TipoItem {
   return (TIPOS_ITEM as readonly string[]).includes(valor);

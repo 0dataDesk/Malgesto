@@ -394,6 +394,16 @@ function clamp0a100(valor: number): number {
   return Math.min(100, Math.max(0, valor));
 }
 
+// Brief "Stage Plot — paleta unificada..." §6: normaliza a (-180, 180] --
+// mismo criterio que clamp0a100 de arriba, pero para un ángulo (que da la
+// vuelta en vez de topar en un extremo). Cubre tanto el valor inicial que
+// manda la paleta (0/±45/±90) como los ajustes libres que arma el botón de
+// rotar del panel de edición (suma/resta 45° sin límite de vueltas).
+function normalizarRotacion(valor: number): number {
+  const modulo = ((valor % 360) + 360) % 360;
+  return modulo > 180 ? modulo - 360 : modulo;
+}
+
 // Brief §1/§3 (Entrega 1) + §2/§4 (Entrega 2): musico/mic/teclado/pedalera
 // exigen plazaId, amplificador exige dispositivoId -- mismo candado que ya
 // imponen los CHECK de la migración de este brief, validado acá primero
@@ -401,6 +411,11 @@ function clamp0a100(valor: number): number {
 // El resto de los tipos son elementos de escenario propios, sin dueño -- si
 // por error llegara un plazaId/dispositivoId ahí, se ignora en vez de
 // guardarlo (igual que antes).
+// Brief "Stage Plot — paleta unificada..." §6: `rotacion` inicial -- la
+// paleta manda 0/±45/±90 según la variante elegida (Mix arriba/izq/der,
+// Side Fill L/R espejadas); el resto de los tipos siempre mandan 0 (default
+// de la columna, ver migración de Entrega 1). Editable después con
+// `actualizarRotacionItem`.
 export async function crearItem(
   bandaId: string,
   stagePlotId: string,
@@ -409,7 +424,8 @@ export async function crearItem(
   dispositivoId: string | null,
   etiqueta: string | null,
   posX: number,
-  posY: number
+  posY: number,
+  rotacion: number = 0
 ): Promise<StagePlotItem> {
   const necesitaPlaza = requierePlaza(tipo);
   const necesitaDispositivo = requiereDispositivo(tipo);
@@ -430,6 +446,7 @@ export async function crearItem(
       etiqueta: !necesitaPlaza && !necesitaDispositivo ? etiqueta?.trim() || null : null,
       pos_x: clamp0a100(posX),
       pos_y: clamp0a100(posY),
+      rotacion: normalizarRotacion(rotacion),
       orden: count ?? 0,
     })
     .select("id, stage_plot_id, tipo, plaza_id, dispositivo_id, etiqueta, pos_x, pos_y, rotacion, orden")
@@ -442,6 +459,15 @@ export async function crearItem(
 export async function moverItem(itemId: string, posX: number, posY: number): Promise<void> {
   const admin = supabaseMalgesto();
   const { error } = await admin.from("stage_plot_items").update({ pos_x: clamp0a100(posX), pos_y: clamp0a100(posY) }).eq("id", itemId);
+  if (error) throw new Error(error.message);
+}
+
+// Brief §6: rotación editable después de colocado -- el botón de rotar del
+// panel de edición (StagePlotEditor) suma/resta 45° sobre el valor actual;
+// acá solo normaliza y persiste, igual criterio que moverItem.
+export async function actualizarRotacionItem(itemId: string, rotacion: number): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin.from("stage_plot_items").update({ rotacion: normalizarRotacion(rotacion) }).eq("id", itemId);
   if (error) throw new Error(error.message);
 }
 

@@ -10,6 +10,8 @@ import {
   COLOR_PEDALERA,
   COLOR_MIC_FONDO,
   COLOR_MIC_DETALLE,
+  COLOR_PEDAL_OCUPADO,
+  COLOR_PEDAL_LIBRE,
   type TipoItem,
   type FormaItem,
   type TipoEscenario,
@@ -24,10 +26,21 @@ import { textoLegibleSobre } from "@/lib/colorContraste";
 // Entrega 2" §4: se suma `dispositivoId` para amplificador. Brief "ajustes
 // visuales" §7: `etiqueta` opcional -- las 2 variantes de Side Fill (L/R)
 // de la paleta la precargan ("L"/"R") al crear el ítem, editable después
-// igual que cualquier etiqueta de escenario.
-export type PayloadNuevoItem = { tipo: TipoItem; plazaId: string | null; dispositivoId: string | null; etiqueta?: string | null };
+// igual que cualquier etiqueta de escenario. Brief "paleta unificada..."
+// §6: `rotacion` opcional -- las 3 variantes de Mix (arriba/izq/der) y las
+// 2 de Side Fill (espejadas) la precargan (0/±45/±90).
+export type PayloadNuevoItem = {
+  tipo: TipoItem;
+  plazaId: string | null;
+  dispositivoId: string | null;
+  etiqueta?: string | null;
+  rotacion?: number;
+};
 
-function tamanoForma(forma: FormaItem): { w: number; h: number } {
+// Exportada: StagePlotEditor la usa para escalar el ícono de referencia
+// chico dentro de cada chip de la paleta (Brief "paleta unificada..." §3) a
+// un footprint uniforme, sin importar el tamaño real de cada forma.
+export function tamanoForma(forma: FormaItem): { w: number; h: number } {
   switch (forma) {
     case "circulo":
       return { w: 44, h: 44 };
@@ -45,13 +58,12 @@ function tamanoForma(forma: FormaItem): { w: number; h: number } {
     // una vez, había quedado más chico que DI/AC en vez de más grande).
     case "rectangulo-punteado":
       return { w: 104, h: 76 };
-    // Brief §6: mismo tamaño que tenía como "rectangulo" (Mix no se toca en
-    // tamaño, solo cambia de forma).
+    // Brief "ajustes visuales" §6 + brief "paleta unificada..." §5/§6:
+    // Mix y Side Fill comparten esta forma y ahora rotan dinámicamente
+    // (item.rotacion, hasta 90°) -- viewBox cuadrado para que ninguna
+    // rotación recorte las puntas de la figura (una caja no cuadrada sí se
+    // recortaría al rotar 90°).
     case "trapecio-invertido":
-      return { w: 56, h: 38 };
-    // Brief §7: mismo trapecio de Mix, rotado ~45° -- viewBox más ancho y
-    // cuadrado para que la rotación no recorte las puntas de la figura.
-    case "trapecio-invertido-45":
       return { w: 58, h: 58 };
     // Brief §3: mitad del tamaño anterior (38x38).
     case "rombo":
@@ -137,31 +149,19 @@ function IconoForma({
         </svg>
       );
     // Brief §6: corte transversal de una cuña de monitor real -- más ancho
-    // arriba, angosto abajo. El glifo queda siempre horizontal (no
-    // rotado), centrado en el medio de la figura.
+    // arriba, angosto abajo, "viendo hacia arriba" (rotacion=0). Brief
+    // "paleta unificada..." §5/§6: Mix y Side Fill comparten esta misma
+    // forma -- la orientación (Mix arriba/izq/der, Side Fill L/R espejadas)
+    // ya no está fija acá, la aplica IconoConVoz rotando este SVG entero
+    // según `item.rotacion`. El glifo se dibuja sin rotación propia adicional
+    // así que gira junto con la figura (a diferencia de "rombo", que lo deja
+    // fijo) -- tiene sentido acá porque el ángulo ES la información (evita
+    // que "MIX" quede ilegible en diagonal al mismo tiempo que la forma
+    // apunta a otro lado).
     case "trapecio-invertido":
       return (
         <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-          <polygon points={`4,3 ${w - 4},3 ${w * 0.72},${h - 3} ${w * 0.28},${h - 3}`} fill={color} stroke={colorBorde} strokeWidth="2" strokeLinejoin="round" />
-          <text x={w / 2} y={h / 2 + 4} textAnchor="middle" fontFamily="monospace" fontSize="10" fontWeight="700" fill={colorTexto}>
-            {glifo}
-          </text>
-        </svg>
-      );
-    // Brief §7: mismo trapecio de arriba, rotado ~45° -- el `transform`
-    // rota solo el polígono (mismo criterio que "rombo" con su rect), el
-    // texto se dibuja aparte para que quede siempre legible/horizontal.
-    case "trapecio-invertido-45":
-      return (
-        <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-          <polygon
-            points="9,11 49,11 41,47 17,47"
-            fill={color}
-            stroke={colorBorde}
-            strokeWidth="2"
-            strokeLinejoin="round"
-            transform={`rotate(45 ${w / 2} ${h / 2})`}
-          />
+          <polygon points="9,11 49,11 41,47 17,47" fill={color} stroke={colorBorde} strokeWidth="2" strokeLinejoin="round" />
           <text x={w / 2} y={h / 2 + 3} textAnchor="middle" fontFamily="monospace" fontSize="9" fontWeight="700" fill={colorTexto}>
             {glifo}
           </text>
@@ -192,6 +192,11 @@ function IconoForma({
       const gap = 1.5;
       const cellW = (w - pad * 2 - gap * (columnas - 1)) / columnas;
       const cellH = (h - pad * 2 - gap * (filas - 1)) / filas;
+      // Brief "paleta unificada..." §7: ocupada (con pedal) = gris, libre =
+      // blanco -- ambos con relleno sólido, para que el contraste contra el
+      // gris medio del cuerpo de la pedalera (COLOR_PEDALERA) sea siempre
+      // claro (antes "libre" era transparente, dejaba ver el gris del
+      // cuerpo, que terminaba leyéndose como "la libre es la gris").
       const casillas = Array.from({ length: columnas * filas }, (_, idx) => {
         const prendida = idx < cantidadPedales;
         const x = pad + (idx % columnas) * (cellW + gap);
@@ -204,10 +209,8 @@ function IconoForma({
             width={cellW}
             height={cellH}
             rx="1"
-            fill={prendida ? "white" : "none"}
-            fillOpacity={prendida ? 0.95 : 1}
+            fill={prendida ? COLOR_PEDAL_OCUPADO : COLOR_PEDAL_LIBRE}
             stroke="white"
-            strokeOpacity={prendida ? 1 : 0.4}
             strokeWidth="1"
           />
         );
@@ -227,7 +230,12 @@ function IconoForma({
 // `item.tieneVoz`. Brief "ajustes visuales" §11: pasa de la esquina
 // inferior derecha al centro del borde inferior de la figura, y de color
 // de banda a un color fijo "de micrófono real" (gris oscuro con un detalle
-// interior más claro), igual en toda la app sin importar la banda.
+// interior más claro), igual en toda la app sin importar la banda. Brief
+// "paleta unificada..." §6: `rotacion` (grados) gira solo la figura --el
+// badge de voz queda siempre upright/en su lugar, como hermano fuera del
+// wrapper rotado, no adentro-- así que nunca se ve afectado (en la
+// práctica tampoco importa: solo musico/teclado muestran voz, y esos nunca
+// rotan).
 export function IconoConVoz({
   forma,
   color,
@@ -235,6 +243,7 @@ export function IconoConVoz({
   colorBorde = "white",
   tieneVoz = false,
   cantidadPedales = 0,
+  rotacion = 0,
 }: {
   forma: FormaItem;
   color: string;
@@ -242,11 +251,14 @@ export function IconoConVoz({
   colorBorde?: string;
   tieneVoz?: boolean;
   cantidadPedales?: number;
+  rotacion?: number;
 }) {
   const { w, h } = tamanoForma(forma);
   return (
     <div className="relative" style={{ width: w, height: h }}>
-      <IconoForma forma={forma} color={color} glifo={glifo} colorBorde={colorBorde} cantidadPedales={cantidadPedales} />
+      <div style={{ width: w, height: h, transform: rotacion ? `rotate(${rotacion}deg)` : undefined }}>
+        <IconoForma forma={forma} color={color} glifo={glifo} colorBorde={colorBorde} cantidadPedales={cantidadPedales} />
+      </div>
       {tieneVoz && (
         <span
           className="absolute rounded-full"
@@ -391,6 +403,13 @@ export function StagePlotLienzo({
           const forma = FORMA_TIPO[item.tipo];
           const color = colorDeItem(item, bandaColor);
           const colorBorde = bordeDeItem(item);
+          // Brief "paleta unificada..." §4: el wrapper que aporta la sombra/
+          // anillo de selección solo debe verse redondo cuando la figura de
+          // adentro REALMENTE es un círculo (musico/mic) -- antes era
+          // `rounded-full` fijo para cualquier forma, así que un
+          // triángulo/rombo/rectángulo-punteado/trapecio quedaba con un óvalo
+          // de sombra de fondo compitiendo con su silueta real.
+          const formaEsCircular = forma === "circulo" || forma === "circulo-chico";
           return (
             <div
               key={item.id}
@@ -418,11 +437,21 @@ export function StagePlotLienzo({
                   disponible al seleccionar el ítem (panel "... seleccionado"
                   en StagePlotEditor). */}
               <div
-                className="rounded-full"
-                style={{ boxShadow: activo ? "0 0 0 3px oklch(0.99 0.01 82), 0 0 0 5px oklch(0.24 0.02 55)" : "0 4px 10px -4px rgba(0,0,0,0.4)" }}
+                style={{
+                  borderRadius: formaEsCircular ? "9999px" : "10px",
+                  boxShadow: activo ? "0 0 0 3px oklch(0.99 0.01 82), 0 0 0 5px oklch(0.24 0.02 55)" : "0 4px 10px -4px rgba(0,0,0,0.4)",
+                }}
                 title={ETIQUETA_TIPO[item.tipo]}
               >
-                <IconoConVoz forma={forma} color={color} glifo={glifoDe(item)} colorBorde={colorBorde} tieneVoz={item.tieneVoz} cantidadPedales={item.cantidadPedales} />
+                <IconoConVoz
+                  forma={forma}
+                  color={color}
+                  glifo={glifoDe(item)}
+                  colorBorde={colorBorde}
+                  tieneVoz={item.tieneVoz}
+                  cantidadPedales={item.cantidadPedales}
+                  rotacion={item.rotacion}
+                />
               </div>
             </div>
           );

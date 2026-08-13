@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requerirAccesoBloque } from "@/lib/malgestoAccess";
-import { crearItem, moverItem, actualizarEtiquetaItem, eliminarItem, obtenerTipoItem, type StagePlotItem } from "@/lib/stagePlotData";
+import { crearItem, moverItem, actualizarEtiquetaItem, actualizarRotacionItem, eliminarItem, obtenerTipoItem, type StagePlotItem } from "@/lib/stagePlotData";
 import { tieneEtiquetaEditable, type TipoItem } from "@/lib/stagePlotCatalogo";
 
 // Mismo criterio que Canciones (requerirAccesoBloque: bloque activo +
@@ -21,7 +21,9 @@ import { tieneEtiquetaEditable, type TipoItem } from "@/lib/stagePlotCatalogo";
 // variantes Side Fill L/R de la paleta -- precargan "L"/"R" al crear el
 // ítem (editable después igual que cualquier etiqueta de escenario).
 // crearItem ya ignora este valor para tipos con plaza/dispositivo, así que
-// no hace falta un guard extra acá.
+// no hace falta un guard extra acá. Brief "paleta unificada..." §6:
+// `rotacion` inicial -- las 3 variantes de Mix (0/±90) y las 2 de Side Fill
+// espejadas (±45) la mandan precargada; el resto de la paleta manda 0.
 export async function crearItemAction(
   bandaId: string,
   stagePlotId: string,
@@ -30,10 +32,11 @@ export async function crearItemAction(
   dispositivoId: string | null,
   etiqueta: string | null,
   posX: number,
-  posY: number
+  posY: number,
+  rotacion: number = 0
 ): Promise<StagePlotItem> {
   await requerirAccesoBloque(bandaId, "stage_plot");
-  const item = await crearItem(bandaId, stagePlotId, tipo, plazaId, dispositivoId, etiqueta, posX, posY);
+  const item = await crearItem(bandaId, stagePlotId, tipo, plazaId, dispositivoId, etiqueta, posX, posY, rotacion);
   revalidatePath("/stage-plot");
   return item;
 }
@@ -41,6 +44,16 @@ export async function crearItemAction(
 export async function moverItemAction(bandaId: string, itemId: string, posX: number, posY: number): Promise<void> {
   await requerirAccesoBloque(bandaId, "stage_plot");
   await moverItem(itemId, posX, posY);
+  revalidatePath("/stage-plot");
+}
+
+// Brief §6: "la rotación queda editable después de colocado" -- el panel de
+// edición (StagePlotEditor) ofrece un botón de rotar ±45° para mix/
+// side_fill, que llama acá igual que cualquier otro campo editable del
+// ítem seleccionado.
+export async function actualizarRotacionItemAction(bandaId: string, itemId: string, rotacion: number): Promise<void> {
+  await requerirAccesoBloque(bandaId, "stage_plot");
+  await actualizarRotacionItem(itemId, rotacion);
   revalidatePath("/stage-plot");
 }
 

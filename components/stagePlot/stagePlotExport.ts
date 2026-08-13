@@ -7,6 +7,8 @@ import {
   COLOR_PEDALERA,
   COLOR_MIC_FONDO,
   COLOR_MIC_DETALLE,
+  COLOR_PEDAL_OCUPADO,
+  COLOR_PEDAL_LIBRE,
   type FormaItem,
   type TipoEscenario,
 } from "@/lib/stagePlotCatalogo";
@@ -84,8 +86,7 @@ const OFFSET_VOZ: Record<FormaItem, { dx: number; dy: number }> = {
   rectangulo: { dx: 0, dy: 30 },
   "rectangulo-plano": { dx: 0, dy: 21 },
   "rectangulo-punteado": { dx: 0, dy: 56 },
-  "trapecio-invertido": { dx: 0, dy: 30 },
-  "trapecio-invertido-45": { dx: 0, dy: 43 },
+  "trapecio-invertido": { dx: 0, dy: 43 },
   rombo: { dx: 0, dy: 12 },
   triangulo: { dx: 0, dy: 17 },
   pedalera: { dx: 0, dy: 13 },
@@ -130,13 +131,15 @@ function formaSvg(forma: FormaItem, cx: number, cy: number, color: string, color
       // diámetro del círculo de músico (r=30, diámetro 60), ver tamanoForma
       // en StagePlotLienzo.tsx para el equivalente DOM.
       return `<rect x="${cx - 71}" y="${cy - 52}" width="142" height="104" rx="14" fill="${color}" fill-opacity="0.12" stroke="${color}" stroke-width="3" stroke-dasharray="9 7" />${texto(cx, cy + 5, 12, color)}`;
-    // Brief §6: corte transversal de una cuña de monitor real -- mismo
-    // tamaño que tenía como "rectangulo" (Mix no se toca en tamaño).
+    // Brief §6: corte transversal de una cuña de monitor real, "viendo
+    // hacia arriba" (rotacion=0). Brief "paleta unificada..." §5/§6: Mix y
+    // Side Fill comparten esta misma forma -- la orientación no está fija
+    // acá, el caller (construirSvg) envuelve el resultado en un `<g
+    // transform="rotate(...)">` según `item.rotacion`. El glifo va sin
+    // rotación propia adicional para que gire junto con la figura, mismo
+    // criterio que IconoForma en StagePlotLienzo.tsx.
     case "trapecio-invertido":
-      return `<polygon points="${cx - 33},${cy - 22} ${cx + 33},${cy - 22} ${cx + 16},${cy + 22} ${cx - 16},${cy + 22}" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" stroke-linejoin="round" />${texto(cx, cy + 5, 12, colorTexto)}`;
-    // Brief §7: mismo trapecio de arriba, rotado ~45°.
-    case "trapecio-invertido-45":
-      return `<polygon points="${cx - 27},${cy - 24} ${cx + 27},${cy - 24} ${cx + 16},${cy + 24} ${cx - 16},${cy + 24}" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" stroke-linejoin="round" transform="rotate(45 ${cx} ${cy})" />${texto(cx, cy + 4, 11, colorTexto)}`;
+      return `<polygon points="${cx - 27},${cy - 24} ${cx + 27},${cy - 24} ${cx + 16},${cy + 24} ${cx - 16},${cy + 24}" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" stroke-linejoin="round" />${texto(cx, cy + 4, 11, colorTexto)}`;
     // Brief §3: mitad del tamaño anterior (rect 36x36 pre-rotación).
     case "rombo":
       return `<rect x="${cx - 9}" y="${cy - 9}" width="18" height="18" rx="2" fill="${color}" stroke="${colorBorde}" stroke-width="1.5" transform="rotate(45 ${cx} ${cy})" />${texto(cx, cy + 3, 6, colorTexto)}`;
@@ -161,7 +164,10 @@ function formaSvg(forma: FormaItem, cx: number, cy: number, color: string, color
         const prendida = idx < cantidadPedales;
         const x = x0 + pad + (idx % columnas) * (cellW + gap);
         const y = y0 + pad + Math.floor(idx / columnas) * (cellH + gap);
-        casillas += `<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" rx="1" fill="${prendida ? "white" : "none"}" fill-opacity="${prendida ? 0.95 : 1}" stroke="white" stroke-opacity="${prendida ? 1 : 0.4}" stroke-width="1" />`;
+        // Brief "paleta unificada..." §7: ocupada = gris, libre = blanco,
+        // ambas con relleno sólido -- mismo criterio que IconoForma en
+        // StagePlotLienzo.tsx.
+        casillas += `<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" rx="1" fill="${prendida ? COLOR_PEDAL_OCUPADO : COLOR_PEDAL_LIBRE}" stroke="white" stroke-width="1" />`;
       }
       return fondo + casillas;
     }
@@ -221,7 +227,13 @@ function construirSvg(items: StagePlotItem[], bandaNombre: string, bandaColor: s
         ? `<rect x="${cx - 70}" y="${cy + 38}" width="140" height="26" rx="5" fill="white" fill-opacity="0.94" stroke="#d8d0c4" />
            <text x="${cx}" y="${cy + 55}" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" font-weight="600" fill="#4a453f">${escaparXml(etiqueta)}</text>`
         : "";
-      return `<g>${formaSvg(forma, cx, cy, color, colorTexto, glifo, colorBorde, item.cantidadPedales)}${badgeVoz}${etiquetaSvg}</g>`;
+      // Brief "paleta unificada..." §5/§6: la orientación (Mix arriba/izq/
+      // der, Side Fill L/R espejadas) es `item.rotacion` -- envuelve solo la
+      // figura (no el badge de voz ni la etiqueta) en su propio `<g>`
+      // rotado, mismo criterio que IconoConVoz en StagePlotLienzo.tsx.
+      const figura = formaSvg(forma, cx, cy, color, colorTexto, glifo, colorBorde, item.cantidadPedales);
+      const figuraRotada = item.rotacion ? `<g transform="rotate(${item.rotacion} ${cx} ${cy})">${figura}</g>` : figura;
+      return `<g>${figuraRotada}${badgeVoz}${etiquetaSvg}</g>`;
     })
     .join("\n");
 
