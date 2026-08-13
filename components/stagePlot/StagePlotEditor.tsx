@@ -8,6 +8,7 @@ import {
   GLIFO_INSTRUMENTO,
   FORMA_TIPO,
   COLOR_ESCENARIO,
+  COLOR_PEDALERA,
   tieneEtiquetaEditable,
   type TipoEscenario,
 } from "@/lib/stagePlotCatalogo";
@@ -34,6 +35,11 @@ const PLACEHOLDER_ETIQUETA: Record<TipoEscenario, string> = {
 // ícono de la píldora ya no es un círculo fijo -- reusa IconoConVoz (mismo
 // componente que dibuja los ítems en el lienzo) para que la paleta se vea
 // idéntica a lo que se va a soltar, badges de voz/pedalera incluidos.
+// Brief "Stage Plot — ajustes visuales" §1: una vez que un integrante o
+// amplificador ya está en el lienzo, su tarjeta se atenúa y deja de poder
+// arrastrarse de nuevo -- no tiene sentido repetir a la misma persona o el
+// mismo amplificador dos veces (libera espacio visual también). Escenario
+// nunca pasa `disabled` (ver PaletaIconos): esos ítems sí se repiten.
 function ChipArrastrable({
   payload,
   forma,
@@ -44,6 +50,7 @@ function ChipArrastrable({
   cantidadPedales,
   titulo,
   subtitulo,
+  disabled = false,
 }: {
   payload: PayloadNuevoItem;
   forma: Parameters<typeof IconoConVoz>[0]["forma"];
@@ -54,16 +61,27 @@ function ChipArrastrable({
   cantidadPedales?: number;
   titulo: string;
   subtitulo?: string;
+  disabled?: boolean;
 }) {
   return (
     <div
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData("text/stage-plot-nuevo", JSON.stringify(payload));
-        e.dataTransfer.effectAllowed = "copy";
+      draggable={!disabled}
+      onDragStart={
+        disabled
+          ? undefined
+          : (e) => {
+              e.dataTransfer.setData("text/stage-plot-nuevo", JSON.stringify(payload));
+              e.dataTransfer.effectAllowed = "copy";
+            }
+      }
+      className="flex items-center gap-2 rounded-full py-1.5 pl-2 pr-3"
+      style={{
+        background: "oklch(0.99 0.008 82)",
+        border: "1px solid oklch(0.86 0.016 78)",
+        opacity: disabled ? 0.42 : 1,
+        cursor: disabled ? "default" : "grab",
+        filter: disabled ? "grayscale(0.4)" : undefined,
       }}
-      className="flex cursor-grab items-center gap-2 rounded-full py-1.5 pl-2 pr-3"
-      style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.86 0.016 78)" }}
     >
       <IconoConVoz forma={forma} color={color} glifo={glifo} colorBorde={colorBorde} tieneVoz={tieneVoz} cantidadPedales={cantidadPedales} />
       <div className="leading-tight">
@@ -83,7 +101,12 @@ function ChipArrastrable({
   );
 }
 
-const TIPOS_ESCENARIO: TipoEscenario[] = ["mix", "side_fill", "di", "power", "riser"];
+// Brief "ajustes visuales" §7: Side Fill ofrece 2 variantes en la paleta
+// (L/R), cada una crea el mismo tipo="side_fill" pero con la etiqueta ya
+// precargada -- así que se separa del resto de Escenario (que sigue siendo
+// un chip genérico por tipo).
+const TIPOS_ESCENARIO_SIMPLES: Exclude<TipoEscenario, "side_fill">[] = ["mix", "di", "power", "riser"];
+const LADOS_SIDE_FILL = ["L", "R"] as const;
 
 // Brief "Stage Plot — Entrega 2" §1: paleta generada desde datos reales de
 // la banda -- "Integrantes" (toda plaza con persona asignada, una sola
@@ -92,8 +115,25 @@ const TIPOS_ESCENARIO: TipoEscenario[] = ["mix", "side_fill", "di", "power", "ri
 // (un ítem por amplificador realmente asignado, §4) y "Escenario"
 // (genéricos, siempre iguales, sin plaza/dispositivo). "Micrófono" como
 // sección aparte queda obsoleta (Entrega 1) -- la voz ahora es un atributo
-// visual automático del propio ícono, ver IconoConVoz.
-function PaletaIconos({ plazas, amplificadores, bandaColor }: { plazas: PlazaConPersona[]; amplificadores: AmplificadorAsignado[]; bandaColor: string }) {
+// visual automático del propio ícono, ver IconoConVoz. Brief "ajustes
+// visuales" §1: `items` (lo que ya está en el lienzo) determina qué
+// tarjetas de Integrantes/Seteo se deshabilitan -- Escenario nunca se
+// deshabilita, se repite libremente.
+function PaletaIconos({
+  plazas,
+  amplificadores,
+  bandaColor,
+  items,
+}: {
+  plazas: PlazaConPersona[];
+  amplificadores: AmplificadorAsignado[];
+  bandaColor: string;
+  items: StagePlotItem[];
+}) {
+  const plazasIntegranteUsadas = new Set(items.filter((i) => i.tipo === "musico" || i.tipo === "teclado").map((i) => i.plazaId));
+  const plazasPedaleraUsadas = new Set(items.filter((i) => i.tipo === "pedalera").map((i) => i.plazaId));
+  const dispositivosUsados = new Set(items.filter((i) => i.tipo === "amplificador").map((i) => i.dispositivoId));
+
   return (
     <div className="flex flex-col gap-3">
       <div>
@@ -121,16 +161,22 @@ function PaletaIconos({ plazas, amplificadores, bandaColor }: { plazas: PlazaCon
                     tieneVoz={p.tieneVoz}
                     titulo={etiquetaPlaza(p.instrumento, p.etiqueta)}
                     subtitulo={p.nombrePersona}
+                    disabled={plazasIntegranteUsadas.has(p.plazaId)}
                   />
                   {!esTeclado && p.cantidadPedales > 0 && (
                     <ChipArrastrable
                       payload={{ tipo: "pedalera", plazaId: p.plazaId, dispositivoId: null }}
                       forma="pedalera"
-                      color={bandaColor}
+                      color={COLOR_PEDALERA}
                       glifo=""
                       cantidadPedales={p.cantidadPedales}
                       titulo="+ Pedalera"
-                      subtitulo={`${Math.min(p.cantidadPedales, 6)} pedal${p.cantidadPedales === 1 ? "" : "es"}`}
+                      // Brief §12: mismo patrón visual que instrumento/
+                      // amplificador -- nombre del recurso arriba, dueño
+                      // abajo. Antes iba la cantidad de pedales acá; esa
+                      // info ya se ve en la grilla del ícono mismo.
+                      subtitulo={p.nombrePersona}
+                      disabled={plazasPedaleraUsadas.has(p.plazaId)}
                     />
                   )}
                 </div>
@@ -150,12 +196,13 @@ function PaletaIconos({ plazas, amplificadores, bandaColor }: { plazas: PlazaCon
               <ChipArrastrable
                 key={a.dispositivoId}
                 payload={{ tipo: "amplificador", plazaId: null, dispositivoId: a.dispositivoId }}
-                forma="rectangulo"
+                forma="rectangulo-plano"
                 color={a.colorFondo}
                 colorBorde={a.colorAcento}
                 glifo={GLIFO_TIPO.amplificador}
                 titulo={a.disenoNombre}
                 subtitulo={a.nombrePersona}
+                disabled={dispositivosUsados.has(a.dispositivoId)}
               />
             ))}
           </div>
@@ -167,7 +214,7 @@ function PaletaIconos({ plazas, amplificadores, bandaColor }: { plazas: PlazaCon
           Escenario
         </span>
         <div className="flex flex-wrap gap-2">
-          {TIPOS_ESCENARIO.map((tipo) => (
+          {TIPOS_ESCENARIO_SIMPLES.map((tipo) => (
             <ChipArrastrable
               key={tipo}
               payload={{ tipo, plazaId: null, dispositivoId: null }}
@@ -175,6 +222,16 @@ function PaletaIconos({ plazas, amplificadores, bandaColor }: { plazas: PlazaCon
               color={COLOR_ESCENARIO[tipo]}
               glifo={GLIFO_TIPO[tipo]}
               titulo={ETIQUETA_TIPO[tipo]}
+            />
+          ))}
+          {LADOS_SIDE_FILL.map((lado) => (
+            <ChipArrastrable
+              key={`side_fill_${lado}`}
+              payload={{ tipo: "side_fill", plazaId: null, dispositivoId: null, etiqueta: lado }}
+              forma={FORMA_TIPO.side_fill}
+              color={COLOR_ESCENARIO.side_fill}
+              glifo={GLIFO_TIPO.side_fill}
+              titulo={`${ETIQUETA_TIPO.side_fill} ${lado}`}
             />
           ))}
         </div>
@@ -221,11 +278,11 @@ export function StagePlotEditor({
     setEtiquetaDraft(items.find((i) => i.id === itemId)?.etiqueta ?? "");
   };
 
-  const soltarNuevo = ({ tipo, plazaId, dispositivoId }: PayloadNuevoItem, posX: number, posY: number) => {
+  const soltarNuevo = ({ tipo, plazaId, dispositivoId, etiqueta }: PayloadNuevoItem, posX: number, posY: number) => {
     setError(null);
     startTransition(async () => {
       try {
-        const item = await crearItemAction(bandaId, stagePlotId, tipo, plazaId, dispositivoId, posX, posY);
+        const item = await crearItemAction(bandaId, stagePlotId, tipo, plazaId, dispositivoId, etiqueta ?? null, posX, posY);
         setItems((prev) => [...prev, item]);
         seleccionar(item.id);
       } catch (e) {
@@ -286,7 +343,7 @@ export function StagePlotEditor({
           Arrastrá un ícono de la paleta al lienzo para colocarlo. Ya puesto, se puede volver a arrastrar para reposicionarlo, o tocarlo para
           editarle la etiqueta o eliminarlo.
         </p>
-        <PaletaIconos plazas={plazas} amplificadores={amplificadores} bandaColor={bandaColor} />
+        <PaletaIconos plazas={plazas} amplificadores={amplificadores} bandaColor={bandaColor} items={items} />
       </div>
 
       <StagePlotLienzo

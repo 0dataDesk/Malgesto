@@ -1,7 +1,19 @@
 "use client";
 
 import type { StagePlotItem } from "@/lib/stagePlotData";
-import { ETIQUETA_TIPO, GLIFO_TIPO, GLIFO_INSTRUMENTO, FORMA_TIPO, COLOR_ESCENARIO, type TipoItem, type FormaItem, type TipoEscenario } from "@/lib/stagePlotCatalogo";
+import {
+  ETIQUETA_TIPO,
+  GLIFO_TIPO,
+  GLIFO_INSTRUMENTO,
+  FORMA_TIPO,
+  COLOR_ESCENARIO,
+  COLOR_PEDALERA,
+  COLOR_MIC_FONDO,
+  COLOR_MIC_DETALLE,
+  type TipoItem,
+  type FormaItem,
+  type TipoEscenario,
+} from "@/lib/stagePlotCatalogo";
 import { colorConAlpha } from "@/lib/eventoUI";
 import { textoLegibleSobre } from "@/lib/colorContraste";
 
@@ -9,8 +21,11 @@ import { textoLegibleSobre } from "@/lib/colorContraste";
 // ítem nuevo desde la paleta -- antes solo era el tipo (texto plano en
 // dataTransfer), ahora también la plaza/dispositivo cuando aplica, así que
 // el payload es JSON en vez de un string suelto. Brief "Stage Plot —
-// Entrega 2" §4: se suma `dispositivoId` para amplificador.
-export type PayloadNuevoItem = { tipo: TipoItem; plazaId: string | null; dispositivoId: string | null };
+// Entrega 2" §4: se suma `dispositivoId` para amplificador. Brief "ajustes
+// visuales" §7: `etiqueta` opcional -- las 2 variantes de Side Fill (L/R)
+// de la paleta la precargan ("L"/"R") al crear el ítem, editable después
+// igual que cualquier etiqueta de escenario.
+export type PayloadNuevoItem = { tipo: TipoItem; plazaId: string | null; dispositivoId: string | null; etiqueta?: string | null };
 
 function tamanoForma(forma: FormaItem): { w: number; h: number } {
   switch (forma) {
@@ -20,18 +35,33 @@ function tamanoForma(forma: FormaItem): { w: number; h: number } {
       return { w: 30, h: 30 };
     case "rectangulo":
       return { w: 56, h: 38 };
-    // Brief "Stage Plot — Entrega 2" §5: "ligeramente más grande que
-    // DI/AC" -- antes era notoriamente más grande (80x52), ahora la
-    // diferencia es sutil.
+    // Brief "ajustes visuales" §10: menos alto que el rectángulo genérico
+    // de teclado -- amplificador real es más aplanado/horizontal.
+    case "rectangulo-plano":
+      return { w: 60, h: 24 };
+    // Brief "ajustes visuales" §8: notoriamente grande -- referencia
+    // concreta de 2 a 2.5x el diámetro del círculo de músico (44), para que
+    // se lea como "acá va el espacio de la batería" (antes, corregido mal
+    // una vez, había quedado más chico que DI/AC en vez de más grande).
     case "rectangulo-punteado":
-      return { w: 52, h: 40 };
+      return { w: 104, h: 76 };
+    // Brief §6: mismo tamaño que tenía como "rectangulo" (Mix no se toca en
+    // tamaño, solo cambia de forma).
+    case "trapecio-invertido":
+      return { w: 56, h: 38 };
+    // Brief §7: mismo trapecio de Mix, rotado ~45° -- viewBox más ancho y
+    // cuadrado para que la rotación no recorte las puntas de la figura.
+    case "trapecio-invertido-45":
+      return { w: 58, h: 58 };
+    // Brief §3: mitad del tamaño anterior (38x38).
     case "rombo":
-      return { w: 38, h: 38 };
+      return { w: 19, h: 19 };
+    // Brief §4: mitad del tamaño anterior (40x38).
     case "triangulo":
-      return { w: 40, h: 38 };
-    // §2/§5: "mismo tamaño que DI/AC".
+      return { w: 20, h: 19 };
+    // Brief §5: mitad del tamaño anterior (46x30).
     case "pedalera":
-      return { w: 46, h: 30 };
+      return { w: 23, h: 15 };
   }
 }
 
@@ -85,6 +115,18 @@ function IconoForma({
           </text>
         </svg>
       );
+    // Brief "ajustes visuales" §10: mismo dibujo que "rectangulo" pero con
+    // su propio tamaño (más aplanado, ver tamanoForma) -- por eso texto más
+    // chico, si no el glifo se ve apretado en un rectángulo bajo.
+    case "rectangulo-plano":
+      return (
+        <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+          <rect x="1" y="1" width={w - 2} height={h - 2} rx="5" fill={color} stroke={colorBorde} strokeWidth="2" />
+          <text x={w / 2} y={h / 2 + 3} textAnchor="middle" fontFamily="monospace" fontSize="8" fontWeight="700" fill={colorTexto}>
+            {glifo}
+          </text>
+        </svg>
+      );
     case "rectangulo-punteado":
       return (
         <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
@@ -94,11 +136,42 @@ function IconoForma({
           </text>
         </svg>
       );
+    // Brief §6: corte transversal de una cuña de monitor real -- más ancho
+    // arriba, angosto abajo. El glifo queda siempre horizontal (no
+    // rotado), centrado en el medio de la figura.
+    case "trapecio-invertido":
+      return (
+        <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+          <polygon points={`4,3 ${w - 4},3 ${w * 0.72},${h - 3} ${w * 0.28},${h - 3}`} fill={color} stroke={colorBorde} strokeWidth="2" strokeLinejoin="round" />
+          <text x={w / 2} y={h / 2 + 4} textAnchor="middle" fontFamily="monospace" fontSize="10" fontWeight="700" fill={colorTexto}>
+            {glifo}
+          </text>
+        </svg>
+      );
+    // Brief §7: mismo trapecio de arriba, rotado ~45° -- el `transform`
+    // rota solo el polígono (mismo criterio que "rombo" con su rect), el
+    // texto se dibuja aparte para que quede siempre legible/horizontal.
+    case "trapecio-invertido-45":
+      return (
+        <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+          <polygon
+            points="9,11 49,11 41,47 17,47"
+            fill={color}
+            stroke={colorBorde}
+            strokeWidth="2"
+            strokeLinejoin="round"
+            transform={`rotate(45 ${w / 2} ${h / 2})`}
+          />
+          <text x={w / 2} y={h / 2 + 3} textAnchor="middle" fontFamily="monospace" fontSize="9" fontWeight="700" fill={colorTexto}>
+            {glifo}
+          </text>
+        </svg>
+      );
     case "rombo":
       return (
         <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-          <rect x="6" y="6" width={w - 12} height={h - 12} rx="3" fill={color} stroke="white" strokeWidth="2" transform={`rotate(45 ${w / 2} ${h / 2})`} />
-          <text x={w / 2} y={h / 2 + 4} textAnchor="middle" fontFamily="monospace" fontSize="8" fontWeight="700" fill={colorTexto}>
+          <rect x="3" y="3" width={w - 6} height={h - 6} rx="2" fill={color} stroke="white" strokeWidth="1.5" transform={`rotate(45 ${w / 2} ${h / 2})`} />
+          <text x={w / 2} y={h / 2 + 3} textAnchor="middle" fontFamily="monospace" fontSize="6" fontWeight="700" fill={colorTexto}>
             {glifo}
           </text>
         </svg>
@@ -106,8 +179,8 @@ function IconoForma({
     case "triangulo":
       return (
         <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-          <polygon points={`${w / 2},3 ${w - 3},${h - 4} 3,${h - 4}`} fill={color} stroke="white" strokeWidth="2" strokeLinejoin="round" />
-          <text x={w / 2} y={h - 8} textAnchor="middle" fontFamily="monospace" fontSize="8" fontWeight="700" fill={colorTexto}>
+          <polygon points={`${w / 2},1.5 ${w - 1.5},${h - 2} 1.5,${h - 2}`} fill={color} stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+          <text x={w / 2} y={h - 4} textAnchor="middle" fontFamily="monospace" fontSize="6" fontWeight="700" fill={colorTexto}>
             {glifo}
           </text>
         </svg>
@@ -115,8 +188,8 @@ function IconoForma({
     case "pedalera": {
       const columnas = 3;
       const filas = 2;
-      const pad = 5;
-      const gap = 3;
+      const pad = 2;
+      const gap = 1.5;
       const cellW = (w - pad * 2 - gap * (columnas - 1)) / columnas;
       const cellH = (h - pad * 2 - gap * (filas - 1)) / filas;
       const casillas = Array.from({ length: columnas * filas }, (_, idx) => {
@@ -130,18 +203,18 @@ function IconoForma({
             y={y}
             width={cellW}
             height={cellH}
-            rx="1.5"
+            rx="1"
             fill={prendida ? "white" : "none"}
             fillOpacity={prendida ? 0.95 : 1}
             stroke="white"
             strokeOpacity={prendida ? 1 : 0.4}
-            strokeWidth="1.2"
+            strokeWidth="1"
           />
         );
       });
       return (
         <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-          <rect x="1" y="1" width={w - 2} height={h - 2} rx="6" fill={color} stroke="white" strokeWidth="2" />
+          <rect x="1" y="1" width={w - 2} height={h - 2} rx="3" fill={color} stroke="white" strokeWidth="1.5" />
           {casillas}
         </svg>
       );
@@ -150,10 +223,11 @@ function IconoForma({
 }
 
 // Brief "Stage Plot — Entrega 2" §1/§3: el indicador de voz ya no es un
-// ítem "mic" aparte para arrastrar -- es un círculo chico pegado al frente
-// (borde inferior derecho) del ícono principal, automático según
-// `item.tieneVoz`. Mismo lenguaje visual que el "mic" de Entrega 1 (círculo
-// chico, color de banda), ahora resuelto acá en vez de en un ítem propio.
+// ítem "mic" aparte para arrastrar -- es un círculo chico automático según
+// `item.tieneVoz`. Brief "ajustes visuales" §11: pasa de la esquina
+// inferior derecha al centro del borde inferior de la figura, y de color
+// de banda a un color fijo "de micrófono real" (gris oscuro con un detalle
+// interior más claro), igual en toda la app sin importar la banda.
 export function IconoConVoz({
   forma,
   color,
@@ -176,8 +250,22 @@ export function IconoConVoz({
       {tieneVoz && (
         <span
           className="absolute rounded-full"
-          style={{ width: 15, height: 15, right: -4, bottom: -4, background: color, border: "2px solid white", boxShadow: "0 1px 3px rgba(0,0,0,0.35)" }}
-        />
+          style={{
+            width: 15,
+            height: 15,
+            left: "50%",
+            bottom: -6,
+            transform: "translateX(-50%)",
+            background: COLOR_MIC_FONDO,
+            border: "2px solid white",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+          }}
+        >
+          <span
+            className="absolute rounded-full"
+            style={{ width: 5, height: 5, left: "50%", top: 2, transform: "translateX(-50%)", background: COLOR_MIC_DETALLE }}
+          />
+        </span>
       )}
     </div>
   );
@@ -191,13 +279,16 @@ function glifoDe(item: StagePlotItem): string {
 }
 
 // Brief "Stage Plot — Entrega 2" §4: color por tipo de dueño -- ítems de
-// una persona (musico/mic/teclado/pedalera) usan el color de la banda,
-// amplificador usa los colores reales de marca del diseño asignado (nunca
-// un color genérico de la app), el resto usa su color neutro fijo de
-// escenario.
+// una persona (musico/mic/teclado) usan el color de la banda, amplificador
+// usa los colores reales de marca del diseño asignado (nunca un color
+// genérico de la app), el resto usa su color neutro fijo de escenario.
+// Brief "ajustes visuales" §5: pedalera sale de este grupo -- es equipo
+// genérico, no identidad de integrante, así que pasa a su gris fijo
+// (COLOR_PEDALERA) en vez de bandaColor.
 function colorDeItem(item: StagePlotItem, bandaColor: string): string {
   if (item.tipo === "amplificador") return item.colorFondo ?? bandaColor;
-  if (item.tipo === "musico" || item.tipo === "mic" || item.tipo === "teclado" || item.tipo === "pedalera") return bandaColor;
+  if (item.tipo === "pedalera") return COLOR_PEDALERA;
+  if (item.tipo === "musico" || item.tipo === "mic" || item.tipo === "teclado") return bandaColor;
   return COLOR_ESCENARIO[item.tipo as TipoEscenario];
 }
 
@@ -209,21 +300,6 @@ function colorDeItem(item: StagePlotItem, bandaColor: string): string {
 function bordeDeItem(item: StagePlotItem): string {
   if (item.tipo === "amplificador") return item.colorAcento ?? "white";
   return "white";
-}
-
-function etiquetaVisible(item: StagePlotItem): string | null {
-  if (item.tipo === "musico" || item.tipo === "mic" || item.tipo === "teclado") {
-    if (!item.nombrePersona || !item.instrumento) return null;
-    return `${item.instrumento} · ${item.nombrePersona}`;
-  }
-  if (item.tipo === "pedalera") {
-    return item.nombrePersona ? `Pedalera · ${item.nombrePersona}` : "Pedalera";
-  }
-  if (item.tipo === "amplificador") {
-    if (!item.disenoNombre || !item.nombrePersona) return null;
-    return `${item.disenoNombre} · ${item.nombrePersona}`;
-  }
-  return item.etiqueta;
 }
 
 // Brief "Stage Plot — Entrega 2" §6: guías puramente visuales, sin
@@ -315,7 +391,6 @@ export function StagePlotLienzo({
           const forma = FORMA_TIPO[item.tipo];
           const color = colorDeItem(item, bandaColor);
           const colorBorde = bordeDeItem(item);
-          const etiqueta = etiquetaVisible(item);
           return (
             <div
               key={item.id}
@@ -329,7 +404,7 @@ export function StagePlotLienzo({
                   : undefined
               }
               onClick={interactivo ? () => onSeleccionarItem?.(item.id) : undefined}
-              className="absolute flex flex-col items-center"
+              className="absolute"
               style={{
                 left: `${item.posX}%`,
                 top: `${item.posY}%`,
@@ -337,6 +412,11 @@ export function StagePlotLienzo({
                 cursor: interactivo ? "grab" : "default",
               }}
             >
+              {/* Brief "ajustes visuales" §2: sin cajita de nombre/instrumento
+                  debajo -- el badge de 3 letras del ícono alcanza para
+                  identificar de un vistazo; el nombre completo sigue
+                  disponible al seleccionar el ítem (panel "... seleccionado"
+                  en StagePlotEditor). */}
               <div
                 className="rounded-full"
                 style={{ boxShadow: activo ? "0 0 0 3px oklch(0.99 0.01 82), 0 0 0 5px oklch(0.24 0.02 55)" : "0 4px 10px -4px rgba(0,0,0,0.4)" }}
@@ -344,14 +424,6 @@ export function StagePlotLienzo({
               >
                 <IconoConVoz forma={forma} color={color} glifo={glifoDe(item)} colorBorde={colorBorde} tieneVoz={item.tieneVoz} cantidadPedales={item.cantidadPedales} />
               </div>
-              {etiqueta && (
-                <span
-                  className="mt-1 max-w-[110px] truncate rounded px-1.5 py-0.5 text-center font-mono text-[9px] font-semibold"
-                  style={{ background: "oklch(0.99 0.008 82 / 0.92)", color: "oklch(0.3 0.02 55)", border: "1px solid oklch(0.86 0.016 78)" }}
-                >
-                  {etiqueta}
-                </span>
-              )}
             </div>
           );
         })}

@@ -17,17 +17,23 @@ import { tieneEtiquetaEditable, type TipoItem } from "@/lib/stagePlotCatalogo";
 // amplificador necesita un dispositivo real, el resto no lleva ninguno
 // (crearItem valida esto server-side, no confía en lo que mande el
 // cliente).
+// Brief "Stage Plot — ajustes visuales" §11: `etiqueta` se suma para las
+// variantes Side Fill L/R de la paleta -- precargan "L"/"R" al crear el
+// ítem (editable después igual que cualquier etiqueta de escenario).
+// crearItem ya ignora este valor para tipos con plaza/dispositivo, así que
+// no hace falta un guard extra acá.
 export async function crearItemAction(
   bandaId: string,
   stagePlotId: string,
   tipo: TipoItem,
   plazaId: string | null,
   dispositivoId: string | null,
+  etiqueta: string | null,
   posX: number,
   posY: number
 ): Promise<StagePlotItem> {
   await requerirAccesoBloque(bandaId, "stage_plot");
-  const item = await crearItem(bandaId, stagePlotId, tipo, plazaId, dispositivoId, null, posX, posY);
+  const item = await crearItem(bandaId, stagePlotId, tipo, plazaId, dispositivoId, etiqueta, posX, posY);
   revalidatePath("/stage-plot");
   return item;
 }

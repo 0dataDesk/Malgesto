@@ -73,8 +73,23 @@ export function tieneEtiquetaEditable(tipo: TipoItem): boolean {
 
 // Brief §2: forma por categoría -- distingue de un vistazo qué es cada
 // ítem sin depender solo del color. StagePlotLienzo (DOM) y
-// stagePlotExport.ts (SVG) leen esto mismo para no divergir.
-export type FormaItem = "circulo" | "circulo-chico" | "rectangulo" | "rectangulo-punteado" | "rombo" | "triangulo" | "pedalera";
+// stagePlotExport.ts (SVG) leen esto mismo para no divergir. Brief "Stage
+// Plot — Entrega 2, ajustes visuales" §3-11: "rectangulo-plano" (amplificador,
+// más aplanado que el rectángulo genérico de teclado) y
+// "trapecio-invertido"/"trapecio-invertido-45" (Mix / Side Fill, corte
+// transversal de una cuña de monitor real) se suman como formas propias en
+// vez de reusar "rectangulo" -- ya no deben verse ni medir igual entre sí.
+export type FormaItem =
+  | "circulo"
+  | "circulo-chico"
+  | "rectangulo"
+  | "rectangulo-plano"
+  | "rectangulo-punteado"
+  | "trapecio-invertido"
+  | "trapecio-invertido-45"
+  | "rombo"
+  | "triangulo"
+  | "pedalera";
 
 export const FORMA_TIPO: Record<TipoItem, FormaItem> = {
   musico: "circulo",
@@ -84,9 +99,14 @@ export const FORMA_TIPO: Record<TipoItem, FormaItem> = {
   // séptima forma solo para esto.
   teclado: "rectangulo",
   pedalera: "pedalera",
-  amplificador: "rectangulo",
-  mix: "rectangulo",
-  side_fill: "rectangulo",
+  // Brief "ajustes visuales" §10: rectángulo propio, más aplanado que el de
+  // teclado -- antes compartían "rectangulo" y por lo tanto tamaño.
+  amplificador: "rectangulo-plano",
+  // Brief "ajustes visuales" §6: trapecio invertido (más ancho arriba,
+  // angosto abajo) -- corte transversal de una cuña de monitor real.
+  mix: "trapecio-invertido",
+  // Brief "ajustes visuales" §7: mismo trapecio que Mix, rotado ~45°.
+  side_fill: "trapecio-invertido-45",
   di: "rombo",
   power: "triangulo",
   // Brief §2 (Entrega 1): "para diferenciarlo visualmente del monitor -- es
@@ -128,10 +148,25 @@ export const COLOR_ESCENARIO: Record<TipoEscenario, string> = {
   // Brief §5: "mismo criterio que Mix" -- misma familia neutra, tono propio
   // para poder distinguirlos uno al lado del otro en la paleta/lienzo.
   side_fill: "oklch(0.45 0.03 250)",
-  di: "oklch(0.52 0.05 260)",
-  power: "oklch(0.6 0.16 55)",
+  // Brief "ajustes visuales" §3: fondo negro (antes rombo azul).
+  di: "oklch(0.16 0 0)",
+  // Brief "ajustes visuales" §4: amarillo eléctrico clásico -- color real de
+  // advertencia/electricidad, no una variación de la paleta neutra de acá.
+  power: "#F5C400",
   riser: "oklch(0.55 0.02 70)",
 };
+
+// Brief "ajustes visuales" §5: pedalera pasa a escala de grises -- es
+// equipo genérico, no la identidad de un integrante, así que ya no toma
+// bandaColor como el resto de los ítems de persona (musico/mic/teclado).
+export const COLOR_PEDALERA = "oklch(0.55 0 0)";
+
+// Brief "ajustes visuales" §11: el círculo de voz/mic pasa a un color fijo
+// "de micrófono real" (gris oscuro con un detalle más claro), ya no el
+// color de banda -- StagePlotLienzo dibuja el detalle como un punto interior
+// más claro, stagePlotExport un segundo círculo concéntrico.
+export const COLOR_MIC_FONDO = "#3a3a3a";
+export const COLOR_MIC_DETALLE = "#6e6e6e";
 
 export function esTipoItemValido(valor: string): valor is TipoItem {
   return (TIPOS_ITEM as readonly string[]).includes(valor);

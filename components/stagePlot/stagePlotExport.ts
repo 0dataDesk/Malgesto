@@ -1,5 +1,15 @@
 import type { StagePlotItem } from "@/lib/stagePlotData";
-import { GLIFO_TIPO, GLIFO_INSTRUMENTO, FORMA_TIPO, COLOR_ESCENARIO, type FormaItem, type TipoEscenario } from "@/lib/stagePlotCatalogo";
+import {
+  GLIFO_TIPO,
+  GLIFO_INSTRUMENTO,
+  FORMA_TIPO,
+  COLOR_ESCENARIO,
+  COLOR_PEDALERA,
+  COLOR_MIC_FONDO,
+  COLOR_MIC_DETALLE,
+  type FormaItem,
+  type TipoEscenario,
+} from "@/lib/stagePlotCatalogo";
 import { MESES } from "@/lib/eventoUI";
 import { ahoraEnZonaApp } from "@/lib/zonaHoraria";
 
@@ -39,12 +49,15 @@ function etiquetaVisible(item: StagePlotItem): string | null {
   return item.etiqueta;
 }
 
-// §4: musico/mic/teclado/pedalera son ítems de una persona (color de
-// banda); amplificador usa los colores reales de marca del diseño
-// asignado; el resto usa su color neutro fijo de escenario.
+// §4: musico/mic/teclado son ítems de una persona (color de banda);
+// amplificador usa los colores reales de marca del diseño asignado; el
+// resto usa su color neutro fijo de escenario. Brief "ajustes visuales" §5:
+// pedalera sale de este grupo -- pasa a su gris fijo (COLOR_PEDALERA), ya
+// no bandaColor, igual que en StagePlotLienzo.
 function colorDeItem(item: StagePlotItem, bandaColor: string): string {
   if (item.tipo === "amplificador") return item.colorFondo ?? bandaColor;
-  if (item.tipo === "musico" || item.tipo === "mic" || item.tipo === "teclado" || item.tipo === "pedalera") return bandaColor;
+  if (item.tipo === "pedalera") return COLOR_PEDALERA;
+  if (item.tipo === "musico" || item.tipo === "mic" || item.tipo === "teclado") return bandaColor;
   return COLOR_ESCENARIO[item.tipo as TipoEscenario];
 }
 
@@ -59,21 +72,33 @@ function bordeDeItem(item: StagePlotItem): string {
 // Brief §1/§3: desplazamiento del centro del badge de voz respecto al
 // centro de cada forma -- no hay un tamaño único (cada forma tiene su
 // propio ancho/alto en este archivo, ver formaSvg), así que el offset está
-// calibrado a mano por forma para que quede "pegado al frente" (borde
-// inferior derecho) igual que en StagePlotLienzo.
+// calibrado a mano por forma. Brief "ajustes visuales" §11: el badge pasa
+// del borde inferior derecho al centro del borde inferior -- por eso `dx`
+// es 0 en todos los casos, `dy` es la mitad del alto de cada forma (solo
+// importa para circulo/circulo-chico/rectangulo, las únicas formas que
+// puedeMostrarVoz habilita hoy -- el resto del Record existe por
+// exhaustividad de TypeScript, sin efecto visual real).
 const OFFSET_VOZ: Record<FormaItem, { dx: number; dy: number }> = {
-  circulo: { dx: 26, dy: 26 },
-  "circulo-chico": { dx: 17, dy: 17 },
-  rectangulo: { dx: 34, dy: 22 },
-  "rectangulo-punteado": { dx: 32, dy: 24 },
-  rombo: { dx: 17, dy: 17 },
-  triangulo: { dx: 24, dy: 18 },
-  pedalera: { dx: 27, dy: 16 },
+  circulo: { dx: 0, dy: 34 },
+  "circulo-chico": { dx: 0, dy: 23 },
+  rectangulo: { dx: 0, dy: 30 },
+  "rectangulo-plano": { dx: 0, dy: 21 },
+  "rectangulo-punteado": { dx: 0, dy: 56 },
+  "trapecio-invertido": { dx: 0, dy: 30 },
+  "trapecio-invertido-45": { dx: 0, dy: 43 },
+  rombo: { dx: 0, dy: 12 },
+  triangulo: { dx: 0, dy: 17 },
+  pedalera: { dx: 0, dy: 13 },
 };
 
-function badgeVozSvg(forma: FormaItem, cx: number, cy: number, color: string): string {
+// Brief §11: color fijo "de micrófono real" (gris oscuro + detalle interior
+// más claro) en vez del color de la banda -- mismo criterio que
+// IconoConVoz en StagePlotLienzo.tsx.
+function badgeVozSvg(forma: FormaItem, cx: number, cy: number): string {
   const { dx, dy } = OFFSET_VOZ[forma];
-  return `<circle cx="${cx + dx}" cy="${cy + dy}" r="10" fill="${color}" stroke="white" stroke-width="2.5" />`;
+  const bx = cx + dx;
+  const by = cy + dy;
+  return `<circle cx="${bx}" cy="${by}" r="10" fill="${COLOR_MIC_FONDO}" stroke="white" stroke-width="2.5" /><circle cx="${bx}" cy="${by - 3}" r="3.5" fill="${COLOR_MIC_DETALLE}" />`;
 }
 
 // Brief "Rediseño de Stage Plot — Entrega 1" §2: mismas formas que el
@@ -95,25 +120,40 @@ function formaSvg(forma: FormaItem, cx: number, cy: number, color: string, color
       return `<circle cx="${cx}" cy="${cy}" r="20" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" />${texto(cx, cy + 3, 9, colorTexto)}`;
     case "rectangulo":
       return `<rect x="${cx - 38}" y="${cy - 26}" width="76" height="52" rx="8" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" />${texto(cx, cy + 5, 12, colorTexto)}`;
+    // Brief "ajustes visuales" §10: mismo dibujo que "rectangulo", con su
+    // propio tamaño más aplanado (ver tamanoForma en StagePlotLienzo.tsx
+    // para el equivalente DOM) y texto más chico acorde.
+    case "rectangulo-plano":
+      return `<rect x="${cx - 41}" y="${cy - 17}" width="82" height="34" rx="7" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" />${texto(cx, cy + 4, 10, colorTexto)}`;
     case "rectangulo-punteado":
-      // Brief §5: "ligeramente más grande que DI/AC" -- antes 108x70, ahora
-      // la diferencia con DI/power es sutil (ver tamanoForma en
-      // StagePlotLienzo.tsx para el equivalente DOM).
-      return `<rect x="${cx - 35}" y="${cy - 27}" width="70" height="54" rx="9" fill="${color}" fill-opacity="0.12" stroke="${color}" stroke-width="3" stroke-dasharray="9 7" />${texto(cx, cy + 5, 12, color)}`;
+      // Brief "ajustes visuales" §8: notoriamente grande -- 2 a 2.5x el
+      // diámetro del círculo de músico (r=30, diámetro 60), ver tamanoForma
+      // en StagePlotLienzo.tsx para el equivalente DOM.
+      return `<rect x="${cx - 71}" y="${cy - 52}" width="142" height="104" rx="14" fill="${color}" fill-opacity="0.12" stroke="${color}" stroke-width="3" stroke-dasharray="9 7" />${texto(cx, cy + 5, 12, color)}`;
+    // Brief §6: corte transversal de una cuña de monitor real -- mismo
+    // tamaño que tenía como "rectangulo" (Mix no se toca en tamaño).
+    case "trapecio-invertido":
+      return `<polygon points="${cx - 33},${cy - 22} ${cx + 33},${cy - 22} ${cx + 16},${cy + 22} ${cx - 16},${cy + 22}" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" stroke-linejoin="round" />${texto(cx, cy + 5, 12, colorTexto)}`;
+    // Brief §7: mismo trapecio de arriba, rotado ~45°.
+    case "trapecio-invertido-45":
+      return `<polygon points="${cx - 27},${cy - 24} ${cx + 27},${cy - 24} ${cx + 16},${cy + 24} ${cx - 16},${cy + 24}" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" stroke-linejoin="round" transform="rotate(45 ${cx} ${cy})" />${texto(cx, cy + 4, 11, colorTexto)}`;
+    // Brief §3: mitad del tamaño anterior (rect 36x36 pre-rotación).
     case "rombo":
-      return `<rect x="${cx - 18}" y="${cy - 18}" width="36" height="36" rx="4" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" transform="rotate(45 ${cx} ${cy})" />${texto(cx, cy + 4, 10, colorTexto)}`;
+      return `<rect x="${cx - 9}" y="${cy - 9}" width="18" height="18" rx="2" fill="${color}" stroke="${colorBorde}" stroke-width="1.5" transform="rotate(45 ${cx} ${cy})" />${texto(cx, cy + 3, 6, colorTexto)}`;
+    // Brief §4: mitad del tamaño anterior (54x49).
     case "triangulo":
-      return `<polygon points="${cx},${cy - 27} ${cx + 27},${cy + 22} ${cx - 27},${cy + 22}" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" stroke-linejoin="round" />${texto(cx, cy + 16, 10, colorTexto)}`;
+      return `<polygon points="${cx},${cy - 13.5} ${cx + 13.5},${cy + 11} ${cx - 13.5},${cy + 11}" fill="${color}" stroke="${colorBorde}" stroke-width="1.5" stroke-linejoin="round" />${texto(cx, cy + 8, 6, colorTexto)}`;
+    // Brief §5: mitad del tamaño anterior (62x40).
     case "pedalera": {
-      const w = 62;
-      const h = 40;
+      const w = 31;
+      const h = 20;
       const x0 = cx - w / 2;
       const y0 = cy - h / 2;
-      const fondo = `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" rx="9" fill="${color}" stroke="${colorBorde}" stroke-width="2.5" />`;
+      const fondo = `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" rx="5" fill="${color}" stroke="${colorBorde}" stroke-width="1.5" />`;
       const columnas = 3;
       const filas = 2;
-      const pad = 7;
-      const gap = 4;
+      const pad = 3;
+      const gap = 2;
       const cellW = (w - pad * 2 - gap * (columnas - 1)) / columnas;
       const cellH = (h - pad * 2 - gap * (filas - 1)) / filas;
       let casillas = "";
@@ -121,7 +161,7 @@ function formaSvg(forma: FormaItem, cx: number, cy: number, color: string, color
         const prendida = idx < cantidadPedales;
         const x = x0 + pad + (idx % columnas) * (cellW + gap);
         const y = y0 + pad + Math.floor(idx / columnas) * (cellH + gap);
-        casillas += `<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" rx="2" fill="${prendida ? "white" : "none"}" fill-opacity="${prendida ? 0.95 : 1}" stroke="white" stroke-opacity="${prendida ? 1 : 0.4}" stroke-width="1.6" />`;
+        casillas += `<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" rx="1" fill="${prendida ? "white" : "none"}" fill-opacity="${prendida ? 0.95 : 1}" stroke="white" stroke-opacity="${prendida ? 1 : 0.4}" stroke-width="1" />`;
       }
       return fondo + casillas;
     }
@@ -161,7 +201,10 @@ function construirSvg(items: StagePlotItem[], bandaNombre: string, bandaColor: s
   const LIENZO_ALTO = ALTO - HEADER_ALTO - 60;
 
   const colorBanda = textoParaFondo(bandaColor);
-  const esDeBanda = (tipo: StagePlotItem["tipo"]) => tipo === "musico" || tipo === "mic" || tipo === "teclado" || tipo === "pedalera";
+  // Brief "ajustes visuales" §5: pedalera ya no usa bandaColor (ver
+  // colorDeItem) -- sale de este grupo para que su contraste de texto se
+  // calcule contra su propio gris, no contra el color de la banda.
+  const esDeBanda = (tipo: StagePlotItem["tipo"]) => tipo === "musico" || tipo === "mic" || tipo === "teclado";
 
   const iconos = items
     .map((item) => {
@@ -173,7 +216,7 @@ function construirSvg(items: StagePlotItem[], bandaNombre: string, bandaColor: s
       const colorTexto = esDeBanda(item.tipo) ? colorBanda : textoParaFondo(color);
       const glifo = glifoDe(item);
       const etiqueta = etiquetaVisible(item);
-      const badgeVoz = item.tieneVoz ? badgeVozSvg(forma, cx, cy, color) : "";
+      const badgeVoz = item.tieneVoz ? badgeVozSvg(forma, cx, cy) : "";
       const etiquetaSvg = etiqueta
         ? `<rect x="${cx - 70}" y="${cy + 38}" width="140" height="26" rx="5" fill="white" fill-opacity="0.94" stroke="#d8d0c4" />
            <text x="${cx}" y="${cy + 55}" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" font-weight="600" fill="#4a453f">${escaparXml(etiqueta)}</text>`
