@@ -260,9 +260,15 @@ function construirSvg(items: StagePlotItem[], bandaNombre: string, bandaColor: s
   </svg>`;
 }
 
-// Rasteriza el SVG generado a PNG y dispara la descarga — sin dependencias
-// nuevas: Image + <canvas> nativos del browser.
-export async function descargarStagePlotPng(items: StagePlotItem[], bandaNombre: string, bandaColor: string): Promise<void> {
+// Rasteriza el SVG generado a PNG (data URL) -- sin dependencias nuevas:
+// Image + <canvas> nativos del browser. Brief "Rider técnico..." §2.2:
+// reusado tal cual por RiderVista.tsx (imagen embebida en la página web Y
+// en el PDF vía @react-pdf/renderer, que acepta un data URL directo como
+// `src` de su <Image>) -- antes esta función disparaba la descarga del PNG
+// directamente (único uso que tenía, BotonDescargarImagen); ese botón
+// desapareció al integrarse la imagen al rider completo, así que ahora la
+// función solo genera el data URL y quien la llama decide qué hacer con él.
+export async function generarStagePlotPngDataUrl(items: StagePlotItem[], bandaNombre: string, bandaColor: string): Promise<string> {
   const svgString = construirSvg(items, bandaNombre, bandaColor);
   const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(svgBlob);
@@ -282,15 +288,7 @@ export async function descargarStagePlotPng(items: StagePlotItem[], bandaNombre:
     if (!ctx) throw new Error("No se pudo generar la imagen del stage plot.");
     ctx.drawImage(img, 0, 0);
 
-    const pngBlob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-    if (!pngBlob) throw new Error("No se pudo generar la imagen del stage plot.");
-
-    const pngUrl = URL.createObjectURL(pngBlob);
-    const enlace = document.createElement("a");
-    enlace.href = pngUrl;
-    enlace.download = `stage-plot-${bandaNombre.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
-    enlace.click();
-    URL.revokeObjectURL(pngUrl);
+    return canvas.toDataURL("image/png");
   } finally {
     URL.revokeObjectURL(url);
   }

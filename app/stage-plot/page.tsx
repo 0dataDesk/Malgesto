@@ -3,9 +3,10 @@ import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
 import { obtenerOCrearStagePlot } from "@/lib/stagePlotData";
+import { construirRider } from "@/lib/riderData";
 import { TabBar } from "@/components/shell/TabBar";
 import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
-import { StagePlotLienzo } from "@/components/stagePlot/StagePlotLienzo";
+import { RiderVista } from "@/components/stagePlot/RiderVista";
 import { BotonCopiarLink } from "@/components/stagePlot/StagePlotAcciones";
 import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda";
 
@@ -79,6 +80,11 @@ export default async function StagePlotPage({
   const puedeEscribir = membresiaActiva?.rol === "administrador" || membresiaActiva?.rol === "superadmin";
 
   const stagePlot = await obtenerOCrearStagePlot(bandaActiva);
+  // Brief "Rider técnico — vista previa completa + PDF de una página": la
+  // preview interna deja de mostrar solo el lienzo -- ahora es el rider
+  // completo (imagen + Input List + resumen de equipo), mismo contenido que
+  // el link público (ver app/plot/[token]/page.tsx).
+  const rider = stagePlot.items.length > 0 ? await construirRider(stagePlot, bandaActiva, nombreBandaActiva, colorBandaActiva) : null;
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
@@ -112,19 +118,20 @@ export default async function StagePlotPage({
         </div>
 
         <div className="mt-4">
-          {stagePlot.items.length === 0 ? (
+          {rider ? (
+            <RiderVista rider={rider} />
+          ) : (
             <p className="mb-3 text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
               {puedeEscribir
                 ? `Todavía no armaste el stage plot de ${nombreBandaActiva}.`
                 : `${nombreBandaActiva} todavía no tiene un stage plot armado.`}
             </p>
-          ) : null}
-          <StagePlotLienzo items={stagePlot.items} bandaColor={colorBandaActiva} />
+          )}
         </div>
 
         {/* Brief "Rediseño de Stage Plot — Entrega 1" §5: "Copiar link
-            público" es la única acción de esta vista además de "Editar" --
-            la descarga se corrió al link público (app/plot/[token]). */}
+            público" es la única acción fija de esta vista además de
+            "Editar" -- "Descargar PDF" ahora vive dentro de RiderVista. */}
         <div className="mt-4">
           <BotonCopiarLink shareToken={stagePlot.shareToken} />
         </div>
