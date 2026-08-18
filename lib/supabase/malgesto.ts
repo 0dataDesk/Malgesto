@@ -15,7 +15,7 @@ export function supabaseMalgesto() {
   }
 
   return createClient(url, key, {
-    db: { schema: "malgesto" },
+    db: { schema: "malgesto_app" },
     auth: { persistSession: false },
   });
 }
