@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import type { BandaSimple, ActualizacionBanda, Plaza } from "@/lib/gestionData";
 import { contarBloquesActivos } from "@/lib/bloques";
@@ -387,9 +388,21 @@ function DetalleBanda({
 
   return (
     <div className="flex flex-col gap-3">
-      <button type="button" onClick={onVolver} className="text-left text-sm" style={{ color: "oklch(0.6 0.02 55)" }}>
-        ‹ Bandas
-      </button>
+      <div className="flex items-center justify-between gap-3">
+        <button type="button" onClick={onVolver} className="text-left text-sm" style={{ color: "oklch(0.6 0.02 55)" }}>
+          ‹ Bandas
+        </button>
+        {/* Brief "Presskit — vista de captura de datos" §1: único punto de
+            entrada a la pantalla de captura, mismo criterio visual que el
+            botón "Editar" de Stage Plot. */}
+        <Link
+          href={`/presskit-captura/${banda.id}`}
+          className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold no-underline"
+          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+        >
+          Presskit
+        </Link>
+      </div>
 
       <div className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
         <label className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.02 55)" }}>
