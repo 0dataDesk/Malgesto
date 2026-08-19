@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import type { CategoriaDispositivo, ControlDiseno, Seteo } from "@/lib/dispositivosData";
 import { actualizarValoresSeteoAction, crearSeteoParaCancionAction } from "@/app/seteos/actions";
 import { PanelDispositivo } from "./PanelDispositivo";
+import { PanelAfinador } from "./PanelAfinador";
 
 // Vista compartida (brief "Seteos — selector único global..." §1): un solo
 // selector General/+/Canciones a nivel de página, en vez de uno por
@@ -175,7 +176,23 @@ export function DispositivoBloque({
               {errorCrear}
             </p>
           )}
-          {!creando && seteoActual && (
+          {/* Afinador (brief "Afinador como seteo (pedal)"): único dispositivo del
+              catálogo cuya pantalla no es perillas con valores guardados -- la
+              nota y el indicador de afinación salen del micrófono en vivo, no
+              de seteoActual.valores. Se distingue por modelo porque es el
+              único caso hoy; si aparece un segundo dispositivo "en vivo" vale
+              la pena generalizar esto a un flag en el diseño. */}
+          {!creando && seteoActual && dispositivo.disenoModelo === "Afinador" && (
+            <PanelAfinador
+              controles={dispositivo.controles}
+              valores={seteoActual.valores}
+              onChange={cambiarValor}
+              colorFondo={dispositivo.colorFondo}
+              colorAcento={dispositivo.colorAcento}
+              colorTexto={dispositivo.colorTexto}
+            />
+          )}
+          {!creando && seteoActual && dispositivo.disenoModelo !== "Afinador" && (
             <PanelDispositivo
               controles={dispositivo.controles}
               valores={seteoActual.valores}
