@@ -206,6 +206,25 @@ export async function obtenerEventos(bandaIds: string[]): Promise<Evento[]> {
     .map((e) => mapearEvento(e, e.tipo === "gira" ? bandasPorGira.get(e.id) : undefined));
 }
 
+// Un evento puntual por id -- para pantallas que se navegan directo desde el
+// detalle de un evento (ej. Logística) en vez de partir de la lista completa
+// de la banda. Mismo embed de gira_bandas que obtenerEventos, resuelto acá
+// solo si hace falta (tipo === "gira").
+export async function obtenerEventoPorId(id: string): Promise<Evento | null> {
+  const admin = supabaseMalgesto();
+  const { data, error } = await admin.from("eventos").select(COLUMNAS_EVENTO).eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+
+  if (data.tipo !== "gira") return mapearEvento(data);
+
+  const { data: relaciones } = await admin.from("gira_bandas").select("bandas(id, nombre)").eq("gira_evento_id", id);
+  const bandasGira = (relaciones ?? [])
+    .map((r) => r.bandas as unknown as { id: string; nombre: string } | null)
+    .filter((b): b is { id: string; nombre: string } => !!b);
+  return mapearEvento(data, bandasGira);
+}
+
 export type NuevoEventoInput = {
   bandaId: string;
   bandaIds?: string[];

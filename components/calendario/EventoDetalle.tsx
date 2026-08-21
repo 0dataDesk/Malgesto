@@ -26,6 +26,15 @@ function IconoLista() {
   );
 }
 
+function IconoLogistica() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3.5 2" />
+    </svg>
+  );
+}
+
 // Brief "EventoDetalle — ubicación y Set List como botones" §2: fila
 // compacta y clickeable en un solo patrón para Ubicación/Set List, en vez de
 // la tarjeta label-arriba-texto-abajo (+ un botón "Abrir en Maps" aparte)
@@ -236,6 +245,21 @@ export function EventoDetalle({
             )}
           </div>
           {linkMaps && <span className="shrink-0 text-xs">↗</span>}
+        </FilaAccion>
+      )}
+
+      {/* Brief "Logística: línea de tiempo del evento" §1: entrada a la
+          pantalla nueva, mismo patrón FilaAccion que Ubicación/Set List --
+          oculta para Cumpleaños porque ese evento es virtual (nunca es una
+          fila real de `eventos`, ver lib/cumpleanosVirtual.ts) y no puede
+          tener logística propia. */}
+      {evento.tipo !== "cumpleanos" && (
+        <FilaAccion href={`/logistica/${evento.id}`}>
+          <IconoLogistica />
+          <div className="min-w-0 flex-1 truncate text-[15px] font-semibold" style={{ color: "oklch(0.24 0.02 55)" }}>
+            Logística
+          </div>
+          <span className="shrink-0 text-xs">›</span>
         </FilaAccion>
       )}
 
