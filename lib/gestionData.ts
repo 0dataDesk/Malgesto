@@ -164,6 +164,49 @@ export async function eliminarPlaza(plazaId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+// Instrumentos propios (brief "Instrumentos propios + selector de
+// instrumento activo en Seteos"): equipo físico real de cada persona --
+// separado de `plazas`, que modela el rol/instrumento que ocupa dentro de
+// una banda. Sin banda_id: es del integrante, no de una membresía puntual.
+export type InstrumentoPropio = { id: string; usuarioId: string; instrumento: string; marca: string | null; modelo: string | null };
+
+export async function crearInstrumentoPropio(
+  usuarioId: string,
+  instrumento: string,
+  marca: string | null,
+  modelo: string | null
+): Promise<InstrumentoPropio> {
+  const admin = supabaseMalgesto();
+  const { data, error } = await admin
+    .from("instrumentos_propios")
+    .insert({ usuario_id: usuarioId, instrumento, marca, modelo })
+    .select("id, usuario_id, instrumento, marca, modelo")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "No se pudo crear el instrumento.");
+  return { id: data.id, usuarioId: data.usuario_id, instrumento: data.instrumento, marca: data.marca, modelo: data.modelo };
+}
+
+export async function actualizarInstrumentoPropio(id: string, instrumento: string, marca: string | null, modelo: string | null): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin.from("instrumentos_propios").update({ instrumento, marca, modelo }).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+// El FK de seteos.instrumento_propio_id no tiene ON DELETE (queda RESTRICT
+// por default) -- si hay seteos guardados con este instrumento, Postgres
+// rechaza el borrado (23503) en vez de dejarlos huérfanos o borrarlos en
+// cascada sin avisar.
+export async function eliminarInstrumentoPropio(id: string): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin.from("instrumentos_propios").delete().eq("id", id);
+  if (error) {
+    if (error.code === "23503") {
+      throw new Error("No se puede eliminar: hay seteos guardados con este instrumento. Cambiá esos seteos a otro instrumento primero.");
+    }
+    throw new Error(error.message);
+  }
+}
+
 // Brief 13 §3: una plaza solo puede ser ocupada por integrantes de la misma
 // banda (la UI ya filtra por membresía activa, esto es el resguardo de
 // servidor) y solo por una persona a la vez (garantizado por el constraint
@@ -404,6 +447,9 @@ export type Integrante = {
   estado: EstadoIntegrante;
   esSuperadmin: boolean;
   bandas: BandaDeIntegrante[];
+  // Brief "Instrumentos propios...": a diferencia de `bandas[].plazas`, no
+  // vive por banda -- es una sola lista por persona.
+  instrumentosPropios: InstrumentoPropio[];
 };
 
 type DispositivoRow = {
@@ -427,6 +473,7 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
     { data: personas },
     { data: personaPlazas },
     { data: dispositivos },
+    { data: instrumentosPropios },
   ] = await Promise.all([
     admin.from("bandas").select("id, nombre"),
     admin.from("miembros_banda").select("usuario_id, banda_id, rol, activo, bloques_visibles, voz"),
@@ -435,6 +482,7 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
     admin.from("personas").select("usuario_id, nombre_mostrar, fecha_nacimiento"),
     admin.from("persona_plazas").select("persona_id, plazas(id, banda_id, instrumento, etiqueta)"),
     admin.from("dispositivos").select("id, banda_id, usuario_id, categoria, diseno_id, nombre, habilitado, disenos_dispositivo(marca, modelo)"),
+    admin.from("instrumentos_propios").select("id, usuario_id, instrumento, marca, modelo").order("created_at", { ascending: true }),
   ]);
 
   const dispositivosPorPersonaYBanda = new Map<string, DispositivoAsignado[]>();
@@ -453,6 +501,13 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
       habilitado: d.habilitado,
     });
     dispositivosPorPersonaYBanda.set(key, lista);
+  }
+
+  const instrumentosPropiosPorUsuarioId = new Map<string, InstrumentoPropio[]>();
+  for (const i of instrumentosPropios ?? []) {
+    const lista = instrumentosPropiosPorUsuarioId.get(i.usuario_id) ?? [];
+    lista.push({ id: i.id, usuarioId: i.usuario_id, instrumento: i.instrumento, marca: i.marca, modelo: i.modelo });
+    instrumentosPropiosPorUsuarioId.set(i.usuario_id, lista);
   }
 
   const bandaPorId = new Map((bandas ?? []).map((b) => [b.id, b.nombre]));
@@ -523,6 +578,7 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
       estado: acc.tieneActivo ? "activo" : acc.tieneInvitacion ? "invitado" : "inactivo",
       esSuperadmin: acc.tieneSuperadmin,
       bandas: acc.bandas,
+      instrumentosPropios: acc.usuarioId ? instrumentosPropiosPorUsuarioId.get(acc.usuarioId) ?? [] : [],
     }))
     .sort((a, b) => {
       // Brief "Rediseño visual de Gestión" §3: alfabético por nombre para

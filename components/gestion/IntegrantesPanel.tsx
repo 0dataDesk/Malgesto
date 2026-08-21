@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
-import type { BandaSimple, PersonaPendiente, Integrante, Plaza, BandaDeIntegrante, RolInvitable, InvitacionPorBanda, Voz } from "@/lib/gestionData";
+import type { BandaSimple, PersonaPendiente, Integrante, Plaza, BandaDeIntegrante, RolInvitable, InvitacionPorBanda, Voz, InstrumentoPropio } from "@/lib/gestionData";
 import type { NombreBloque } from "@/lib/bloques";
 import { contarBloquesActivos } from "@/lib/bloques";
 import type { DisenoDispositivo, CategoriaCatalogo, DispositivoAsignado } from "@/lib/dispositivosData";
-import { etiquetaPlaza } from "@/lib/instrumentoCatalogo";
+import { etiquetaPlaza, ETIQUETA_INSTRUMENTO } from "@/lib/instrumentoCatalogo";
 import { colorConAlpha } from "@/lib/eventoUI";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import {
@@ -23,6 +23,9 @@ import {
   eliminarPersonaAction,
   asignarDisenoDispositivoAction,
   quitarDispositivoAction,
+  crearInstrumentoPropioAction,
+  actualizarInstrumentoPropioAction,
+  eliminarInstrumentoPropioAction,
 } from "@/app/gestion/actions";
 
 // Catálogo de bloques opcionales restringibles por persona (Brief 21 §1) —
@@ -217,6 +220,198 @@ function SeccionDispositivos({
   );
 }
 
+const FORM_VACIO_INSTRUMENTO = { instrumento: "", marca: "", modelo: "" };
+
+// Instrumentos propios (brief "Instrumentos propios + selector de
+// instrumento activo en Seteos" §1): equipo físico real de la persona, sin
+// banda_id -- a diferencia de "Instrumentos" (plazas, por banda) esto es una
+// sola lista por integrante. `instrumento` es texto libre con el catálogo de
+// instrumentoCatalogo.ts como sugerencias (datalist), no un enum cerrado --
+// la app ya usa "otro" + etiqueta libre para ese caso en plazas, pero acá el
+// schema es una sola columna de texto, así que el datalist alcanza.
+function SeccionInstrumentosPropios({
+  usuarioId,
+  instrumentos,
+  onCrear,
+  onActualizar,
+  onEliminar,
+  pendingCrear,
+  pendingId,
+  error,
+}: {
+  usuarioId: string;
+  instrumentos: InstrumentoPropio[];
+  onCrear: (form: typeof FORM_VACIO_INSTRUMENTO) => void;
+  onActualizar: (id: string, form: typeof FORM_VACIO_INSTRUMENTO) => void;
+  onEliminar: (id: string) => void;
+  pendingCrear: boolean;
+  pendingId: string | null;
+  error: string | null;
+}) {
+  const [nuevo, setNuevo] = useState(FORM_VACIO_INSTRUMENTO);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [edicion, setEdicion] = useState(FORM_VACIO_INSTRUMENTO);
+  const datalistId = `instrumentos-catalogo-${usuarioId}`;
+
+  const iniciarEdicion = (i: InstrumentoPropio) => {
+    setEditandoId(i.id);
+    setEdicion({ instrumento: i.instrumento, marca: i.marca ?? "", modelo: i.modelo ?? "" });
+  };
+
+  const guardarEdicion = () => {
+    if (!editandoId || !edicion.instrumento.trim()) return;
+    onActualizar(editandoId, edicion);
+    setEditandoId(null);
+  };
+
+  const agregar = () => {
+    if (!nuevo.instrumento.trim()) return;
+    onCrear(nuevo);
+    setNuevo(FORM_VACIO_INSTRUMENTO);
+  };
+
+  return (
+    <div>
+      <datalist id={datalistId}>
+        {Object.values(ETIQUETA_INSTRUMENTO).map((label) => (
+          <option key={label} value={label} />
+        ))}
+      </datalist>
+
+      {instrumentos.length === 0 ? (
+        <p className="text-xs italic" style={{ color: "oklch(0.55 0.02 55)" }}>
+          Todavía no tiene instrumentos propios cargados.
+        </p>
+      ) : (
+        <div className="mb-1.5 flex flex-col gap-1.5">
+          {instrumentos.map((i) =>
+            editandoId === i.id ? (
+              <div key={i.id} className="rounded-lg p-2" style={{ background: BG_SUNKEN, border: `1px solid ${BORDE_SUNKEN}` }}>
+                <div className="flex flex-col gap-1.5">
+                  <input
+                    value={edicion.instrumento}
+                    onChange={(e) => setEdicion((f) => ({ ...f, instrumento: e.target.value }))}
+                    list={datalistId}
+                    placeholder="Instrumento"
+                    className="w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none"
+                    style={inputStyle}
+                  />
+                  <div className="flex gap-1.5">
+                    <input
+                      value={edicion.marca}
+                      onChange={(e) => setEdicion((f) => ({ ...f, marca: e.target.value }))}
+                      placeholder="Marca"
+                      className="w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none"
+                      style={inputStyle}
+                    />
+                    <input
+                      value={edicion.modelo}
+                      onChange={(e) => setEdicion((f) => ({ ...f, modelo: e.target.value }))}
+                      placeholder="Modelo"
+                      className="w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none"
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={guardarEdicion}
+                      disabled={pendingId === i.id || !edicion.instrumento.trim()}
+                      className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
+                      style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+                    >
+                      Guardar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditandoId(null)}
+                      className="rounded-lg px-2.5 py-1 text-xs font-semibold"
+                      style={{ color: "oklch(0.55 0.02 55)" }}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                key={i.id}
+                className="flex items-center justify-between gap-2 rounded-lg py-1.5 pl-2.5 pr-1.5"
+                style={{ background: "oklch(0.93 0.016 78)" }}
+              >
+                <button type="button" onClick={() => iniciarEdicion(i)} className="min-w-0 flex-1 text-left">
+                  <span className="text-xs font-semibold" style={{ color: "oklch(0.4 0.02 55)" }}>
+                    {i.instrumento}
+                    {(i.marca || i.modelo) && (
+                      <span style={{ color: "oklch(0.55 0.02 55)" }}>
+                        {" "}
+                        · {[i.marca, i.modelo].filter(Boolean).join(" ")}
+                      </span>
+                    )}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onEliminar(i.id)}
+                  disabled={pendingId === i.id}
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] disabled:opacity-50"
+                  style={{ background: "oklch(0.85 0.016 78)" }}
+                  aria-label="Eliminar instrumento propio"
+                >
+                  ×
+                </button>
+              </div>
+            )
+          )}
+        </div>
+      )}
+
+      <div className="rounded-lg p-2" style={{ background: BG_SUNKEN, border: `1px solid ${BORDE_SUNKEN}` }}>
+        <div className="flex flex-col gap-1.5">
+          <input
+            value={nuevo.instrumento}
+            onChange={(e) => setNuevo((f) => ({ ...f, instrumento: e.target.value }))}
+            list={datalistId}
+            placeholder="Instrumento (ej. Bajo)"
+            className="w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none"
+            style={inputStyle}
+          />
+          <div className="flex gap-1.5">
+            <input
+              value={nuevo.marca}
+              onChange={(e) => setNuevo((f) => ({ ...f, marca: e.target.value }))}
+              placeholder="Marca (opcional)"
+              className="w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none"
+              style={inputStyle}
+            />
+            <input
+              value={nuevo.modelo}
+              onChange={(e) => setNuevo((f) => ({ ...f, modelo: e.target.value }))}
+              placeholder="Modelo (opcional)"
+              className="w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none"
+              style={inputStyle}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={agregar}
+            disabled={pendingCrear || !nuevo.instrumento.trim()}
+            className="rounded-lg border border-dashed px-2.5 py-1 text-xs font-semibold disabled:opacity-50"
+            style={{ borderColor: "oklch(0.8 0.02 60)", color: "oklch(0.5 0.02 55)" }}
+          >
+            + Agregar instrumento propio
+          </button>
+        </div>
+      </div>
+      {error && (
+        <p className="mt-1.5 text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 const ETIQUETA_ESTADO: Record<Integrante["estado"], string> = { invitado: "Invitado", activo: "Activo", inactivo: "Inactivo" };
 const COLOR_ESTADO: Record<Integrante["estado"], string> = {
   invitado: "oklch(0.6 0.1 70)",
@@ -278,6 +473,10 @@ function FilaIntegrante({
   const [pendingDispositivoBandaId, setPendingDispositivoBandaId] = useState<string | null>(null);
   const [pendingQuitarDispositivoId, setPendingQuitarDispositivoId] = useState<string | null>(null);
   const [errorDispositivo, setErrorDispositivo] = useState<string | null>(null);
+  const [instrumentosPropiosLocal, setInstrumentosPropiosLocal] = useState(integrante.instrumentosPropios);
+  const [pendingCrearInstrumento, setPendingCrearInstrumento] = useState(false);
+  const [pendingInstrumentoId, setPendingInstrumentoId] = useState<string | null>(null);
+  const [errorInstrumento, setErrorInstrumento] = useState<string | null>(null);
   // Brief "Gestión > Integrantes — acordeones anidados..." §2: cada tarjeta
   // de banda es colapsable, independiente de las demás y del colapso del
   // integrante en sí — set de bandaIds actualmente expandidas.
@@ -473,6 +672,40 @@ function FilaIntegrante({
       })
       .catch((e) => setErrorDispositivo(e instanceof Error ? e.message : "No se pudo quitar."))
       .finally(() => setPendingQuitarDispositivoId(null));
+  };
+
+  // Brief "Instrumentos propios...": CRUD simple, sin banda_id -- mismo
+  // patrón de estado local + acción + revert-en-catch que el resto del
+  // componente (ver toggleBanda/togglePlaza más arriba).
+  const crearInstrumentoPropioHandler = (form: { instrumento: string; marca: string; modelo: string }) => {
+    if (!integrante.usuarioId) return;
+    setErrorInstrumento(null);
+    setPendingCrearInstrumento(true);
+    crearInstrumentoPropioAction(integrante.usuarioId, form.instrumento.trim(), form.marca.trim() || null, form.modelo.trim() || null)
+      .then((creado) => setInstrumentosPropiosLocal((prev) => [...prev, creado]))
+      .catch((e) => setErrorInstrumento(e instanceof Error ? e.message : "No se pudo crear el instrumento."))
+      .finally(() => setPendingCrearInstrumento(false));
+  };
+
+  const actualizarInstrumentoPropioHandler = (id: string, form: { instrumento: string; marca: string; modelo: string }) => {
+    setErrorInstrumento(null);
+    setPendingInstrumentoId(id);
+    const instrumento = form.instrumento.trim();
+    const marca = form.marca.trim() || null;
+    const modelo = form.modelo.trim() || null;
+    actualizarInstrumentoPropioAction(id, instrumento, marca, modelo)
+      .then(() => setInstrumentosPropiosLocal((prev) => prev.map((i) => (i.id === id ? { ...i, instrumento, marca, modelo } : i))))
+      .catch((e) => setErrorInstrumento(e instanceof Error ? e.message : "No se pudo guardar el instrumento."))
+      .finally(() => setPendingInstrumentoId(null));
+  };
+
+  const eliminarInstrumentoPropioHandler = (id: string) => {
+    setErrorInstrumento(null);
+    setPendingInstrumentoId(id);
+    eliminarInstrumentoPropioAction(id)
+      .then(() => setInstrumentosPropiosLocal((prev) => prev.filter((i) => i.id !== id)))
+      .catch((e) => setErrorInstrumento(e instanceof Error ? e.message : "No se pudo eliminar."))
+      .finally(() => setPendingInstrumentoId(null));
   };
 
   // Brief "Eliminar integrante" / "Inactivar": Inactivar reusa el mismo
@@ -898,6 +1131,24 @@ function FilaIntegrante({
                 </div>
               );
             })}
+          </SubAcordeon>
+
+          {/* Brief "Instrumentos propios...": a diferencia de "Bandas
+              asignadas" no es por banda -- sibling al mismo nivel, una sola
+              lista por integrante. */}
+          <SubAcordeon titulo="Instrumentos propios">
+            {integrante.usuarioId && (
+              <SeccionInstrumentosPropios
+                usuarioId={integrante.usuarioId}
+                instrumentos={instrumentosPropiosLocal}
+                onCrear={crearInstrumentoPropioHandler}
+                onActualizar={actualizarInstrumentoPropioHandler}
+                onEliminar={eliminarInstrumentoPropioHandler}
+                pendingCrear={pendingCrearInstrumento}
+                pendingId={pendingInstrumentoId}
+                error={errorInstrumento}
+              />
+            )}
           </SubAcordeon>
         </div>
       )}

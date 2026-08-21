@@ -22,11 +22,15 @@ import {
   actualizarBloquesVisibles,
   inactivarPersona,
   eliminarPersona,
+  crearInstrumentoPropio,
+  actualizarInstrumentoPropio,
+  eliminarInstrumentoPropio,
   type ResultadoInvitacion,
   type ActualizacionBanda,
   type RolInvitable,
   type InvitacionPorBanda,
   type Voz,
+  type InstrumentoPropio,
 } from "@/lib/gestionData";
 import { crearLugar, actualizarLugar, actualizarLugarBandas, eliminarLugar } from "@/lib/lugaresData";
 import { asignarDiseno, sincronizarConsola, quitarDispositivo, type CategoriaCatalogo, type DispositivoAsignado } from "@/lib/dispositivosData";
@@ -223,6 +227,38 @@ export async function quitarDispositivoAction(
   const consola = await sincronizarConsola(bandaId, usuarioId);
   revalidatePath("/gestion");
   return { consola };
+}
+
+// Instrumentos propios (brief "Instrumentos propios + selector de
+// instrumento activo en Seteos" §1): CRUD simple desde Gestión > Integrantes,
+// sin banda_id -- es del integrante, no de una membresía.
+export async function crearInstrumentoPropioAction(
+  usuarioId: string,
+  instrumento: string,
+  marca: string | null,
+  modelo: string | null
+): Promise<InstrumentoPropio> {
+  await requerirSuperadmin();
+  const instrumentoPropio = await crearInstrumentoPropio(usuarioId, instrumento, marca, modelo);
+  revalidatePath("/gestion");
+  return instrumentoPropio;
+}
+
+export async function actualizarInstrumentoPropioAction(
+  id: string,
+  instrumento: string,
+  marca: string | null,
+  modelo: string | null
+): Promise<void> {
+  await requerirSuperadmin();
+  await actualizarInstrumentoPropio(id, instrumento, marca, modelo);
+  revalidatePath("/gestion");
+}
+
+export async function eliminarInstrumentoPropioAction(id: string): Promise<void> {
+  await requerirSuperadmin();
+  await eliminarInstrumentoPropio(id);
+  revalidatePath("/gestion");
 }
 
 export async function crearLugarAction(bandaIds: string[], nombre: string, linkMaps: string) {

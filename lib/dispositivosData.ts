@@ -93,6 +93,13 @@ export type Seteo = {
   cancionId: string | null;
   cancionTitulo: string | null;
   esGeneral: boolean;
+  // Brief "Instrumentos propios + selector de instrumento activo en Seteos":
+  // null = aplica sin importar el instrumento (comportamiento de siempre,
+  // seteos creados antes de este brief o por integrantes con 0/1
+  // instrumento propio). No null = este seteo es específico de ese
+  // instrumento propio -- puede haber varios "generales" o varios "de esta
+  // canción" para el mismo dispositivo, uno por instrumento.
+  instrumentoPropioId: string | null;
 };
 
 export type DispositivoCompleto = DispositivoAsignado & { diseno: DisenoCompleto | null; seteos: Seteo[] };
@@ -140,6 +147,23 @@ function mapControl(c: {
     unidad: c.unidad,
     reflejaControlId: c.refleja_control_id,
   };
+}
+
+// Brief "Instrumentos propios + selector de instrumento activo en Seteos"
+// §2: lectura liviana para /seteos (el alta/edición/borrado vive en Gestión >
+// Integrantes, ver crearInstrumentoPropio/etc. en lib/gestionData.ts) — solo
+// lo que la página necesita para decidir si mostrar el selector y con qué
+// etiqueta.
+export type InstrumentoPropioResumen = { id: string; instrumento: string; marca: string | null; modelo: string | null };
+
+export async function obtenerInstrumentosPropiosDeUsuario(usuarioId: string): Promise<InstrumentoPropioResumen[]> {
+  const admin = supabaseMalgesto();
+  const { data } = await admin
+    .from("instrumentos_propios")
+    .select("id, instrumento, marca, modelo")
+    .eq("usuario_id", usuarioId)
+    .order("created_at", { ascending: true });
+  return (data ?? []).map((i) => ({ id: i.id, instrumento: i.instrumento, marca: i.marca, modelo: i.modelo }));
 }
 
 // Catálogo de diseños (Gestión > Integrantes, para el dropdown de asignar) —
@@ -297,7 +321,7 @@ export async function actualizarHabilitadoDispositivo(dispositivoId: string, hab
 }
 
 const SELECT_DISPOSITIVO_COMPLETO =
-  "id, banda_id, usuario_id, categoria, diseno_id, nombre, habilitado, disenos_dispositivo(id, categoria, marca, modelo, color_fondo, color_acento, color_texto, diseno_controles(id, tipo, nombre, pos_x, pos_y, min, max, valor_default, orden, estilo, grupo, colores_invertidos, controla_grupo, nota, unidad, refleja_control_id)), seteos(id, nombre, valores, cancion_id, es_general, canciones(id, titulo))";
+  "id, banda_id, usuario_id, categoria, diseno_id, nombre, habilitado, disenos_dispositivo(id, categoria, marca, modelo, color_fondo, color_acento, color_texto, diseno_controles(id, tipo, nombre, pos_x, pos_y, min, max, valor_default, orden, estilo, grupo, colores_invertidos, controla_grupo, nota, unidad, refleja_control_id)), seteos(id, nombre, valores, cancion_id, es_general, instrumento_propio_id, canciones(id, titulo))";
 
 type DisenoDispositivoRow = {
   id: string;
@@ -318,6 +342,7 @@ type DispositivoCompletoRow = DispositivoRow & {
     valores: unknown;
     cancion_id: string | null;
     es_general: boolean;
+    instrumento_propio_id: string | null;
     canciones: { id: string; titulo: string } | null;
   }[];
 };
@@ -346,6 +371,7 @@ function mapDispositivoCompleto(d: DispositivoCompletoRow): DispositivoCompleto 
       cancionId: s.cancion_id,
       cancionTitulo: s.canciones?.titulo ?? null,
       esGeneral: s.es_general,
+      instrumentoPropioId: s.instrumento_propio_id,
     })),
   };
 }
@@ -371,15 +397,21 @@ export async function obtenerDispositivosCompletosDeUsuario(bandaIds: string[], 
 // Seteo general obligatorio (brief §4): se crea con los valor_default de cada
 // control perilla/boton la primera vez que la persona entra al detalle. Los
 // controles sin valor_default (luz/entrada/salida) no guardan valor.
-export async function crearSeteoGeneralConDefaults(dispositivoId: string, controles: ControlDiseno[]): Promise<Seteo> {
+//
+// Brief "Instrumentos propios...": `instrumentoPropioId` null es el general
+// "de siempre" (se sigue creando eager desde el server, ver app/seteos/
+// page.tsx) -- con un instrumento puntual, este mismo default arranca el
+// general específico de ese instrumento, creado on-demand desde
+// DispositivoBloque igual que ya se hacía para canciones.
+export async function crearSeteoGeneralConDefaults(dispositivoId: string, controles: ControlDiseno[], instrumentoPropioId: string | null): Promise<Seteo> {
   const valores = Object.fromEntries(
     controles.filter((c) => (c.tipo === "perilla" || c.tipo === "boton") && c.valorDefault !== null).map((c) => [c.id, c.valorDefault as number])
   );
   const admin = supabaseMalgesto();
   const { data, error } = await admin
     .from("seteos")
-    .insert({ dispositivo_id: dispositivoId, nombre: "General", valores, es_general: true, cancion_id: null })
-    .select("id, nombre, valores, cancion_id, es_general")
+    .insert({ dispositivo_id: dispositivoId, nombre: "General", valores, es_general: true, cancion_id: null, instrumento_propio_id: instrumentoPropioId })
+    .select("id, nombre, valores, cancion_id, es_general, instrumento_propio_id")
     .single();
   if (error || !data) throw new Error(error?.message ?? "No se pudo crear el seteo general.");
   return {
@@ -390,28 +422,38 @@ export async function crearSeteoGeneralConDefaults(dispositivoId: string, contro
     cancionId: data.cancion_id,
     cancionTitulo: null,
     esGeneral: data.es_general,
+    instrumentoPropioId: data.instrumento_propio_id,
   };
 }
 
 // Seteo nuevo para una canción puntual (brief §3: "opcional", se crea recién
 // cuando el usuario elige editar el de esa canción por primera vez) — arranca
 // con los mismos valor_default que el general.
-export async function crearSeteoParaCancion(dispositivoId: string, cancionId: string, controles: ControlDiseno[]): Promise<Seteo> {
+//
+// Brief "Instrumentos propios...": el "liberar" de más abajo (que corrige un
+// cancion_id duplicado de un modelo viejo) ahora también filtra por
+// instrumento -- sin eso, activar un instrumento distinto podría desvincular
+// el seteo de OTRO instrumento que legítimamente sigue apuntando a esta
+// canción.
+export async function crearSeteoParaCancion(
+  dispositivoId: string,
+  cancionId: string,
+  instrumentoPropioId: string | null,
+  controles: ControlDiseno[]
+): Promise<Seteo> {
   const valores = Object.fromEntries(
     controles.filter((c) => (c.tipo === "perilla" || c.tipo === "boton") && c.valorDefault !== null).map((c) => [c.id, c.valorDefault as number])
   );
   const admin = supabaseMalgesto();
-  const { error: errorLiberar } = await admin
-    .from("seteos")
-    .update({ cancion_id: null })
-    .eq("dispositivo_id", dispositivoId)
-    .eq("cancion_id", cancionId);
+  let liberar = admin.from("seteos").update({ cancion_id: null }).eq("dispositivo_id", dispositivoId).eq("cancion_id", cancionId);
+  liberar = instrumentoPropioId === null ? liberar.is("instrumento_propio_id", null) : liberar.eq("instrumento_propio_id", instrumentoPropioId);
+  const { error: errorLiberar } = await liberar;
   if (errorLiberar) throw new Error(errorLiberar.message);
 
   const { data, error } = await admin
     .from("seteos")
-    .insert({ dispositivo_id: dispositivoId, nombre: "Seteo", valores, es_general: false, cancion_id: cancionId })
-    .select("id, nombre, valores, cancion_id, es_general")
+    .insert({ dispositivo_id: dispositivoId, nombre: "Seteo", valores, es_general: false, cancion_id: cancionId, instrumento_propio_id: instrumentoPropioId })
+    .select("id, nombre, valores, cancion_id, es_general, instrumento_propio_id")
     .single();
   if (error || !data) throw new Error(error?.message ?? "No se pudo crear el seteo.");
   return {
@@ -422,6 +464,7 @@ export async function crearSeteoParaCancion(dispositivoId: string, cancionId: st
     cancionId: data.cancion_id,
     cancionTitulo: null,
     esGeneral: data.es_general,
+    instrumentoPropioId: data.instrumento_propio_id,
   };
 }
 
@@ -440,12 +483,24 @@ export async function actualizarValoresSeteo(seteoId: string, valores: Record<st
 // tenga algo relevante para esta canción: el seteo vinculado a la canción
 // gana si existe, si no el general del dispositivo, y si no hay ninguno de
 // los dos el dispositivo se omite.
+//
+// Brief "Instrumentos propios...": esta pantalla la ven TODOS los miembros de
+// la banda (no solo el dueño del dispositivo), sin ningún "instrumento
+// activo" propio en ese contexto -- a diferencia de Seteos, acá no hay un
+// selector de instrumento del que colgar la elección. Con 2+ instrumentos
+// propios puede haber varios seteos "vinculado"/"general" candidatos (uno
+// por instrumento); se prioriza el sin-instrumento (instrumento_propio_id
+// null, el de siempre) y si no hay ninguno así, el primero que aparezca --
+// mismo criterio arbitrario pero determinístico que ya tenía esta función
+// antes de este brief (elegía el primer "es_general" sin más). No es una
+// resolución "correcta" para multi-instrumento; queda fuera del alcance de
+// este brief (no toca esta pantalla).
 export async function obtenerSeteosParaCancion(bandaId: string, cancionId: string): Promise<SeteoEnContexto[]> {
   const admin = supabaseMalgesto();
   const { data } = await admin
     .from("dispositivos")
     .select(
-      "id, usuario_id, categoria, nombre, disenos_dispositivo(marca, modelo), seteos(id, nombre, valores, cancion_id, es_general)"
+      "id, usuario_id, categoria, nombre, disenos_dispositivo(marca, modelo), seteos(id, nombre, valores, cancion_id, es_general, instrumento_propio_id)"
     )
     .eq("banda_id", bandaId)
     .in("categoria", ["amplificador", "pedal"]);
@@ -456,7 +511,7 @@ export async function obtenerSeteosParaCancion(bandaId: string, cancionId: strin
     categoria: string;
     nombre: string | null;
     disenos_dispositivo: { marca: string; modelo: string } | null;
-    seteos: { id: string; nombre: string; valores: unknown; cancion_id: string | null; es_general: boolean }[];
+    seteos: { id: string; nombre: string; valores: unknown; cancion_id: string | null; es_general: boolean; instrumento_propio_id: string | null }[];
   }[];
   if (dispositivos.length === 0) return [];
 
@@ -470,10 +525,15 @@ export async function obtenerSeteosParaCancion(bandaId: string, cancionId: strin
     })
   );
 
+  // Preferir el candidato sin instrumento (comportamiento previo a este
+  // brief) por sobre uno atado a un instrumento puntual, cuando hay varios.
+  const preferirSinInstrumento = <T extends { instrumento_propio_id: string | null }>(candidatos: T[]): T | undefined =>
+    candidatos.find((c) => c.instrumento_propio_id === null) ?? candidatos[0];
+
   const resultado: SeteoEnContexto[] = [];
   for (const d of dispositivos) {
-    const vinculado = d.seteos.find((s) => s.cancion_id === cancionId);
-    const general = d.seteos.find((s) => s.es_general);
+    const vinculado = preferirSinInstrumento(d.seteos.filter((s) => s.cancion_id === cancionId));
+    const general = preferirSinInstrumento(d.seteos.filter((s) => s.es_general));
     const elegido = vinculado ?? general;
     if (!elegido) continue;
 
@@ -490,6 +550,7 @@ export async function obtenerSeteosParaCancion(bandaId: string, cancionId: strin
         cancionId: elegido.cancion_id,
         cancionTitulo: null,
         esGeneral: elegido.es_general,
+        instrumentoPropioId: elegido.instrumento_propio_id,
       },
       etiqueta: vinculado ? "Vinculado" : "General",
     });

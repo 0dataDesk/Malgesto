@@ -2,7 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
-import { obtenerDispositivosCompletosDeUsuario, crearSeteoGeneralConDefaults, type Seteo } from "@/lib/dispositivosData";
+import {
+  obtenerDispositivosCompletosDeUsuario,
+  crearSeteoGeneralConDefaults,
+  obtenerInstrumentosPropiosDeUsuario,
+  type Seteo,
+} from "@/lib/dispositivosData";
 import { obtenerCanciones } from "@/lib/cancionesData";
 import { TabBar } from "@/components/shell/TabBar";
 import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
@@ -77,18 +82,25 @@ export default async function SeteosPage({
   const bandaActiva = bandaValida ? bandaParam! : bandasConBloque[0].bandaId;
   const nombreBandaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
 
-  const [dispositivos, canciones] = await Promise.all([
+  const [dispositivos, canciones, instrumentosPropios] = await Promise.all([
     obtenerDispositivosCompletosDeUsuario([bandaActiva], user.id),
     obtenerCanciones([bandaActiva]),
+    obtenerInstrumentosPropiosDeUsuario(user.id),
   ]);
 
   // Brief §4 (Seteo general obligatorio): si un dispositivo todavía no tiene
   // uno, se crea acá mismo con los valor_default del diseño, antes de
   // mostrar la pantalla — así siempre aterriza directo en modo General.
+  //
+  // Brief "Instrumentos propios...": esto solo garantiza el general
+  // "sin instrumento" (instrumento_propio_id null) -- el general de un
+  // instrumento puntual (cuando la persona tiene 2+) se crea on-demand del
+  // lado del cliente al activarlo, porque cuál es el "instrumento activo"
+  // recién se sabe ahí (persiste en localStorage, no en el server).
   const dispositivosConGeneral = await Promise.all(
     dispositivos.map(async (d) => {
-      if (!d.diseno || d.seteos.some((s) => s.esGeneral)) return d;
-      const general = await crearSeteoGeneralConDefaults(d.id, d.diseno.controles);
+      if (!d.diseno || d.seteos.some((s) => s.esGeneral && s.instrumentoPropioId === null)) return d;
+      const general = await crearSeteoGeneralConDefaults(d.id, d.diseno.controles, null);
       const seteos: Seteo[] = [...d.seteos, general];
       return { ...d, seteos };
     })
@@ -136,7 +148,12 @@ export default async function SeteosPage({
         </div>
 
         <div className="mt-4">
-          <SeteosLista dispositivosIniciales={dispositivosParaLista} cancionesDisponibles={cancionesOpciones} nombreBanda={nombreBandaActiva} />
+          <SeteosLista
+            dispositivosIniciales={dispositivosParaLista}
+            cancionesDisponibles={cancionesOpciones}
+            nombreBanda={nombreBandaActiva}
+            instrumentosPropios={instrumentosPropios}
+          />
         </div>
       </EspacioSuperior>
 
