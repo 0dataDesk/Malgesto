@@ -122,6 +122,15 @@ function IconoStagePlot() {
   );
 }
 
+function IconoPresskit() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 4h13l3 3v13H4z" />
+      <path d="M8 10h8M8 14h8M8 18h5" />
+    </svg>
+  );
+}
+
 function NavBoton({ href, activo, label, children }: { href: string; activo: boolean; label: string; children: React.ReactNode }) {
   return (
     <Link
@@ -151,7 +160,7 @@ export function TabBar({
   mostrarFinanzas = true,
   mostrarStagePlot = true,
 }: {
-  activa: "calendario" | "canciones" | "setlist" | "seteos" | "finanzas" | "stage_plot";
+  activa: "calendario" | "canciones" | "setlist" | "seteos" | "finanzas" | "stage_plot" | "presskit";
   userEmail?: string;
   esSuperadmin?: boolean;
   mostrarCanciones?: boolean;
@@ -232,6 +241,17 @@ export function TabBar({
         {mostrarStagePlot && (
           <NavBoton href="/stage-plot" activo={activa === "stage_plot"} label="Stage Plot">
             <IconoStagePlot />
+          </NavBoton>
+        )}
+        {/* Brief "Presskit — vista propia, estatus, liga publicada" §1: ya
+            no se entra por el botón "Presskit" de Gestión > Bandas -- pasa
+            a ser un módulo de nivel superior más, pero gateado a
+            superadmin (no hay bloque `presskit_habilitado` por banda como
+            el resto: es una consola de gestión, no algo que la banda
+            "active"). */}
+        {esSuperadmin && (
+          <NavBoton href="/presskit" activo={activa === "presskit"} label="Presskit">
+            <IconoPresskit />
           </NavBoton>
         )}
       </div>

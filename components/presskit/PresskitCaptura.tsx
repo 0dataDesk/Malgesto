@@ -14,7 +14,9 @@ import {
   agregarRedPresskitAction,
   eliminarRedPresskitAction,
   marcarPresskitEnviadoAction,
+  actualizarLigaPublicadaAction,
 } from "@/app/presskit-captura/actions";
+import { EstadoBadge, VisitarCompartirPresskit } from "@/components/presskit/PresskitEstado";
 
 const inputCls = "w-full rounded-lg border px-3 py-2 text-sm outline-none";
 const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
@@ -93,11 +95,13 @@ function GaleriaFotos({
   presskitId,
   fotos,
   onFotos,
+  onCambio,
 }: {
   bandaId: string;
   presskitId: string;
   fotos: PresskitFoto[];
   onFotos: (f: PresskitFoto[]) => void;
+  onCambio: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [subiendo, setSubiendo] = useState(false);
@@ -121,6 +125,7 @@ function GaleriaFotos({
         onFotos(actuales);
         orden++;
       }
+      if (archivos.length > 0) onCambio();
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo subir la foto.");
     } finally {
@@ -132,8 +137,9 @@ function GaleriaFotos({
   const quitar = (foto: PresskitFoto) => {
     startTransition(async () => {
       try {
-        await eliminarFotoPresskitAction(bandaId, foto.id, foto.storagePath);
+        await eliminarFotoPresskitAction(bandaId, presskitId, foto.id, foto.storagePath);
         onFotos(fotos.filter((f) => f.id !== foto.id));
+        onCambio();
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo quitar la foto.");
       }
@@ -196,11 +202,13 @@ function LinksDePlataformas({
   presskitId,
   redes,
   onRedes,
+  onCambio,
 }: {
   bandaId: string;
   presskitId: string;
   redes: PresskitRed[];
   onRedes: (r: PresskitRed[]) => void;
+  onCambio: () => void;
 }) {
   const [plataforma, setPlataforma] = useState<string>(PLATAFORMAS_COMUNES[0]);
   const [otraPlataforma, setOtraPlataforma] = useState("");
@@ -224,6 +232,7 @@ function LinksDePlataformas({
       try {
         const red = await agregarRedPresskitAction(bandaId, presskitId, nombrePlataforma, url.trim(), redes.length);
         onRedes([...redes, red]);
+        onCambio();
         setUrl("");
         setOtraPlataforma("");
       } catch (e) {
@@ -235,8 +244,9 @@ function LinksDePlataformas({
   const quitar = (redId: string) => {
     startTransition(async () => {
       try {
-        await eliminarRedPresskitAction(bandaId, redId);
+        await eliminarRedPresskitAction(bandaId, presskitId, redId);
         onRedes(redes.filter((r) => r.id !== redId));
+        onCambio();
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo quitar el link.");
       }
@@ -308,6 +318,70 @@ function LinksDePlataformas({
   );
 }
 
+// Brief §3: campo simple para que Jorge pegue la URL una vez que Design
+// entrega la página pública -- no toca actualizado_en (ver
+// actualizarLigaPublicada en lib/presskitData.ts), así que no dispara
+// "En revisión".
+function LigaPublicadaSeccion({
+  bandaId,
+  presskitId,
+  ligaActual,
+  onLiga,
+}: {
+  bandaId: string;
+  presskitId: string;
+  ligaActual: string | null;
+  onLiga: (liga: string | null) => void;
+}) {
+  const [valor, setValor] = useState(ligaActual ?? "");
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const guardar = () => {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const limpia = valor.trim() || null;
+        await actualizarLigaPublicadaAction(bandaId, presskitId, limpia);
+        onLiga(limpia);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "No se pudo guardar la liga.");
+      }
+    });
+  };
+
+  return (
+    <div>
+      <Etiqueta>Liga publicada</Etiqueta>
+      <p className="mb-2.5 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+        Pegá acá la URL una vez que Design entregue la página pública.
+      </p>
+      <div className="flex gap-1.5">
+        <input value={valor} onChange={(e) => setValor(e.target.value)} placeholder="https://…" className={`${inputCls} flex-1`} style={inputStyle} />
+        <button
+          type="button"
+          onClick={guardar}
+          disabled={pending}
+          className="shrink-0 rounded-lg px-3 text-sm font-bold disabled:opacity-60"
+          style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+        >
+          Guardar
+        </button>
+      </div>
+      <ErrorTexto mensaje={error} />
+
+      <div className="mt-3">
+        <VisitarCompartirPresskit liga={ligaActual} />
+      </div>
+      {!ligaActual && (
+        <p className="mt-2 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+          Todavía no hay página publicada.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function PresskitCaptura({
   banda,
   presskit: presskitInicial,
@@ -365,13 +439,20 @@ export function PresskitCaptura({
     contactoEmail: contactoEmail.trim() || null,
   });
 
+  // Brief "Presskit — vista propia, estatus, liga publicada" §2: espeja acá
+  // el mismo `actualizado_en = ahora()` que cada mutación de contenido ya
+  // hace en el servidor (ver tocarActualizado en lib/presskitData.ts), para
+  // que la leyenda de estatus reaccione al toque sin esperar un
+  // revalidatePath. GaleriaFotos/LinksDePlataformas lo llaman vía onCambio.
+  const marcarActualizado = () => setPresskit((p) => ({ ...p, actualizadoEn: new Date().toISOString() }));
+
   const guardar = () => {
     setError(null);
     startTransitionGuardar(async () => {
       try {
         const cambios = cambiosActuales();
         await actualizarPresskitAction(banda.id, presskit.id, cambios);
-        setPresskit((p) => ({ ...p, ...cambios }));
+        setPresskit((p) => ({ ...p, ...cambios, actualizadoEn: new Date().toISOString() }));
         setEstadoGuardado("guardado");
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo guardar.");
@@ -390,7 +471,7 @@ export function PresskitCaptura({
         presskitActual = { ...presskit, ...cambios };
       }
       const enviadoEn = await marcarPresskitEnviadoAction(banda.id, presskit.id);
-      presskitActual = { ...presskitActual, enviadoEn };
+      presskitActual = { ...presskitActual, enviadoEn, actualizadoEn: enviadoEn };
       setPresskit(presskitActual);
       setResumen(construirResumen(banda, presskitActual, fotos, redes, integrantes));
     } catch (e) {
@@ -426,12 +507,24 @@ export function PresskitCaptura({
               </div>
             )}
           </div>
-          {presskit.enviadoEn && (
-            <span className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide" style={{ background: "oklch(0.9 0.1 150)", color: "oklch(0.35 0.12 150)" }}>
-              Enviado el {formatearFecha(presskit.enviadoEn)}
-            </span>
-          )}
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <EstadoBadge presskit={presskit} />
+            {presskit.enviadoEn && (
+              <span className="text-[10px]" style={{ color: "oklch(0.55 0.02 55)" }}>
+                Enviado el {formatearFecha(presskit.enviadoEn)}
+              </span>
+            )}
+          </div>
         </div>
+      </Tarjeta>
+
+      <Tarjeta>
+        <LigaPublicadaSeccion
+          bandaId={banda.id}
+          presskitId={presskit.id}
+          ligaActual={presskit.ligaPublicada}
+          onLiga={(liga) => setPresskit((p) => ({ ...p, ligaPublicada: liga }))}
+        />
       </Tarjeta>
 
       <Tarjeta>
@@ -458,11 +551,11 @@ export function PresskitCaptura({
       </Tarjeta>
 
       <Tarjeta>
-        <GaleriaFotos bandaId={banda.id} presskitId={presskit.id} fotos={fotos} onFotos={setFotos} />
+        <GaleriaFotos bandaId={banda.id} presskitId={presskit.id} fotos={fotos} onFotos={setFotos} onCambio={marcarActualizado} />
       </Tarjeta>
 
       <Tarjeta>
-        <LinksDePlataformas bandaId={banda.id} presskitId={presskit.id} redes={redes} onRedes={setRedes} />
+        <LinksDePlataformas bandaId={banda.id} presskitId={presskit.id} redes={redes} onRedes={setRedes} onCambio={marcarActualizado} />
       </Tarjeta>
 
       <Tarjeta>

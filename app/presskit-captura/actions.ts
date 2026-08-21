@@ -9,15 +9,21 @@ import {
   agregarRed,
   eliminarRed,
   marcarPresskitEnviado,
+  actualizarLigaPublicada,
   type ActualizacionPresskit,
   type PresskitFoto,
   type PresskitRed,
 } from "@/lib/presskitData";
 
+// Brief "Presskit — vista propia, estatus, liga publicada": todas las
+// mutaciones de acá también revalidan /presskit (vista de nivel superior,
+// no solo la de captura), porque su leyenda de estatus lee actualizado_en/
+// enviado_en/liga_publicada del mismo presskit.
 export async function actualizarPresskitAction(bandaId: string, presskitId: string, cambios: ActualizacionPresskit): Promise<void> {
   await requerirSuperadmin();
   await actualizarPresskit(presskitId, cambios);
   revalidatePath(`/presskit-captura/${bandaId}`);
+  revalidatePath("/presskit");
 }
 
 export async function subirFotoPresskitAction(formData: FormData): Promise<PresskitFoto> {
@@ -30,31 +36,43 @@ export async function subirFotoPresskitAction(formData: FormData): Promise<Press
 
   const foto = await subirFoto(presskitId, bandaId, archivo, orden);
   revalidatePath(`/presskit-captura/${bandaId}`);
+  revalidatePath("/presskit");
   return foto;
 }
 
-export async function eliminarFotoPresskitAction(bandaId: string, fotoId: string, storagePath: string): Promise<void> {
+export async function eliminarFotoPresskitAction(bandaId: string, presskitId: string, fotoId: string, storagePath: string): Promise<void> {
   await requerirSuperadmin();
-  await eliminarFoto(fotoId, storagePath);
+  await eliminarFoto(presskitId, fotoId, storagePath);
   revalidatePath(`/presskit-captura/${bandaId}`);
+  revalidatePath("/presskit");
 }
 
 export async function agregarRedPresskitAction(bandaId: string, presskitId: string, plataforma: string, url: string, orden: number): Promise<PresskitRed> {
   await requerirSuperadmin();
   const red = await agregarRed(presskitId, plataforma, url, orden);
   revalidatePath(`/presskit-captura/${bandaId}`);
+  revalidatePath("/presskit");
   return red;
 }
 
-export async function eliminarRedPresskitAction(bandaId: string, redId: string): Promise<void> {
+export async function eliminarRedPresskitAction(bandaId: string, presskitId: string, redId: string): Promise<void> {
   await requerirSuperadmin();
-  await eliminarRed(redId);
+  await eliminarRed(presskitId, redId);
   revalidatePath(`/presskit-captura/${bandaId}`);
+  revalidatePath("/presskit");
 }
 
 export async function marcarPresskitEnviadoAction(bandaId: string, presskitId: string): Promise<string> {
   await requerirSuperadmin();
   const enviadoEn = await marcarPresskitEnviado(presskitId);
   revalidatePath(`/presskit-captura/${bandaId}`);
+  revalidatePath("/presskit");
   return enviadoEn;
+}
+
+export async function actualizarLigaPublicadaAction(bandaId: string, presskitId: string, liga: string | null): Promise<void> {
+  await requerirSuperadmin();
+  await actualizarLigaPublicada(presskitId, liga);
+  revalidatePath(`/presskit-captura/${bandaId}`);
+  revalidatePath("/presskit");
 }

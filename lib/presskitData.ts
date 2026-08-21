@@ -16,6 +16,13 @@ export type Presskit = {
   contactoTelefono: string | null;
   contactoEmail: string | null;
   enviadoEn: string | null;
+  // Brief "Presskit — vista propia, estatus, liga publicada": se actualiza
+  // en cada mutación de contenido (ver tocarActualizado más abajo) para
+  // poder comparar contra enviadoEn y mostrar Actualizado/En revisión.
+  actualizadoEn: string | null;
+  // URL real de la página pública, pegada a mano por Jorge una vez que
+  // Design la construye -- null mientras no hay nada publicado.
+  ligaPublicada: string | null;
 };
 
 type PresskitRow = {
@@ -28,6 +35,8 @@ type PresskitRow = {
   contacto_telefono: string | null;
   contacto_email: string | null;
   enviado_en: string | null;
+  actualizado_en: string | null;
+  liga_publicada: string | null;
 };
 
 function mapPresskit(p: PresskitRow): Presskit {
@@ -41,10 +50,22 @@ function mapPresskit(p: PresskitRow): Presskit {
     contactoTelefono: p.contacto_telefono,
     contactoEmail: p.contacto_email,
     enviadoEn: p.enviado_en,
+    actualizadoEn: p.actualizado_en,
+    ligaPublicada: p.liga_publicada,
   };
 }
 
-const COLUMNAS_PRESSKIT = "id, banda_id, bio_larga, pais, ciudad, contacto_nombre, contacto_telefono, contacto_email, enviado_en";
+const COLUMNAS_PRESSKIT =
+  "id, banda_id, bio_larga, pais, ciudad, contacto_nombre, contacto_telefono, contacto_email, enviado_en, actualizado_en, liga_publicada";
+
+// Toca actualizado_en de un presskit -- llamado desde cada mutación de
+// contenido (datos, fotos, links) para que la leyenda de estatus de la
+// vista pueda comparar contra enviado_en. La liga publicada NO pasa por
+// acá (ver actualizarLigaPublicada): pegar la URL de Design no es un
+// cambio de contenido que Design necesite volver a revisar.
+async function tocarActualizado(admin: ReturnType<typeof supabaseMalgesto>, presskitId: string): Promise<void> {
+  await admin.from("presskits").update({ actualizado_en: new Date().toISOString() }).eq("id", presskitId);
+}
 
 // Un presskit por banda (UNIQUE(banda_id) en DB) -- se crea vacío la primera
 // vez que alguien entra a la pantalla de captura, mismo criterio que
@@ -70,6 +91,7 @@ export type ActualizacionPresskit = {
 
 export async function actualizarPresskit(presskitId: string, cambios: ActualizacionPresskit): Promise<void> {
   const admin = supabaseMalgesto();
+  const ahora = new Date().toISOString();
   const { error } = await admin
     .from("presskits")
     .update({
@@ -79,7 +101,8 @@ export async function actualizarPresskit(presskitId: string, cambios: Actualizac
       contacto_nombre: cambios.contactoNombre,
       contacto_telefono: cambios.contactoTelefono,
       contacto_email: cambios.contactoEmail,
-      updated_at: new Date().toISOString(),
+      updated_at: ahora,
+      actualizado_en: ahora,
     })
     .eq("id", presskitId);
   if (error) throw new Error(error.message);
@@ -122,14 +145,16 @@ export async function subirFoto(presskitId: string, bandaId: string, archivo: Fi
     await admin.storage.from(BUCKET).remove([path]);
     throw new Error(error?.message ?? "No se pudo guardar la foto.");
   }
+  await tocarActualizado(admin, presskitId);
   return { id: data.id, storagePath: data.storage_path, orden: data.orden, url: urlPublicaFoto(admin, data.storage_path) };
 }
 
-export async function eliminarFoto(fotoId: string, storagePath: string): Promise<void> {
+export async function eliminarFoto(presskitId: string, fotoId: string, storagePath: string): Promise<void> {
   const admin = supabaseMalgesto();
   await admin.storage.from(BUCKET).remove([storagePath]);
   const { error } = await admin.from("presskit_fotos").delete().eq("id", fotoId);
   if (error) throw new Error(error.message);
+  await tocarActualizado(admin, presskitId);
 }
 
 export type PresskitRed = { id: string; plataforma: string; url: string; orden: number };
@@ -148,22 +173,36 @@ export async function agregarRed(presskitId: string, plataforma: string, url: st
     .select("id, plataforma, url, orden")
     .single();
   if (error || !data) throw new Error(error?.message ?? "No se pudo agregar el link.");
+  await tocarActualizado(admin, presskitId);
   return data;
 }
 
-export async function eliminarRed(redId: string): Promise<void> {
+export async function eliminarRed(presskitId: string, redId: string): Promise<void> {
   const admin = supabaseMalgesto();
   const { error } = await admin.from("presskit_redes").delete().eq("id", redId);
+  if (error) throw new Error(error.message);
+  await tocarActualizado(admin, presskitId);
+}
+
+// Solo Jorge pega/edita esto (server action gateada a superadmin) -- no
+// toca actualizado_en porque no es contenido que Design deba revisar de
+// nuevo, es el resultado de que Design ya entregó la página.
+export async function actualizarLigaPublicada(presskitId: string, liga: string | null): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin.from("presskits").update({ liga_publicada: liga }).eq("id", presskitId);
   if (error) throw new Error(error.message);
 }
 
 // Marca el presskit como enviado a Design -- no genera nada visual, solo
-// registra cuándo Jorge lo mandó (Brief §4). Devuelve el ISO guardado para
-// que el cliente lo refleje sin esperar un revalidatePath.
+// registra cuándo Jorge lo mandó (Brief §4). También iguala actualizado_en
+// a ese mismo instante (Brief "vista propia, estatus, liga publicada" §2):
+// justo después de enviar, el estatus debe leer "Actualizado" sin importar
+// qué traía actualizado_en antes. Devuelve el ISO guardado para que el
+// cliente lo refleje sin esperar un revalidatePath.
 export async function marcarPresskitEnviado(presskitId: string): Promise<string> {
   const admin = supabaseMalgesto();
   const ahora = new Date().toISOString();
-  const { error } = await admin.from("presskits").update({ enviado_en: ahora, updated_at: ahora }).eq("id", presskitId);
+  const { error } = await admin.from("presskits").update({ enviado_en: ahora, updated_at: ahora, actualizado_en: ahora }).eq("id", presskitId);
   if (error) throw new Error(error.message);
   return ahora;
 }
