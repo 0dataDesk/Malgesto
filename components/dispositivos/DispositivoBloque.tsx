@@ -72,6 +72,7 @@ export function DispositivoBloque({
   dispositivo,
   vista,
   instrumentoActivoId,
+  colorCadena,
   onValoresCambiados,
   onSeteoCreado,
   onHabilitadoChange,
@@ -83,6 +84,12 @@ export function DispositivoBloque({
   // §2: null cuando la persona tiene 0/1 instrumento propio (comportamiento
   // de siempre, sin filtrar) o cuando todavía no hay ninguno activo.
   instrumentoActivoId: string | null;
+  // Brief "Seteos: completar selector de instrumento + rediseño de cadena"
+  // §2: acento del grupo (Amplificadores/Pedales·FX) al que pertenece este
+  // dispositivo -- borde izquierdo del color del grupo, para que se lea como
+  // un eslabón de esa cadena. undefined = sin acento (ej. en Deshabilitados,
+  // que queda fuera de la cadena visual).
+  colorCadena?: string;
   onValoresCambiados: (dispositivoId: string, seteoId: string, valores: Record<string, number>) => void;
   onSeteoCreado: (dispositivoId: string, seteo: Seteo) => void;
   onHabilitadoChange: (dispositivoId: string, habilitado: boolean) => void;
@@ -147,7 +154,14 @@ export function DispositivoBloque({
   const nombreMostrado = dispositivo.apodo || `${dispositivo.disenoMarca} ${dispositivo.disenoModelo}`;
 
   return (
-    <div className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+    <div
+      className="rounded-2xl p-4"
+      style={{
+        background: "oklch(0.99 0.008 82)",
+        border: "1px solid oklch(0.89 0.013 78)",
+        borderLeft: colorCadena ? `3px solid ${colorCadena}` : "1px solid oklch(0.89 0.013 78)",
+      }}
+    >
       <div className="flex items-center justify-between gap-3">
         <button type="button" onClick={() => setColapsado((v) => !v)} className="flex min-w-0 flex-1 items-baseline gap-2 text-left">
           <span

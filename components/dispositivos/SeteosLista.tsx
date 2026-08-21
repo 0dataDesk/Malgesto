@@ -24,13 +24,103 @@ const ACENTO = "oklch(0.64 0.15 34)";
 const PILL_INACTIVO = { background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" };
 const PILL_ACTIVO = { background: ACENTO, color: "oklch(0.99 0.01 82)" };
 
+// Brief "Seteos: completar selector de instrumento + rediseño de cadena"
+// §2: acentos de "cadena de señal" -- Amplificadores reusa el acento cálido
+// que ya usa toda la app (ACENTO), Pedales/FX suma uno frío nuevo para que
+// ambos grupos se distingan a simple vista y el conector entre ellos lea
+// como un degradado real, no un tinte plano.
+const ACENTO_AMPLI = ACENTO;
+const ACENTO_PEDAL = "oklch(0.58 0.12 220)";
+
+const MODELO_AFINADOR = "Afinador";
+const esAfinador = (d: DispositivoConSeteos) => d.disenoModelo === MODELO_AFINADOR;
+
+// Conector visual entre Amplificadores y Pedales/FX (brief §2 "sensación de
+// cadena"): una línea con degradado del acento de un grupo al del otro, en
+// el punto donde la señal "pasa" de uno al otro.
+function ConectorCadena({ de, a }: { de: string; a: string }) {
+  return (
+    <div className="flex justify-center" aria-hidden="true">
+      <div className="h-4 w-0.5 rounded-full" style={{ background: `linear-gradient(to bottom, ${de}, ${a})` }} />
+    </div>
+  );
+}
+
+// Grupo colapsable de dispositivos (Amplificadores / Pedales·FX) -- mismo
+// patrón visual que el acordeón "Deshabilitados" de más abajo, pero con un
+// punto de color + borde del acento del grupo (brief §2 "distinción visual")
+// y arranca cerrado (brief §2 "inician colapsados", a diferencia del
+// acordeón de Instrumento o Deshabilitados que no cambian). Entre cada
+// dispositivo del grupo va un tick vertical del mismo acento, para que se
+// lea como eslabones de una misma cadena.
+function GrupoCadena({
+  titulo,
+  color,
+  dispositivos,
+  abierto,
+  onToggle,
+  vista,
+  instrumentoActivoId,
+  pendingHabilitadoId,
+  onValoresCambiados,
+  onSeteoCreado,
+  onHabilitadoChange,
+}: {
+  titulo: string;
+  color: string;
+  dispositivos: DispositivoConSeteos[];
+  abierto: boolean;
+  onToggle: () => void;
+  vista: Vista;
+  instrumentoActivoId: string | null;
+  pendingHabilitadoId: string | null;
+  onValoresCambiados: (dispositivoId: string, seteoId: string, valores: Record<string, number>) => void;
+  onSeteoCreado: (dispositivoId: string, seteo: Seteo) => void;
+  onHabilitadoChange: (dispositivoId: string, habilitado: boolean) => void;
+}) {
+  return (
+    <div className="rounded-2xl" style={{ background: "oklch(0.99 0.008 82)", border: `1px solid ${color}`, borderLeft: `3px solid ${color}` }}>
+      <button type="button" onClick={onToggle} className="flex w-full items-center gap-2.5 px-4 py-3 text-left">
+        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} />
+        <span className="flex-1 text-sm font-bold" style={{ color: TEXTO_OSCURO }}>
+          {titulo} ({dispositivos.length})
+        </span>
+        <span className="text-xs" style={{ color: TEXTO_GRIS, transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+          ▾
+        </span>
+      </button>
+      {abierto && (
+        <div className="flex flex-col gap-2.5 px-4 pb-4">
+          {dispositivos.map((d, i) => (
+            <div key={d.id}>
+              {i > 0 && <ConectorCadena de={color} a={color} />}
+              <DispositivoBloque
+                dispositivo={d}
+                colorCadena={color}
+                vista={vista}
+                instrumentoActivoId={instrumentoActivoId}
+                onValoresCambiados={onValoresCambiados}
+                onSeteoCreado={onSeteoCreado}
+                onHabilitadoChange={onHabilitadoChange}
+                pendingHabilitado={pendingHabilitadoId === d.id}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Orquestador de /seteos (brief "Seteos — selector único global,
-// dispositivos colapsables/habilitables..." §1/§2): un solo selector
-// General/+/Canciones para toda la página (ya no uno por dispositivo) —
-// cambiar la vista hace que cada DispositivoBloque de abajo resuelva su
-// propio seteo para esa vista. También ordena la lista (amplificadores
-// habilitados primero, después pedales habilitados) y separa los
-// deshabilitados en un acordeón cerrado al fondo.
+// dispositivos colapsables/habilitables..." §1/§2, rediseñado por brief
+// "Seteos: completar selector de instrumento + rediseño de cadena" §2): un
+// solo selector General/+/Canciones para toda la página (ya no uno por
+// dispositivo) — cambiar la vista hace que cada DispositivoBloque de abajo
+// resuelva su propio seteo para esa vista. Agrupa los habilitados en dos
+// acordeones "cadena de señal" (Amplificadores, luego Pedales/FX con el
+// Afinador primero), ambos cerrados por default, y separa los
+// deshabilitados en su propio acordeón cerrado al fondo, sin agrupar.
 export function SeteosLista({
   dispositivosIniciales,
   cancionesDisponibles,
@@ -48,6 +138,12 @@ export function SeteosLista({
   const [busqueda, setBusqueda] = useState("");
   const [pendingHabilitadoId, setPendingHabilitadoId] = useState<string | null>(null);
   const [deshabilitadosAbierto, setDeshabilitadosAbierto] = useState(false);
+  // Brief "Seteos: completar selector de instrumento + rediseño de cadena"
+  // §2: ambos grupos arrancan cerrados -- a diferencia de Deshabilitados
+  // (que siempre arrancó así), acá antes de este brief no había grupos, era
+  // una lista plana ya expandida.
+  const [amplificadoresAbierto, setAmplificadoresAbierto] = useState(false);
+  const [pedalesAbierto, setPedalesAbierto] = useState(false);
 
   // Brief "Instrumentos propios...": con 0 o 1 instrumento propio queda en
   // null siempre (sin selector, sin filtrar -- comportamiento de siempre).
@@ -82,12 +178,17 @@ export function SeteosLista({
   const cancionesConSeteo = cancionesDisponibles.filter((c) => dispositivos.some((d) => d.seteos.some((s) => s.cancionId === c.id)));
   const cancionesFiltradas = cancionesDisponibles.filter((c) => c.titulo.toLowerCase().includes(busqueda.trim().toLowerCase()));
 
-  // Amplificadores habilitados primero, después pedales habilitados (brief
-  // §2) — sort estable, dentro de cada categoría se conserva el orden que ya
-  // trae `dispositivos` (creación).
-  const ordenar = (lista: DispositivoConSeteos[]) => [...lista].sort((a, b) => (a.categoria === "pedal" ? 1 : 0) - (b.categoria === "pedal" ? 1 : 0));
-  const habilitados = ordenar(dispositivos.filter((d) => d.habilitado));
-  const deshabilitados = ordenar(dispositivos.filter((d) => !d.habilitado));
+  // Brief "Seteos: completar selector de instrumento + rediseño de cadena"
+  // §2: Amplificadores y Pedales/FX son dos grupos separados (ya no una
+  // lista plana ampli-luego-pedal) -- dentro de Pedales/FX, el Afinador va
+  // primero (sort estable: el resto conserva el orden que ya trae
+  // `dispositivos`, o sea el de creación).
+  const habilitadosDe = (categoria: DispositivoConSeteos["categoria"]) => dispositivos.filter((d) => d.habilitado && d.categoria === categoria);
+  const amplificadores = habilitadosDe("amplificador");
+  const pedales = [...habilitadosDe("pedal")].sort((a, b) => (esAfinador(a) ? 0 : 1) - (esAfinador(b) ? 0 : 1));
+  // Deshabilitados se mantiene como lista plana (ampli antes que pedal) --
+  // queda fuera de la cadena visual, no tiene sentido agruparlo igual.
+  const deshabilitados = [...dispositivos.filter((d) => !d.habilitado)].sort((a, b) => (a.categoria === "pedal" ? 1 : 0) - (b.categoria === "pedal" ? 1 : 0));
 
   const elegirGeneral = () => {
     setVista({ tipo: "general" });
@@ -134,6 +235,17 @@ export function SeteosLista({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Brief "Seteos: completar selector de instrumento + rediseño de
+          cadena" §2 "Encabezado de la vista": banda + instrumento activo
+          arriba de todo -- banda siempre (ya vive también en el breadcrumb
+          de la página, acá se repite junto al instrumento para que ambos se
+          lean juntos), instrumento solo cuando hay uno activo (2+
+          instrumentos propios y ya resuelto desde localStorage). */}
+      <div className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: TEXTO_GRIS }}>
+        {nombreBanda}
+        {instrumentoActivo && ` · ${etiquetaInstrumentoPropio(instrumentoActivo)}`}
+      </div>
+
       <div className="rounded-2xl p-3.5" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
         <div className="flex flex-wrap items-center gap-1.5">
           <button
@@ -265,18 +377,44 @@ export function SeteosLista({
         </p>
       )}
 
-      {habilitados.map((d) => (
-        <DispositivoBloque
-          key={d.id}
-          dispositivo={d}
+      {/* Brief "Seteos: completar selector de instrumento + rediseño de
+          cadena" §2: Amplificadores primero, Pedales/FX después (con el
+          Afinador primero adentro, ver `pedales` más arriba) -- ambos
+          grupos cerrados por default, con el conector de acordes entre
+          ambos marcando la dirección real de la señal. */}
+      {amplificadores.length > 0 && (
+        <GrupoCadena
+          titulo="Amplificadores"
+          color={ACENTO_AMPLI}
+          dispositivos={amplificadores}
+          abierto={amplificadoresAbierto}
+          onToggle={() => setAmplificadoresAbierto((v) => !v)}
           vista={vista}
           instrumentoActivoId={instrumentoActivoId}
+          pendingHabilitadoId={pendingHabilitadoId}
           onValoresCambiados={onValoresCambiados}
           onSeteoCreado={onSeteoCreado}
           onHabilitadoChange={onHabilitadoChange}
-          pendingHabilitado={pendingHabilitadoId === d.id}
         />
-      ))}
+      )}
+
+      {amplificadores.length > 0 && pedales.length > 0 && <ConectorCadena de={ACENTO_AMPLI} a={ACENTO_PEDAL} />}
+
+      {pedales.length > 0 && (
+        <GrupoCadena
+          titulo="Pedales/FX"
+          color={ACENTO_PEDAL}
+          dispositivos={pedales}
+          abierto={pedalesAbierto}
+          onToggle={() => setPedalesAbierto((v) => !v)}
+          vista={vista}
+          instrumentoActivoId={instrumentoActivoId}
+          pendingHabilitadoId={pendingHabilitadoId}
+          onValoresCambiados={onValoresCambiados}
+          onSeteoCreado={onSeteoCreado}
+          onHabilitadoChange={onHabilitadoChange}
+        />
+      )}
 
       {deshabilitados.length > 0 && (
         <div className="rounded-2xl" style={{ background: "oklch(0.965 0.012 82)", border: "1px solid oklch(0.9 0.012 78)" }}>
