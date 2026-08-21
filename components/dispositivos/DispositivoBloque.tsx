@@ -90,7 +90,10 @@ export function DispositivoBloque({
   onHabilitadoChange: (dispositivoId: string, habilitado: boolean) => void;
   pendingHabilitado: boolean;
 }) {
-  const [colapsado, setColapsado] = useState(false);
+  // Brief "Seteos: cada dispositivo individual también cerrado por
+  // default": mismo criterio que ya tienen los grupos (Amplificadores,
+  // Pedales/FX) -- arranca colapsado, se expande al tocarlo.
+  const [colapsado, setColapsado] = useState(true);
   const [estadoGuardado, setEstadoGuardado] = useState<"guardado" | "guardando" | "error">("guardado");
   const [errorCrear, setErrorCrear] = useState<string | null>(null);
   const [creando, startCrear] = useTransition();
