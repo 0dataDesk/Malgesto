@@ -52,43 +52,6 @@ function formatearFecha(iso: string): string {
 
 type BandaResumen = { id: string; nombre: string; genero: string | null };
 
-// Brief §4: el texto que Jorge pega directo como prompt/contexto para
-// Design -- todo lo capturado en esta pantalla menos los archivos de fotos
-// (van como links directos al bucket, no embebidos).
-function construirResumen(
-  banda: BandaResumen,
-  presskit: Presskit,
-  fotos: PresskitFoto[],
-  redes: PresskitRed[],
-  integrantes: PlazaConPersona[]
-): string {
-  const lineas: string[] = [];
-  lineas.push(`PRESSKIT — ${banda.nombre}`);
-  if (banda.genero) lineas.push(`Género: ${banda.genero}`);
-  const origen = [presskit.ciudad, presskit.pais].filter((v) => v && v.trim()).join(", ");
-  if (origen) lineas.push(`Origen: ${origen}`);
-
-  lineas.push("", "SEMBLANZA", presskit.bioLarga?.trim() || "(sin completar)");
-
-  lineas.push("", "INTEGRANTES");
-  if (integrantes.length === 0) lineas.push("(sin completar)");
-  else for (const i of integrantes) lineas.push(`- ${i.nombrePersona} — ${etiquetaPlaza(i.instrumento, i.etiqueta)}`);
-
-  lineas.push("", "LINKS");
-  if (redes.length === 0) lineas.push("(sin completar)");
-  else for (const r of redes) lineas.push(`- ${r.plataforma}: ${r.url}`);
-
-  lineas.push("", "FOTOS");
-  if (fotos.length === 0) lineas.push("(sin fotos)");
-  else fotos.forEach((f, i) => lineas.push(`- Foto ${i + 1}: ${f.url}`));
-
-  lineas.push("", "CONTACTO", presskit.contactoNombre?.trim() || "(sin completar)");
-  if (presskit.contactoTelefono?.trim()) lineas.push(presskit.contactoTelefono.trim());
-  if (presskit.contactoEmail?.trim()) lineas.push(presskit.contactoEmail.trim());
-
-  return lineas.join("\n");
-}
-
 function GaleriaFotos({
   bandaId,
   presskitId,
@@ -348,7 +311,7 @@ export function PresskitCaptura({
   // hayCambios pasa a false por el propio guardado.
   const [estadoGuardado, setEstadoGuardado] = useState<"idle" | "guardado">("idle");
   const [enviando, setEnviando] = useState(false);
-  const [resumen, setResumen] = useState<string | null>(null);
+  const [documento, setDocumento] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
@@ -405,10 +368,15 @@ export function PresskitCaptura({
         await actualizarPresskitAction(banda.id, presskit.id, cambios);
         presskitActual = { ...presskit, ...cambios };
       }
-      const enviadoEn = await marcarPresskitEnviadoAction(banda.id, presskit.id);
+      // Brief "Presskit: documento completo para Design...": el documento ya
+      // no se arma acá con los datos del cliente (podían quedar desalineados
+      // con lo recién guardado, y no incluían próximas fechas) -- lo devuelve
+      // hecho la propia action, con la misma función que se usa para pedidos
+      // directos a Code fuera de la app.
+      const { enviadoEn, documento: doc } = await marcarPresskitEnviadoAction(banda.id, presskit.id);
       presskitActual = { ...presskitActual, enviadoEn, actualizadoEn: enviadoEn };
       setPresskit(presskitActual);
-      setResumen(construirResumen(banda, presskitActual, fotos, redes, integrantes));
+      setDocumento(doc);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo enviar a Presskit.");
     } finally {
@@ -416,10 +384,10 @@ export function PresskitCaptura({
     }
   };
 
-  const copiarResumen = async () => {
-    if (!resumen) return;
+  const copiarDocumento = async () => {
+    if (!documento) return;
     try {
-      await navigator.clipboard.writeText(resumen);
+      await navigator.clipboard.writeText(documento);
       setCopiado(true);
       setTimeout(() => setCopiado(false), 1500);
     } catch {
@@ -550,35 +518,35 @@ export function PresskitCaptura({
         </button>
       )}
 
-      {resumen && (
+      {documento && (
         <div
           className="fixed inset-0 z-30 flex items-center justify-center p-4"
           style={{ background: "rgba(0,0,0,0.45)" }}
-          onClick={() => setResumen(null)}
+          onClick={() => setDocumento(null)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[85vh] w-full max-w-lg flex-col gap-3 rounded-2xl p-5"
+            className="flex max-h-[85vh] w-full max-w-2xl flex-col gap-3 rounded-2xl p-5"
             style={{ background: "oklch(0.99 0.008 82)", boxShadow: "0 24px 48px -16px rgba(0,0,0,0.4)" }}
           >
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
-                Resumen para Design
+                Documento para Design
               </h3>
-              <button type="button" onClick={() => setResumen(null)} aria-label="Cerrar" className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+              <button type="button" onClick={() => setDocumento(null)} aria-label="Cerrar" className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
                 ✕
               </button>
             </div>
             <textarea
               readOnly
-              value={resumen}
+              value={documento}
               onFocus={(e) => e.target.select()}
-              className="min-h-[320px] flex-1 resize-none rounded-lg border p-3 font-mono text-xs"
+              className="min-h-[420px] flex-1 resize-none rounded-lg border p-3 font-mono text-xs"
               style={inputStyle}
             />
             <button
               type="button"
-              onClick={copiarResumen}
+              onClick={copiarDocumento}
               className="rounded-lg px-4 py-2.5 text-sm font-bold"
               style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
             >

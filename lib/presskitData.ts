@@ -1,6 +1,10 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { supabaseMalgesto } from "@/lib/supabase/malgesto";
+import { etiquetaPlaza } from "@/lib/instrumentoCatalogo";
+import { obtenerPlazasConPersonaDeBanda } from "@/lib/stagePlotData";
+import { partesEnZonaApp } from "@/lib/zonaHoraria";
+import { MESES } from "@/lib/eventoUI";
 
 const BUCKET = "presskit";
 const TIPOS_PERMITIDOS: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
@@ -205,4 +209,102 @@ export async function marcarPresskitEnviado(presskitId: string): Promise<string>
   const { error } = await admin.from("presskits").update({ enviado_en: ahora, updated_at: ahora, actualizado_en: ahora }).eq("id", presskitId);
   if (error) throw new Error(error.message);
   return ahora;
+}
+
+// Brief "Presskit: documento completo para Design (reemplaza el resumen
+// recortado)" §1: texto fijo que Jorge ya no escribe a mano cada vez -- va
+// siempre al inicio del documento (ver construirDocumentoPresskit).
+export const PROMPT_DESIGN_PRESSKIT =
+  "Vas a diseñar una página pública de presskit para esta banda, usando exactamente la información de abajo. No inventes ni completes datos que no estén incluidos.";
+
+export type PresskitProximaFecha = { fechaInicio: string; titulo: string; lugarNombre: string | null };
+
+// Próximas fechas (Brief §2, nuevo -- no estaba en el resumen anterior):
+// consulta directa a `eventos` por banda_id, sin pasar por la resolución de
+// giras multi-banda de obtenerEventos (malgestoEventos.ts) -- acá solo
+// importan las fechas propias de ESTA banda hacia adelante.
+async function obtenerProximasFechas(bandaId: string): Promise<PresskitProximaFecha[]> {
+  const admin = supabaseMalgesto();
+  const ahora = new Date().toISOString();
+  const { data } = await admin
+    .from("eventos")
+    .select("titulo, fecha_inicio, lugares(nombre)")
+    .eq("banda_id", bandaId)
+    .gt("fecha_inicio", ahora)
+    .order("fecha_inicio", { ascending: true });
+  return (data ?? []).map((e) => ({
+    fechaInicio: e.fecha_inicio,
+    titulo: e.titulo,
+    lugarNombre: (e.lugares as unknown as { nombre: string } | null)?.nombre ?? null,
+  }));
+}
+
+function formatearFechaDocumento(iso: string): string {
+  const p = partesEnZonaApp(iso);
+  return `${p.dia} de ${MESES[p.mes].toLowerCase()} de ${p.anio}`;
+}
+
+// Documento completo para Design (Brief "...reemplaza el resumen
+// recortado"): a diferencia del resumen anterior, ningún campo se recorta
+// -- cada dato va tal cual está guardado, con "(sin completar)" donde falte
+// en vez de omitir la línea. Deliberadamente reusable (no lógica pegada al
+// botón "Enviar a Presskit"): sirve tanto para ese botón (marcarPresskitEnviadoAction)
+// como para cuando Jorge le pide este mismo documento a Code en otra
+// conversación, consultando la base directo sin pasar por la app -- misma
+// función, mismo resultado en los dos casos.
+export async function construirDocumentoPresskit(bandaId: string): Promise<string> {
+  const admin = supabaseMalgesto();
+  const [{ data: bandaRow }, presskit] = await Promise.all([
+    admin.from("bandas").select("nombre, genero").eq("id", bandaId).single(),
+    obtenerOCrearPresskit(bandaId),
+  ]);
+  const bandaNombre = bandaRow?.nombre ?? "Banda";
+  const bandaGenero = bandaRow?.genero as string | null;
+
+  const [fotos, redes, integrantes, proximasFechas] = await Promise.all([
+    obtenerFotos(presskit.id),
+    obtenerRedes(presskit.id),
+    obtenerPlazasConPersonaDeBanda(bandaId),
+    obtenerProximasFechas(bandaId),
+  ]);
+
+  const lineas: string[] = [PROMPT_DESIGN_PRESSKIT, ""];
+
+  lineas.push(`PRESSKIT — ${bandaNombre}`);
+  lineas.push(`Género: ${bandaGenero?.trim() || "(sin completar)"}`);
+
+  lineas.push("", "SEMBLANZA", presskit.bioLarga?.trim() || "(sin completar)");
+
+  lineas.push("", "ORIGEN");
+  lineas.push(`País: ${presskit.pais?.trim() || "(sin completar)"}`);
+  lineas.push(`Ciudad: ${presskit.ciudad?.trim() || "(sin completar)"}`);
+
+  lineas.push("", "INTEGRANTES");
+  if (integrantes.length === 0) lineas.push("(sin completar)");
+  else for (const i of integrantes) lineas.push(`- ${i.nombrePersona} — ${etiquetaPlaza(i.instrumento, i.etiqueta)}`);
+
+  lineas.push("", "FOTOS");
+  if (fotos.length === 0) lineas.push("(sin fotos)");
+  else fotos.forEach((f, i) => lineas.push(`- Foto ${i + 1}: ${f.url}`));
+
+  lineas.push("", "LINKS DE PLATAFORMAS");
+  if (redes.length === 0) lineas.push("(sin completar)");
+  else for (const r of redes) lineas.push(`- ${r.plataforma}: ${r.url}`);
+
+  lineas.push("", "CONTACTO");
+  lineas.push(`Nombre: ${presskit.contactoNombre?.trim() || "(sin completar)"}`);
+  lineas.push(`Teléfono: ${presskit.contactoTelefono?.trim() || "(sin completar)"}`);
+  lineas.push(`Email: ${presskit.contactoEmail?.trim() || "(sin completar)"}`);
+
+  lineas.push("", "PRÓXIMAS FECHAS");
+  if (proximasFechas.length === 0) {
+    lineas.push("Sin fechas próximas registradas.");
+  } else {
+    for (const f of proximasFechas) {
+      const lugar = f.lugarNombre ? ` — ${f.lugarNombre}` : "";
+      lineas.push(`- ${formatearFechaDocumento(f.fechaInicio)}: ${f.titulo}${lugar}`);
+    }
+  }
+
+  return lineas.join("\n");
 }
