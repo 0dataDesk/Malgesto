@@ -5,6 +5,14 @@ import { supabaseMalgesto } from "@/lib/supabase/malgesto";
 // tiempo de un evento. `hora` es hora de pared del eje fijo 11:00–02:00 (del
 // día siguiente) que usa la pantalla -- `diaSiguiente` distingue las horas
 // después de medianoche (mismo criterio que ya documenta la columna en DB).
+// Brief "Logística: mejoras de interacción y vista de solo lectura" §5: una
+// fila por persona en la lista de músicos de la pantalla de Logística (no
+// una por instrumento/voz como el Input List del Rider, que sí distingue
+// canal por canal a propósito) -- se arma en app/logistica/[eventoId]/
+// page.tsx a partir de rider.canales, acá solo vive el tipo compartido con
+// el componente.
+export type MusicoLogistica = { persona: string; roles: string };
+
 export type PuntoLogistica = {
   id: string;
   eventoId: string;
