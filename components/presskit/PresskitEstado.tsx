@@ -106,6 +106,11 @@ function Etiqueta({ children }: { children: string }) {
 // "Presskit — vista propia..." §3) a DetalleBanda en Gestión > Bandas --
 // mismos campos/lógica, solo cambia quién la monta (por eso vive acá, en el
 // archivo compartido, y ya no como función local de PresskitCaptura.tsx).
+// Brief "Ajustes: acordeón combinado en Bandas + botones de Presskit en su
+// vista" §2: "Visitar"/"Compartir" salieron de acá -- son acciones de
+// consumo para cualquier integrante, no de edición de admin, así que ahora
+// viven solo en /presskit (VisitarCompartirPresskit, ver app/presskit/
+// page.tsx). Esto queda como edición pura: el input + Guardar.
 export function LigaPublicadaSeccion({
   bandaId,
   presskitId,
@@ -155,15 +160,6 @@ export function LigaPublicadaSeccion({
       {error && (
         <p className="mt-2 text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
           {error}
-        </p>
-      )}
-
-      <div className="mt-3">
-        <VisitarCompartirPresskit liga={ligaActual} />
-      </div>
-      {!ligaActual && (
-        <p className="mt-2 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
-          Todavía no hay página publicada.
         </p>
       )}
     </div>

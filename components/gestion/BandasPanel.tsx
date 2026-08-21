@@ -311,19 +311,22 @@ function InstrumentosDeLaBanda({ bandaId, plazas, onPlazas }: { bandaId: string;
 }
 
 // Brief "Presskit como bloque, Liga publicada en Bandas, acordeón de
-// bloques" §3: mismo patrón visual/interactivo que SubAcordeon en
-// IntegrantesPanel.tsx (Instrumentos propios) -- cerrado por defecto,
-// header clickeable en toda la franja, chevron que rota 180°. No se
-// importa el de IntegrantesPanel porque no está exportado (es local a ese
-// archivo, mismo criterio que ya usan los demás sub-componentes puramente
-// visuales de Gestión, ej. InstrumentoDropdown acá mismo).
-function AcordeonBloques({ children }: { children: React.ReactNode }) {
+// bloques" §3, combinado con Instrumentos por Brief "Ajustes: acordeón
+// combinado en Bandas + botones de Presskit en su vista" §1: mismo patrón
+// visual/interactivo que SubAcordeon en IntegrantesPanel.tsx (Instrumentos
+// propios) -- cerrado por defecto, header clickeable en toda la franja,
+// chevron que rota 180°. No se importa el de IntegrantesPanel porque no
+// está exportado (es local a ese archivo, mismo criterio que ya usan los
+// demás sub-componentes puramente visuales de Gestión, ej.
+// InstrumentoDropdown acá mismo). Ahora recibe `titulo` porque agrupa dos
+// secciones (Bloques + Instrumentos) en un solo acordeón, no solo Bloques.
+function AcordeonPlegable({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   const [abierto, setAbierto] = useState(false);
   return (
     <div className="rounded-lg" style={{ background: "oklch(0.965 0.012 82)", border: "1px solid oklch(0.9 0.012 78)" }}>
       <button type="button" onClick={() => setAbierto((v) => !v)} className="flex w-full items-center justify-between px-2.5 py-2 text-left">
         <span className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.02 55)" }}>
-          Bloques
+          {titulo}
         </span>
         <span
           className="text-[10px]"
@@ -332,7 +335,7 @@ function AcordeonBloques({ children }: { children: React.ReactNode }) {
           ▾
         </span>
       </button>
-      {abierto && <div className="flex flex-wrap items-center gap-2 px-2.5 pb-2.5">{children}</div>}
+      {abierto && <div className="flex flex-col gap-3 px-2.5 pb-2.5">{children}</div>}
     </div>
   );
 }
@@ -494,16 +497,29 @@ function DetalleBanda({
           </div>
         )}
 
+        {/* Brief "Ajustes: acordeón combinado en Bandas + botones de
+            Presskit en su vista" §1: Bloques + Instrumentos (antes una
+            tarjeta separada, siempre visible) quedan como un solo
+            acordeón colapsable, no dos elementos sueltos. */}
         <div className="mt-3">
-          <AcordeonBloques>
-            <ToggleChip label="Calendario" active dot={false} onClick={() => {}} />
-            <ToggleChip label="Canciones" active={canciones} onClick={() => setCanciones((v) => !v)} />
-            <ToggleChip label="Set List" active={setlist} onClick={() => setSetlist((v) => !v)} />
-            <ToggleChip label="Seteos" active={seteos} onClick={() => setSeteos((v) => !v)} />
-            <ToggleChip label="Finanzas" active={finanzas} onClick={() => setFinanzas((v) => !v)} />
-            <ToggleChip label="Stage Plot" active={stagePlot} onClick={() => setStagePlot((v) => !v)} />
-            <ToggleChip label="Presskit" active={presskit} onClick={() => setPresskit((v) => !v)} />
-          </AcordeonBloques>
+          <AcordeonPlegable titulo="Bloques e instrumentos">
+            <div>
+              <span className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.02 55)" }}>
+                Bloques
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <ToggleChip label="Calendario" active dot={false} onClick={() => {}} />
+                <ToggleChip label="Canciones" active={canciones} onClick={() => setCanciones((v) => !v)} />
+                <ToggleChip label="Set List" active={setlist} onClick={() => setSetlist((v) => !v)} />
+                <ToggleChip label="Seteos" active={seteos} onClick={() => setSeteos((v) => !v)} />
+                <ToggleChip label="Finanzas" active={finanzas} onClick={() => setFinanzas((v) => !v)} />
+                <ToggleChip label="Stage Plot" active={stagePlot} onClick={() => setStagePlot((v) => !v)} />
+                <ToggleChip label="Presskit" active={presskit} onClick={() => setPresskit((v) => !v)} />
+              </div>
+            </div>
+
+            <InstrumentosDeLaBanda bandaId={banda.id} plazas={plazas} onPlazas={onPlazas} />
+          </AcordeonPlegable>
         </div>
 
         {error && (
@@ -511,10 +527,6 @@ function DetalleBanda({
             {error}
           </p>
         )}
-      </div>
-
-      <div className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
-        <InstrumentosDeLaBanda bandaId={banda.id} plazas={plazas} onPlazas={onPlazas} />
       </div>
 
       {(hayCambios || estadoGuardado === "guardado") && (
