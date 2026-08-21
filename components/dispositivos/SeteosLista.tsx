@@ -380,8 +380,11 @@ export function SeteosLista({
       {/* Brief "Seteos: completar selector de instrumento + rediseño de
           cadena" §2: Amplificadores primero, Pedales/FX después (con el
           Afinador primero adentro, ver `pedales` más arriba) -- ambos
-          grupos cerrados por default, con el conector de acordes entre
-          ambos marcando la dirección real de la señal. */}
+          grupos cerrados por default. Brief "Seteos: corrección de
+          comportamiento y ajuste visual" §2: el conector entre ambos grupos
+          se sacó -- se veía como un error visual, no como cadena. La
+          separación entre grupos queda marcada solo por el
+          encabezado/borde de cada `GrupoCadena`. */}
       {amplificadores.length > 0 && (
         <GrupoCadena
           titulo="Amplificadores"
@@ -397,8 +400,6 @@ export function SeteosLista({
           onHabilitadoChange={onHabilitadoChange}
         />
       )}
-
-      {amplificadores.length > 0 && pedales.length > 0 && <ConectorCadena de={ACENTO_AMPLI} a={ACENTO_PEDAL} />}
 
       {pedales.length > 0 && (
         <GrupoCadena
