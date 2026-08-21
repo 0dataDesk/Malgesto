@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { cerrarSesion } from "@/app/auth/actions";
 import { useOcultarAlScrollear } from "@/lib/useOcultarAlScrollear";
@@ -131,6 +132,22 @@ function IconoPresskit() {
   );
 }
 
+// Brief "Menú de vistas: acordeón flotante": la etiqueta + ícono de la vista
+// activa quedan en el trigger del acordeón, colapsado por default -- mismo
+// criterio de interacción que los demás acordeones de la app (ej.
+// "Instrumento: Guitarra ▾" en SeteosLista, "Bloques visibles ▾" en
+// IntegrantesPanel): botón con label + chevron que rota 180° al abrir,
+// contenido (acá, el resto de las vistas) solo se renderiza si está abierto.
+const ETIQUETA_VISTA: Record<string, string> = {
+  calendario: "Calendario",
+  canciones: "Canciones",
+  setlist: "Set List",
+  seteos: "Seteos",
+  finanzas: "Finanzas",
+  stage_plot: "Stage Plot",
+  presskit: "Presskit",
+};
+
 function NavBoton({ href, activo, label, children }: { href: string; activo: boolean; label: string; children: React.ReactNode }) {
   return (
     <Link
@@ -170,6 +187,21 @@ export function TabBar({
   mostrarStagePlot?: boolean;
 }) {
   const oculto = useOcultarAlScrollear();
+  // Brief "Menú de vistas: acordeón flotante": colapsado por default, cada
+  // página monta TabBar de nuevo (server component padre pasa `activa` por
+  // prop) así que este estado arranca en false otra vez después de navegar
+  // -- no hace falta cerrarlo a mano al elegir una vista.
+  const [menuAbierto, setMenuAbierto] = useState(false);
+
+  const iconoVistaActiva: Record<typeof activa, React.ReactNode> = {
+    calendario: <IconoCalendario />,
+    canciones: <IconoCanciones />,
+    setlist: <IconoSetlist />,
+    seteos: <IconoSeteos />,
+    finanzas: <IconoFinanzas />,
+    stage_plot: <IconoStagePlot />,
+    presskit: <IconoPresskit />,
+  };
 
   return (
     <>
@@ -201,7 +233,12 @@ export function TabBar({
           `oculto` de arriba, mismas 3 propiedades que ya usa el cluster de
           Gestión/Cerrar sesión, solo que el translateY se combina con el
           translateX(-50%) que ya centraba el menú (un solo `transform`, no
-          se puede tener los dos por separado). */}
+          se puede tener los dos por separado).
+          Brief "Menú de vistas: acordeón flotante": colapsado por default --
+          el trigger (ícono + nombre de la vista activa + chevron, mismo
+          criterio que "Instrumento: Guitarra ▾" en SeteosLista/"Bloques
+          visibles ▾" en IntegrantesPanel) siempre está, el resto de las
+          vistas solo se monta cuando `menuAbierto`. */}
       <div
         className="fixed z-20 flex items-center gap-1.5 rounded-full p-1.5 transition-all duration-200"
         style={{
@@ -215,44 +252,63 @@ export function TabBar({
           boxShadow: "0 10px 26px -10px rgba(0,0,0,0.28)",
         }}
       >
-        <NavBoton href="/inicio" activo={activa === "calendario"} label="Calendario">
-          <IconoCalendario />
-        </NavBoton>
-        {mostrarCanciones && (
-          <NavBoton href="/canciones" activo={activa === "canciones"} label="Canciones">
-            <IconoCanciones />
-          </NavBoton>
-        )}
-        {mostrarSetlist && (
-          <NavBoton href="/set-list" activo={activa === "setlist"} label="Set List">
-            <IconoSetlist />
-          </NavBoton>
-        )}
-        {mostrarSeteos && (
-          <NavBoton href="/seteos" activo={activa === "seteos"} label="Seteos">
-            <IconoSeteos />
-          </NavBoton>
-        )}
-        {mostrarFinanzas && (
-          <NavBoton href="/finanzas" activo={activa === "finanzas"} label="Finanzas">
-            <IconoFinanzas />
-          </NavBoton>
-        )}
-        {mostrarStagePlot && (
-          <NavBoton href="/stage-plot" activo={activa === "stage_plot"} label="Stage Plot">
-            <IconoStagePlot />
-          </NavBoton>
-        )}
-        {/* Brief "Presskit — vista propia, estatus, liga publicada" §1: ya
-            no se entra por el botón "Presskit" de Gestión > Bandas -- pasa
-            a ser un módulo de nivel superior más, pero gateado a
-            superadmin (no hay bloque `presskit_habilitado` por banda como
-            el resto: es una consola de gestión, no algo que la banda
-            "active"). */}
-        {esSuperadmin && (
-          <NavBoton href="/presskit" activo={activa === "presskit"} label="Presskit">
-            <IconoPresskit />
-          </NavBoton>
+        <button
+          type="button"
+          onClick={() => setMenuAbierto((v) => !v)}
+          aria-expanded={menuAbierto}
+          aria-label="Vistas"
+          className="flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3"
+          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+        >
+          {iconoVistaActiva[activa]}
+          <span className="text-xs font-bold">{ETIQUETA_VISTA[activa]}</span>
+          <span className="text-[10px]" style={{ transform: menuAbierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+            ▾
+          </span>
+        </button>
+
+        {menuAbierto && (
+          <>
+            <NavBoton href="/inicio" activo={activa === "calendario"} label="Calendario">
+              <IconoCalendario />
+            </NavBoton>
+            {mostrarCanciones && (
+              <NavBoton href="/canciones" activo={activa === "canciones"} label="Canciones">
+                <IconoCanciones />
+              </NavBoton>
+            )}
+            {mostrarSetlist && (
+              <NavBoton href="/set-list" activo={activa === "setlist"} label="Set List">
+                <IconoSetlist />
+              </NavBoton>
+            )}
+            {mostrarSeteos && (
+              <NavBoton href="/seteos" activo={activa === "seteos"} label="Seteos">
+                <IconoSeteos />
+              </NavBoton>
+            )}
+            {mostrarFinanzas && (
+              <NavBoton href="/finanzas" activo={activa === "finanzas"} label="Finanzas">
+                <IconoFinanzas />
+              </NavBoton>
+            )}
+            {mostrarStagePlot && (
+              <NavBoton href="/stage-plot" activo={activa === "stage_plot"} label="Stage Plot">
+                <IconoStagePlot />
+              </NavBoton>
+            )}
+            {/* Brief "Presskit — vista propia, estatus, liga publicada" §1:
+                ya no se entra por el botón "Presskit" de Gestión > Bandas --
+                pasa a ser un módulo de nivel superior más, pero gateado a
+                superadmin (no hay bloque `presskit_habilitado` por banda
+                como el resto: es una consola de gestión, no algo que la
+                banda "active"). */}
+            {esSuperadmin && (
+              <NavBoton href="/presskit" activo={activa === "presskit"} label="Presskit">
+                <IconoPresskit />
+              </NavBoton>
+            )}
+          </>
         )}
       </div>
     </>
