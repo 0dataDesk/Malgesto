@@ -6,6 +6,7 @@ import {
   obtenerDispositivosCompletosDeUsuario,
   crearSeteoGeneralConDefaults,
   obtenerInstrumentosPropiosDeUsuario,
+  obtenerInstrumentosEnCadena,
   type Seteo,
 } from "@/lib/dispositivosData";
 import { obtenerCanciones } from "@/lib/cancionesData";
@@ -86,25 +87,20 @@ export default async function SeteosPage({
   const bandaActiva = bandaValida ? bandaParam! : bandasConBloque[0].bandaId;
   const nombreBandaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
 
-  const [dispositivos, canciones, instrumentosPropios] = await Promise.all([
+  const [dispositivos, canciones, instrumentosPropios, instrumentosEnCadena] = await Promise.all([
     obtenerDispositivosCompletosDeUsuario([bandaActiva], user.id),
     obtenerCanciones([bandaActiva]),
     obtenerInstrumentosPropiosDeUsuario(user.id),
+    obtenerInstrumentosEnCadena(bandaActiva, user.id),
   ]);
 
   // Brief §4 (Seteo general obligatorio): si un dispositivo todavía no tiene
   // uno, se crea acá mismo con los valor_default del diseño, antes de
   // mostrar la pantalla — así siempre aterriza directo en modo General.
-  //
-  // Brief "Instrumentos propios...": esto solo garantiza el general
-  // "sin instrumento" (instrumento_propio_id null) -- el general de un
-  // instrumento puntual (cuando la persona tiene 2+) se crea on-demand del
-  // lado del cliente al activarlo, porque cuál es el "instrumento activo"
-  // recién se sabe ahí (persiste en localStorage, no en el server).
   const dispositivosConGeneral = await Promise.all(
     dispositivos.map(async (d) => {
-      if (!d.diseno || d.seteos.some((s) => s.esGeneral && s.instrumentoPropioId === null)) return d;
-      const general = await crearSeteoGeneralConDefaults(d.id, d.diseno.controles, null);
+      if (!d.diseno || d.seteos.some((s) => s.esGeneral)) return d;
+      const general = await crearSeteoGeneralConDefaults(d.id, d.diseno.controles);
       const seteos: Seteo[] = [...d.seteos, general];
       return { ...d, seteos };
     })
@@ -158,7 +154,9 @@ export default async function SeteosPage({
             dispositivosIniciales={dispositivosParaLista}
             cancionesDisponibles={cancionesOpciones}
             nombreBanda={nombreBandaActiva}
+            bandaId={bandaActiva}
             instrumentosPropios={instrumentosPropios}
+            instrumentosEnCadenaIniciales={instrumentosEnCadena}
           />
         </div>
       </EspacioSuperior>

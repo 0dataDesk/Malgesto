@@ -1,17 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { Seteo, InstrumentoPropioResumen } from "@/lib/dispositivosData";
-import { actualizarHabilitadoDispositivoAction } from "@/app/seteos/actions";
+import { useState } from "react";
+import type { Seteo, InstrumentoPropioResumen, InstrumentoEnCadena } from "@/lib/dispositivosData";
+import { actualizarHabilitadoDispositivoAction, agregarInstrumentoEnCadenaAction, quitarInstrumentoEnCadenaAction } from "@/app/seteos/actions";
 import { DispositivoBloque, type DispositivoConSeteos, type Vista } from "./DispositivoBloque";
 
 type CancionOpcion = { id: string; titulo: string };
-
-// Brief "Instrumentos propios + selector de instrumento activo en Seteos"
-// §2: la selección es "de sesión" pero persiste entre visitas -- localStorage
-// en vez de estado del servidor, porque cuál es el instrumento activo no
-// tiene por qué sobrevivir a un revalidatePath ni bloquear el primer render.
-const LOCALSTORAGE_INSTRUMENTO_ACTIVO = "malgesto:instrumentoActivo";
 
 function etiquetaInstrumentoPropio(i: InstrumentoPropioResumen): string {
   const detalle = [i.marca, i.modelo].filter(Boolean).join(" ");
@@ -31,6 +25,10 @@ const PILL_ACTIVO = { background: ACENTO, color: "oklch(0.99 0.01 82)" };
 // como un degradado real, no un tinte plano.
 const ACENTO_AMPLI = ACENTO;
 const ACENTO_PEDAL = "oklch(0.58 0.12 220)";
+// Brief "Instrumento como bloque agregable...": tercer acento de "cadena de
+// señal", distinto de Amplificadores (cálido) y Pedales/FX (frío-azul) --
+// verde para que el grupo se distinga a simple vista de los otros dos.
+const ACENTO_INSTRUMENTO = "oklch(0.62 0.13 150)";
 
 const MODELO_AFINADOR = "Afinador";
 const esAfinador = (d: DispositivoConSeteos) => d.disenoModelo === MODELO_AFINADOR;
@@ -60,7 +58,6 @@ function GrupoCadena({
   abierto,
   onToggle,
   vista,
-  instrumentoActivoId,
   pendingHabilitadoId,
   onValoresCambiados,
   onSeteoCreado,
@@ -72,7 +69,6 @@ function GrupoCadena({
   abierto: boolean;
   onToggle: () => void;
   vista: Vista;
-  instrumentoActivoId: string | null;
   pendingHabilitadoId: string | null;
   onValoresCambiados: (dispositivoId: string, seteoId: string, valores: Record<string, number>) => void;
   onSeteoCreado: (dispositivoId: string, seteo: Seteo) => void;
@@ -98,7 +94,6 @@ function GrupoCadena({
                 dispositivo={d}
                 colorCadena={color}
                 vista={vista}
-                instrumentoActivoId={instrumentoActivoId}
                 onValoresCambiados={onValoresCambiados}
                 onSeteoCreado={onSeteoCreado}
                 onHabilitadoChange={onHabilitadoChange}
@@ -106,6 +101,180 @@ function GrupoCadena({
               />
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Brief "Instrumento como bloque agregable (reemplaza el selector de
+// instrumento activo)": a diferencia de DispositivoBloque (amplis/pedales),
+// esto no tiene diseño/controles/seteos -- es un dato informativo (qué
+// instrumento, qué marca/modelo), sin colapsar ni interacción más allá de
+// quitarlo. Mismo lenguaje visual que la cabecera de DispositivoBloque
+// (mismo tipo de letra/tamaño del nombre, mismo borde de acento de cadena).
+function InstrumentoBloque({
+  instrumento,
+  colorCadena,
+  onQuitar,
+  pendingQuitar,
+}: {
+  instrumento: InstrumentoEnCadena;
+  colorCadena: string;
+  onQuitar: () => void;
+  pendingQuitar: boolean;
+}) {
+  const detalle = [instrumento.marca, instrumento.modelo].filter(Boolean).join(" ");
+  return (
+    <div
+      className="flex items-center justify-between gap-3 rounded-2xl p-4"
+      style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", borderLeft: `3px solid ${colorCadena}` }}
+    >
+      <div className="min-w-0 flex-1">
+        <span className="block truncate text-[19px] font-bold" style={{ color: TEXTO_OSCURO, fontFamily: "var(--font-bricolage), sans-serif" }}>
+          {instrumento.instrumento}
+        </span>
+        {detalle && (
+          <span className="mt-0.5 block font-mono text-xs uppercase tracking-wide" style={{ color: TEXTO_GRIS }}>
+            {detalle}
+          </span>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={onQuitar}
+        disabled={pendingQuitar}
+        aria-label="Quitar instrumento"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold disabled:opacity-50"
+        style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+// Agregar un instrumento propio a la vista actual (General o la canción
+// activa) -- lista de chips (mismo patrón que el picker de plazas en
+// Gestión > Integrantes), no un <select> como en Gestión > Integrantes,
+// porque acá ya existe un lenguaje de chips propio de esta pantalla
+// (picker de canciones más arriba) y la cantidad de instrumentos propios
+// por persona suele ser chica.
+function AgregarInstrumentoPicker({
+  opciones,
+  mensajeVacio,
+  onAgregar,
+  pending,
+}: {
+  opciones: InstrumentoPropioResumen[];
+  mensajeVacio: string;
+  onAgregar: (id: string) => void;
+  pending: boolean;
+}) {
+  const [abierto, setAbierto] = useState(false);
+
+  if (!abierto) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        className="rounded-lg border border-dashed px-2.5 py-1.5 text-xs font-semibold"
+        style={{ borderColor: "oklch(0.8 0.02 60)", color: TEXTO_GRIS }}
+      >
+        + Agregar instrumento
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-lg p-2" style={{ background: "oklch(0.965 0.012 82)", border: "1px solid oklch(0.9 0.012 78)" }}>
+      {opciones.length === 0 ? (
+        <p className="text-xs" style={{ color: TEXTO_GRIS }}>
+          {mensajeVacio}
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {opciones.map((i) => (
+            <button
+              key={i.id}
+              type="button"
+              onClick={() => {
+                onAgregar(i.id);
+                setAbierto(false);
+              }}
+              disabled={pending}
+              className="rounded-full px-3 py-1.5 text-xs font-bold disabled:opacity-50"
+              style={PILL_INACTIVO}
+            >
+              {etiquetaInstrumentoPropio(i)}
+            </button>
+          ))}
+        </div>
+      )}
+      <button type="button" onClick={() => setAbierto(false)} className="mt-1.5 text-xs font-semibold" style={{ color: TEXTO_GRIS }}>
+        Cancelar
+      </button>
+    </div>
+  );
+}
+
+// Grupo "cadena de señal" para Instrumento -- mismo patrón visual/interactivo
+// que GrupoCadena (header con punto de color + chevron, cerrado por
+// default), pero SIEMPRE se muestra (incluso con 0 instrumentos en la vista
+// actual) porque acá el picker "+ Agregar instrumento" es el único punto de
+// entrada para esto -- a diferencia de Amplificadores/Pedales, que se
+// asignan aparte en Gestión > Integrantes y por eso el grupo entero se oculta
+// si no hay ninguno habilitado.
+function GrupoInstrumento({
+  instrumentos,
+  opcionesDisponibles,
+  mensajeVacio,
+  abierto,
+  onToggle,
+  onAgregar,
+  onQuitar,
+  pendingAgregar,
+  pendingQuitarId,
+}: {
+  instrumentos: InstrumentoEnCadena[];
+  opcionesDisponibles: InstrumentoPropioResumen[];
+  mensajeVacio: string;
+  abierto: boolean;
+  onToggle: () => void;
+  onAgregar: (instrumentoPropioId: string) => void;
+  onQuitar: (id: string) => void;
+  pendingAgregar: boolean;
+  pendingQuitarId: string | null;
+}) {
+  return (
+    <div
+      className="rounded-2xl"
+      style={{ background: "oklch(0.99 0.008 82)", border: `1px solid ${ACENTO_INSTRUMENTO}`, borderLeft: `3px solid ${ACENTO_INSTRUMENTO}` }}
+    >
+      <button type="button" onClick={onToggle} className="flex w-full items-center gap-2.5 px-4 py-3 text-left">
+        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: ACENTO_INSTRUMENTO }} />
+        <span className="flex-1 text-sm font-bold" style={{ color: TEXTO_OSCURO }}>
+          Instrumento ({instrumentos.length})
+        </span>
+        <span className="text-xs" style={{ color: TEXTO_GRIS, transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+          ▾
+        </span>
+      </button>
+      {abierto && (
+        <div className="flex flex-col gap-2.5 px-4 pb-4">
+          {instrumentos.map((inst, i) => (
+            <div key={inst.id}>
+              {i > 0 && <ConectorCadena de={ACENTO_INSTRUMENTO} a={ACENTO_INSTRUMENTO} />}
+              <InstrumentoBloque
+                instrumento={inst}
+                colorCadena={ACENTO_INSTRUMENTO}
+                onQuitar={() => onQuitar(inst.id)}
+                pendingQuitar={pendingQuitarId === inst.id}
+              />
+            </div>
+          ))}
+          {instrumentos.length > 0 && <ConectorCadena de={ACENTO_INSTRUMENTO} a={ACENTO_INSTRUMENTO} />}
+          <AgregarInstrumentoPicker opciones={opcionesDisponibles} mensajeVacio={mensajeVacio} onAgregar={onAgregar} pending={pendingAgregar} />
         </div>
       )}
     </div>
@@ -121,16 +290,24 @@ function GrupoCadena({
 // acordeones "cadena de señal" (Amplificadores, luego Pedales/FX con el
 // Afinador primero), ambos cerrados por default, y separa los
 // deshabilitados en su propio acordeón cerrado al fondo, sin agrupar.
+// Brief "Instrumento como bloque agregable...": suma un tercer grupo
+// (Instrumento) antes de Amplificadores -- a diferencia de esos dos, su
+// contenido varía según `vista` (General o la canción activa), y se agrega/
+// quita acá mismo en vez de en Gestión > Integrantes.
 export function SeteosLista({
   dispositivosIniciales,
   cancionesDisponibles,
   nombreBanda,
+  bandaId,
   instrumentosPropios,
+  instrumentosEnCadenaIniciales,
 }: {
   dispositivosIniciales: DispositivoConSeteos[];
   cancionesDisponibles: CancionOpcion[];
   nombreBanda: string;
+  bandaId: string;
   instrumentosPropios: InstrumentoPropioResumen[];
+  instrumentosEnCadenaIniciales: InstrumentoEnCadena[];
 }) {
   const [dispositivos, setDispositivos] = useState(dispositivosIniciales);
   const [vista, setVista] = useState<Vista>({ tipo: "general" });
@@ -144,36 +321,13 @@ export function SeteosLista({
   // una lista plana ya expandida.
   const [amplificadoresAbierto, setAmplificadoresAbierto] = useState(false);
   const [pedalesAbierto, setPedalesAbierto] = useState(false);
-
-  // Brief "Instrumentos propios...": con 0 o 1 instrumento propio queda en
-  // null siempre (sin selector, sin filtrar -- comportamiento de siempre).
-  // Con 2+, arranca en null en el primer render del servidor (localStorage
-  // no existe ahí) y el efecto de abajo lo resuelve apenas monta en el
-  // cliente -- por eso DispositivoBloque tiene que tolerar un instante con
-  // instrumentoActivoId=null aunque haya 2+ instrumentos (ver ahí: solo crea
-  // on-demand, no rompe nada mientras tanto).
-  const [instrumentoActivoId, setInstrumentoActivoId] = useState<string | null>(null);
-  const [instrumentoAbierto, setInstrumentoAbierto] = useState(false);
-
-  useEffect(() => {
-    if (instrumentosPropios.length < 2) return;
-    const guardado = localStorage.getItem(LOCALSTORAGE_INSTRUMENTO_ACTIVO);
-    const valido = guardado && instrumentosPropios.some((i) => i.id === guardado) ? guardado : instrumentosPropios[0].id;
-    // localStorage no existe en el server, así que la sincronización inicial
-    // con este estado solo puede pasar acá (efecto de montaje), no derivarse
-    // en el render como pide la regla.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setInstrumentoActivoId(valido);
-    localStorage.setItem(LOCALSTORAGE_INSTRUMENTO_ACTIVO, valido);
-  }, [instrumentosPropios]);
-
-  const elegirInstrumento = (id: string) => {
-    setInstrumentoActivoId(id);
-    localStorage.setItem(LOCALSTORAGE_INSTRUMENTO_ACTIVO, id);
-    setInstrumentoAbierto(false);
-  };
-
-  const instrumentoActivo = instrumentosPropios.find((i) => i.id === instrumentoActivoId) ?? null;
+  // Brief "Instrumento como bloque agregable...": mismo criterio "cerrado
+  // por default" que los otros dos grupos de cadena.
+  const [instrumentosAbierto, setInstrumentosAbierto] = useState(false);
+  const [instrumentosEnCadena, setInstrumentosEnCadena] = useState(instrumentosEnCadenaIniciales);
+  const [pendingAgregarInstrumento, setPendingAgregarInstrumento] = useState(false);
+  const [pendingQuitarInstrumentoId, setPendingQuitarInstrumentoId] = useState<string | null>(null);
+  const [errorInstrumento, setErrorInstrumento] = useState<string | null>(null);
 
   const cancionesConSeteo = cancionesDisponibles.filter((c) => dispositivos.some((d) => d.seteos.some((s) => s.cancionId === c.id)));
   const cancionesFiltradas = cancionesDisponibles.filter((c) => c.titulo.toLowerCase().includes(busqueda.trim().toLowerCase()));
@@ -233,17 +387,45 @@ export function SeteosLista({
       .finally(() => setPendingHabilitadoId(null));
   };
 
+  // Brief "Instrumento como bloque agregable...": qué instrumentos aplican a
+  // la vista actual (General = cancionId null, o la canción activa) -- se
+  // filtra en el cliente sobre el listado completo del usuario+banda, mismo
+  // criterio que ya usa DispositivoBloque para resolver su seteo según
+  // `vista`, sin refetch al cambiar de vista.
+  const cancionIdVista = vista.tipo === "cancion" ? vista.cancionId : null;
+  const instrumentosDeLaVista = instrumentosEnCadena.filter((i) => i.cancionId === cancionIdVista);
+  const idsYaAgregados = new Set(instrumentosDeLaVista.map((i) => i.instrumentoPropioId));
+  const instrumentosDisponibles = instrumentosPropios.filter((i) => !idsYaAgregados.has(i.id));
+  const mensajeVacioInstrumento =
+    instrumentosPropios.length === 0
+      ? "Todavía no tenés instrumentos propios cargados. Pedile a un administrador que te cargue uno en Gestión > Integrantes."
+      : "Ya agregaste todos tus instrumentos acá.";
+
+  const agregarInstrumento = (instrumentoPropioId: string) => {
+    setErrorInstrumento(null);
+    setPendingAgregarInstrumento(true);
+    agregarInstrumentoEnCadenaAction(bandaId, instrumentoPropioId, cancionIdVista)
+      .then((nuevo) => setInstrumentosEnCadena((prev) => [...prev, nuevo]))
+      .catch((e) => setErrorInstrumento(e instanceof Error ? e.message : "No se pudo agregar el instrumento."))
+      .finally(() => setPendingAgregarInstrumento(false));
+  };
+
+  const quitarInstrumento = (id: string) => {
+    setPendingQuitarInstrumentoId(id);
+    const anteriores = instrumentosEnCadena;
+    setInstrumentosEnCadena((prev) => prev.filter((i) => i.id !== id));
+    quitarInstrumentoEnCadenaAction(id, bandaId)
+      .catch(() => {
+        setErrorInstrumento("No se pudo quitar el instrumento.");
+        setInstrumentosEnCadena(anteriores);
+      })
+      .finally(() => setPendingQuitarInstrumentoId(null));
+  };
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Brief "Seteos: completar selector de instrumento + rediseño de
-          cadena" §2 "Encabezado de la vista": banda + instrumento activo
-          arriba de todo -- banda siempre (ya vive también en el breadcrumb
-          de la página, acá se repite junto al instrumento para que ambos se
-          lean juntos), instrumento solo cuando hay uno activo (2+
-          instrumentos propios y ya resuelto desde localStorage). */}
       <div className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: TEXTO_GRIS }}>
         {nombreBanda}
-        {instrumentoActivo && ` · ${etiquetaInstrumentoPropio(instrumentoActivo)}`}
       </div>
 
       <div className="rounded-2xl p-3.5" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
@@ -331,43 +513,25 @@ export function SeteosLista({
         )}
       </div>
 
-      {/* Brief "Instrumentos propios...": solo aparece con 2+ instrumentos
-          propios (0/1 = sin cambios de comportamiento, ver useState de
-          instrumentoActivoId más arriba) -- acordeón antes de la lista de
-          dispositivos, mismo patrón visual que "Deshabilitados" más abajo. */}
-      {instrumentosPropios.length >= 2 && (
-        <div className="rounded-2xl" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
-          <button
-            type="button"
-            onClick={() => setInstrumentoAbierto((v) => !v)}
-            className="flex w-full items-center justify-between px-4 py-3 text-left"
-          >
-            <span className="text-sm font-bold" style={{ color: TEXTO_OSCURO }}>
-              Instrumento: {instrumentoActivo ? etiquetaInstrumentoPropio(instrumentoActivo) : "…"}
-            </span>
-            <span
-              className="text-xs"
-              style={{ color: TEXTO_GRIS, transform: instrumentoAbierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
-            >
-              ▾
-            </span>
-          </button>
-          {instrumentoAbierto && (
-            <div className="flex flex-wrap gap-1.5 px-4 pb-4">
-              {instrumentosPropios.map((i) => (
-                <button
-                  key={i.id}
-                  type="button"
-                  onClick={() => elegirInstrumento(i.id)}
-                  className="rounded-full px-3 py-1.5 text-xs font-bold"
-                  style={i.id === instrumentoActivoId ? PILL_ACTIVO : PILL_INACTIVO}
-                >
-                  {etiquetaInstrumentoPropio(i)}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* Brief "Instrumento como bloque agregable...": reemplaza el
+          acordeón "Instrumento: X" (selector único, oculto con 0/1) por un
+          grupo de cadena más -- siempre visible, contenido filtrado por la
+          `vista` actual (General o la canción activa). */}
+      <GrupoInstrumento
+        instrumentos={instrumentosDeLaVista}
+        opcionesDisponibles={instrumentosDisponibles}
+        mensajeVacio={mensajeVacioInstrumento}
+        abierto={instrumentosAbierto}
+        onToggle={() => setInstrumentosAbierto((v) => !v)}
+        onAgregar={agregarInstrumento}
+        onQuitar={quitarInstrumento}
+        pendingAgregar={pendingAgregarInstrumento}
+        pendingQuitarId={pendingQuitarInstrumentoId}
+      />
+      {errorInstrumento && (
+        <p className="text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
+          {errorInstrumento}
+        </p>
       )}
 
       {dispositivos.length === 0 && (
@@ -393,7 +557,6 @@ export function SeteosLista({
           abierto={amplificadoresAbierto}
           onToggle={() => setAmplificadoresAbierto((v) => !v)}
           vista={vista}
-          instrumentoActivoId={instrumentoActivoId}
           pendingHabilitadoId={pendingHabilitadoId}
           onValoresCambiados={onValoresCambiados}
           onSeteoCreado={onSeteoCreado}
@@ -409,7 +572,6 @@ export function SeteosLista({
           abierto={pedalesAbierto}
           onToggle={() => setPedalesAbierto((v) => !v)}
           vista={vista}
-          instrumentoActivoId={instrumentoActivoId}
           pendingHabilitadoId={pendingHabilitadoId}
           onValoresCambiados={onValoresCambiados}
           onSeteoCreado={onSeteoCreado}
@@ -441,7 +603,6 @@ export function SeteosLista({
                   key={d.id}
                   dispositivo={d}
                   vista={vista}
-                  instrumentoActivoId={instrumentoActivoId}
                   onValoresCambiados={onValoresCambiados}
                   onSeteoCreado={onSeteoCreado}
                   onHabilitadoChange={onHabilitadoChange}

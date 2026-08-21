@@ -2,43 +2,56 @@
 
 import { revalidatePath } from "next/cache";
 import { requerirMembresia } from "@/lib/malgestoAccess";
+import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import {
   crearSeteoParaCancion,
-  crearSeteoGeneralConDefaults,
   actualizarValoresSeteo,
   actualizarHabilitadoDispositivo,
+  agregarInstrumentoEnCadena,
+  quitarInstrumentoEnCadena,
   type ControlDiseno,
   type Seteo,
+  type InstrumentoEnCadena,
 } from "@/lib/dispositivosData";
 
 export async function crearSeteoParaCancionAction(
   dispositivoId: string,
   bandaId: string,
   cancionId: string,
-  instrumentoPropioId: string | null,
   controles: ControlDiseno[]
 ): Promise<Seteo> {
   await requerirMembresia(bandaId);
-  const seteo = await crearSeteoParaCancion(dispositivoId, cancionId, instrumentoPropioId, controles);
+  const seteo = await crearSeteoParaCancion(dispositivoId, cancionId, controles);
   revalidatePath("/seteos");
   return seteo;
 }
 
-// Brief "Instrumentos propios + selector de instrumento activo en Seteos"
-// §2: a diferencia del general "de siempre" (instrumento null, creado eager
-// en el server component de la página), el general de un instrumento puntual
-// se crea on-demand desde el cliente al activarlo — mismo criterio que ya
-// usaba crearSeteoParaCancionAction para canciones.
-export async function crearSeteoGeneralAction(
-  dispositivoId: string,
+// Brief "Instrumento como bloque agregable...": a diferencia de las acciones
+// de arriba (que actúan sobre un dispositivo ya asignado, sin necesitar el
+// usuario_id porque el dispositivo ya lo trae), acá el instrumento se agrega
+// directo desde el usuario en sesión -- requerirMembresia solo valida
+// pertenencia a la banda, no devuelve el id, así que se resuelve acá aparte.
+export async function agregarInstrumentoEnCadenaAction(
   bandaId: string,
-  instrumentoPropioId: string | null,
-  controles: ControlDiseno[]
-): Promise<Seteo> {
+  instrumentoPropioId: string,
+  cancionId: string | null
+): Promise<InstrumentoEnCadena> {
   await requerirMembresia(bandaId);
-  const seteo = await crearSeteoGeneralConDefaults(dispositivoId, controles, instrumentoPropioId);
+  const supabase = await supabaseServerAuth();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("No hay sesión activa.");
+
+  const instrumento = await agregarInstrumentoEnCadena(bandaId, user.id, instrumentoPropioId, cancionId);
   revalidatePath("/seteos");
-  return seteo;
+  return instrumento;
+}
+
+export async function quitarInstrumentoEnCadenaAction(id: string, bandaId: string): Promise<void> {
+  await requerirMembresia(bandaId);
+  await quitarInstrumentoEnCadena(id);
+  revalidatePath("/seteos");
 }
 
 export async function actualizarValoresSeteoAction(

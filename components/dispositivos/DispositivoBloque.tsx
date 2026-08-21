@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import type { CategoriaDispositivo, ControlDiseno, Seteo } from "@/lib/dispositivosData";
-import { actualizarValoresSeteoAction, crearSeteoParaCancionAction, crearSeteoGeneralAction } from "@/app/seteos/actions";
+import { actualizarValoresSeteoAction, crearSeteoParaCancionAction } from "@/app/seteos/actions";
 import { PanelDispositivo } from "./PanelDispositivo";
 import { PanelAfinador } from "./PanelAfinador";
 
@@ -71,7 +71,6 @@ function LedHabilitado({ activo, onClick, disabled }: { activo: boolean; onClick
 export function DispositivoBloque({
   dispositivo,
   vista,
-  instrumentoActivoId,
   colorCadena,
   onValoresCambiados,
   onSeteoCreado,
@@ -80,10 +79,6 @@ export function DispositivoBloque({
 }: {
   dispositivo: DispositivoConSeteos;
   vista: Vista;
-  // Brief "Instrumentos propios + selector de instrumento activo en Seteos"
-  // §2: null cuando la persona tiene 0/1 instrumento propio (comportamiento
-  // de siempre, sin filtrar) o cuando todavía no hay ninguno activo.
-  instrumentoActivoId: string | null;
   // Brief "Seteos: completar selector de instrumento + rediseño de cadena"
   // §2: acento del grupo (Amplificadores/Pedales·FX) al que pertenece este
   // dispositivo -- borde izquierdo del color del grupo, para que se lea como
@@ -104,38 +99,34 @@ export function DispositivoBloque({
 
   const seteoActual =
     vista.tipo === "general"
-      ? dispositivo.seteos.find((s) => s.esGeneral && s.instrumentoPropioId === instrumentoActivoId) ?? null
-      : dispositivo.seteos.find((s) => s.cancionId === vista.cancionId && s.instrumentoPropioId === instrumentoActivoId) ?? null;
+      ? dispositivo.seteos.find((s) => s.esGeneral) ?? null
+      : dispositivo.seteos.find((s) => s.cancionId === vista.cancionId) ?? null;
 
-  // Crea on-demand el seteo que falte para la vista+instrumento actuales:
-  // el de una canción puntual (mismo criterio de siempre: "opcional", se
-  // crea recién al elegir verla) o, desde el brief "Instrumentos propios...",
-  // el general de un instrumento puntual (el general sin instrumento ya lo
-  // garantiza el server antes de renderizar, ver app/seteos/page.tsx, así
-  // que acá no hace falta crearlo). `creandoParaClave` evita disparar una
-  // segunda creación si el componente vuelve a renderizar mientras la
-  // primera sigue en vuelo, o si vista/instrumento cambian y vuelven al
+  // Crea on-demand el seteo de una canción puntual que todavía no tiene uno
+  // (mismo criterio de siempre: "opcional", se crea recién al elegir verla
+  // por primera vez). El general "de siempre" ya lo garantiza el server
+  // antes de renderizar (ver app/seteos/page.tsx), así que acá nunca hace
+  // falta crearlo para vista.tipo === "general". `creandoParaClave` evita
+  // disparar una segunda creación si el componente vuelve a renderizar
+  // mientras la primera sigue en vuelo, o si la vista cambia y vuelve al
   // mismo valor antes de que la anterior termine.
   useEffect(() => {
     if (seteoActual) return;
-    if (vista.tipo === "general" && instrumentoActivoId === null) return;
-    const clave = `${vista.tipo === "cancion" ? vista.cancionId : "general"}:${instrumentoActivoId ?? "sin-instrumento"}`;
+    if (vista.tipo === "general") return;
+    const clave = vista.cancionId;
     if (creandoParaClave.current === clave) return;
     creandoParaClave.current = clave;
     startCrear(async () => {
       try {
-        const nuevo =
-          vista.tipo === "cancion"
-            ? await crearSeteoParaCancionAction(dispositivo.id, dispositivo.bandaId, vista.cancionId, instrumentoActivoId, dispositivo.controles)
-            : await crearSeteoGeneralAction(dispositivo.id, dispositivo.bandaId, instrumentoActivoId, dispositivo.controles);
-        onSeteoCreado(dispositivo.id, { ...nuevo, cancionTitulo: vista.tipo === "cancion" ? vista.cancionTitulo : null });
+        const nuevo = await crearSeteoParaCancionAction(dispositivo.id, dispositivo.bandaId, vista.cancionId, dispositivo.controles);
+        onSeteoCreado(dispositivo.id, { ...nuevo, cancionTitulo: vista.cancionTitulo });
       } catch (e) {
         setErrorCrear(e instanceof Error ? e.message : "No se pudo crear el seteo.");
       } finally {
         creandoParaClave.current = null;
       }
     });
-  }, [vista, instrumentoActivoId, seteoActual, dispositivo.id, dispositivo.bandaId, dispositivo.controles, onSeteoCreado]);
+  }, [vista, seteoActual, dispositivo.id, dispositivo.bandaId, dispositivo.controles, onSeteoCreado]);
 
   const cambiarValor = (controlId: string, v: number) => {
     if (!seteoActual) return;
