@@ -49,6 +49,7 @@ type BandaEmbebida = {
   seteos_habilitado: boolean;
   finanzas_habilitado: boolean;
   stage_plot_habilitado: boolean;
+  presskit_habilitado: boolean;
 } | null;
 
 type LugarEmbebido = { nombre: string; link_maps: string } | null;
@@ -78,7 +79,7 @@ export async function obtenerMembresias(usuarioId: string): Promise<Membresia[]>
   const { data } = await admin
     .from("miembros_banda")
     .select(
-      "rol, bloques_visibles, bandas(id, nombre, color, emoji, genero, canciones_habilitado, setlist_habilitado, seteos_habilitado, finanzas_habilitado, stage_plot_habilitado)"
+      "rol, bloques_visibles, bandas(id, nombre, color, emoji, genero, canciones_habilitado, setlist_habilitado, seteos_habilitado, finanzas_habilitado, stage_plot_habilitado, presskit_habilitado)"
     )
     .eq("usuario_id", usuarioId)
     .eq("activo", true);
@@ -100,6 +101,7 @@ export async function obtenerMembresias(usuarioId: string): Promise<Membresia[]>
       seteosHabilitado: banda?.seteos_habilitado ?? true,
       finanzasHabilitado: banda?.finanzas_habilitado ?? true,
       stagePlotHabilitado: banda?.stage_plot_habilitado ?? true,
+      presskitHabilitado: banda?.presskit_habilitado ?? true,
       bloquesVisibles: (m.bloques_visibles as string[] | null) ?? null,
     };
   });

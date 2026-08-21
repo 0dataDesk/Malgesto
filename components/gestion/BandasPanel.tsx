@@ -7,7 +7,8 @@ import { contarBloquesActivos } from "@/lib/bloques";
 import { INSTRUMENTOS, ETIQUETA_INSTRUMENTO, etiquetaPlaza, type Instrumento } from "@/lib/instrumentoCatalogo";
 import { textoLegibleSobre } from "@/lib/colorContraste";
 import { ToggleChip } from "@/components/ui/ToggleChip";
-import { crearBandaAction, actualizarBandaAction, crearPlazaAction, eliminarPlazaAction } from "@/app/gestion/actions";
+import { crearBandaAction, actualizarBandaAction, crearPlazaAction, eliminarPlazaAction, obtenerLigaPublicadaAction } from "@/app/gestion/actions";
+import { LigaPublicadaSeccion } from "@/components/presskit/PresskitEstado";
 
 // Mismo valor que el DEFAULT de bandas.color en la base -- lo que recibe una
 // banda recién creada hasta que alguien la abra y le elija un color propio.
@@ -309,6 +310,33 @@ function InstrumentosDeLaBanda({ bandaId, plazas, onPlazas }: { bandaId: string;
   );
 }
 
+// Brief "Presskit como bloque, Liga publicada en Bandas, acordeón de
+// bloques" §3: mismo patrón visual/interactivo que SubAcordeon en
+// IntegrantesPanel.tsx (Instrumentos propios) -- cerrado por defecto,
+// header clickeable en toda la franja, chevron que rota 180°. No se
+// importa el de IntegrantesPanel porque no está exportado (es local a ese
+// archivo, mismo criterio que ya usan los demás sub-componentes puramente
+// visuales de Gestión, ej. InstrumentoDropdown acá mismo).
+function AcordeonBloques({ children }: { children: React.ReactNode }) {
+  const [abierto, setAbierto] = useState(false);
+  return (
+    <div className="rounded-lg" style={{ background: "oklch(0.965 0.012 82)", border: "1px solid oklch(0.9 0.012 78)" }}>
+      <button type="button" onClick={() => setAbierto((v) => !v)} className="flex w-full items-center justify-between px-2.5 py-2 text-left">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.02 55)" }}>
+          Bloques
+        </span>
+        <span
+          className="text-[10px]"
+          style={{ color: "oklch(0.5 0.02 55)", transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+        >
+          ▾
+        </span>
+      </button>
+      {abierto && <div className="flex flex-wrap items-center gap-2 px-2.5 pb-2.5">{children}</div>}
+    </div>
+  );
+}
+
 function DetalleBanda({
   banda,
   plazas,
@@ -333,6 +361,7 @@ function DetalleBanda({
   const [seteos, setSeteos] = useState(banda.seteosHabilitado);
   const [finanzas, setFinanzas] = useState(banda.finanzasHabilitado);
   const [stagePlot, setStagePlot] = useState(banda.stagePlotHabilitado);
+  const [presskit, setPresskit] = useState(banda.presskitHabilitado);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   // Brief §5: el botón flotante muestra "Guardado" un instante después de
@@ -340,6 +369,21 @@ function DetalleBanda({
   // desaparecería apenas onActualizada() sincroniza el estado local con la
   // banda ya guardada, sin alcanzar a mostrar la confirmación.
   const [estadoGuardado, setEstadoGuardado] = useState<"idle" | "guardado">("idle");
+
+  // Brief "Presskit como bloque, Liga publicada en Bandas, acordeón de
+  // bloques" §2: DetalleBanda no traía datos de presskits hasta ahora --
+  // fetch puntual al montar (mismo criterio que el resto del panel: la
+  // lista principal no carga esto por adelantado para todas las bandas).
+  const [liga, setLiga] = useState<{ presskitId: string; ligaPublicada: string | null } | null>(null);
+  useEffect(() => {
+    let cancelado = false;
+    obtenerLigaPublicadaAction(banda.id).then((r) => {
+      if (!cancelado) setLiga(r);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [banda.id]);
 
   useEffect(() => {
     if (estadoGuardado !== "guardado") return;
@@ -357,7 +401,8 @@ function DetalleBanda({
     setlist !== banda.setlistHabilitado ||
     seteos !== banda.seteosHabilitado ||
     finanzas !== banda.finanzasHabilitado ||
-    stagePlot !== banda.stagePlotHabilitado;
+    stagePlot !== banda.stagePlotHabilitado ||
+    presskit !== banda.presskitHabilitado;
 
   const guardar = () => {
     if (!nombre.trim()) return;
@@ -375,6 +420,7 @@ function DetalleBanda({
           seteosHabilitado: seteos,
           finanzasHabilitado: finanzas,
           stagePlotHabilitado: stagePlot,
+          presskitHabilitado: presskit,
         };
         await actualizarBandaAction(banda.id, cambios);
         onActualizada({ ...banda, ...cambios });
@@ -433,13 +479,31 @@ function DetalleBanda({
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <ToggleChip label="Calendario" active dot={false} onClick={() => {}} />
-          <ToggleChip label="Canciones" active={canciones} onClick={() => setCanciones((v) => !v)} />
-          <ToggleChip label="Set List" active={setlist} onClick={() => setSetlist((v) => !v)} />
-          <ToggleChip label="Seteos" active={seteos} onClick={() => setSeteos((v) => !v)} />
-          <ToggleChip label="Finanzas" active={finanzas} onClick={() => setFinanzas((v) => !v)} />
-          <ToggleChip label="Stage Plot" active={stagePlot} onClick={() => setStagePlot((v) => !v)} />
+        {/* Brief "Presskit como bloque, Liga publicada en Bandas, acordeón
+            de bloques" §2: "Liga publicada" se mudó acá desde la pantalla
+            de captura de Presskit -- va antes de la sección de bloques
+            (§3), mientras carga el fetch puntual no se muestra nada. */}
+        {liga && (
+          <div className="mt-3">
+            <LigaPublicadaSeccion
+              bandaId={banda.id}
+              presskitId={liga.presskitId}
+              ligaActual={liga.ligaPublicada}
+              onLiga={(l) => setLiga((p) => (p ? { ...p, ligaPublicada: l } : p))}
+            />
+          </div>
+        )}
+
+        <div className="mt-3">
+          <AcordeonBloques>
+            <ToggleChip label="Calendario" active dot={false} onClick={() => {}} />
+            <ToggleChip label="Canciones" active={canciones} onClick={() => setCanciones((v) => !v)} />
+            <ToggleChip label="Set List" active={setlist} onClick={() => setSetlist((v) => !v)} />
+            <ToggleChip label="Seteos" active={seteos} onClick={() => setSeteos((v) => !v)} />
+            <ToggleChip label="Finanzas" active={finanzas} onClick={() => setFinanzas((v) => !v)} />
+            <ToggleChip label="Stage Plot" active={stagePlot} onClick={() => setStagePlot((v) => !v)} />
+            <ToggleChip label="Presskit" active={presskit} onClick={() => setPresskit((v) => !v)} />
+          </AcordeonBloques>
         </div>
 
         {error && (
@@ -609,6 +673,7 @@ export function BandasPanel({ bandas: bandasIniciales, plazas: plazasIniciales }
         seteosHabilitado: true,
         finanzasHabilitado: true,
         stagePlotHabilitado: true,
+        presskitHabilitado: true,
       },
     ]);
     // Brief §4: al crear, aterriza directo en la pantalla de configuración
@@ -703,6 +768,11 @@ export function BandasPanel({ bandas: bandasIniciales, plazas: plazasIniciales }
                 {b.stagePlotHabilitado && (
                   <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={PILL_BLOQUE}>
                     Stage Plot
+                  </span>
+                )}
+                {b.presskitHabilitado && (
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={PILL_BLOQUE}>
+                    Presskit
                   </span>
                 )}
               </div>

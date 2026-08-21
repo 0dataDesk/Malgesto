@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
-import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque } from "@/lib/malgestoEventos";
-import { obtenerBandasTodas } from "@/lib/gestionData";
+import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
 import { obtenerOCrearPresskit } from "@/lib/presskitData";
 import { TabBar } from "@/components/shell/TabBar";
 import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
@@ -10,13 +9,14 @@ import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda
 import { EstadoBadge, VisitarCompartirPresskit } from "@/components/presskit/PresskitEstado";
 
 // Pantalla "Presskit" de nivel superior (Brief "Presskit — vista propia,
-// estatus, liga publicada" §1): mismo patrón de selector de banda que
-// Canciones/Setlist/Seteos/Stage Plot, pero gateado a superadmin -- Presskit
-// no es un bloque que cada banda activa/desactiva (no hay
-// `presskit_habilitado` en `bandas`), es una consola de gestión, así que el
-// universo de bandas es `obtenerBandasTodas()` (Gestión), no las membresías
-// del usuario. El botón "Presskit" que antes vivía en Gestión > Bandas
-// (DetalleBanda) se quitó de ahí -- este es ahora el único punto de entrada.
+// estatus, liga publicada" §1, revisado por Brief "Presskit como bloque,
+// Liga publicada en Bandas, acordeón de bloques" §1): mismo patrón de
+// selector de banda ?banda= que Canciones/Setlist/Seteos/Stage Plot --
+// Presskit dejó de ser una consola siempre-accesible para superadmin y pasa
+// a depender de `presskit_habilitado` por banda, igual que el resto de los
+// bloques (bloqueVisible/membresiasConBloque, misma excepción de
+// bloques_visibles por integrante puntual). "Editar" (que lleva a
+// /presskit-captura, todavía superadmin-only) solo se muestra a superadmin.
 export default async function PresskitPage({
   searchParams,
 }: {
@@ -34,12 +34,10 @@ export default async function PresskitPage({
   if (membresias.length === 0) redirect("/sin-acceso");
 
   const superadmin = esSuperadminDeMembresias(membresias);
-  if (!superadmin) redirect("/inicio");
+  const bandasConBloque = membresiasConBloque(membresias, "presskit", superadmin);
+  if (bandasConBloque.length === 0) redirect("/inicio");
 
-  const bandas = (await obtenerBandasTodas()).filter((b) => !b.archivada);
-  if (bandas.length === 0) redirect("/inicio");
-
-  const bandaValida = bandas.some((b) => b.id === bandaParam);
+  const bandaValida = bandasConBloque.some((m) => m.bandaId === bandaParam);
 
   const propsTabBar = {
     userEmail: user.email,
@@ -51,7 +49,7 @@ export default async function PresskitPage({
     mostrarStagePlot: algunaBandaConBloque(membresias, "stage_plot", superadmin),
   };
 
-  if (!bandaValida && bandas.length > 1) {
+  if (!bandaValida && bandasConBloque.length > 1) {
     return (
       <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
         <EspacioSuperior>
@@ -69,25 +67,8 @@ export default async function PresskitPage({
           </p>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
-            {bandas.map((b) => (
-              <TarjetaSeleccionarBanda
-                key={b.id}
-                membresia={{
-                  bandaId: b.id,
-                  bandaNombre: b.nombre,
-                  color: b.color,
-                  emoji: b.emoji,
-                  genero: b.genero,
-                  rol: "superadmin",
-                  cancionesHabilitado: true,
-                  setlistHabilitado: true,
-                  seteosHabilitado: true,
-                  finanzasHabilitado: true,
-                  stagePlotHabilitado: true,
-                  bloquesVisibles: null,
-                }}
-                href={`/presskit?banda=${b.id}`}
-              />
+            {bandasConBloque.map((m) => (
+              <TarjetaSeleccionarBanda key={m.bandaId} membresia={m} href={`/presskit?banda=${m.bandaId}`} />
             ))}
           </div>
         </EspacioSuperior>
@@ -97,8 +78,8 @@ export default async function PresskitPage({
     );
   }
 
-  const bandaActiva = bandaValida ? bandaParam! : bandas[0].id;
-  const banda = bandas.find((b) => b.id === bandaActiva)!;
+  const bandaActiva = bandaValida ? bandaParam! : bandasConBloque[0].bandaId;
+  const membresiaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva)!;
   const presskit = await obtenerOCrearPresskit(bandaActiva);
 
   return (
@@ -106,9 +87,9 @@ export default async function PresskitPage({
       <EspacioSuperior>
         <div className="flex items-center gap-2.5">
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
-            {banda.nombre}
+            {membresiaActiva.bandaNombre}
           </div>
-          {bandas.length > 1 && (
+          {bandasConBloque.length > 1 && (
             <Link href="/presskit" className="font-mono text-[10px] font-bold tracking-wide no-underline" style={{ color: "oklch(0.5 0.02 55)" }}>
               · ‹ Cambiar de banda
             </Link>
@@ -121,13 +102,15 @@ export default async function PresskitPage({
           >
             Presskit
           </h2>
-          <Link
-            href={`/presskit-captura/${bandaActiva}`}
-            className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold no-underline"
-            style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
-          >
-            Editar
-          </Link>
+          {superadmin && (
+            <Link
+              href={`/presskit-captura/${bandaActiva}`}
+              className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold no-underline"
+              style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+            >
+              Editar
+            </Link>
+          )}
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
@@ -144,7 +127,7 @@ export default async function PresskitPage({
             <VisitarCompartirPresskit liga={presskit.ligaPublicada} />
             {!presskit.ligaPublicada && (
               <p className="mt-2 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
-                Todavía no hay página publicada. La liga se pega desde &quot;Editar&quot;.
+                Todavía no hay página publicada.
               </p>
             )}
           </div>

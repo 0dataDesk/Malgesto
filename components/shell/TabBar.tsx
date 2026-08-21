@@ -176,6 +176,7 @@ export function TabBar({
   mostrarSeteos = true,
   mostrarFinanzas = true,
   mostrarStagePlot = true,
+  mostrarPresskit = true,
 }: {
   activa: "calendario" | "canciones" | "setlist" | "seteos" | "finanzas" | "stage_plot" | "presskit";
   userEmail?: string;
@@ -185,6 +186,7 @@ export function TabBar({
   mostrarSeteos?: boolean;
   mostrarFinanzas?: boolean;
   mostrarStagePlot?: boolean;
+  mostrarPresskit?: boolean;
 }) {
   const oculto = useOcultarAlScrollear();
   // Brief "Menú de vistas: acordeón flotante": colapsado por default, cada
@@ -297,13 +299,13 @@ export function TabBar({
                 <IconoStagePlot />
               </NavBoton>
             )}
-            {/* Brief "Presskit — vista propia, estatus, liga publicada" §1:
-                ya no se entra por el botón "Presskit" de Gestión > Bandas --
-                pasa a ser un módulo de nivel superior más, pero gateado a
-                superadmin (no hay bloque `presskit_habilitado` por banda
-                como el resto: es una consola de gestión, no algo que la
-                banda "active"). */}
-            {esSuperadmin && (
+            {/* Brief "Presskit — vista propia, estatus, liga publicada" §1,
+                revisado por Brief "Presskit como bloque...": ya no se entra
+                por el botón "Presskit" de Gestión > Bandas -- es un módulo
+                de nivel superior más, gateado igual que los demás
+                (`presskit_habilitado` por banda + bloques_visibles, ver
+                mostrarPresskit en cada página). */}
+            {mostrarPresskit && (
               <NavBoton href="/presskit" activo={activa === "presskit"} label="Presskit">
                 <IconoPresskit />
               </NavBoton>

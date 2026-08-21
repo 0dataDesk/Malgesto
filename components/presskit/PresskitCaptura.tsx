@@ -14,9 +14,8 @@ import {
   agregarRedPresskitAction,
   eliminarRedPresskitAction,
   marcarPresskitEnviadoAction,
-  actualizarLigaPublicadaAction,
 } from "@/app/presskit-captura/actions";
-import { EstadoBadge, VisitarCompartirPresskit } from "@/components/presskit/PresskitEstado";
+import { EstadoBadge } from "@/components/presskit/PresskitEstado";
 
 const inputCls = "w-full rounded-lg border px-3 py-2 text-sm outline-none";
 const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
@@ -318,70 +317,6 @@ function LinksDePlataformas({
   );
 }
 
-// Brief §3: campo simple para que Jorge pegue la URL una vez que Design
-// entrega la página pública -- no toca actualizado_en (ver
-// actualizarLigaPublicada en lib/presskitData.ts), así que no dispara
-// "En revisión".
-function LigaPublicadaSeccion({
-  bandaId,
-  presskitId,
-  ligaActual,
-  onLiga,
-}: {
-  bandaId: string;
-  presskitId: string;
-  ligaActual: string | null;
-  onLiga: (liga: string | null) => void;
-}) {
-  const [valor, setValor] = useState(ligaActual ?? "");
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-
-  const guardar = () => {
-    setError(null);
-    startTransition(async () => {
-      try {
-        const limpia = valor.trim() || null;
-        await actualizarLigaPublicadaAction(bandaId, presskitId, limpia);
-        onLiga(limpia);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "No se pudo guardar la liga.");
-      }
-    });
-  };
-
-  return (
-    <div>
-      <Etiqueta>Liga publicada</Etiqueta>
-      <p className="mb-2.5 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
-        Pegá acá la URL una vez que Design entregue la página pública.
-      </p>
-      <div className="flex gap-1.5">
-        <input value={valor} onChange={(e) => setValor(e.target.value)} placeholder="https://…" className={`${inputCls} flex-1`} style={inputStyle} />
-        <button
-          type="button"
-          onClick={guardar}
-          disabled={pending}
-          className="shrink-0 rounded-lg px-3 text-sm font-bold disabled:opacity-60"
-          style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
-        >
-          Guardar
-        </button>
-      </div>
-      <ErrorTexto mensaje={error} />
-
-      <div className="mt-3">
-        <VisitarCompartirPresskit liga={ligaActual} />
-      </div>
-      {!ligaActual && (
-        <p className="mt-2 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
-          Todavía no hay página publicada.
-        </p>
-      )}
-    </div>
-  );
-}
-
 export function PresskitCaptura({
   banda,
   presskit: presskitInicial,
@@ -518,13 +453,26 @@ export function PresskitCaptura({
         </div>
       </Tarjeta>
 
+      {/* Brief "Presskit como bloque, Liga publicada en Bandas, acordeón de
+          bloques" §4: Integrantes (solo lectura, automático) se mueve acá
+          arriba, justo debajo de Nombre/Género -- antes vivía después de
+          Contacto. "Liga publicada" se sacó de esta pantalla (se mudó a
+          DetalleBanda en Gestión > Bandas, ver PresskitEstado.tsx). */}
       <Tarjeta>
-        <LigaPublicadaSeccion
-          bandaId={banda.id}
-          presskitId={presskit.id}
-          ligaActual={presskit.ligaPublicada}
-          onLiga={(liga) => setPresskit((p) => ({ ...p, ligaPublicada: liga }))}
-        />
+        <Etiqueta>Integrantes</Etiqueta>
+        {integrantes.length === 0 ? (
+          <p className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+            Todavía no hay integrantes con instrumento asignado en Gestión &gt; Integrantes.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {integrantes.map((i) => (
+              <span key={i.plazaId} className="rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}>
+                {i.nombrePersona} · {etiquetaPlaza(i.instrumento, i.etiqueta)}
+              </span>
+            ))}
+          </div>
+        )}
       </Tarjeta>
 
       <Tarjeta>
@@ -572,23 +520,6 @@ export function PresskitCaptura({
             style={inputStyle}
           />
         </div>
-      </Tarjeta>
-
-      <Tarjeta>
-        <Etiqueta>Integrantes</Etiqueta>
-        {integrantes.length === 0 ? (
-          <p className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
-            Todavía no hay integrantes con instrumento asignado en Gestión &gt; Integrantes.
-          </p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {integrantes.map((i) => (
-              <span key={i.plazaId} className="rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}>
-                {i.nombrePersona} · {etiquetaPlaza(i.instrumento, i.etiqueta)}
-              </span>
-            ))}
-          </div>
-        )}
       </Tarjeta>
 
       <button

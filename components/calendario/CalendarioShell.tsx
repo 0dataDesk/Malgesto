@@ -142,6 +142,7 @@ export function CalendarioShell({
   const mostrarSeteos = algunaBandaConBloque(membresias, "seteos", esSuperadmin);
   const mostrarFinanzas = algunaBandaConBloque(membresias, "finanzas", esSuperadmin);
   const mostrarStagePlot = algunaBandaConBloque(membresias, "stage_plot", esSuperadmin);
+  const mostrarPresskit = algunaBandaConBloque(membresias, "presskit", esSuperadmin);
 
   const eventosDelDia = diaSeleccionado
     ? eventosFiltrados.filter((e) => e.tipo !== "gira" && esMismoDia(enZonaApp(e.fechaInicio), diaSeleccionado))
@@ -437,6 +438,7 @@ export function CalendarioShell({
         mostrarSeteos={mostrarSeteos}
         mostrarFinanzas={mostrarFinanzas}
         mostrarStagePlot={mostrarStagePlot}
+        mostrarPresskit={mostrarPresskit}
       />
 
       {eventoSeleccionado && (

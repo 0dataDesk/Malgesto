@@ -19,13 +19,18 @@ export type Membresia = {
   seteosHabilitado: boolean;
   finanzasHabilitado: boolean;
   stagePlotHabilitado: boolean;
+  // Brief "Presskit como bloque, Liga publicada en Bandas, acordeón de
+  // bloques" §1: Presskit deja de ser un módulo siempre-accesible para
+  // superadmin y pasa a seguir el mismo mecanismo de bloque por banda que
+  // el resto.
+  presskitHabilitado: boolean;
   bloquesVisibles: string[] | null;
 };
 
 // Brief 21 §1-2: bloque opcional de una banda (Calendario nunca se
 // restringe, no forma parte de este catálogo). "set_list" con guión bajo
 // porque así se persiste en miembros_banda.bloques_visibles.
-export type NombreBloque = "canciones" | "set_list" | "seteos" | "finanzas" | "stage_plot";
+export type NombreBloque = "canciones" | "set_list" | "seteos" | "finanzas" | "stage_plot" | "presskit";
 
 function bandaTieneBloque(m: Membresia, bloque: NombreBloque): boolean {
   switch (bloque) {
@@ -39,6 +44,8 @@ function bandaTieneBloque(m: Membresia, bloque: NombreBloque): boolean {
       return m.finanzasHabilitado;
     case "stage_plot":
       return m.stagePlotHabilitado;
+    case "presskit":
+      return m.presskitHabilitado;
   }
 }
 
@@ -67,18 +74,24 @@ export function membresiasConBloque(membresias: Membresia[], bloque: NombreBloqu
   return membresias.filter((m) => bloqueVisible(m, bloque, superadmin));
 }
 
-// Bloques posibles por banda son Calendario (siempre activo) + los 5
-// toggleables -- se cuenta así en vez de a mano en cada uso para que el
-// criterio de orden (Gestión > Bandas, y Gestión > Integrantes > Bandas
-// asignadas) use la misma fuente. Firma estructural (no `Membresia` ni
-// `BandaSimple` directamente) para que sirva para cualquier objeto con estos
-// 5 campos sin acoplar este archivo -- sin "server-only" -- a gestionData.ts.
+// Bloques posibles por banda son Calendario (siempre activo) + los 6
+// toggleables (Presskit sumado por el brief "Presskit como bloque...") -- se
+// cuenta así en vez de a mano en cada uso para que el criterio de orden
+// (Gestión > Bandas, y Gestión > Integrantes > Bandas asignadas) use la
+// misma fuente. Firma estructural (no `Membresia` ni `BandaSimple`
+// directamente) para que sirva para cualquier objeto con estos campos sin
+// acoplar este archivo -- sin "server-only" -- a gestionData.ts.
 export function contarBloquesActivos(b: {
   cancionesHabilitado: boolean;
   setlistHabilitado: boolean;
   seteosHabilitado: boolean;
   finanzasHabilitado: boolean;
   stagePlotHabilitado: boolean;
+  presskitHabilitado: boolean;
 }): number {
-  return 1 + [b.cancionesHabilitado, b.setlistHabilitado, b.seteosHabilitado, b.finanzasHabilitado, b.stagePlotHabilitado].filter(Boolean).length;
+  return (
+    1 +
+    [b.cancionesHabilitado, b.setlistHabilitado, b.seteosHabilitado, b.finanzasHabilitado, b.stagePlotHabilitado, b.presskitHabilitado].filter(Boolean)
+      .length
+  );
 }

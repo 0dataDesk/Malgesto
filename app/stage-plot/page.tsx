@@ -68,6 +68,7 @@ export default async function StagePlotPage({
           mostrarSetlist={algunaBandaConBloque(membresias, "set_list", superadmin)}
           mostrarSeteos={algunaBandaConBloque(membresias, "seteos", superadmin)}
           mostrarFinanzas={algunaBandaConBloque(membresias, "finanzas", superadmin)}
+          mostrarPresskit={algunaBandaConBloque(membresias, "presskit", superadmin)}
         />
       </div>
     );
@@ -145,6 +146,7 @@ export default async function StagePlotPage({
         mostrarSetlist={algunaBandaConBloque(membresias, "set_list", superadmin)}
         mostrarSeteos={algunaBandaConBloque(membresias, "seteos", superadmin)}
         mostrarFinanzas={algunaBandaConBloque(membresias, "finanzas", superadmin)}
+        mostrarPresskit={algunaBandaConBloque(membresias, "presskit", superadmin)}
       />
     </div>
   );

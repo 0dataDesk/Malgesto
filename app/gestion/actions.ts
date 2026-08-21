@@ -34,6 +34,7 @@ import {
 } from "@/lib/gestionData";
 import { crearLugar, actualizarLugar, actualizarLugarBandas, eliminarLugar } from "@/lib/lugaresData";
 import { asignarDiseno, sincronizarConsola, quitarDispositivo, type CategoriaCatalogo, type DispositivoAsignado } from "@/lib/dispositivosData";
+import { obtenerOCrearPresskit } from "@/lib/presskitData";
 
 export async function crearBandaAction(nombre: string): Promise<string> {
   const usuarioId = await requerirSuperadmin();
@@ -46,6 +47,19 @@ export async function actualizarBandaAction(bandaId: string, cambios: Actualizac
   await requerirSuperadmin();
   await actualizarBanda(bandaId, cambios);
   revalidatePath("/gestion");
+}
+
+// Brief "Presskit como bloque, Liga publicada en Bandas, acordeón de
+// bloques" §2: "Liga publicada" se mudó de la pantalla de captura de
+// Presskit a DetalleBanda -- Gestión > Bandas no traía datos de presskits
+// hasta ahora, así que necesita este fetch puntual (obtenerOCrearPresskit,
+// mismo criterio "se crea vacío la primera vez" que ya usa la captura) para
+// mostrar/editar liga_publicada sin cargar el presskit de TODAS las bandas
+// de una.
+export async function obtenerLigaPublicadaAction(bandaId: string): Promise<{ presskitId: string; ligaPublicada: string | null }> {
+  await requerirSuperadmin();
+  const presskit = await obtenerOCrearPresskit(bandaId);
+  return { presskitId: presskit.id, ligaPublicada: presskit.ligaPublicada };
 }
 
 export async function archivarBandaAction(bandaId: string, archivada: boolean): Promise<void> {
