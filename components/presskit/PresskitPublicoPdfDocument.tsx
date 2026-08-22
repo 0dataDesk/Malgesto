@@ -1,24 +1,56 @@
-import { Document, Page, View, Text, Image, Link, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, View, Text, Image, Link, Font, StyleSheet } from "@react-pdf/renderer";
 import type { PresskitPublico } from "@/lib/presskitData";
 
-// Brief "Presskit — vista pública real dentro de Malgesto App": versión de
-// una página tamaño carta para descargar desde el botón discreto de la
-// página pública (PresskitPublicoBotonPdf.tsx) -- mismo enfoque que
-// RiderPdfDocument.tsx (@react-pdf/renderer, generado con datos reales en
-// vez de un archivo exportado a mano de Design). A diferencia de la página
-// web (que reproduce la identidad visual puntual del diseño de Juana LR,
-// negro/rojo/Archivo Black), este documento usa una paleta neutra +
-// `bandaColor` (bandas.color, el mismo acento que ya usa Stage Plot) como
-// único color de marca -- así sirve tal cual para cualquier banda futura
-// que publique su propio /presskit-publico/[slug], no solo para esta.
-// Solo `import type` de lib/presskitData.ts: ese módulo es "server-only" y
-// este documento se renderiza client-side (ver PresskitPublicoBotonPdf.tsx,
-// mismo criterio que RiderVista.tsx con lib/riderData.ts) -- un import de
+// Brief "Presskit — actualización de diseño (handoff punk de Design)" §2:
+// puerto del proyecto "Presskit Juana LR - Una Pagina.dc.html" (Claude
+// Design) a este documento -- a diferencia del resumen neutro anterior,
+// ahora reproduce el mismo nivel de diseño que la página web (mismas
+// familias tipográficas, misma paleta cream/tinta + acento de marca).
+// Los archivos .ttf viven en /public/fonts (bajados una vez del repo
+// oficial google/fonts) en vez de resolverlos desde Google Fonts en
+// runtime: @react-pdf/renderer corre client-side (ver
+// PresskitPublicoBotonPdf.tsx) y necesita una URL de archivo de fuente
+// real, no una hoja de estilos CSS -- servirlos desde el propio dominio
+// evita depender de la disponibilidad/CORS de un host externo en cada
+// descarga. Solo `import type` de lib/presskitData.ts: ese módulo es
+// "server-only" y este documento se renderiza client-side, un import de
 // valor real rompería el build.
-const COLOR_FONDO = "#fdfaf5";
-const COLOR_BORDE = "#e3d9c8";
-const COLOR_TEXTO = "#2a2622";
-const COLOR_MUTED = "#8a8175";
+Font.register({
+  family: "Anton",
+  fonts: [{ src: "/fonts/Anton-Regular.ttf" }],
+});
+Font.register({
+  family: "Barlow",
+  fonts: [
+    { src: "/fonts/Barlow-Regular.ttf", fontWeight: 400 },
+    { src: "/fonts/Barlow-SemiBold.ttf", fontWeight: 600 },
+    { src: "/fonts/Barlow-ExtraBold.ttf", fontWeight: 800 },
+  ],
+});
+Font.register({
+  family: "Space Mono",
+  fonts: [
+    { src: "/fonts/SpaceMono-Regular.ttf", fontWeight: 400 },
+    { src: "/fonts/SpaceMono-Bold.ttf", fontWeight: 700 },
+  ],
+});
+
+const COLOR_BG = "#ece7dd";
+const COLOR_INK = "#14110f";
+const COLOR_HILITE = "#f2e14c";
+const COLOR_BORDE = "rgba(20,17,15,0.25)";
+
+function colorSeguro(c: string): string {
+  return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : "#8b1e2b";
+}
+
+function tagsGenero(genero: string | null): string[] {
+  if (!genero) return [];
+  return genero
+    .split(/[|,·/]/)
+    .map((g) => g.trim())
+    .filter(Boolean);
+}
 
 function truncar(texto: string, max: number): string {
   const limpio = texto.replace(/\s+/g, " ").trim();
@@ -27,93 +59,154 @@ function truncar(texto: string, max: number): string {
 }
 
 const styles = StyleSheet.create({
-  page: { padding: 34, backgroundColor: COLOR_FONDO, fontSize: 9.5, color: COLOR_TEXTO, fontFamily: "Helvetica" },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 18, borderBottomWidth: 2.5, paddingBottom: 12 },
-  bandaNombre: { fontSize: 26, fontFamily: "Helvetica-Bold" },
-  kicker: { fontSize: 9, fontFamily: "Helvetica-Bold", letterSpacing: 2, marginTop: 4 },
-  origen: { fontSize: 9, color: COLOR_MUTED },
-  cuerpo: { flexDirection: "row", gap: 22, marginBottom: 20 },
-  columnaTexto: { flex: 1.15, gap: 16 },
-  columnaFoto: { flex: 0.85 },
-  foto: { width: "100%", height: 220, objectFit: "cover", borderRadius: 4 },
-  seccionTitulo: { fontSize: 9, fontFamily: "Helvetica-Bold", textTransform: "uppercase", letterSpacing: 1, marginBottom: 5, color: COLOR_MUTED },
-  texto: { fontSize: 10, lineHeight: 1.5 },
-  linea: { fontSize: 9.5, lineHeight: 1.6 },
-  footer: { flexDirection: "row", gap: 22, borderTopWidth: 1.5, borderTopColor: COLOR_BORDE, paddingTop: 14, marginTop: "auto" },
-  footerBloque: { flex: 1, gap: 3 },
-  link: { fontSize: 9.5, lineHeight: 1.7, color: COLOR_TEXTO, textDecoration: "none" },
-  generado: { position: "absolute", bottom: 20, right: 34, fontSize: 7.5, color: COLOR_MUTED },
+  page: { backgroundColor: COLOR_BG, color: COLOR_INK, fontFamily: "Barlow" },
+  header: { flexDirection: "row", borderBottomWidth: 3, borderBottomColor: COLOR_INK },
+  headerTexto: { flex: 1, padding: "26px 26px 20px 30px", justifyContent: "space-between", gap: 14 },
+  kicker: { fontFamily: "Space Mono", fontSize: 8.5, letterSpacing: 2, textTransform: "uppercase", opacity: 0.7 },
+  bandaNombre: { fontFamily: "Anton", fontSize: 46, lineHeight: 0.95, textTransform: "uppercase" },
+  tags: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
+  tag: { fontFamily: "Space Mono", fontSize: 8, letterSpacing: 1, textTransform: "uppercase", backgroundColor: COLOR_INK, color: COLOR_BG, padding: "3px 7px" },
+  headerFoto: { flex: 0.86, minHeight: 250 },
+  cinta: { fontFamily: "Anton", textTransform: "uppercase", fontSize: 13, letterSpacing: 1.5, padding: "6px 30px", borderBottomWidth: 3, borderBottomColor: COLOR_INK },
+  seccion: { padding: "20px 30px 18px 30px", borderBottomWidth: 3, borderBottomColor: COLOR_INK },
+  seccionTitulo: { fontFamily: "Space Mono", fontSize: 8.5, letterSpacing: 2, textTransform: "uppercase", marginBottom: 10 },
+  semblanzaTitular: { fontFamily: "Barlow", fontWeight: 700, fontSize: 14, lineHeight: 1.3, marginBottom: 10 },
+  semblanzaCuerpo: { fontSize: 10, lineHeight: 1.45 },
+  cuerpo: { flexDirection: "row", borderBottomWidth: 3, borderBottomColor: COLOR_INK },
+  columnaIzq: { flex: 0.62, padding: "18px 26px 18px 30px" },
+  columnaDer: { flex: 0.38, borderLeftWidth: 3, borderLeftColor: COLOR_INK, alignItems: "center", justifyContent: "center", padding: 16 },
+  integranteFila: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: 12, paddingVertical: 6, borderTopWidth: 1, borderTopColor: COLOR_BORDE },
+  integranteNombre: { fontFamily: "Anton", fontSize: 17, textTransform: "uppercase" },
+  integranteInstrumento: { fontFamily: "Space Mono", fontSize: 8, letterSpacing: 1, textTransform: "uppercase", opacity: 0.8 },
+  fechaCaja: { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap", gap: 10, backgroundColor: COLOR_HILITE, padding: "8px 10px", marginTop: 14 },
+  fechaFecha: { fontFamily: "Space Mono", fontSize: 8, letterSpacing: 1, textTransform: "uppercase" },
+  fechaTitulo: { fontFamily: "Anton", fontSize: 15, textTransform: "uppercase" },
+  fechaLugar: { fontFamily: "Space Mono", fontSize: 8, letterSpacing: 1, textTransform: "uppercase", opacity: 0.75 },
+  foto: { width: "100%", height: "auto" },
+  pie: { flexDirection: "row", gap: 26, backgroundColor: COLOR_INK, color: COLOR_BG, padding: "18px 30px 16px 30px" },
+  pieBloque: { flex: 1 },
+  pieLabel: { fontFamily: "Space Mono", fontSize: 8.5, letterSpacing: 2, textTransform: "uppercase", color: COLOR_HILITE, marginBottom: 9 },
+  redes: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  red: { fontFamily: "Anton", fontSize: 11, textTransform: "uppercase", color: COLOR_BG, borderWidth: 1.5, borderColor: "rgba(236,231,221,0.4)", padding: "4px 8px", textDecoration: "none" },
+  contactoNombre: { fontFamily: "Anton", fontSize: 15, textTransform: "uppercase", marginBottom: 5 },
+  contactoLinea: { fontFamily: "Space Mono", fontSize: 9, color: COLOR_BG, textDecoration: "none" },
 });
 
 export function PresskitPublicoPdfDocument({ datos }: { datos: PresskitPublico }) {
-  const acento = datos.bandaColor;
-  const fotoPrincipal = datos.fotosBanda[0]?.url ?? null;
-  const semblanzaBreve = datos.presskit.bioLarga ? truncar(datos.presskit.bioLarga, 520) : null;
-  const origen = [datos.presskit.ciudad, datos.presskit.pais].filter(Boolean).join(", ");
-  const hayContacto = datos.presskit.contactoNombre || datos.presskit.contactoTelefono || datos.presskit.contactoEmail;
-  const generadoEl = new Date().toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" });
+  const acento = colorSeguro(datos.bandaColor);
+  const tags = tagsGenero(datos.bandaGenero);
+  const fotoHero = datos.fotosBanda[0]?.url ?? null;
+  const semblanzaBreve = datos.presskit.bioLarga ? truncar(datos.presskit.bioLarga, 480) : null;
+  const origen = [datos.presskit.pais, datos.presskit.ciudad].filter(Boolean).join(", ");
+  const proximaFecha = datos.proximasFechas[0] ?? null;
+  const fechaFormateada = proximaFecha
+    ? new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(proximaFecha.fechaInicio))
+    : null;
+  const hayContacto = datos.presskit.contactoTelefono || datos.presskit.contactoEmail;
 
   return (
     <Document>
       <Page size="LETTER" style={styles.page}>
-        <View style={[styles.header, { borderBottomColor: acento }]}>
-          <View>
+        {/* Header: nombre + tags de género, foto a la derecha */}
+        <View style={styles.header}>
+          <View style={styles.headerTexto}>
+            <Text style={styles.kicker}>Presskit{origen ? ` · ${origen}` : ""}</Text>
             <Text style={styles.bandaNombre}>{datos.bandaNombre}</Text>
-            {datos.bandaGenero && <Text style={[styles.kicker, { color: acento }]}>{datos.bandaGenero.toUpperCase()}</Text>}
-          </View>
-          {origen && <Text style={styles.origen}>{origen}</Text>}
-        </View>
-
-        <View style={styles.cuerpo}>
-          <View style={styles.columnaTexto}>
-            {semblanzaBreve && (
-              <View>
-                <Text style={styles.seccionTitulo}>Semblanza</Text>
-                <Text style={styles.texto}>{semblanzaBreve}</Text>
-              </View>
-            )}
-            {datos.integrantes.length > 0 && (
-              <View>
-                <Text style={styles.seccionTitulo}>Integrantes</Text>
-                {datos.integrantes.map((i, idx) => (
-                  <Text key={idx} style={styles.linea}>
-                    • {i.nombre} — {i.instrumento}
+            {tags.length > 0 && (
+              <View style={styles.tags}>
+                {tags.map((t) => (
+                  <Text key={t} style={styles.tag}>
+                    {t}
                   </Text>
                 ))}
               </View>
             )}
           </View>
-
-          {fotoPrincipal && (
-            <View style={styles.columnaFoto}>
+          {fotoHero && (
+            <View style={[styles.headerFoto, { backgroundColor: COLOR_INK, borderLeftWidth: 3, borderLeftColor: COLOR_INK }]}>
               {/* eslint-disable-next-line jsx-a11y/alt-text -- Image acá es el componente PDF de @react-pdf/renderer, no un <img> HTML; no tiene prop alt. */}
-              <Image src={fotoPrincipal} style={styles.foto} />
+              <Image src={fotoHero} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </View>
           )}
         </View>
 
-        <View style={styles.footer}>
-          {hayContacto && (
-            <View style={styles.footerBloque}>
-              <Text style={styles.seccionTitulo}>Contacto</Text>
-              {datos.presskit.contactoNombre && <Text style={styles.linea}>{datos.presskit.contactoNombre}</Text>}
-              {datos.presskit.contactoTelefono && <Text style={styles.linea}>{datos.presskit.contactoTelefono}</Text>}
-              {datos.presskit.contactoEmail && <Text style={styles.linea}>{datos.presskit.contactoEmail}</Text>}
-            </View>
-          )}
-          {datos.redes.length > 0 && (
-            <View style={styles.footerBloque}>
-              <Text style={styles.seccionTitulo}>Links</Text>
-              {datos.redes.map((r) => (
-                <Link key={r.id} src={r.url} style={styles.link}>
-                  {r.plataforma}
-                </Link>
-              ))}
+        {/* Cinta de acento con los tags de género */}
+        {tags.length > 0 && (
+          <Text style={[styles.cinta, { backgroundColor: acento, color: COLOR_BG }]}>{tags.join(" · ")}</Text>
+        )}
+
+        {/* Semblanza */}
+        {semblanzaBreve && (
+          <View style={styles.seccion}>
+            <Text style={[styles.seccionTitulo, { color: acento }]}>Semblanza</Text>
+            <Text style={styles.semblanzaCuerpo}>{semblanzaBreve}</Text>
+          </View>
+        )}
+
+        {/* Integrantes + próxima fecha / logo */}
+        <View style={styles.cuerpo}>
+          <View style={styles.columnaIzq}>
+            {datos.integrantes.length > 0 && (
+              <>
+                <Text style={[styles.seccionTitulo, { color: acento }]}>Integrantes</Text>
+                {datos.integrantes.map((i, idx) => (
+                  <View key={idx} style={styles.integranteFila}>
+                    {i.redSocialUrl ? (
+                      <Link src={i.redSocialUrl} style={[styles.integranteNombre, { color: acento, textDecoration: "none" }]}>
+                        {i.nombre}
+                      </Link>
+                    ) : (
+                      <Text style={styles.integranteNombre}>{i.nombre}</Text>
+                    )}
+                    <Text style={styles.integranteInstrumento}>{i.instrumento}</Text>
+                  </View>
+                ))}
+              </>
+            )}
+            {proximaFecha && (
+              <>
+                <Text style={[styles.seccionTitulo, { color: acento, marginTop: 16 }]}>Próxima fecha</Text>
+                <View style={styles.fechaCaja}>
+                  <Text style={styles.fechaFecha}>{fechaFormateada}</Text>
+                  <Text style={styles.fechaTitulo}>{proximaFecha.titulo}</Text>
+                  {proximaFecha.lugarNombre && <Text style={styles.fechaLugar}>{proximaFecha.lugarNombre}</Text>}
+                </View>
+              </>
+            )}
+          </View>
+          {datos.fotosBanda[2] && (
+            <View style={styles.columnaDer}>
+              {/* eslint-disable-next-line jsx-a11y/alt-text -- Image acá es el componente PDF de @react-pdf/renderer, no un <img> HTML; no tiene prop alt. */}
+              <Image src={datos.fotosBanda[2].url} style={styles.foto} />
             </View>
           )}
         </View>
 
-        <Text style={styles.generado}>Generado el {generadoEl}</Text>
+        {/* Pie: redes + contacto */}
+        {(datos.redes.length > 0 || hayContacto) && (
+          <View style={styles.pie}>
+            {datos.redes.length > 0 && (
+              <View style={styles.pieBloque}>
+                <Text style={styles.pieLabel}>Escúchanos / síguenos</Text>
+                <View style={styles.redes}>
+                  {datos.redes.map((r) => (
+                    <Link key={r.id} src={r.url} style={styles.red}>
+                      {r.plataforma}
+                    </Link>
+                  ))}
+                </View>
+              </View>
+            )}
+            {hayContacto && (
+              <View style={styles.pieBloque}>
+                <Text style={styles.pieLabel}>Contacto</Text>
+                <Text style={styles.contactoNombre}>{datos.presskit.contactoNombre || datos.bandaNombre}</Text>
+                {datos.presskit.contactoTelefono && <Text style={styles.contactoLinea}>{datos.presskit.contactoTelefono}</Text>}
+                {datos.presskit.contactoEmail && <Text style={styles.contactoLinea}>{datos.presskit.contactoEmail}</Text>}
+              </View>
+            )}
+          </View>
+        )}
       </Page>
     </Document>
   );

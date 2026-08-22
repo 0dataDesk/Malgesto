@@ -3,20 +3,20 @@ import { notFound } from "next/navigation";
 import { obtenerBandaPorSlugPresskit, obtenerPresskitPublico, type PresskitPublico } from "@/lib/presskitData";
 import { PresskitPublicoBotonPdf } from "@/components/presskit/PresskitPublicoBotonPdf";
 
-// Brief "Presskit — vista pública real dentro de Malgesto App": puerto del
-// diseño importado de Claude Design (proyecto "Presskit de Juana LR",
-// Presskit Juana LR.dc.html) a una ruta real de Malgesto App, con datos
-// reales de Supabase en vez de contenido pegado a mano -- deliberadamente
-// fuera de proxy.ts (mismo criterio que /plot/[token], ver ese archivo):
-// sin sesión ni membresía, la única forma de acceso es conocer el slug
-// (nombre de la banda "slugificado", ver slugificarNombreBanda en
-// lib/presskitData.ts). El texto curado del mockup (semblanza en dos
-// columnas, cita destacada, cinta de géneros) no vive en ninguna tabla
-// propia -- se deriva acá mismo de bio_larga con heurísticas simples
-// (oraciones, no NLP) para que la página siga funcionando cuando una banda
-// futura publique la suya con su propia semblanza, no solo con la de Juana
-// LR. Cada sección se oculta si esa banda todavía no cargó ese contenido en
-// vez de mostrar un hueco vacío.
+// Brief "Presskit — actualización de diseño (handoff punk de Design)":
+// puerto del proyecto "Presskit Juana LR punk" (Claude Design,
+// Presskit Juana LR.dc.html) a esta misma ruta -- reemplaza la identidad
+// visual anterior (negro/Archivo Black) por la nueva (cream/Anton/Barlow +
+// rojo·amarillo), con datos reales de Supabase en vez de contenido pegado a
+// mano. Genérica para cualquier banda futura: `acento` sale de
+// `bandas.color` (no del rojo fijo del mockup, que era solo el color propio
+// de Juana LR); el amarillo sí queda fijo -- es un tono de resalte del
+// sistema visual, no de marca. El texto curado del mockup (semblanza en dos
+// columnas, cita/caption breve, cinta de géneros) no vive en ninguna tabla
+// propia -- se deriva acá mismo con heurísticas simples (oraciones, no NLP)
+// para que seguir funcionando cuando una banda futura publique la suya.
+// Deliberadamente fuera de proxy.ts (mismo criterio que /plot/[token]): sin
+// sesión ni membresía, la única forma de acceso es conocer el slug.
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const banda = await obtenerBandaPorSlugPresskit(slug);
@@ -27,14 +27,29 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
+const COLOR_BG = "#ece7dd";
+const COLOR_INK = "#14110f";
+const COLOR_HILITE = "#f2e14c";
+
 function colorSeguro(c: string): string {
   return /^#[0-9a-fA-F]{3,8}$/.test(c) || /^oklch\([\d.\s%]+\)$/i.test(c) ? c : "#8b1e2b";
 }
 
+// Brief §3: los tags de género vienen de un solo campo texto
+// (bandas.genero) -- para Juana LR ya se carga como "Punk | Ska | Rock
+// Alternativo | Garage", pero acepta cualquier separador común (coma,
+// slash, medio punto) para que una banda futura no dependa de usar "|".
+function tagsGenero(genero: string | null): string[] {
+  if (!genero) return [];
+  return genero
+    .split(/[|,·\/]/)
+    .map((g) => g.trim())
+    .filter(Boolean);
+}
+
 // Heurística de oraciones (no NLP): agrupa oraciones hasta sumar ~140
-// caracteres para el titular en negrita (mismo tamaño que ocupaba el
-// arranque de la semblanza en el mockup original), reparte el resto en dos
-// columnas parejas.
+// caracteres para el titular en negrita, reparte el resto en dos columnas
+// parejas.
 function dividirSemblanza(bio: string): { titular: string; columnas: [string, string] } {
   const oraciones = bio.trim().split(/(?<=[.!?])\s+/).filter(Boolean);
   if (oraciones.length === 0) return { titular: "", columnas: ["", ""] };
@@ -50,26 +65,21 @@ function dividirSemblanza(bio: string): { titular: string; columnas: [string, st
   return { titular: acumulado, columnas: [resto.slice(0, mitad).join(" "), resto.slice(mitad).join(" ")] };
 }
 
-// La última oración suele ser la más "cerrada"/quotable de una semblanza
-// escrita como texto corrido -- funcionó bien para Juana LR ("...no pide
-// permiso para ser escuchada...") sin necesitar ninguna marca especial en
-// el texto.
-function extraerCita(bio: string): string | null {
-  const oraciones = bio.trim().split(/(?<=[.!?])\s+/).filter(Boolean);
-  const ultima = oraciones[oraciones.length - 1]?.replace(/[.!?]+$/, "").trim();
-  return ultima ? `“${ultima}”` : null;
-}
-
 function extraerAnioFundacion(bio: string): string | null {
   const m = bio.match(/\b(19|20)\d{2}\b/);
   return m ? m[0] : null;
 }
 
-function categoriaPlataforma(plataforma: string): "Música" | "Redes" | "Link" {
-  const p = plataforma.toLowerCase();
-  if (/spotify|apple\s*music|youtube|soundcloud|bandcamp|deezer|tidal/.test(p)) return "Música";
-  if (/instagram|tiktok|facebook|threads|twitter|^x$/.test(p)) return "Redes";
-  return "Link";
+// Brief §2: el caption corto sobre la foto de héroe (mockup: "Más de una
+// década sin pedir permiso") es una frase curada a mano por Design, no un
+// extracto literal de la semblanza -- para que una banda futura sin ese
+// tipo de redacción no se quede sin caption ni con un extracto
+// desproporcionado, se compone acá con datos ya estructurados (año +
+// primer tag de género) en vez de intentar adivinar la frase ideal desde
+// texto libre.
+function captionFoto(anio: string | null, tags: string[]): string | null {
+  if (anio) return `Activos desde ${anio}`;
+  return tags[0] ?? null;
 }
 
 function formatearFechaCorta(iso: string): string {
@@ -78,58 +88,10 @@ function formatearFechaCorta(iso: string): string {
   return `${obtener("day")} ${obtener("month").replace(".", "").toUpperCase()} ${obtener("year")}`;
 }
 
-function MetaDato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
+function EtiquetaSeccion({ numero, titulo, color }: { numero: string; titulo: string; color: string }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <span>{etiqueta}</span>
-      <span style={{ color: "#f2ede1", fontSize: 15, letterSpacing: ".1em" }}>{valor}</span>
-    </div>
-  );
-}
-
-function FilaContacto({ etiqueta, valor, href }: { etiqueta: string; valor: string; href?: string }) {
-  const estiloFila = {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "baseline",
-    gap: 16,
-    padding: "18px 0",
-    borderBottom: "3px solid #0d0c0b",
-    color: "#0d0c0b",
-  } as const;
-  const contenido = (
-    <>
-      <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, letterSpacing: ".22em", textTransform: "uppercase", color: "#6c6559" }}>
-        {etiqueta}
-      </span>
-      <span style={{ fontFamily: "'Archivo Black',sans-serif", fontSize: "clamp(15px,1.6vw,22px)", textTransform: "uppercase" }}>{valor}</span>
-    </>
-  );
-  return href ? (
-    <a href={href} className="pkpub-link" style={estiloFila}>
-      {contenido}
-    </a>
-  ) : (
-    <div style={estiloFila}>{contenido}</div>
-  );
-}
-
-function seccionHeader(titulo: string, badge: string, acento: string) {
-  return (
-    <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 24, marginBottom: 36 }}>
-      <h2
-        style={{
-          margin: 0,
-          fontFamily: "'Archivo Black',sans-serif",
-          textTransform: "uppercase",
-          fontSize: "clamp(30px,4.5vw,64px)",
-          lineHeight: 0.9,
-          letterSpacing: "-.02em",
-        }}
-      >
-        {titulo}
-      </h2>
-      <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, letterSpacing: ".25em", textTransform: "uppercase", color: acento }}>{badge}</span>
+    <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, letterSpacing: ".24em", textTransform: "uppercase", color, marginBottom: 22 }}>
+      {numero} — {titulo}
     </div>
   );
 }
@@ -144,383 +106,334 @@ export default async function PresskitPublicoPage({ params }: { params: Promise<
 
   const bio = datos.presskit.bioLarga?.trim() || null;
   const { titular, columnas } = bio ? dividirSemblanza(bio) : { titular: "", columnas: ["", ""] as [string, string] };
-  const cita = bio ? extraerCita(bio) : null;
   const anio = bio ? extraerAnioFundacion(bio) : null;
+  const tags = tagsGenero(datos.bandaGenero);
+  const caption = captionFoto(anio, tags);
+  const origenPartes = [datos.presskit.pais, datos.presskit.ciudad].filter((v): v is string => Boolean(v));
+  const origenLinea = origenPartes.join(" · ");
 
-  const origenLinea = [datos.presskit.pais, datos.presskit.ciudad].filter(Boolean).join(" · ");
-  const kicker = [origenLinea, anio].filter(Boolean).join(" · ");
-  const tagline = datos.bandaGenero
-    ? `${datos.bandaGenero} desde ${[datos.presskit.ciudad, datos.presskit.pais].filter(Boolean).join(", ") || "algún lugar"}.`
-    : "";
-  const fotoHero = datos.fotosBanda[0]?.url ?? null;
+  // Brief "Las fotos de banda/conceptuales se usan como material visual
+  // (fondo, ambientación), no como una galería enumerada": en vez de listar
+  // todas las fotosBanda en una grilla, cada una cumple un rol puntual de
+  // ambientación -- [0] foto de héroe, [1] acorte decorativo junto a la
+  // semblanza, [2] marca/logo en la esquina del héroe (mix-blend-mode:
+  // multiply, pensado para un PNG con fondo transparente). Una banda con
+  // menos de 3 fotos de banda simplemente no ve los roles que le faltan --
+  // ninguno es obligatorio.
+  const fotoHero = datos.fotosBanda[0] ?? null;
+  const fotoSemblanza = datos.fotosBanda[1] ?? null;
+  const fotoLogo = datos.fotosBanda[2] ?? null;
 
   const hayIntegrantes = datos.integrantes.length > 0;
-  const hayFotos = datos.fotosBanda.length > 0;
   const hayFechas = datos.proximasFechas.length > 0;
   const hayFlyers = datos.fotosFlyer.length > 0;
   const hayRedes = datos.redes.length > 0;
+  const hayOrigenBloque = Boolean(origenLinea || anio);
+  const hayContacto = Boolean(datos.presskit.contactoTelefono || datos.presskit.contactoEmail);
 
-  const redPrincipal = datos.redes.find((r) => categoriaPlataforma(r.plataforma) === "Música") ?? datos.redes[0] ?? null;
-  const etiquetaCta = redPrincipal
-    ? categoriaPlataforma(redPrincipal.plataforma) === "Música"
-      ? "Escuchar"
-      : categoriaPlataforma(redPrincipal.plataforma) === "Redes"
-        ? "Seguir en"
-        : "Visitar"
-    : null;
-
-  const marquee = datos.bandaGenero ? Array.from({ length: 6 }, () => datos.bandaGenero as string) : [];
-
-  const anchors: { href: string; label: string }[] = [];
-  if (bio) anchors.push({ href: "#semblanza", label: "Semblanza" });
-  if (hayIntegrantes) anchors.push({ href: "#banda", label: "Banda" });
-  if (hayFotos) anchors.push({ href: "#fotos", label: "Fotos" });
-  if (hayFechas) anchors.push({ href: "#fechas", label: "Fechas" });
-  anchors.push({ href: "#contacto", label: "Contacto" });
+  const marquee = tags.length > 0 ? tags : datos.bandaGenero ? [datos.bandaGenero] : [];
 
   return (
-    <div style={{ background: "#0d0c0b", color: "#f2ede1", fontFamily: "'Archivo',sans-serif", overflowX: "hidden", minHeight: "100vh" }}>
+    <div style={{ background: COLOR_BG, color: COLOR_INK, fontFamily: "Barlow,sans-serif", overflowX: "hidden", minHeight: "100vh" }}>
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
       <link
-        href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:ital,wght@0,400;0,600;0,800;1,400&family=Space+Mono:wght@400;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:ital,wght@0,400;0,600;0,800;1,400&family=Space+Mono:wght@400;700&display=swap"
         rel="stylesheet"
       />
       <style>{`
-        @keyframes pkpub-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        .pkpub-marquee { animation: pkpub-marquee 22s linear infinite; }
-        .pkpub-hover-accent:hover { background: ${acento} !important; color: #0d0c0b !important; }
-        .pkpub-hover-invert:hover { background: #f2ede1 !important; color: #0d0c0b !important; }
-        .pkpub-hover-border:hover { border-color: ${acento} !important; }
-        .pkpub-link:hover { color: ${acento} !important; }
+        @keyframes pkpub-slide { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        .pkpub-marquee { animation: pkpub-slide 26s linear infinite; }
+        a.pkpub-link { color: ${acento}; text-decoration: none; }
+        a.pkpub-link:hover { color: ${COLOR_INK}; background: ${COLOR_HILITE}; }
+        .pkpub-integrante:hover { background: ${acento} !important; color: ${COLOR_BG} !important; }
+        .pkpub-red:hover { background: ${COLOR_HILITE} !important; color: ${COLOR_INK} !important; border-color: ${COLOR_HILITE} !important; }
+        .pkpub-flyer:hover { border-color: ${acento} !important; }
+        .pkpub-pdf:hover { opacity: 1 !important; border-bottom-color: ${acento} !important; color: ${acento} !important; }
       `}</style>
 
-      {/* Franja utilitaria + nav de marca -- brief del prompt fijo (Design):
-          botón de PDF discreto arriba a la izquierda, en su propia franja
-          oscura/neutra separada de la barra de marca (protagonista, en el
-          acento de la banda), para que no compita visualmente con ella. */}
-      <div style={{ position: "sticky", top: 0, zIndex: 40 }}>
-        <div style={{ background: "#0d0c0b", borderBottom: "1px solid #262320", padding: "6px 20px" }}>
-          <PresskitPublicoBotonPdf datos={datos} />
-        </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 16,
-            flexWrap: "wrap",
-            padding: "10px 24px",
-            background: acento,
-            color: "#0d0c0b",
-            borderBottom: "3px solid #0d0c0b",
-          }}
-        >
-          <div style={{ fontFamily: "'Space Mono',monospace", fontWeight: 700, fontSize: 12, letterSpacing: ".22em", textTransform: "uppercase" }}>
-            {datos.bandaNombre}
-            {datos.bandaGenero ? ` · ${datos.bandaGenero}` : ""}
-          </div>
-          <div style={{ display: "flex", gap: 18, flexWrap: "wrap", fontFamily: "'Space Mono',monospace", fontSize: 12, letterSpacing: ".14em", textTransform: "uppercase" }}>
-            {anchors.map((a) => (
-              <a key={a.href} href={a.href} style={{ color: "#0d0c0b" }}>
-                {a.label}
-              </a>
-            ))}
-          </div>
-        </div>
+      {/* Botón de PDF discreto, arriba a la izquierda -- brief §2: en su
+          propia franja flotante sobre el héroe, sin competir con el resto
+          del diseño (acá no hay barra de marca/nav: el mockup punk es un
+          scroll continuo, sin anclas de sección). */}
+      <div style={{ position: "fixed", top: 0, left: 0, zIndex: 50, padding: "14px 18px" }}>
+        <PresskitPublicoBotonPdf datos={datos} />
       </div>
 
-      {/* Hero */}
-      <section style={{ position: "relative", borderBottom: `3px solid ${acento}` }}>
-        <div style={{ position: "relative", display: "grid", gridTemplateColumns: fotoHero ? "1.15fr .85fr" : "1fr", minHeight: "72vh" }}>
-          <div style={{ padding: "64px 40px 48px 48px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 26 }}>
-            {kicker && (
-              <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 13, letterSpacing: ".3em", textTransform: "uppercase", color: acento }}>{kicker}</div>
+      {/* HERO */}
+      <section style={{ position: "relative", minHeight: "100vh", display: "grid", gridTemplateColumns: fotoHero ? "1.05fr .95fr" : "1fr", borderBottom: `3px solid ${COLOR_INK}` }}>
+        <div style={{ padding: "96px 44px 40px 44px", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 32 }}>
+          <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, letterSpacing: ".22em", textTransform: "uppercase", display: "flex", gap: 18, flexWrap: "wrap", opacity: 0.7 }}>
+            <span>Presskit</span>
+            {origenLinea && (
+              <>
+                <span>·</span>
+                <span>{origenLinea}</span>
+              </>
             )}
+            {anio && (
+              <>
+                <span>·</span>
+                <span>Desde {anio}</span>
+              </>
+            )}
+          </div>
+          <div>
             <h1
               style={{
-                margin: 0,
-                fontFamily: "'Archivo Black',sans-serif",
-                textTransform: "uppercase",
+                fontFamily: "Anton,sans-serif",
+                fontWeight: 400,
+                fontSize: "clamp(48px,8vw,132px)",
                 lineHeight: 0.86,
-                letterSpacing: "-.03em",
-                fontSize: "clamp(48px,7.5vw,116px)",
+                letterSpacing: "-.02em",
+                textTransform: "uppercase",
+                margin: "0 0 18px 0",
               }}
             >
               {datos.bandaNombre}
             </h1>
-            {tagline && <p style={{ margin: 0, maxWidth: "34ch", fontSize: 19, lineHeight: 1.45, color: "#c9c2b4" }}>{tagline}</p>}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-              {redPrincipal && (
-                <a
-                  href={redPrincipal.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="pkpub-hover-invert"
-                  style={{
-                    background: acento,
-                    color: "#0d0c0b",
-                    fontFamily: "'Space Mono',monospace",
-                    fontWeight: 700,
-                    fontSize: 12,
-                    letterSpacing: ".18em",
-                    textTransform: "uppercase",
-                    padding: "14px 20px",
-                  }}
-                >
-                  {etiquetaCta} {redPrincipal.plataforma}
-                </a>
-              )}
-              <a
-                href="#contacto"
-                className="pkpub-hover-invert"
-                style={{
-                  border: "2px solid #f2ede1",
-                  color: "#f2ede1",
-                  fontFamily: "'Space Mono',monospace",
-                  fontWeight: 700,
-                  fontSize: 12,
-                  letterSpacing: ".18em",
-                  textTransform: "uppercase",
-                  padding: "12px 20px",
-                }}
-              >
-                Booking
-              </a>
-            </div>
+            {tags.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 26 }}>
+                {tags.map((t) => (
+                  <span
+                    key={t}
+                    style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, letterSpacing: ".1em", textTransform: "uppercase", background: COLOR_INK, color: COLOR_BG, padding: "5px 11px" }}
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
-          {fotoHero && (
-            <div style={{ position: "relative", borderLeft: `3px solid ${acento}`, overflow: "hidden" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element -- URLs remotas de Supabase Storage; mismo criterio (<img> plano) que PresskitCaptura.tsx. */}
-              <img src={fotoHero} alt={datos.bandaNombre} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "grayscale(1) contrast(1.2)" }} />
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: `linear-gradient(180deg, color-mix(in srgb, ${acento} 28%, transparent), rgba(13,12,11,.55))`,
-                }}
-              />
-            </div>
+          {/* Rol de logo (brief §1): tercera foto de banda, tratada como
+              marca sobre fondo transparente -- se oculta sola si esa banda
+              no cargó una tercera foto. */}
+          {fotoLogo && (
+            // eslint-disable-next-line @next/next/no-img-element -- URL remota de Supabase Storage.
+            <img src={fotoLogo.url} alt={`Logo ${datos.bandaNombre}`} style={{ width: "min(280px,55%)", height: "auto", mixBlendMode: "multiply", alignSelf: "flex-start" }} />
           )}
         </div>
-
-        {marquee.length > 0 && (
-          <div style={{ display: "flex", background: "#f2ede1", color: "#0d0c0b", borderTop: "3px solid #0d0c0b", overflow: "hidden" }}>
-            <div
-              className="pkpub-marquee"
-              style={{ display: "flex", width: "max-content", padding: "12px 0", fontFamily: "'Archivo Black',sans-serif", textTransform: "uppercase", fontSize: 15, letterSpacing: ".06em", whiteSpace: "nowrap" }}
-            >
-              {[0, 1].map((rep) => (
-                <div key={rep} style={{ display: "flex", gap: 44, padding: "0 22px" }} aria-hidden={rep === 1 || undefined}>
-                  {marquee.map((m, idx) => (
-                    <span key={idx} style={{ color: idx % 2 === 1 ? acento : undefined }}>
-                      {m}
-                    </span>
-                  ))}
-                </div>
-              ))}
-            </div>
+        {fotoHero && (
+          <div style={{ position: "relative", background: COLOR_INK, overflow: "hidden", borderLeft: `3px solid ${COLOR_INK}` }}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- URL remota de Supabase Storage. */}
+            <img
+              src={fotoHero.url}
+              alt={datos.bandaNombre}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "grayscale(1) contrast(1.2) brightness(.95)" }}
+            />
+            <div style={{ position: "absolute", inset: 0, background: `linear-gradient(200deg, color-mix(in srgb, ${acento} 32%, transparent), rgba(20,17,15,.15) 55%, rgba(20,17,15,.55))` }} />
+            {caption && (
+              <div style={{ position: "absolute", left: 0, bottom: 26, background: COLOR_HILITE, color: COLOR_INK, fontFamily: "'Space Mono',monospace", fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", padding: "7px 14px" }}>
+                {caption}
+              </div>
+            )}
           </div>
         )}
       </section>
 
-      {/* Semblanza */}
-      {bio && (
-        <section id="semblanza" style={{ padding: "88px 48px", borderBottom: "3px solid #262320" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 48, alignItems: "start" }}>
-            <h2
-              style={{
-                margin: 0,
-                fontFamily: "'Space Mono',monospace",
-                fontSize: 13,
-                fontWeight: 700,
-                letterSpacing: ".3em",
-                textTransform: "uppercase",
-                color: acento,
-                position: "sticky",
-                top: 80,
-              }}
-            >
-              Semblanza
-            </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: 26, maxWidth: "78ch" }}>
-              {titular && (
-                <p style={{ margin: 0, fontFamily: "'Archivo Black',sans-serif", fontSize: "clamp(22px,2.2vw,32px)", lineHeight: 1.2, letterSpacing: "-.01em" }}>
-                  {titular}
-                </p>
-              )}
-              {(columnas[0] || columnas[1]) && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 34 }}>
-                  {columnas[0] && <p style={{ margin: 0, fontSize: 17, lineHeight: 1.6, color: "#c9c2b4" }}>{columnas[0]}</p>}
-                  {columnas[1] && <p style={{ margin: 0, fontSize: 17, lineHeight: 1.6, color: "#c9c2b4" }}>{columnas[1]}</p>}
-                </div>
-              )}
-              {cita && (
-                <div style={{ borderTop: `3px solid ${acento}`, borderBottom: `3px solid ${acento}`, padding: "22px 0", marginTop: 8 }}>
-                  <p style={{ margin: 0, fontFamily: "'Archivo Black',sans-serif", textTransform: "uppercase", fontSize: "clamp(20px,2.6vw,38px)", lineHeight: 1, letterSpacing: "-.02em", color: acento }}>
-                    {cita}
-                  </p>
-                </div>
-              )}
-              <div style={{ display: "flex", gap: 56, flexWrap: "wrap", fontFamily: "'Space Mono',monospace", fontSize: 12, letterSpacing: ".2em", textTransform: "uppercase", color: "#8d8578" }}>
-                {datos.bandaGenero && <MetaDato etiqueta="Género" valor={datos.bandaGenero} />}
-                {datos.presskit.pais && <MetaDato etiqueta="País" valor={datos.presskit.pais} />}
-                {datos.presskit.ciudad && <MetaDato etiqueta="Ciudad" valor={datos.presskit.ciudad} />}
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Banda / Integrantes */}
-      {hayIntegrantes && (
-        <section id="banda" style={{ padding: "88px 48px", borderBottom: "3px solid #262320", background: "#f2ede1", color: "#0d0c0b" }}>
-          {seccionHeader("Integrantes", String(datos.integrantes.length).padStart(2, "0"), acento)}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 3, background: "#0d0c0b", border: "3px solid #0d0c0b" }}>
-            {datos.integrantes.map((i, idx) => (
-              <div
-                key={idx}
-                className="pkpub-hover-accent"
-                style={{ background: "#f2ede1", padding: "28px 22px", display: "grid", gridTemplateRows: "auto 1fr auto", gap: 10, minHeight: 180 }}
-              >
-                <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, letterSpacing: ".22em", color: "#7a7368" }}>{String(idx + 1).padStart(2, "0")}</span>
-                <h3 style={{ margin: 0, fontFamily: "'Archivo Black',sans-serif", textTransform: "uppercase", fontSize: 26, lineHeight: 0.95 }}>{i.nombre}</h3>
-                <p style={{ margin: 0, fontFamily: "'Space Mono',monospace", fontSize: 12, lineHeight: 1.4, letterSpacing: ".14em", textTransform: "uppercase" }}>{i.instrumento}</p>
+      {/* MARQUEE */}
+      {marquee.length > 0 && (
+        <div style={{ background: acento, color: COLOR_BG, borderBottom: `3px solid ${COLOR_INK}`, overflow: "hidden", padding: "11px 0" }}>
+          <div className="pkpub-marquee" style={{ display: "flex", width: "max-content", fontFamily: "Anton,sans-serif", textTransform: "uppercase", fontSize: 22, letterSpacing: ".06em", whiteSpace: "nowrap" }}>
+            {[0, 1].map((rep) => (
+              <div key={rep} style={{ display: "flex", gap: 26, padding: "0 22px" }} aria-hidden={rep === 1 || undefined}>
+                {marquee.map((m, idx) => (
+                  <span key={idx}>{m} ·</span>
+                ))}
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* SEMBLANZA */}
+      {bio && (
+        <section id="semblanza" style={{ display: "grid", gridTemplateColumns: fotoSemblanza ? "1.4fr .6fr" : "1fr", gap: 56, padding: "76px 44px", borderBottom: `3px solid ${COLOR_INK}`, alignItems: "start" }}>
+          <div>
+            <EtiquetaSeccion numero="01" titulo="Semblanza" color={acento} />
+            {titular && <p style={{ fontFamily: "Barlow,sans-serif", fontSize: 25, lineHeight: 1.34, fontWeight: 600, margin: "0 0 26px 0", maxWidth: "22ch" }}>{titular}</p>}
+            {(columnas[0] || columnas[1]) && (
+              <div style={{ columnCount: 2, columnGap: 38, fontSize: 16.5, lineHeight: 1.62 }}>
+                {columnas[0] && <p style={{ margin: "0 0 15px 0" }}>{columnas[0]}</p>}
+                {columnas[1] && <p style={{ margin: 0 }}>{columnas[1]}</p>}
+              </div>
+            )}
+          </div>
+          {fotoSemblanza && (
+            <div style={{ position: "relative", paddingTop: 18 }}>
+              <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%) rotate(-3deg)", width: 88, height: 26, background: "rgba(242,225,76,.85)", border: "1px solid rgba(20,17,15,.15)", zIndex: 2 }} />
+              {/* eslint-disable-next-line @next/next/no-img-element -- URL remota de Supabase Storage. */}
+              <img
+                src={fotoSemblanza.url}
+                alt=""
+                style={{ width: "100%", height: "auto", display: "block", transform: "rotate(1.4deg)", border: `3px solid ${COLOR_INK}`, boxShadow: "10px 12px 0 rgba(20,17,15,.16)" }}
+              />
+            </div>
+          )}
         </section>
       )}
 
-      {/* Fotos de banda */}
-      {hayFotos && (
-        <section id="fotos" style={{ padding: "88px 48px", borderBottom: "3px solid #262320" }}>
-          {seccionHeader("Fotos de banda", "Prensa", acento)}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
-            {datos.fotosBanda.map((f, idx) => (
-              <a key={f.id} href={f.url} target="_blank" rel="noreferrer" className="pkpub-hover-border" style={{ display: "block", border: "3px solid #f2ede1", aspectRatio: "4/5", overflow: "hidden" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element -- URLs remotas de Supabase Storage. */}
-                <img src={f.url} alt={`Foto ${idx + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+      {/* ORIGEN + INTEGRANTES */}
+      {(hayOrigenBloque || hayIntegrantes) && (
+        <section style={{ display: "grid", gridTemplateColumns: hayOrigenBloque && hayIntegrantes ? "0.34fr 0.66fr" : "1fr", borderBottom: `3px solid ${COLOR_INK}` }}>
+          {hayOrigenBloque && (
+            <div style={{ padding: "70px 44px", background: COLOR_INK, color: COLOR_BG }}>
+              <EtiquetaSeccion numero="02" titulo="Origen" color={COLOR_HILITE} />
+              {origenPartes.length > 0 && (
+                <div style={{ fontFamily: "Anton,sans-serif", fontSize: 46, lineHeight: 0.98, textTransform: "uppercase" }}>
+                  {origenPartes.map((parte, idx) => (
+                    <div key={idx}>{parte}</div>
+                  ))}
+                </div>
+              )}
+              {anio && <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, letterSpacing: ".12em", marginTop: 20, opacity: 0.75 }}>Activos desde {anio}</div>}
+            </div>
+          )}
+          {hayIntegrantes && (
+            <div style={{ padding: "70px 44px" }}>
+              <EtiquetaSeccion numero="03" titulo="Integrantes" color={acento} />
+              <div>
+                {datos.integrantes.map((i, idx) => (
+                  <div
+                    key={idx}
+                    className="pkpub-integrante"
+                    style={{
+                      display: "flex",
+                      alignItems: "baseline",
+                      justifyContent: "space-between",
+                      gap: 20,
+                      padding: "16px 14px",
+                      marginInline: -14,
+                      borderTop: "1px solid rgba(20,17,15,.25)",
+                      borderBottom: idx === datos.integrantes.length - 1 ? "1px solid rgba(20,17,15,.25)" : undefined,
+                    }}
+                  >
+                    {i.redSocialUrl ? (
+                      <a
+                        href={i.redSocialUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ fontFamily: "Anton,sans-serif", fontSize: 34, textTransform: "uppercase", lineHeight: 1, color: acento, borderBottom: `3px solid ${acento}` }}
+                      >
+                        {i.nombre} ↗
+                      </a>
+                    ) : (
+                      <span style={{ fontFamily: "Anton,sans-serif", fontSize: 34, textTransform: "uppercase", lineHeight: 1 }}>{i.nombre}</span>
+                    )}
+                    <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 12.5, letterSpacing: ".1em", textTransform: "uppercase", opacity: 0.8 }}>{i.instrumento}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ESCENARIOS / FLYERS -- brief "los flyers llevan contexto, no se
+          muestran sueltos": encabezado + copy explicando qué son antes de
+          la grilla, en vez de una grilla suelta sin marco. */}
+      {hayFlyers && (
+        <section style={{ padding: "76px 44px", borderBottom: `3px solid ${COLOR_INK}` }}>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 30, flexWrap: "wrap", marginBottom: 34 }}>
+            <div>
+              <EtiquetaSeccion numero="04" titulo="Escenarios" color={acento} />
+              <h2 style={{ fontFamily: "Anton,sans-serif", fontSize: "clamp(38px,5.4vw,70px)", lineHeight: 0.94, textTransform: "uppercase", margin: 0 }}>
+                Algunos de
+                <br />
+                nuestros shows
+              </h2>
+            </div>
+            <p style={{ fontFamily: "'Space Mono',monospace", fontSize: 12.5, lineHeight: 1.7, maxWidth: "34ch", margin: 0, opacity: 0.78 }}>
+              Carteles de algunos de los eventos más importantes en los que hemos tocado.
+            </p>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 18 }}>
+            {datos.fotosFlyer.map((f, idx) => (
+              <a key={f.id} href={f.url} target="_blank" rel="noreferrer" className="pkpub-flyer" style={{ display: "block", aspectRatio: "3/4", overflow: "hidden", border: `3px solid ${COLOR_INK}` }}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- URL remota de Supabase Storage. */}
+                <img src={f.url} alt={`Cartel de show ${idx + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               </a>
             ))}
           </div>
         </section>
       )}
 
-      {/* Próximas fechas */}
+      {/* PRÓXIMAS FECHAS */}
       {hayFechas && (
-        <section id="fechas" style={{ padding: "88px 48px", borderBottom: "3px solid #262320", background: acento, color: "#0d0c0b" }}>
-          {seccionHeader("Próximas fechas", String(new Date().getFullYear()), "#0d0c0b")}
+        <section style={{ padding: "70px 44px", background: COLOR_HILITE, borderBottom: `3px solid ${COLOR_INK}` }}>
+          <EtiquetaSeccion numero="05" titulo="Próximas fechas" color={COLOR_INK} />
           <div style={{ display: "flex", flexDirection: "column" }}>
             {datos.proximasFechas.map((f, idx) => (
               <div
                 key={idx}
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "150px 1fr",
-                  gap: 24,
+                  display: "flex",
                   alignItems: "baseline",
-                  padding: "20px 0",
-                  borderTop: "3px solid #0d0c0b",
-                  borderBottom: idx === datos.proximasFechas.length - 1 ? "3px solid #0d0c0b" : undefined,
+                  gap: 34,
+                  flexWrap: "wrap",
+                  padding: "22px 0",
+                  borderTop: `3px solid ${COLOR_INK}`,
+                  borderBottom: idx === datos.proximasFechas.length - 1 ? `3px solid ${COLOR_INK}` : undefined,
                 }}
               >
-                <span style={{ fontFamily: "'Space Mono',monospace", fontWeight: 700, fontSize: 13, letterSpacing: ".14em", textTransform: "uppercase" }}>
-                  {formatearFechaCorta(f.fechaInicio)}
-                </span>
-                <span style={{ fontFamily: "'Archivo Black',sans-serif", textTransform: "uppercase", fontSize: "clamp(18px,2.2vw,28px)", lineHeight: 1.05 }}>
-                  {f.titulo}
-                  {f.lugarNombre ? ` — ${f.lugarNombre}` : ""}
-                </span>
+                <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 13, letterSpacing: ".12em", textTransform: "uppercase", minWidth: 200 }}>{formatearFechaCorta(f.fechaInicio)}</div>
+                <div style={{ fontFamily: "Anton,sans-serif", fontSize: "clamp(34px,4.6vw,58px)", lineHeight: 1, textTransform: "uppercase" }}>{f.titulo}</div>
+                {f.lugarNombre && <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 13, letterSpacing: ".12em", textTransform: "uppercase", opacity: 0.75 }}>{f.lugarNombre}</div>}
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* Flyers */}
-      {hayFlyers && (
-        <section style={{ padding: "88px 48px", borderBottom: "3px solid #262320" }}>
-          {seccionHeader("Flyers", String(datos.fotosFlyer.length).padStart(2, "0"), acento)}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 16 }}>
-            {datos.fotosFlyer.map((f, idx) => (
-              <a key={f.id} href={f.url} target="_blank" rel="noreferrer" className="pkpub-hover-border" style={{ display: "block", border: "3px solid #262320", aspectRatio: "3/4", overflow: "hidden" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element -- URLs remotas de Supabase Storage. */}
-                <img src={f.url} alt={`Flyer ${idx + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Escúchanos / Síguenos */}
-      {hayRedes && (
-        <section style={{ padding: "88px 48px", borderBottom: "3px solid #262320" }}>
-          <h2 style={{ margin: "0 0 36px", fontFamily: "'Archivo Black',sans-serif", textTransform: "uppercase", fontSize: "clamp(30px,4.5vw,64px)", lineHeight: 0.9, letterSpacing: "-.02em" }}>
-            Escúchanos
-            <br />
-            <span style={{ color: acento }}>Síguenos</span>
-          </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 3, background: "#262320", border: "3px solid #262320" }}>
-            {datos.redes.map((r) => (
-              <a
-                key={r.id}
-                href={r.url}
-                target="_blank"
-                rel="noreferrer"
-                className="pkpub-hover-accent"
-                style={{ background: "#0d0c0b", color: "#f2ede1", padding: "26px 22px", display: "grid", gridTemplateRows: "1fr auto", gap: 8 }}
-              >
-                <span style={{ fontFamily: "'Archivo Black',sans-serif", textTransform: "uppercase", fontSize: 22 }}>{r.plataforma}</span>
-                <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", opacity: 0.6 }}>
-                  {categoriaPlataforma(r.plataforma)}
-                </span>
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Contacto */}
-      <section id="contacto" style={{ padding: "88px 48px 64px", background: "#f2ede1", color: "#0d0c0b" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 56, alignItems: "end" }}>
-          <div>
-            <h2 style={{ margin: "0 0 24px", fontFamily: "'Archivo Black',sans-serif", textTransform: "uppercase", fontSize: "clamp(36px,6vw,84px)", lineHeight: 0.86, letterSpacing: "-.03em" }}>
-              Contacto
-              <br />
-              <span style={{ color: acento }}>&amp; booking</span>
-            </h2>
-            <p style={{ margin: 0, fontFamily: "'Space Mono',monospace", fontSize: 12, letterSpacing: ".22em", textTransform: "uppercase", color: "#6c6559" }}>
-              {datos.bandaNombre}
-            </p>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", borderTop: "3px solid #0d0c0b" }}>
-            {datos.presskit.contactoEmail && <FilaContacto etiqueta="Email" valor={datos.presskit.contactoEmail} href={`mailto:${datos.presskit.contactoEmail}`} />}
-            {datos.presskit.contactoTelefono && (
-              <FilaContacto etiqueta="Teléfono" valor={datos.presskit.contactoTelefono} href={`tel:${datos.presskit.contactoTelefono.replace(/\s+/g, "")}`} />
+      {/* LINKS + CONTACTO */}
+      {(hayRedes || hayContacto) && (
+        <section id="contacto" style={{ background: COLOR_INK, color: COLOR_BG, padding: "76px 44px 44px 44px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: hayRedes && hayContacto ? "1.1fr .9fr" : "1fr", gap: 60, alignItems: "start" }}>
+            {hayRedes && (
+              <div>
+                <EtiquetaSeccion numero="06" titulo="Escúchanos / síguenos" color={COLOR_HILITE} />
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
+                  {datos.redes.map((r) => (
+                    <a
+                      key={r.id}
+                      href={r.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="pkpub-red"
+                      style={{ fontFamily: "Anton,sans-serif", fontSize: 22, textTransform: "uppercase", color: COLOR_BG, border: "2px solid rgba(236,231,221,.35)", padding: "12px 14px", display: "block" }}
+                    >
+                      {r.plataforma} ↗
+                    </a>
+                  ))}
+                </div>
+              </div>
             )}
-            {origenLinea && <FilaContacto etiqueta="Origen" valor={origenLinea} />}
+            {hayContacto && (
+              <div>
+                <EtiquetaSeccion numero="07" titulo="Contacto" color={COLOR_HILITE} />
+                <div style={{ fontFamily: "Anton,sans-serif", fontSize: 34, textTransform: "uppercase", marginBottom: 16 }}>{datos.presskit.contactoNombre || datos.bandaNombre}</div>
+                <div style={{ display: "grid", gap: 8, fontFamily: "'Space Mono',monospace", fontSize: 14, letterSpacing: ".04em" }}>
+                  {datos.presskit.contactoTelefono && (
+                    <a href={`tel:${datos.presskit.contactoTelefono.replace(/\s+/g, "")}`} className="pkpub-link" style={{ color: COLOR_BG, borderBottom: "1px solid rgba(236,231,221,.35)", justifySelf: "start" }}>
+                      {datos.presskit.contactoTelefono}
+                    </a>
+                  )}
+                  {datos.presskit.contactoEmail && (
+                    <a href={`mailto:${datos.presskit.contactoEmail}`} className="pkpub-link" style={{ color: COLOR_BG, borderBottom: "1px solid rgba(236,231,221,.35)", justifySelf: "start" }}>
+                      {datos.presskit.contactoEmail}
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-        <div
-          style={{
-            marginTop: 64,
-            borderTop: "3px solid #0d0c0b",
-            paddingTop: 16,
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 16,
-            fontFamily: "'Space Mono',monospace",
-            fontSize: 11,
-            letterSpacing: ".2em",
-            textTransform: "uppercase",
-            color: "#6c6559",
-          }}
-        >
-          <span>{datos.bandaNombre} — Presskit</span>
-          <span>{[datos.bandaGenero, datos.presskit.pais].filter(Boolean).join(" · ")}</span>
-        </div>
-      </section>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 20, flexWrap: "wrap", marginTop: 64, paddingTop: 18, borderTop: "1px solid rgba(236,231,221,.25)", fontFamily: "'Space Mono',monospace", fontSize: 10.5, letterSpacing: ".18em", textTransform: "uppercase", opacity: 0.6 }}>
+            <span>{datos.bandaNombre}</span>
+            <span>{tags.join(" · ")}</span>
+            <span>{origenLinea}</span>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

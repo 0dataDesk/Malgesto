@@ -449,7 +449,11 @@ export async function obtenerBandaPorSlugPresskit(
   return { bandaId: banda.id, bandaNombre: banda.nombre, bandaGenero: banda.genero, bandaColor: banda.color ?? "#8b1e2b" };
 }
 
-export type IntegrantePublico = { nombre: string; instrumento: string };
+// Brief "Presskit — handoff punk de Design": el nombre del integrante enlaza
+// a su red personal cuando la tiene cargada (Gestión > Integrantes,
+// personas.red_social_url) -- null si no cargó ninguna, mismo criterio que
+// el resto de esta vista (sección oculta/atenuada en vez de un link roto).
+export type IntegrantePublico = { nombre: string; instrumento: string; redSocialUrl: string | null };
 
 export type PresskitPublico = {
   bandaId: string;
@@ -481,6 +485,16 @@ export async function obtenerPresskitPublico(
     obtenerProximasFechas(bandaId),
   ]);
 
+  // Brief "Presskit — handoff punk de Design": red_social_url vive en
+  // `personas`, no en PlazaConPersona (stagePlotData.ts es de Stage Plot,
+  // no le hace falta ese campo) -- se resuelve acá aparte, por usuarioId,
+  // en vez de tocar ese módulo compartido.
+  const usuarioIds = [...new Set(integrantesRaw.map((i) => i.usuarioId))];
+  const admin = supabaseMalgesto();
+  const { data: personasConRed } =
+    usuarioIds.length > 0 ? await admin.from("personas").select("usuario_id, red_social_url").in("usuario_id", usuarioIds) : { data: [] };
+  const redSocialPorUsuarioId = new Map((personasConRed ?? []).map((p) => [p.usuario_id, p.red_social_url as string | null]));
+
   return {
     bandaId,
     bandaNombre,
@@ -490,7 +504,11 @@ export async function obtenerPresskitPublico(
     fotosBanda: fotos.filter((f) => f.categoria === "banda"),
     fotosFlyer: fotos.filter((f) => f.categoria === "flyer"),
     redes,
-    integrantes: integrantesRaw.map((i) => ({ nombre: i.nombrePersona, instrumento: etiquetaPlaza(i.instrumento, i.etiqueta) })),
+    integrantes: integrantesRaw.map((i) => ({
+      nombre: i.nombrePersona,
+      instrumento: etiquetaPlaza(i.instrumento, i.etiqueta),
+      redSocialUrl: redSocialPorUsuarioId.get(i.usuarioId) ?? null,
+    })),
     proximasFechas,
   };
 }

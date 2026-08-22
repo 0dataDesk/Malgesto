@@ -5,16 +5,12 @@ import { pdf } from "@react-pdf/renderer";
 import type { PresskitPublico } from "@/lib/presskitData";
 import { PresskitPublicoPdfDocument } from "./PresskitPublicoPdfDocument";
 
-// Brief "Presskit — vista pública real dentro de Malgesto App", trasladando
-// la instrucción del prompt fijo para Design (PROMPT_DESIGN_PRESSKIT en
-// lib/presskitData.ts) a la página real: botón discreto arriba a la
-// izquierda, que no compita con el resto del diseño -- por eso vive en su
-// propia franja utilitaria oscura y angosta ANTES de la barra de navegación
-// de la marca (roja, protagonista), no mezclado con ella. Mismo mecanismo
-// de descarga que RiderVista.tsx: @react-pdf/renderer genera el blob en el
-// cliente con los datos reales ya cargados por el server component
-// (app/presskit-publico/[slug]/page.tsx), sin depender de un archivo
-// exportado a mano desde Design.
+// Brief "Presskit — actualización de diseño (handoff punk de Design)" §2:
+// mismo mecanismo de descarga de siempre (@react-pdf/renderer genera el
+// blob en el cliente con los datos reales ya cargados por el server
+// component), restyleado al link flotante discreto del nuevo handoff --
+// texto chico en Space Mono, opacidad reducida hasta el hover, sin fondo ni
+// borde de botón, para que no compita con el héroe sobre el que flota.
 function slugSimple(nombre: string): string {
   return nombre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
@@ -47,24 +43,28 @@ export function PresskitPublicoBotonPdf({ datos }: { datos: PresskitPublico }) {
         type="button"
         onClick={descargar}
         disabled={generando}
+        className="pkpub-pdf"
         style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
           background: "transparent",
-          border: "1px solid #3a3630",
-          color: "#8d8578",
+          border: "none",
+          borderBottom: "1px solid rgba(20,17,15,.35)",
+          color: "#14110f",
+          opacity: 0.62,
           fontFamily: "'Space Mono', ui-monospace, monospace",
-          fontSize: 10,
+          fontSize: 11,
           letterSpacing: "0.12em",
           textTransform: "uppercase",
-          padding: "4px 10px",
-          borderRadius: 999,
+          padding: "0 0 2px",
           cursor: generando ? "default" : "pointer",
         }}
       >
-        {generando ? "Generando…" : "↓ Resumen PDF"}
+        <span style={{ fontSize: 13 }}>↓</span>
+        <span>{generando ? "Generando…" : "Presskit 1 pág. (PDF)"}</span>
       </button>
-      {error && (
-        <span style={{ fontFamily: "'Space Mono', ui-monospace, monospace", fontSize: 10, color: "#ff2d1f" }}>{error}</span>
-      )}
+      {error && <span style={{ fontFamily: "'Space Mono', ui-monospace, monospace", fontSize: 10, color: "#c81f0c" }}>{error}</span>}
     </div>
   );
 }
