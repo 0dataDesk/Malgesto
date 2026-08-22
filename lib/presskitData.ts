@@ -288,7 +288,11 @@ export type PresskitProximaFecha = { fechaInicio: string; titulo: string; lugarN
 // Próximas fechas (Brief §2, nuevo -- no estaba en el resumen anterior):
 // consulta directa a `eventos` por banda_id, sin pasar por la resolución de
 // giras multi-banda de obtenerEventos (malgestoEventos.ts) -- acá solo
-// importan las fechas propias de ESTA banda hacia adelante.
+// importan las fechas propias de ESTA banda hacia adelante. Brief "Presskit:
+// filtrar próximas fechas por confirmadas": excluye tentativas (`estado`,
+// el mismo campo texto "confirmado"|"tentativo" que ya usa Calendario --
+// ver EstadoEvento en malgestoEventos.ts) -- una gira tentativa (ej.
+// Colombia) no debería aparecer acá hasta confirmarse.
 async function obtenerProximasFechas(bandaId: string): Promise<PresskitProximaFecha[]> {
   const admin = supabaseMalgesto();
   const ahora = new Date().toISOString();
@@ -296,6 +300,7 @@ async function obtenerProximasFechas(bandaId: string): Promise<PresskitProximaFe
     .from("eventos")
     .select("titulo, fecha_inicio, lugares(nombre)")
     .eq("banda_id", bandaId)
+    .eq("estado", "confirmado")
     .gt("fecha_inicio", ahora)
     .order("fecha_inicio", { ascending: true });
   return (data ?? []).map((e) => ({
