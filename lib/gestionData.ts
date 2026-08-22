@@ -448,6 +448,11 @@ export type Integrante = {
   email: string;
   nombreMostrar: string | null;
   fechaNacimiento: string | null;
+  // Brief "Liga personal de integrante + botón Enviar a Presskit siempre
+  // activo" §1: un solo link (no una lista de redes) -- el integrante
+  // decide a dónde redirige, sin que la app capture ni muestre de qué
+  // plataforma se trata.
+  redSocialUrl: string | null;
   estado: EstadoIntegrante;
   esSuperadmin: boolean;
   bandas: BandaDeIntegrante[];
@@ -483,7 +488,7 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
     admin.from("miembros_banda").select("usuario_id, banda_id, rol, activo, bloques_visibles, voz"),
     admin.from("invitaciones").select("email").eq("estado", "pendiente"),
     admin.auth.admin.listUsers({ page: 1, perPage: 200 }),
-    admin.from("personas").select("usuario_id, nombre_mostrar, fecha_nacimiento"),
+    admin.from("personas").select("usuario_id, nombre_mostrar, fecha_nacimiento, red_social_url"),
     admin.from("persona_plazas").select("persona_id, plazas(id, banda_id, instrumento, etiqueta)"),
     admin.from("dispositivos").select("id, banda_id, usuario_id, categoria, diseno_id, nombre, habilitado, disenos_dispositivo(marca, modelo)"),
     admin.from("instrumentos_propios").select("id, usuario_id, instrumento, marca, modelo").order("created_at", { ascending: true }),
@@ -518,6 +523,7 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
   const emailPorUsuarioId = new Map((authData?.users ?? []).map((u) => [u.id, u.email ?? "(sin correo)"]));
   const nombrePorUsuarioId = new Map((personas ?? []).map((p) => [p.usuario_id, p.nombre_mostrar]));
   const fechaNacimientoPorUsuarioId = new Map((personas ?? []).map((p) => [p.usuario_id, p.fecha_nacimiento]));
+  const redSocialUrlPorUsuarioId = new Map((personas ?? []).map((p) => [p.usuario_id, p.red_social_url]));
   const fullNamePorUsuarioId = new Map(
     (authData?.users ?? []).map((u) => [u.id, (u.user_metadata as { full_name?: string } | undefined)?.full_name ?? null])
   );
@@ -579,6 +585,7 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
         ? nombrePorUsuarioId.get(acc.usuarioId) ?? fullNamePorUsuarioId.get(acc.usuarioId) ?? null
         : null,
       fechaNacimiento: acc.usuarioId ? fechaNacimientoPorUsuarioId.get(acc.usuarioId) ?? null : null,
+      redSocialUrl: acc.usuarioId ? redSocialUrlPorUsuarioId.get(acc.usuarioId) ?? null : null,
       estado: acc.tieneActivo ? "activo" : acc.tieneInvitacion ? "invitado" : "inactivo",
       esSuperadmin: acc.tieneSuperadmin,
       bandas: acc.bandas,
@@ -599,6 +606,15 @@ export async function actualizarNombreMostrar(usuarioId: string, nombreMostrar: 
   const { error } = await admin
     .from("personas")
     .upsert({ usuario_id: usuarioId, nombre_mostrar: valor }, { onConflict: "usuario_id" });
+  if (error) throw new Error(error.message);
+}
+
+export async function actualizarRedSocialUrl(usuarioId: string, redSocialUrl: string | null): Promise<void> {
+  const admin = supabaseMalgesto();
+  const valor = redSocialUrl?.trim() || null;
+  const { error } = await admin
+    .from("personas")
+    .upsert({ usuario_id: usuarioId, red_social_url: valor }, { onConflict: "usuario_id" });
   if (error) throw new Error(error.message);
 }
 

@@ -460,7 +460,12 @@ function FilaIntegrante({
   const [expandido, setExpandido] = useState(false);
   const [nombreMostrar, setNombreMostrar] = useState(integrante.nombreMostrar ?? "");
   const [fechaNacimiento, setFechaNacimiento] = useState(integrante.fechaNacimiento ?? "");
-  const [datosGuardados, setDatosGuardados] = useState({ nombreMostrar: integrante.nombreMostrar ?? "", fechaNacimiento: integrante.fechaNacimiento ?? "" });
+  const [redSocialUrl, setRedSocialUrl] = useState(integrante.redSocialUrl ?? "");
+  const [datosGuardados, setDatosGuardados] = useState({
+    nombreMostrar: integrante.nombreMostrar ?? "",
+    fechaNacimiento: integrante.fechaNacimiento ?? "",
+    redSocialUrl: integrante.redSocialUrl ?? "",
+  });
   const [pendingDatos, startDatos] = useTransition();
   const [errorDatos, setErrorDatos] = useState<string | null>(null);
   const [bandasLocal, setBandasLocal] = useState(integrante.bandas);
@@ -508,17 +513,22 @@ function FilaIntegrante({
   // misma lista completa que ya recibe este componente.
   const colorDeBanda = (bandaId: string) => bandas.find((b) => b.id === bandaId)?.color ?? "oklch(0.6 0.1 250)";
 
-  const hayCambiosDatos = nombreMostrar !== datosGuardados.nombreMostrar || fechaNacimiento !== datosGuardados.fechaNacimiento;
+  const hayCambiosDatos =
+    nombreMostrar !== datosGuardados.nombreMostrar ||
+    fechaNacimiento !== datosGuardados.fechaNacimiento ||
+    redSocialUrl !== datosGuardados.redSocialUrl;
 
   // Brief 10 §5: nombre para mostrar y fecha de nacimiento comparten un solo
   // botón "Guardar" en vez de dos sueltos sin relación visual entre sí.
+  // Brief "Liga personal de integrante...": la liga personal se suma al
+  // mismo botón/guardado en vez de uno propio -- mismo criterio.
   const guardarDatos = () => {
     if (!integrante.usuarioId) return;
     setErrorDatos(null);
     startDatos(async () => {
       try {
-        await actualizarDatosPersonaAction(integrante.usuarioId!, nombreMostrar, fechaNacimiento || null);
-        setDatosGuardados({ nombreMostrar, fechaNacimiento });
+        await actualizarDatosPersonaAction(integrante.usuarioId!, nombreMostrar, fechaNacimiento || null, redSocialUrl || null);
+        setDatosGuardados({ nombreMostrar, fechaNacimiento, redSocialUrl });
       } catch (e) {
         setErrorDatos(e instanceof Error ? e.message : "No se pudo guardar.");
       }
@@ -858,6 +868,25 @@ function FilaIntegrante({
                   style={inputStyle}
                 />
               </div>
+            </div>
+
+            {/* Brief "Liga personal de integrante + botón Enviar a Presskit
+                siempre activo" §1: un solo link opcional, justo debajo de
+                Nombre/Nacimiento -- Design lo convierte en la redirección
+                del nombre del integrante en el presskit (ver
+                construirDocumentoPresskit en lib/presskitData.ts). */}
+            <div className="mt-2">
+              <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                Red social (para Presskit)
+              </label>
+              <input
+                type="url"
+                value={redSocialUrl}
+                onChange={(e) => setRedSocialUrl(e.target.value)}
+                placeholder="https://…"
+                className="w-full rounded-lg border px-2.5 py-1.5 text-sm outline-none"
+                style={inputStyle}
+              />
             </div>
 
             {hayCambiosDatos && (

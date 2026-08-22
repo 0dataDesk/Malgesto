@@ -343,6 +343,18 @@ export async function construirDocumentoPresskit(bandaId: string): Promise<strin
     obtenerProximasFechas(bandaId),
   ]);
 
+  // Brief "Liga personal de integrante + botón Enviar a Presskit siempre
+  // activo" §2: red_social_url vive en malgesto_app.personas (Gestión >
+  // Integrantes), no en la cadena de dispositivos/plazas de Seteos -- se
+  // resuelve acá aparte en vez de sumarla a obtenerPlazasConPersonaDeBanda
+  // (stagePlotData.ts), que no la necesita para nada más.
+  const usuarioIdsIntegrantes = [...new Set(integrantes.map((i) => i.usuarioId))];
+  const { data: personasRedSocial } =
+    usuarioIdsIntegrantes.length > 0
+      ? await admin.from("personas").select("usuario_id, red_social_url").in("usuario_id", usuarioIdsIntegrantes)
+      : { data: [] as { usuario_id: string; red_social_url: string | null }[] };
+  const redSocialPorUsuarioId = new Map((personasRedSocial ?? []).map((p) => [p.usuario_id, p.red_social_url]));
+
   const lineas: string[] = [PROMPT_DESIGN_PRESSKIT, ""];
 
   lineas.push(`PRESSKIT — ${bandaNombre}`);
@@ -354,9 +366,18 @@ export async function construirDocumentoPresskit(bandaId: string): Promise<strin
   lineas.push(`País: ${presskit.pais?.trim() || "(sin completar)"}`);
   lineas.push(`Ciudad: ${presskit.ciudad?.trim() || "(sin completar)"}`);
 
-  lineas.push("", "INTEGRANTES");
+  // Brief "Liga personal de integrante...": el nombre de cada integrante
+  // debe convertirse en un link a su red social cuando exista -- explícito
+  // en el encabezado para que Design lo lea como instrucción de diseño, no
+  // solo como dato de texto plano.
+  lineas.push("", "INTEGRANTES (el nombre debe ser un link a la red social indicada, cuando exista)");
   if (integrantes.length === 0) lineas.push("(sin completar)");
-  else for (const i of integrantes) lineas.push(`- ${i.nombrePersona} — ${etiquetaPlaza(i.instrumento, i.etiqueta)}`);
+  else
+    for (const i of integrantes) {
+      const red = redSocialPorUsuarioId.get(i.usuarioId)?.trim() || null;
+      const sufijo = red ? ` — ${red}` : " (sin red social capturada)";
+      lineas.push(`- ${i.nombrePersona} — ${etiquetaPlaza(i.instrumento, i.etiqueta)}${sufijo}`);
+    }
 
   // Brief "Presskit: dos apartados de fotos (banda/conceptual y flyers)"
   // §2: agrupadas por categoría con encabezado propio, no una sola lista

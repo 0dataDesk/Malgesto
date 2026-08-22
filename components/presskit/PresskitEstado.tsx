@@ -182,29 +182,6 @@ export function LigaPublicadaSeccion({
 }
 
 // Brief "Presskit: flujo de envío en Gestión/Bandas, estatus de 4 estados"
-// §2: si hay contenido capturado que todavía no se mandó -- ya sea porque
-// nunca se envió, o porque se editó algo después del último envío -- hay
-// algo pendiente de mandar. Exportada porque EnviarPresskitSeccion y su
-// caller (DetalleBanda) la necesitan para decidir si mostrar el botón
-// habilitado.
-//
-// Fix "Enviar a Presskit deshabilitado con datos ya cargados": la versión
-// anterior usaba actualizadoEn no-null como proxy de "hay contenido", lo que
-// dejaba el botón apagado para presskits con datos reales (semblanza,
-// género, fotos) pero actualizadoEn en null -- capturados antes de que
-// tocarActualizado tocara esa columna en cada mutación, u otro caso donde
-// nunca se seteó. Ahora `hayContenido` (lib/presskitData.ts,
-// hayContenidoCapturado) revisa el contenido real en vez de esa marca de
-// tiempo: "enviadoEn null + ya hay datos capturados" siempre es "activo",
-// sin depender de actualizadoEn.
-export function hayEnvioPendiente(enviadoEn: string | null, actualizadoEn: string | null, hayContenido: boolean): boolean {
-  if (!hayContenido) return false;
-  if (!enviadoEn) return true;
-  if (!actualizadoEn) return false;
-  return new Date(actualizadoEn).getTime() > new Date(enviadoEn).getTime();
-}
-
-// Brief "Presskit: flujo de envío en Gestión/Bandas, estatus de 4 estados"
 // §1/§2: reemplaza el botón "Enviar a Presskit" que vivía en la pantalla de
 // captura -- se mudó acá, justo debajo de Liga publicada en DetalleBanda,
 // porque es Jorge (mismo nivel de acceso que el resto de Gestión > Bandas)
@@ -212,12 +189,18 @@ export function hayEnvioPendiente(enviadoEn: string | null, actualizadoEn: strin
 // simplemente está completando datos. Mismo documento/modal que antes
 // (construirDocumentoPresskit vía enviarPresskitAction), solo cambia dónde
 // vive el disparador.
+// Brief "Liga personal de integrante + botón Enviar a Presskit siempre
+// activo" §3: quita la lógica de activar/desactivar según actualizado_en
+// vs enviado_en (ver hayEnvioPendiente, eliminada) -- el documento también
+// depende de datos fuera de `presskits` (género de la banda, integrantes,
+// ahora la liga personal), rastrear todas esas dependencias no valía la
+// pena. `enviadoEn`/`actualizadoEn`/`hayContenido` quedan en la firma sin
+// usarse -- DetalleBanda (BandasPanel.tsx) sigue pasándolos y este brief no
+// toca ese archivo; el Estatus de 4 estados que sí los usa (EstadoBadge)
+// no se toca.
 export function EnviarPresskitSeccion({
   bandaId,
   presskitId,
-  enviadoEn,
-  actualizadoEn,
-  hayContenido,
   onEnviado,
 }: {
   bandaId: string;
@@ -231,8 +214,6 @@ export function EnviarPresskitSeccion({
   const [documento, setDocumento] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const activo = hayEnvioPendiente(enviadoEn, actualizadoEn, hayContenido);
 
   const enviar = async () => {
     setError(null);
@@ -265,7 +246,7 @@ export function EnviarPresskitSeccion({
       <button
         type="button"
         onClick={enviar}
-        disabled={!activo || enviando}
+        disabled={enviando}
         className="w-full rounded-lg px-4 py-2.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
         style={{ background: "oklch(0.24 0.02 55)", color: "oklch(0.96 0.012 82)" }}
       >

@@ -15,6 +15,7 @@ import {
   ignorarPersonaPendiente,
   actualizarNombreMostrar,
   actualizarFechaNacimiento,
+  actualizarRedSocialUrl,
   removerDeBanda,
   asignarABanda,
   actualizarRol,
@@ -187,10 +188,16 @@ export async function actualizarFechaNacimientoAction(usuarioId: string, fecha: 
 
 // Brief 10 §5: nombre para mostrar y fecha de nacimiento comparten un único
 // botón "Guardar" en la ficha del integrante en vez de dos sueltos.
-export async function actualizarDatosPersonaAction(usuarioId: string, nombreMostrar: string, fechaNacimiento: string | null): Promise<void> {
+export async function actualizarDatosPersonaAction(
+  usuarioId: string,
+  nombreMostrar: string,
+  fechaNacimiento: string | null,
+  redSocialUrl: string | null
+): Promise<void> {
   await requerirSuperadmin();
   await actualizarNombreMostrar(usuarioId, nombreMostrar);
   await actualizarFechaNacimiento(usuarioId, fechaNacimiento);
+  await actualizarRedSocialUrl(usuarioId, redSocialUrl);
   revalidatePath("/gestion");
 }
 
