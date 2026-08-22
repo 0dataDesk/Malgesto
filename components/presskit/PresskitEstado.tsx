@@ -2,27 +2,37 @@
 
 import { useState, useTransition } from "react";
 import type { Presskit } from "@/lib/presskitData";
-import { actualizarLigaPublicadaAction } from "@/app/presskit-captura/actions";
+import { actualizarLigaPublicadaAction, enviarPresskitAction } from "@/app/gestion/actions";
 
-// Brief "Presskit — vista propia, estatus, liga publicada" §2: 3 estados
-// posibles según enviado_en/actualizado_en. Compartido entre la vista de
-// nivel superior (/presskit, solo lectura) y la pantalla de captura
-// (/presskit-captura/[bandaId], donde además se edita).
-export type EstadoPresskit = "sin_enviar" | "actualizado" | "en_revision";
+// Brief "Presskit: flujo de envío en Gestión/Bandas, estatus de 4 estados"
+// §4: reemplaza los 3 estados anteriores (Actualizado/En revisión/Sin
+// enviar, que comparaban actualizado_en contra enviado_en) por 4 -- la
+// comparación relevante para "Actualizado" pasa a ser actualizado_en contra
+// liga_actualizada_en, porque lo que le importa a quien mira el estatus es
+// si la LIGA PUBLICADA ya refleja el contenido más reciente, no si Jorge
+// mandó aviso a Design. Compartido entre la vista de nivel superior
+// (/presskit, solo lectura) y Gestión > Bandas (DetalleBanda, donde además
+// se edita).
+export type EstadoPresskit = "sin_enviar" | "en_revision" | "publicado_pendiente" | "actualizado";
 
-export function estadoPresskit(p: Pick<Presskit, "enviadoEn" | "actualizadoEn">): EstadoPresskit {
+function tiempo(iso: string | null): number {
+  return iso ? new Date(iso).getTime() : 0;
+}
+
+export function estadoPresskit(p: Pick<Presskit, "enviadoEn" | "actualizadoEn" | "ligaPublicada" | "ligaActualizadaEn">): EstadoPresskit {
   if (!p.enviadoEn) return "sin_enviar";
-  if (!p.actualizadoEn) return "actualizado";
-  return new Date(p.actualizadoEn).getTime() > new Date(p.enviadoEn).getTime() ? "en_revision" : "actualizado";
+  if (!p.ligaPublicada) return "en_revision";
+  return tiempo(p.actualizadoEn) > tiempo(p.ligaActualizadaEn) ? "publicado_pendiente" : "actualizado";
 }
 
 const ESTILOS: Record<EstadoPresskit, { background: string; color: string; texto: string }> = {
   sin_enviar: { background: "oklch(0.93 0.016 78)", color: "oklch(0.45 0.02 55)", texto: "Sin enviar" },
-  actualizado: { background: "oklch(0.9 0.1 150)", color: "oklch(0.35 0.12 150)", texto: "Actualizado" },
   en_revision: { background: "oklch(0.92 0.1 75)", color: "oklch(0.45 0.13 60)", texto: "En revisión" },
+  publicado_pendiente: { background: "oklch(0.9 0.12 40)", color: "oklch(0.4 0.16 30)", texto: "Cambios pendientes" },
+  actualizado: { background: "oklch(0.9 0.1 150)", color: "oklch(0.35 0.12 150)", texto: "Actualizado" },
 };
 
-export function EstadoBadge({ presskit }: { presskit: Pick<Presskit, "enviadoEn" | "actualizadoEn"> }) {
+export function EstadoBadge({ presskit }: { presskit: Pick<Presskit, "enviadoEn" | "actualizadoEn" | "ligaPublicada" | "ligaActualizadaEn"> }) {
   const s = ESTILOS[estadoPresskit(presskit)];
   return (
     <span className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide" style={{ background: s.background, color: s.color }}>
@@ -120,7 +130,12 @@ export function LigaPublicadaSeccion({
   bandaId: string;
   presskitId: string;
   ligaActual: string | null;
-  onLiga: (liga: string | null) => void;
+  // Brief "Presskit: flujo de envío en Gestión/Bandas, estatus de 4
+  // estados" §3: además de la liga, avisa la nueva liga_actualizada_en --
+  // espejada acá mismo (mismo criterio que marcarActualizado en
+  // PresskitCaptura.tsx) para que el estatus reaccione sin esperar un
+  // revalidatePath.
+  onLiga: (liga: string | null, ligaActualizadaEn: string) => void;
 }) {
   const [valor, setValor] = useState(ligaActual ?? "");
   const [pending, startTransition] = useTransition();
@@ -132,7 +147,7 @@ export function LigaPublicadaSeccion({
       try {
         const limpia = valor.trim() || null;
         await actualizarLigaPublicadaAction(bandaId, presskitId, limpia);
-        onLiga(limpia);
+        onLiga(limpia, new Date().toISOString());
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo guardar la liga.");
       }
@@ -161,6 +176,130 @@ export function LigaPublicadaSeccion({
         <p className="mt-2 text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
           {error}
         </p>
+      )}
+    </div>
+  );
+}
+
+// Brief "Presskit: flujo de envío en Gestión/Bandas, estatus de 4 estados"
+// §2: si hay contenido editado (actualizadoEn no null) que todavía no se
+// mandó -- ya sea porque nunca se envió, o porque se editó algo después del
+// último envío -- hay algo pendiente de mandar. Exportada porque
+// EnviarPresskitSeccion y su caller (DetalleBanda) la necesitan para
+// decidir si mostrar el botón habilitado.
+export function hayEnvioPendiente(enviadoEn: string | null, actualizadoEn: string | null): boolean {
+  if (!actualizadoEn) return false;
+  if (!enviadoEn) return true;
+  return new Date(actualizadoEn).getTime() > new Date(enviadoEn).getTime();
+}
+
+// Brief "Presskit: flujo de envío en Gestión/Bandas, estatus de 4 estados"
+// §1/§2: reemplaza el botón "Enviar a Presskit" que vivía en la pantalla de
+// captura -- se mudó acá, justo debajo de Liga publicada en DetalleBanda,
+// porque es Jorge (mismo nivel de acceso que el resto de Gestión > Bandas)
+// quien decide cuándo avisarle a Design que hay una actualización, no quien
+// simplemente está completando datos. Mismo documento/modal que antes
+// (construirDocumentoPresskit vía enviarPresskitAction), solo cambia dónde
+// vive el disparador.
+export function EnviarPresskitSeccion({
+  bandaId,
+  presskitId,
+  enviadoEn,
+  actualizadoEn,
+  onEnviado,
+}: {
+  bandaId: string;
+  presskitId: string;
+  enviadoEn: string | null;
+  actualizadoEn: string | null;
+  onEnviado: (enviadoEn: string) => void;
+}) {
+  const [enviando, setEnviando] = useState(false);
+  const [documento, setDocumento] = useState<string | null>(null);
+  const [copiado, setCopiado] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const activo = hayEnvioPendiente(enviadoEn, actualizadoEn);
+
+  const enviar = async () => {
+    setError(null);
+    setEnviando(true);
+    try {
+      const { enviadoEn: nuevo, documento: doc } = await enviarPresskitAction(bandaId, presskitId);
+      onEnviado(nuevo);
+      setDocumento(doc);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo enviar a Presskit.");
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const copiarDocumento = async () => {
+    if (!documento) return;
+    try {
+      await navigator.clipboard.writeText(documento);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 1500);
+    } catch {
+      // El portapapeles puede fallar por permisos del navegador -- el texto
+      // ya queda visible en el panel para copiarlo a mano.
+    }
+  };
+
+  return (
+    <div className="mt-2.5">
+      <button
+        type="button"
+        onClick={enviar}
+        disabled={!activo || enviando}
+        className="w-full rounded-lg px-4 py-2.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+        style={{ background: "oklch(0.24 0.02 55)", color: "oklch(0.96 0.012 82)" }}
+      >
+        {enviando ? "Enviando…" : "Enviar a Presskit"}
+      </button>
+      {error && (
+        <p className="mt-2 text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
+          {error}
+        </p>
+      )}
+
+      {documento && (
+        <div
+          className="fixed inset-0 z-30 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.45)" }}
+          onClick={() => setDocumento(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex max-h-[85vh] w-full max-w-2xl flex-col gap-3 rounded-2xl p-5"
+            style={{ background: "oklch(0.99 0.008 82)", boxShadow: "0 24px 48px -16px rgba(0,0,0,0.4)" }}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+                Documento para Design
+              </h3>
+              <button type="button" onClick={() => setDocumento(null)} aria-label="Cerrar" className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+                ✕
+              </button>
+            </div>
+            <textarea
+              readOnly
+              value={documento}
+              onFocus={(e) => e.target.select()}
+              className="min-h-[420px] flex-1 resize-none rounded-lg border p-3 font-mono text-xs"
+              style={inputStyle}
+            />
+            <button
+              type="button"
+              onClick={copiarDocumento}
+              className="rounded-lg px-4 py-2.5 text-sm font-bold"
+              style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+            >
+              {copiado ? "Copiado ✓" : "Copiar al portapapeles"}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

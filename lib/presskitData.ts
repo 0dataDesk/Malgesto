@@ -27,6 +27,12 @@ export type Presskit = {
   // URL real de la página pública, pegada a mano por Jorge una vez que
   // Design la construye -- null mientras no hay nada publicado.
   ligaPublicada: string | null;
+  // Brief "Presskit: flujo de envío en Gestión/Bandas, estatus de 4
+  // estados" §3: se actualiza cada vez que se guarda `ligaPublicada` (ver
+  // actualizarLigaPublicada más abajo) -- comparado contra actualizadoEn
+  // en estadoPresskit (PresskitEstado.tsx) para distinguir "Actualizado" de
+  // "Publicado, con cambios pendientes".
+  ligaActualizadaEn: string | null;
 };
 
 type PresskitRow = {
@@ -41,6 +47,7 @@ type PresskitRow = {
   enviado_en: string | null;
   actualizado_en: string | null;
   liga_publicada: string | null;
+  liga_actualizada_en: string | null;
 };
 
 function mapPresskit(p: PresskitRow): Presskit {
@@ -56,11 +63,12 @@ function mapPresskit(p: PresskitRow): Presskit {
     enviadoEn: p.enviado_en,
     actualizadoEn: p.actualizado_en,
     ligaPublicada: p.liga_publicada,
+    ligaActualizadaEn: p.liga_actualizada_en,
   };
 }
 
 const COLUMNAS_PRESSKIT =
-  "id, banda_id, bio_larga, pais, ciudad, contacto_nombre, contacto_telefono, contacto_email, enviado_en, actualizado_en, liga_publicada";
+  "id, banda_id, bio_larga, pais, ciudad, contacto_nombre, contacto_telefono, contacto_email, enviado_en, actualizado_en, liga_publicada, liga_actualizada_en";
 
 // Toca actualizado_en de un presskit -- llamado desde cada mutación de
 // contenido (datos, fotos, links) para que la leyenda de estatus de la
@@ -217,23 +225,31 @@ export async function eliminarRed(presskitId: string, redId: string): Promise<vo
 
 // Solo Jorge pega/edita esto (server action gateada a superadmin) -- no
 // toca actualizado_en porque no es contenido que Design deba revisar de
-// nuevo, es el resultado de que Design ya entregó la página.
+// nuevo, es el resultado de que Design ya entregó la página. Brief
+// "Presskit: flujo de envío en Gestión/Bandas, estatus de 4 estados" §3:
+// cada guardado (con valor o vacío) también toca liga_actualizada_en, la
+// marca de tiempo que estadoPresskit compara contra actualizado_en.
 export async function actualizarLigaPublicada(presskitId: string, liga: string | null): Promise<void> {
   const admin = supabaseMalgesto();
-  const { error } = await admin.from("presskits").update({ liga_publicada: liga }).eq("id", presskitId);
+  const { error } = await admin
+    .from("presskits")
+    .update({ liga_publicada: liga, liga_actualizada_en: new Date().toISOString() })
+    .eq("id", presskitId);
   if (error) throw new Error(error.message);
 }
 
 // Marca el presskit como enviado a Design -- no genera nada visual, solo
-// registra cuándo Jorge lo mandó (Brief §4). También iguala actualizado_en
-// a ese mismo instante (Brief "vista propia, estatus, liga publicada" §2):
-// justo después de enviar, el estatus debe leer "Actualizado" sin importar
-// qué traía actualizado_en antes. Devuelve el ISO guardado para que el
-// cliente lo refleje sin esperar un revalidatePath.
+// registra cuándo Jorge lo mandó (Brief §4). Brief "Presskit: flujo de
+// envío en Gestión/Bandas, estatus de 4 estados": a diferencia de antes, ya
+// no iguala actualizado_en a este instante -- el estatus de 4 estados
+// compara actualizado_en contra liga_actualizada_en, no contra enviado_en,
+// así que forzar ese valor acá pisaría la fecha real de la última edición
+// de contenido sin necesidad. Devuelve el ISO guardado para que el cliente
+// lo refleje sin esperar un revalidatePath.
 export async function marcarPresskitEnviado(presskitId: string): Promise<string> {
   const admin = supabaseMalgesto();
   const ahora = new Date().toISOString();
-  const { error } = await admin.from("presskits").update({ enviado_en: ahora, updated_at: ahora, actualizado_en: ahora }).eq("id", presskitId);
+  const { error } = await admin.from("presskits").update({ enviado_en: ahora, updated_at: ahora }).eq("id", presskitId);
   if (error) throw new Error(error.message);
   return ahora;
 }
@@ -275,8 +291,9 @@ function formatearFechaDocumento(iso: string): string {
 // recortado"): a diferencia del resumen anterior, ningún campo se recorta
 // -- cada dato va tal cual está guardado, con "(sin completar)" donde falte
 // en vez de omitir la línea. Deliberadamente reusable (no lógica pegada al
-// botón "Enviar a Presskit"): sirve tanto para ese botón (marcarPresskitEnviadoAction)
-// como para cuando Jorge le pide este mismo documento a Code en otra
+// botón "Enviar a Presskit", que vive en Gestión > Bandas -- ver
+// enviarPresskitAction en app/gestion/actions.ts): sirve tanto para ese
+// botón como para cuando Jorge le pide este mismo documento a Code en otra
 // conversación, consultando la base directo sin pasar por la app -- misma
 // función, mismo resultado en los dos casos.
 export async function construirDocumentoPresskit(bandaId: string): Promise<string> {

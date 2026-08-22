@@ -34,7 +34,7 @@ import {
 } from "@/lib/gestionData";
 import { crearLugar, actualizarLugar, actualizarLugarBandas, eliminarLugar } from "@/lib/lugaresData";
 import { asignarDiseno, sincronizarConsola, quitarDispositivo, type CategoriaCatalogo, type DispositivoAsignado } from "@/lib/dispositivosData";
-import { obtenerOCrearPresskit } from "@/lib/presskitData";
+import { obtenerOCrearPresskit, actualizarLigaPublicada, marcarPresskitEnviado, construirDocumentoPresskit } from "@/lib/presskitData";
 
 export async function crearBandaAction(nombre: string): Promise<string> {
   const usuarioId = await requerirSuperadmin();
@@ -55,11 +55,52 @@ export async function actualizarBandaAction(bandaId: string, cambios: Actualizac
 // hasta ahora, así que necesita este fetch puntual (obtenerOCrearPresskit,
 // mismo criterio "se crea vacío la primera vez" que ya usa la captura) para
 // mostrar/editar liga_publicada sin cargar el presskit de TODAS las bandas
-// de una.
-export async function obtenerLigaPublicadaAction(bandaId: string): Promise<{ presskitId: string; ligaPublicada: string | null }> {
+// de una. Brief "Presskit: flujo de envío en Gestión/Bandas, estatus de 4
+// estados": suma enviadoEn/actualizadoEn/ligaActualizadaEn -- ahora
+// necesarios acá para el botón "Enviar a Presskit" (activo/inactivo) y el
+// estatus de 4 estados, que antes solo se resolvían en la pantalla de
+// captura.
+export async function obtenerLigaPublicadaAction(bandaId: string): Promise<{
+  presskitId: string;
+  ligaPublicada: string | null;
+  enviadoEn: string | null;
+  actualizadoEn: string | null;
+  ligaActualizadaEn: string | null;
+}> {
   await requerirSuperadmin();
   const presskit = await obtenerOCrearPresskit(bandaId);
-  return { presskitId: presskit.id, ligaPublicada: presskit.ligaPublicada };
+  return {
+    presskitId: presskit.id,
+    ligaPublicada: presskit.ligaPublicada,
+    enviadoEn: presskit.enviadoEn,
+    actualizadoEn: presskit.actualizadoEn,
+    ligaActualizadaEn: presskit.ligaActualizadaEn,
+  };
+}
+
+// Brief "Presskit: flujo de envío en Gestión/Bandas, estatus de 4 estados"
+// §3: se mudó acá desde la pantalla de captura -- "Liga publicada" ahora se
+// edita exclusivamente desde Gestión > Bandas (DetalleBanda).
+export async function actualizarLigaPublicadaAction(bandaId: string, presskitId: string, liga: string | null): Promise<void> {
+  await requerirSuperadmin();
+  await actualizarLigaPublicada(presskitId, liga);
+  revalidatePath("/gestion");
+  revalidatePath("/presskit");
+}
+
+// Brief "Presskit: flujo de envío en Gestión/Bandas, estatus de 4 estados"
+// §2: reemplaza a marcarPresskitEnviadoAction (que vivía en la pantalla de
+// captura) -- mismo criterio "genera el documento completo con
+// construirDocumentoPresskit al marcar enviado_en", ahora disparado desde
+// el botón "Enviar a Presskit" debajo de Liga publicada en DetalleBanda, con
+// el mismo nivel de acceso (superadmin) que el resto de Gestión.
+export async function enviarPresskitAction(bandaId: string, presskitId: string): Promise<{ enviadoEn: string; documento: string }> {
+  await requerirSuperadmin();
+  const enviadoEn = await marcarPresskitEnviado(presskitId);
+  const documento = await construirDocumentoPresskit(bandaId);
+  revalidatePath("/gestion");
+  revalidatePath("/presskit");
+  return { enviadoEn, documento };
 }
 
 export async function archivarBandaAction(bandaId: string, archivada: boolean): Promise<void> {

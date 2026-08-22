@@ -13,7 +13,6 @@ import {
   eliminarFotoPresskitAction,
   agregarRedPresskitAction,
   eliminarRedPresskitAction,
-  marcarPresskitEnviadoAction,
 } from "@/app/presskit-captura/actions";
 import { EstadoBadge } from "@/components/presskit/PresskitEstado";
 
@@ -324,9 +323,6 @@ export function PresskitCaptura({
   // "Guardado" un instante en vez de desaparecer de golpe apenas
   // hayCambios pasa a false por el propio guardado.
   const [estadoGuardado, setEstadoGuardado] = useState<"idle" | "guardado">("idle");
-  const [enviando, setEnviando] = useState(false);
-  const [documento, setDocumento] = useState<string | null>(null);
-  const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
     if (estadoGuardado !== "guardado") return;
@@ -370,44 +366,6 @@ export function PresskitCaptura({
         setError(e instanceof Error ? e.message : "No se pudo guardar.");
       }
     });
-  };
-
-  const enviarAPresskit = async () => {
-    setError(null);
-    setEnviando(true);
-    try {
-      let presskitActual = presskit;
-      if (hayCambios) {
-        const cambios = cambiosActuales();
-        await actualizarPresskitAction(banda.id, presskit.id, cambios);
-        presskitActual = { ...presskit, ...cambios };
-      }
-      // Brief "Presskit: documento completo para Design...": el documento ya
-      // no se arma acá con los datos del cliente (podían quedar desalineados
-      // con lo recién guardado, y no incluían próximas fechas) -- lo devuelve
-      // hecho la propia action, con la misma función que se usa para pedidos
-      // directos a Code fuera de la app.
-      const { enviadoEn, documento: doc } = await marcarPresskitEnviadoAction(banda.id, presskit.id);
-      presskitActual = { ...presskitActual, enviadoEn, actualizadoEn: enviadoEn };
-      setPresskit(presskitActual);
-      setDocumento(doc);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo enviar a Presskit.");
-    } finally {
-      setEnviando(false);
-    }
-  };
-
-  const copiarDocumento = async () => {
-    if (!documento) return;
-    try {
-      await navigator.clipboard.writeText(documento);
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 1500);
-    } catch {
-      // El portapapeles puede fallar por permisos del navegador -- el
-      // texto ya queda visible en el panel para copiarlo a mano.
-    }
   };
 
   return (
@@ -526,16 +484,6 @@ export function PresskitCaptura({
         </div>
       </Tarjeta>
 
-      <button
-        type="button"
-        onClick={enviarAPresskit}
-        disabled={enviando}
-        className="rounded-2xl px-4 py-3 text-sm font-bold disabled:opacity-60"
-        style={{ background: "oklch(0.24 0.02 55)", color: "oklch(0.96 0.012 82)" }}
-      >
-        {enviando ? "Enviando…" : presskit.enviadoEn ? "Volver a enviar a Presskit" : "Enviar a Presskit"}
-      </button>
-
       <ErrorTexto mensaje={error} />
 
       {(hayCambios || estadoGuardado === "guardado") && (
@@ -552,44 +500,6 @@ export function PresskitCaptura({
         >
           {pendingGuardar ? "Guardando…" : estadoGuardado === "guardado" ? "Guardado ✓" : "Guardar cambios"}
         </button>
-      )}
-
-      {documento && (
-        <div
-          className="fixed inset-0 z-30 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.45)" }}
-          onClick={() => setDocumento(null)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[85vh] w-full max-w-2xl flex-col gap-3 rounded-2xl p-5"
-            style={{ background: "oklch(0.99 0.008 82)", boxShadow: "0 24px 48px -16px rgba(0,0,0,0.4)" }}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
-                Documento para Design
-              </h3>
-              <button type="button" onClick={() => setDocumento(null)} aria-label="Cerrar" className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
-                ✕
-              </button>
-            </div>
-            <textarea
-              readOnly
-              value={documento}
-              onFocus={(e) => e.target.select()}
-              className="min-h-[420px] flex-1 resize-none rounded-lg border p-3 font-mono text-xs"
-              style={inputStyle}
-            />
-            <button
-              type="button"
-              onClick={copiarDocumento}
-              className="rounded-lg px-4 py-2.5 text-sm font-bold"
-              style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
-            >
-              {copiado ? "Copiado ✓" : "Copiar al portapapeles"}
-            </button>
-          </div>
-        </div>
       )}
     </div>
   );

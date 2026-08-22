@@ -8,7 +8,7 @@ import { INSTRUMENTOS, ETIQUETA_INSTRUMENTO, etiquetaPlaza, type Instrumento } f
 import { textoLegibleSobre } from "@/lib/colorContraste";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import { crearBandaAction, actualizarBandaAction, crearPlazaAction, eliminarPlazaAction, obtenerLigaPublicadaAction } from "@/app/gestion/actions";
-import { LigaPublicadaSeccion } from "@/components/presskit/PresskitEstado";
+import { LigaPublicadaSeccion, EnviarPresskitSeccion } from "@/components/presskit/PresskitEstado";
 
 // Mismo valor que el DEFAULT de bandas.color en la base -- lo que recibe una
 // banda recién creada hasta que alguien la abra y le elija un color propio.
@@ -377,7 +377,17 @@ function DetalleBanda({
   // bloques" §2: DetalleBanda no traía datos de presskits hasta ahora --
   // fetch puntual al montar (mismo criterio que el resto del panel: la
   // lista principal no carga esto por adelantado para todas las bandas).
-  const [liga, setLiga] = useState<{ presskitId: string; ligaPublicada: string | null } | null>(null);
+  // Brief "Presskit: flujo de envío en Gestión/Bandas, estatus de 4
+  // estados": suma enviadoEn/actualizadoEn/ligaActualizadaEn -- ahora
+  // necesarios acá para el botón "Enviar a Presskit" (ver
+  // EnviarPresskitSeccion más abajo).
+  const [liga, setLiga] = useState<{
+    presskitId: string;
+    ligaPublicada: string | null;
+    enviadoEn: string | null;
+    actualizadoEn: string | null;
+    ligaActualizadaEn: string | null;
+  } | null>(null);
   useEffect(() => {
     let cancelado = false;
     obtenerLigaPublicadaAction(banda.id).then((r) => {
@@ -485,14 +495,24 @@ function DetalleBanda({
         {/* Brief "Presskit como bloque, Liga publicada en Bandas, acordeón
             de bloques" §2: "Liga publicada" se mudó acá desde la pantalla
             de captura de Presskit -- va antes de la sección de bloques
-            (§3), mientras carga el fetch puntual no se muestra nada. */}
+            (§3), mientras carga el fetch puntual no se muestra nada. Brief
+            "Presskit: flujo de envío en Gestión/Bandas, estatus de 4
+            estados" §2: "Enviar a Presskit" se suma justo debajo, mismo
+            criterio de "no se muestra nada hasta que cargue `liga`". */}
         {liga && (
           <div className="mt-3">
             <LigaPublicadaSeccion
               bandaId={banda.id}
               presskitId={liga.presskitId}
               ligaActual={liga.ligaPublicada}
-              onLiga={(l) => setLiga((p) => (p ? { ...p, ligaPublicada: l } : p))}
+              onLiga={(l, ligaActualizadaEn) => setLiga((p) => (p ? { ...p, ligaPublicada: l, ligaActualizadaEn } : p))}
+            />
+            <EnviarPresskitSeccion
+              bandaId={banda.id}
+              presskitId={liga.presskitId}
+              enviadoEn={liga.enviadoEn}
+              actualizadoEn={liga.actualizadoEn}
+              onEnviado={(enviadoEn) => setLiga((p) => (p ? { ...p, enviadoEn } : p))}
             />
           </div>
         )}

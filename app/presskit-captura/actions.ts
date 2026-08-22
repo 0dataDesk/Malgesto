@@ -8,9 +8,6 @@ import {
   eliminarFoto,
   agregarRed,
   eliminarRed,
-  marcarPresskitEnviado,
-  actualizarLigaPublicada,
-  construirDocumentoPresskit,
   type ActualizacionPresskit,
   type CategoriaFotoPresskit,
   type PresskitFoto,
@@ -67,23 +64,8 @@ export async function eliminarRedPresskitAction(bandaId: string, presskitId: str
   revalidatePath("/presskit");
 }
 
-// Brief "Presskit: documento completo para Design (reemplaza el resumen
-// recortado)" §3: además de marcar enviado_en (como ya hacía), genera acá
-// mismo el documento completo con construirDocumentoPresskit -- la misma
-// función que Jorge puede pedirle a Code para esta banda fuera de la app,
-// sin este marcado de por medio.
-export async function marcarPresskitEnviadoAction(bandaId: string, presskitId: string): Promise<{ enviadoEn: string; documento: string }> {
-  await requerirSuperadmin();
-  const enviadoEn = await marcarPresskitEnviado(presskitId);
-  const documento = await construirDocumentoPresskit(bandaId);
-  revalidatePath(`/presskit-captura/${bandaId}`);
-  revalidatePath("/presskit");
-  return { enviadoEn, documento };
-}
-
-export async function actualizarLigaPublicadaAction(bandaId: string, presskitId: string, liga: string | null): Promise<void> {
-  await requerirSuperadmin();
-  await actualizarLigaPublicada(presskitId, liga);
-  revalidatePath(`/presskit-captura/${bandaId}`);
-  revalidatePath("/presskit");
-}
+// Brief "Presskit: flujo de envío en Gestión/Bandas, estatus de 4 estados"
+// §1/§2: "Enviar a Presskit" (y "Liga publicada", que ya vivía en
+// DetalleBanda desde el brief anterior) se sacaron por completo de esta
+// pantalla -- ver enviarPresskitAction/actualizarLigaPublicadaAction en
+// app/gestion/actions.ts.
