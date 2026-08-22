@@ -30,30 +30,37 @@ const ACENTO_PEDAL = "oklch(0.58 0.12 220)";
 // verde para que el grupo se distinga a simple vista de los otros dos.
 const ACENTO_INSTRUMENTO = "oklch(0.62 0.13 150)";
 
+// Brief "Seteos: colores, conectores, borrar por canción..." §2: colores de
+// fondo por tipo de bloque -- reemplazan el fondo gris de página que tenía
+// esta pantalla antes (revertido a cream en app/seteos/page.tsx). Texto
+// claro para Amplificadores porque su fondo es oscuro; el resto conserva
+// TEXTO_OSCURO/TEXTO_GRIS porque sus fondos son claros.
+const TEXTO_CLARO = "oklch(0.96 0.006 260)";
+const TEXTO_CLARO_GRIS = "oklch(0.76 0.012 260)";
+const FONDO_INSTRUMENTO = "oklch(0.68 0.075 55)";
+const FONDO_AMPLI_BLOQUE = "oklch(0.33 0.006 260)";
+const FONDO_AMPLI_ITEM = "oklch(0.4 0.007 260)";
+const FONDO_PEDAL_BLOQUE = "oklch(0.86 0.006 235)";
+const FONDO_PEDAL_ITEM = "oklch(0.91 0.005 235)";
+
 const MODELO_AFINADOR = "Afinador";
 const esAfinador = (d: DispositivoConSeteos) => d.disenoModelo === MODELO_AFINADOR;
-
-// Conector visual entre Amplificadores y Pedales/FX (brief §2 "sensación de
-// cadena"): una línea con degradado del acento de un grupo al del otro, en
-// el punto donde la señal "pasa" de uno al otro.
-function ConectorCadena({ de, a }: { de: string; a: string }) {
-  return (
-    <div className="flex justify-center" aria-hidden="true">
-      <div className="h-4 w-0.5 rounded-full" style={{ background: `linear-gradient(to bottom, ${de}, ${a})` }} />
-    </div>
-  );
-}
 
 // Grupo colapsable de dispositivos (Amplificadores / Pedales·FX) -- mismo
 // patrón visual que el acordeón "Deshabilitados" de más abajo, pero con un
 // punto de color + borde del acento del grupo (brief §2 "distinción visual")
 // y arranca cerrado (brief §2 "inician colapsados", a diferencia del
-// acordeón de Instrumento o Deshabilitados que no cambian). Entre cada
-// dispositivo del grupo va un tick vertical del mismo acento, para que se
-// lea como eslabones de una misma cadena.
+// acordeón de Instrumento o Deshabilitados que no cambian). Brief "Seteos:
+// colores, conectores, borrar por canción..." §2/§3: `fondoBloque` tiñe este
+// acordeón del bloque completo, `fondoItem`/`oscuro` bajan al acordeón de
+// cada dispositivo individual -- sin ningún tick/conector entre ellos (§3,
+// se eliminaron por completo).
 function GrupoCadena({
   titulo,
   color,
+  fondoBloque,
+  fondoItem,
+  oscuro,
   dispositivos,
   abierto,
   onToggle,
@@ -65,6 +72,9 @@ function GrupoCadena({
 }: {
   titulo: string;
   color: string;
+  fondoBloque: string;
+  fondoItem: string;
+  oscuro: boolean;
   dispositivos: DispositivoConSeteos[];
   abierto: boolean;
   onToggle: () => void;
@@ -74,32 +84,34 @@ function GrupoCadena({
   onSeteoCreado: (dispositivoId: string, seteo: Seteo) => void;
   onHabilitadoChange: (dispositivoId: string, habilitado: boolean) => void;
 }) {
+  const textoBloque = oscuro ? TEXTO_CLARO : TEXTO_OSCURO;
+  const textoBloqueGris = oscuro ? TEXTO_CLARO_GRIS : TEXTO_GRIS;
   return (
-    <div className="rounded-2xl" style={{ background: "oklch(0.99 0.008 82)", border: `1px solid ${color}`, borderLeft: `3px solid ${color}` }}>
+    <div className="rounded-2xl" style={{ background: fondoBloque, border: `1px solid ${color}`, borderLeft: `3px solid ${color}` }}>
       <button type="button" onClick={onToggle} className="flex w-full items-center gap-2.5 px-4 py-3 text-left">
         <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} />
-        <span className="flex-1 text-sm font-bold" style={{ color: TEXTO_OSCURO }}>
+        <span className="flex-1 text-sm font-bold" style={{ color: textoBloque }}>
           {titulo} ({dispositivos.length})
         </span>
-        <span className="text-xs" style={{ color: TEXTO_GRIS, transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+        <span className="text-xs" style={{ color: textoBloqueGris, transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
           ▾
         </span>
       </button>
       {abierto && (
         <div className="flex flex-col gap-2.5 px-4 pb-4">
-          {dispositivos.map((d, i) => (
-            <div key={d.id}>
-              {i > 0 && <ConectorCadena de={color} a={color} />}
-              <DispositivoBloque
-                dispositivo={d}
-                colorCadena={color}
-                vista={vista}
-                onValoresCambiados={onValoresCambiados}
-                onSeteoCreado={onSeteoCreado}
-                onHabilitadoChange={onHabilitadoChange}
-                pendingHabilitado={pendingHabilitadoId === d.id}
-              />
-            </div>
+          {dispositivos.map((d) => (
+            <DispositivoBloque
+              key={d.id}
+              dispositivo={d}
+              colorCadena={color}
+              fondo={fondoItem}
+              oscuro={oscuro}
+              vista={vista}
+              onValoresCambiados={onValoresCambiados}
+              onSeteoCreado={onSeteoCreado}
+              onHabilitadoChange={onHabilitadoChange}
+              pendingHabilitado={pendingHabilitadoId === d.id}
+            />
           ))}
         </div>
       )}
@@ -128,7 +140,7 @@ function InstrumentoBloque({
   return (
     <div
       className="flex items-center justify-between gap-3 rounded-2xl p-4"
-      style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", borderLeft: `3px solid ${colorCadena}` }}
+      style={{ background: FONDO_INSTRUMENTO, border: "1px solid oklch(0.89 0.013 78)", borderLeft: `3px solid ${colorCadena}` }}
     >
       <div className="min-w-0 flex-1">
         <span className="block truncate text-[19px] font-bold" style={{ color: TEXTO_OSCURO, fontFamily: "var(--font-bricolage), sans-serif" }}>
@@ -249,7 +261,7 @@ function GrupoInstrumento({
   return (
     <div
       className="rounded-2xl"
-      style={{ background: "oklch(0.99 0.008 82)", border: `1px solid ${ACENTO_INSTRUMENTO}`, borderLeft: `3px solid ${ACENTO_INSTRUMENTO}` }}
+      style={{ background: FONDO_INSTRUMENTO, border: `1px solid ${ACENTO_INSTRUMENTO}`, borderLeft: `3px solid ${ACENTO_INSTRUMENTO}` }}
     >
       <button type="button" onClick={onToggle} className="flex w-full items-center gap-2.5 px-4 py-3 text-left">
         <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: ACENTO_INSTRUMENTO }} />
@@ -262,18 +274,15 @@ function GrupoInstrumento({
       </button>
       {abierto && (
         <div className="flex flex-col gap-2.5 px-4 pb-4">
-          {instrumentos.map((inst, i) => (
-            <div key={inst.id}>
-              {i > 0 && <ConectorCadena de={ACENTO_INSTRUMENTO} a={ACENTO_INSTRUMENTO} />}
-              <InstrumentoBloque
-                instrumento={inst}
-                colorCadena={ACENTO_INSTRUMENTO}
-                onQuitar={() => onQuitar(inst.id)}
-                pendingQuitar={pendingQuitarId === inst.id}
-              />
-            </div>
+          {instrumentos.map((inst) => (
+            <InstrumentoBloque
+              key={inst.id}
+              instrumento={inst}
+              colorCadena={ACENTO_INSTRUMENTO}
+              onQuitar={() => onQuitar(inst.id)}
+              pendingQuitar={pendingQuitarId === inst.id}
+            />
           ))}
-          {instrumentos.length > 0 && <ConectorCadena de={ACENTO_INSTRUMENTO} a={ACENTO_INSTRUMENTO} />}
           <AgregarInstrumentoPicker opciones={opcionesDisponibles} mensajeVacio={mensajeVacio} onAgregar={onAgregar} pending={pendingAgregar} />
         </div>
       )}
@@ -330,7 +339,14 @@ export function SeteosLista({
   const [errorInstrumento, setErrorInstrumento] = useState<string | null>(null);
 
   const cancionesConSeteo = cancionesDisponibles.filter((c) => dispositivos.some((d) => d.seteos.some((s) => s.cancionId === c.id)));
-  const cancionesFiltradas = cancionesDisponibles.filter((c) => c.titulo.toLowerCase().includes(busqueda.trim().toLowerCase()));
+  // Brief "Seteos: colores, conectores, borrar por canción..." §5: una
+  // canción ya agregada (con al menos un seteo propio) no vuelve a aparecer
+  // en el selector "+" -- mismo criterio que ya usa el pill "Canciones" para
+  // decidir qué mostrar ahí.
+  const idsCancionesConSeteo = new Set(cancionesConSeteo.map((c) => c.id));
+  const cancionesFiltradas = cancionesDisponibles.filter(
+    (c) => !idsCancionesConSeteo.has(c.id) && c.titulo.toLowerCase().includes(busqueda.trim().toLowerCase())
+  );
 
   // Brief "Seteos: completar selector de instrumento + rediseño de cadena"
   // §2: Amplificadores y Pedales/FX son dos grupos separados (ya no una
@@ -429,11 +445,16 @@ export function SeteosLista({
       </div>
 
       <div className="rounded-2xl p-3.5" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
-        <div className="flex flex-wrap items-center gap-1.5">
+        {/* Brief "Seteos: colores, conectores, borrar por canción..." §6:
+            tira horizontal con scroll (una sola línea) en vez de wrap --
+            crece la lista de canciones sin empujar el resto de la pantalla
+            hacia abajo. Mismo patrón que el picker de secciones en
+            VistaFinal (canciones). */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
           <button
             type="button"
             onClick={elegirGeneral}
-            className="rounded-full px-3 py-1.5 text-xs font-bold"
+            className="shrink-0 rounded-full px-3 py-1.5 text-xs font-bold"
             style={vista.tipo === "general" ? PILL_ACTIVO : PILL_INACTIVO}
           >
             General
@@ -442,7 +463,7 @@ export function SeteosLista({
             type="button"
             onClick={toggleNueva}
             aria-label="Crear seteo para una canción"
-            className="flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold"
             style={picker === "nueva" ? PILL_ACTIVO : PILL_INACTIVO}
           >
             +
@@ -451,14 +472,14 @@ export function SeteosLista({
             <button
               type="button"
               onClick={toggleCanciones}
-              className="rounded-full px-3 py-1.5 text-xs font-bold"
+              className="shrink-0 rounded-full px-3 py-1.5 text-xs font-bold"
               style={vista.tipo === "cancion" ? PILL_ACTIVO : PILL_INACTIVO}
             >
               Canciones
             </button>
           )}
           {vista.tipo === "cancion" && (
-            <span className="font-mono text-xs" style={{ color: TEXTO_GRIS }}>
+            <span className="shrink-0 font-mono text-xs" style={{ color: TEXTO_GRIS }}>
               {vista.cancionTitulo}
             </span>
           )}
@@ -497,13 +518,18 @@ export function SeteosLista({
         )}
 
         {picker === "canciones" && (
-          <div className="mt-2.5 flex flex-wrap gap-1.5 rounded-xl p-2.5" style={{ background: "oklch(0.965 0.012 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+          // Brief "Seteos: colores, conectores, borrar por canción..." §6:
+          // esta es la fila que crece con la cantidad de canciones agregadas
+          // -- tira horizontal con scroll (una sola línea) en vez de
+          // flex-wrap, para que no empuje el resto de la pantalla hacia
+          // abajo en mobile.
+          <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto rounded-xl p-2.5" style={{ background: "oklch(0.965 0.012 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
             {cancionesConSeteo.map((c) => (
               <button
                 key={c.id}
                 type="button"
                 onClick={() => elegirCancion(c)}
-                className="rounded-full px-3 py-1.5 text-xs font-bold"
+                className="shrink-0 rounded-full px-3 py-1.5 text-xs font-bold"
                 style={vista.tipo === "cancion" && vista.cancionId === c.id ? PILL_ACTIVO : PILL_INACTIVO}
               >
                 {c.titulo}
@@ -553,6 +579,9 @@ export function SeteosLista({
         <GrupoCadena
           titulo="Amplificadores"
           color={ACENTO_AMPLI}
+          fondoBloque={FONDO_AMPLI_BLOQUE}
+          fondoItem={FONDO_AMPLI_ITEM}
+          oscuro
           dispositivos={amplificadores}
           abierto={amplificadoresAbierto}
           onToggle={() => setAmplificadoresAbierto((v) => !v)}
@@ -568,6 +597,9 @@ export function SeteosLista({
         <GrupoCadena
           titulo="Pedales/FX"
           color={ACENTO_PEDAL}
+          fondoBloque={FONDO_PEDAL_BLOQUE}
+          fondoItem={FONDO_PEDAL_ITEM}
+          oscuro={false}
           dispositivos={pedales}
           abierto={pedalesAbierto}
           onToggle={() => setPedalesAbierto((v) => !v)}

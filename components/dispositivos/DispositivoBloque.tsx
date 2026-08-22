@@ -33,6 +33,14 @@ export type DispositivoConSeteos = {
 const TEXTO_OSCURO = "oklch(0.24 0.02 55)";
 const TEXTO_GRIS = "oklch(0.5 0.02 55)";
 const ROJO = "oklch(0.55 0.15 25)";
+// Brief "Seteos: colores, conectores, borrar por canción..." §2: variantes
+// claras del texto para cuando este bloque cae dentro de un grupo de fondo
+// oscuro (Amplificadores) -- ver `oscuro` más abajo.
+const TEXTO_CLARO = "oklch(0.96 0.006 260)";
+const TEXTO_CLARO_GRIS = "oklch(0.76 0.012 260)";
+const FONDO_DEFAULT = "oklch(0.99 0.008 82)";
+const BORDE_DEFAULT = "1px solid oklch(0.89 0.013 78)";
+const BORDE_OSCURO = "1px solid oklch(0.46 0.008 260)";
 
 // Foco/LED de habilitado (brief "DispositivoBloque — el switch de
 // habilitado se ve como foco/LED"): mismo lenguaje visual que ya usa
@@ -72,6 +80,8 @@ export function DispositivoBloque({
   dispositivo,
   vista,
   colorCadena,
+  fondo = FONDO_DEFAULT,
+  oscuro = false,
   onValoresCambiados,
   onSeteoCreado,
   onHabilitadoChange,
@@ -85,6 +95,12 @@ export function DispositivoBloque({
   // un eslabón de esa cadena. undefined = sin acento (ej. en Deshabilitados,
   // que queda fuera de la cadena visual).
   colorCadena?: string;
+  // Brief "Seteos: colores, conectores, borrar por canción..." §2: color de
+  // fondo del acordeón individual, distinto del fondo del acordeón de grupo
+  // que lo contiene (ver GrupoCadena en SeteosLista). `oscuro` conmuta el
+  // texto a la variante clara cuando ese fondo es oscuro (Amplificadores).
+  fondo?: string;
+  oscuro?: boolean;
   onValoresCambiados: (dispositivoId: string, seteoId: string, valores: Record<string, number>) => void;
   onSeteoCreado: (dispositivoId: string, seteo: Seteo) => void;
   onHabilitadoChange: (dispositivoId: string, habilitado: boolean) => void;
@@ -146,30 +162,33 @@ export function DispositivoBloque({
   };
 
   const nombreMostrado = dispositivo.apodo || `${dispositivo.disenoMarca} ${dispositivo.disenoModelo}`;
+  const bordeBase = oscuro ? BORDE_OSCURO : BORDE_DEFAULT;
+  const textoPrincipal = oscuro ? TEXTO_CLARO : TEXTO_OSCURO;
+  const textoSecundario = oscuro ? TEXTO_CLARO_GRIS : TEXTO_GRIS;
 
   return (
     <div
       className="rounded-2xl p-4"
       style={{
-        background: "oklch(0.99 0.008 82)",
-        border: "1px solid oklch(0.89 0.013 78)",
-        borderLeft: colorCadena ? `3px solid ${colorCadena}` : "1px solid oklch(0.89 0.013 78)",
+        background: fondo,
+        border: bordeBase,
+        borderLeft: colorCadena ? `3px solid ${colorCadena}` : bordeBase,
       }}
     >
       <div className="flex items-center justify-between gap-3">
         <button type="button" onClick={() => setColapsado((v) => !v)} className="flex min-w-0 flex-1 items-baseline gap-2 text-left">
           <span
             className="shrink-0 font-mono text-xs"
-            style={{ color: TEXTO_GRIS, transform: colapsado ? "none" : "rotate(90deg)", transition: "transform 0.15s", display: "inline-block" }}
+            style={{ color: textoSecundario, transform: colapsado ? "none" : "rotate(90deg)", transition: "transform 0.15s", display: "inline-block" }}
           >
             ›
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[19px] font-bold" style={{ color: TEXTO_OSCURO, fontFamily: "var(--font-bricolage), sans-serif" }}>
+            <span className="block truncate text-[19px] font-bold" style={{ color: textoPrincipal, fontFamily: "var(--font-bricolage), sans-serif" }}>
               {nombreMostrado}
             </span>
             {!colapsado && dispositivo.apodo && (
-              <span className="mt-0.5 block font-mono text-xs uppercase tracking-wide" style={{ color: TEXTO_GRIS }}>
+              <span className="mt-0.5 block font-mono text-xs uppercase tracking-wide" style={{ color: textoSecundario }}>
                 {dispositivo.disenoMarca} {dispositivo.disenoModelo}
               </span>
             )}
@@ -177,7 +196,7 @@ export function DispositivoBloque({
         </button>
         <div className="flex shrink-0 items-center gap-2.5">
           {!colapsado && (
-            <span className="font-mono text-[10px] uppercase" style={{ color: estadoGuardado === "error" ? ROJO : TEXTO_GRIS }}>
+            <span className="font-mono text-[10px] uppercase" style={{ color: estadoGuardado === "error" ? ROJO : textoSecundario }}>
               {estadoGuardado === "guardando" ? "Guardando…" : estadoGuardado === "error" ? "Error" : "Guardado"}
             </span>
           )}
@@ -192,7 +211,7 @@ export function DispositivoBloque({
       {!colapsado && (
         <div className="mt-4">
           {creando && (
-            <p className="text-center text-sm" style={{ color: TEXTO_GRIS }}>
+            <p className="text-center text-sm" style={{ color: textoSecundario }}>
               Creando seteo para esta canción…
             </p>
           )}

@@ -45,10 +45,7 @@ export default async function SeteosPage({
 
   if (!bandaValida && bandasConBloque.length > 1) {
     return (
-      // Brief "Seteos: corrección de comportamiento y ajuste visual" §3: fondo
-      // gris en vez del cream/blanco estándar del resto de la app -- acá para
-      // que contraste con colorFondo/colorAcento propios de cada dispositivo.
-      <div className="min-h-screen pb-20" style={{ background: "oklch(0.87 0.006 75)" }}>
+      <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
         <EspacioSuperior>
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
             Seteos
@@ -126,9 +123,7 @@ export default async function SeteosPage({
     }));
 
   return (
-    // Brief "Seteos: corrección de comportamiento y ajuste visual" §3: mismo
-    // gris que el estado "elegí banda" de arriba -- ver comentario ahí.
-    <div className="min-h-screen pb-20" style={{ background: "oklch(0.87 0.006 75)" }}>
+    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
       <EspacioSuperior>
         <div className="flex items-center gap-2.5">
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
