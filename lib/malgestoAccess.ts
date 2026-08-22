@@ -80,6 +80,31 @@ export async function requerirAccesoBloque(bandaId: string, bloque: NombreBloque
   return user.id;
 }
 
+// Brief "Presskit: el botón 'Editar' también para admin de banda": variante
+// de requerirAccesoBloque para módulos (hoy solo Presskit) donde el gate
+// anterior era requerirSuperadmin -- global, sin exigir membresía en la
+// banda puntual. requerirAccesoBloque por sí sola SÍ exige esa membresía
+// (busca la fila de esta banda incluso para superadmin), lo que angostaría
+// la garantía de "superadmin edita cualquier banda" apenas una banda no
+// tenga de alta a ese superadmin puntual -- caso de hoy no se da (crearBanda
+// siempre agrega como miembro a quien la crea), pero no hace falta
+// arriesgarlo: acá el superadmin corta camino ANTES de esa búsqueda, igual
+// que requerirSuperadmin, y el resto (administrador de esa banda puntual)
+// delega en requerirAccesoBloque sin duplicar su lógica.
+export async function requerirAdminDeBandaOSuperadmin(bandaId: string, bloque: NombreBloque): Promise<string> {
+  const supabase = await supabaseServerAuth();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("No hay sesión activa.");
+
+  const membresias = await obtenerMembresias(user.id);
+  if (esSuperadminDeMembresias(membresias)) return user.id;
+
+  return requerirAccesoBloque(bandaId, bloque);
+}
+
 // Resuelve a dónde debe ir un usuario recién autenticado: si ya es miembro
 // de alguna banda pasa directo, si tiene invitación(es) pendiente(s) las
 // acepta y crea la membresía, y si no hay nada queda sin acceso (registrado

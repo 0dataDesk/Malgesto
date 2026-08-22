@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
-import { esSuperadmin, obtenerBandasTodas } from "@/lib/gestionData";
+import { obtenerMembresias, esSuperadminDeMembresias, bloqueVisible } from "@/lib/malgestoEventos";
+import { obtenerBandasTodas } from "@/lib/gestionData";
 import { obtenerOCrearPresskit, obtenerFotos, obtenerRedes } from "@/lib/presskitData";
 import { obtenerPlazasConPersonaDeBanda } from "@/lib/stagePlotData";
 import { PresskitCaptura } from "@/components/presskit/PresskitCaptura";
@@ -10,9 +11,16 @@ import { PresskitCaptura } from "@/components/presskit/PresskitCaptura";
 // vista de captura de datos"; movida a vista propia por Brief "Presskit —
 // vista propia, estatus, liga publicada" §1): ni vista pública ni diseño
 // visual, eso lo resuelve Design por separado usando el resumen que exporta
-// el botón "Enviar a Presskit". Mismo gate que /gestion (solo superadmin) --
-// el punto de entrada es el botón "Editar" de /presskit, el módulo de nivel
-// superior (ya no el botón "Presskit" de Gestión > Bandas, que se quitó).
+// el botón "Enviar a Presskit". El punto de entrada es el botón "Editar" de
+// /presskit, el módulo de nivel superior (ya no el botón "Presskit" de
+// Gestión > Bandas, que se quitó).
+// Brief "Presskit: el botón 'Editar' también para admin de banda": el gate
+// ya no es superadmin global -- también entra quien sea administrador de
+// ESTA banda puntual (mismo mecanismo que ya usan Canciones/Stage Plot:
+// membresía + rol, ver bloqueVisible/requerirAccesoBloque), con el bloque
+// presskit visible para esa persona en esa banda. Superadmin conserva
+// acceso a cualquier banda sin depender de bloqueVisible (ver `superadmin
+// ||` más abajo).
 export default async function PresskitCapturaPage({
   params,
 }: {
@@ -26,8 +34,13 @@ export default async function PresskitCapturaPage({
 
   if (!user?.email) redirect("/login");
 
-  const puedeAcceder = await esSuperadmin(user.id);
-  if (!puedeAcceder) redirect("/inicio");
+  const membresias = await obtenerMembresias(user.id);
+  if (membresias.length === 0) redirect("/sin-acceso");
+
+  const superadmin = esSuperadminDeMembresias(membresias);
+  const membresiaBanda = membresias.find((m) => m.bandaId === bandaId);
+  const esAdminDeBanda = membresiaBanda?.rol === "administrador" && bloqueVisible(membresiaBanda, "presskit", superadmin);
+  if (!superadmin && !esAdminDeBanda) redirect("/inicio");
 
   const bandas = await obtenerBandasTodas();
   const banda = bandas.find((b) => b.id === bandaId);

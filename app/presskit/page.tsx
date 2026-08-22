@@ -16,7 +16,10 @@ import { EstadoBadge, VisitarCompartirPresskit } from "@/components/presskit/Pre
 // a depender de `presskit_habilitado` por banda, igual que el resto de los
 // bloques (bloqueVisible/membresiasConBloque, misma excepción de
 // bloques_visibles por integrante puntual). "Editar" (que lleva a
-// /presskit-captura, todavía superadmin-only) solo se muestra a superadmin.
+// /presskit-captura) se muestra a superadmin y también a quien sea
+// administrador de ESTA banda (Brief "Presskit: el botón 'Editar' también
+// para admin de banda") -- mismo criterio rol-based que ya usa Stage Plot
+// para su botón de edición.
 export default async function PresskitPage({
   searchParams,
 }: {
@@ -102,7 +105,7 @@ export default async function PresskitPage({
           >
             Presskit
           </h2>
-          {superadmin && (
+          {(superadmin || membresiaActiva.rol === "administrador") && (
             <Link
               href={`/presskit-captura/${bandaActiva}`}
               className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold no-underline"
