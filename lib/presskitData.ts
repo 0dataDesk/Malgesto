@@ -293,7 +293,7 @@ export type PresskitProximaFecha = { fechaInicio: string; titulo: string; lugarN
 // el mismo campo texto "confirmado"|"tentativo" que ya usa Calendario --
 // ver EstadoEvento en malgestoEventos.ts) -- una gira tentativa (ej.
 // Colombia) no debería aparecer acá hasta confirmarse.
-async function obtenerProximasFechas(bandaId: string): Promise<PresskitProximaFecha[]> {
+export async function obtenerProximasFechas(bandaId: string): Promise<PresskitProximaFecha[]> {
   const admin = supabaseMalgesto();
   const ahora = new Date().toISOString();
   const { data } = await admin
@@ -310,7 +310,7 @@ async function obtenerProximasFechas(bandaId: string): Promise<PresskitProximaFe
   }));
 }
 
-function formatearFechaDocumento(iso: string): string {
+export function formatearFechaDocumento(iso: string): string {
   const p = partesEnZonaApp(iso);
   return `${p.dia} de ${MESES[p.mes].toLowerCase()} de ${p.anio}`;
 }
@@ -393,4 +393,80 @@ export async function construirDocumentoPresskit(bandaId: string): Promise<strin
   }
 
   return lineas.join("\n");
+}
+
+// Brief "Presskit — vista pública real dentro de Malgesto App": /presskit-
+// publico/[slug] identifica la banda por el nombre "slugificado" (ej.
+// "Juana LR" -> "juana-lr") en vez de agregar una columna de slug/token
+// nueva -- mismo criterio de slug que ya usa RiderVista.tsx para el nombre
+// del archivo del PDF, solo que acá decide qué banda mostrar. Reservado a
+// bandas con `presskit_habilitado` (mismo gate que el resto de los bloques)
+// y no archivadas -- si dos bandas futuras slugifican igual, gana la
+// primera por orden de creación (caso borde aceptado: nombres que colisionan
+// al normalizar ya son un problema de nomenclatura de banda, no de esta
+// función).
+export function slugificarNombreBanda(nombre: string): string {
+  return nombre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+export async function obtenerBandaPorSlugPresskit(
+  slug: string
+): Promise<{ bandaId: string; bandaNombre: string; bandaGenero: string | null; bandaColor: string } | null> {
+  const admin = supabaseMalgesto();
+  const { data } = await admin
+    .from("bandas")
+    .select("id, nombre, genero, color")
+    .eq("presskit_habilitado", true)
+    .eq("archivada", false)
+    .order("created_at", { ascending: true });
+
+  const banda = (data ?? []).find((b) => slugificarNombreBanda(b.nombre) === slug);
+  if (!banda) return null;
+  return { bandaId: banda.id, bandaNombre: banda.nombre, bandaGenero: banda.genero, bandaColor: banda.color ?? "#8b1e2b" };
+}
+
+export type IntegrantePublico = { nombre: string; instrumento: string };
+
+export type PresskitPublico = {
+  bandaId: string;
+  bandaNombre: string;
+  bandaGenero: string | null;
+  bandaColor: string;
+  presskit: Presskit;
+  fotosBanda: PresskitFoto[];
+  fotosFlyer: PresskitFoto[];
+  redes: PresskitRed[];
+  integrantes: IntegrantePublico[];
+  proximasFechas: PresskitProximaFecha[];
+};
+
+// Mismas fuentes de datos que construirDocumentoPresskit (fotos, redes,
+// integrantes, próximas fechas) -- esto arma el equivalente para la vista
+// pública en vez de un documento de texto para Design.
+export async function obtenerPresskitPublico(
+  bandaId: string,
+  bandaNombre: string,
+  bandaGenero: string | null,
+  bandaColor: string
+): Promise<PresskitPublico> {
+  const presskit = await obtenerOCrearPresskit(bandaId);
+  const [fotos, redes, integrantesRaw, proximasFechas] = await Promise.all([
+    obtenerFotos(presskit.id),
+    obtenerRedes(presskit.id),
+    obtenerPlazasConPersonaDeBanda(bandaId),
+    obtenerProximasFechas(bandaId),
+  ]);
+
+  return {
+    bandaId,
+    bandaNombre,
+    bandaGenero,
+    bandaColor,
+    presskit,
+    fotosBanda: fotos.filter((f) => f.categoria === "banda"),
+    fotosFlyer: fotos.filter((f) => f.categoria === "flyer"),
+    redes,
+    integrantes: integrantesRaw.map((i) => ({ nombre: i.nombrePersona, instrumento: etiquetaPlaza(i.instrumento, i.etiqueta) })),
+    proximasFechas,
+  };
 }
