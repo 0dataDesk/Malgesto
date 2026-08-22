@@ -281,7 +281,10 @@ export async function marcarPresskitEnviado(presskitId: string): Promise<string>
 export const PROMPT_DESIGN_PRESSKIT =
   "Vas a diseñar una página pública de presskit para esta banda, usando exactamente la información de abajo. No inventes ni completes datos que no estén incluidos.\n\n" +
   "Además del diseño completo de la página, crea una versión reducida de una sola página, tamaño carta, que sirva como resumen imprimible/descargable del presskit (mismo estilo visual, contenido condensado a lo esencial: nombre, género, semblanza breve, foto principal, integrantes, contacto y links).\n\n" +
-  "En la página principal, agrega un botón para descargar esa versión en PDF. El botón debe ser discreto — ubicado arriba a la izquierda, de bajo perfil, que no compita visualmente con el resto del diseño (no debe ser un botón llamativo ni protagonista).";
+  "En la página principal, agrega un botón para descargar esa versión en PDF. El botón debe ser discreto — ubicado arriba a la izquierda, de bajo perfil, que no compita visualmente con el resto del diseño (no debe ser un botón llamativo ni protagonista).\n\n" +
+  "La versión de una página (PDF) debe mantener la misma calidad y cuidado de diseño que la página principal — no es un respaldo plano ni de segunda categoría, es una pieza con el mismo nivel visual.\n\n" +
+  "Las fotos de banda/conceptuales son material visual para el diseño (fondo, imagen principal, ambientación) — no crees un apartado o galería separada mostrándolas como lista. Úsalas para dar identidad visual a la página, no como contenido enumerado.\n\n" +
+  "Los flyers representan algunos de los eventos importantes que la banda ha tenido — deja esto claro en cómo se presentan (ej. un encabezado o texto breve tipo \"Algunos de nuestros shows\" en vez de solo mostrarlos sin contexto).";
 
 export type PresskitProximaFecha = { fechaInicio: string; titulo: string; lugarNombre: string | null };
 
