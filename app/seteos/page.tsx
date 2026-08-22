@@ -7,6 +7,7 @@ import {
   crearSeteoGeneralConDefaults,
   obtenerInstrumentosPropiosDeUsuario,
   obtenerInstrumentosEnCadena,
+  obtenerCancionesOcultasEnSeteos,
   type Seteo,
 } from "@/lib/dispositivosData";
 import { obtenerCanciones } from "@/lib/cancionesData";
@@ -84,11 +85,12 @@ export default async function SeteosPage({
   const bandaActiva = bandaValida ? bandaParam! : bandasConBloque[0].bandaId;
   const nombreBandaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
 
-  const [dispositivos, canciones, instrumentosPropios, instrumentosEnCadena] = await Promise.all([
+  const [dispositivos, canciones, instrumentosPropios, instrumentosEnCadena, cancionesOcultas] = await Promise.all([
     obtenerDispositivosCompletosDeUsuario([bandaActiva], user.id),
     obtenerCanciones([bandaActiva]),
     obtenerInstrumentosPropiosDeUsuario(user.id),
     obtenerInstrumentosEnCadena(bandaActiva, user.id),
+    obtenerCancionesOcultasEnSeteos(bandaActiva, user.id),
   ]);
 
   // Brief §4 (Seteo general obligatorio): si un dispositivo todavía no tiene
@@ -152,6 +154,7 @@ export default async function SeteosPage({
             bandaId={bandaActiva}
             instrumentosPropios={instrumentosPropios}
             instrumentosEnCadenaIniciales={instrumentosEnCadena}
+            cancionesOcultasIniciales={cancionesOcultas}
           />
         </div>
       </EspacioSuperior>

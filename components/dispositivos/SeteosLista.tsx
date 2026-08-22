@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import type { Seteo, InstrumentoPropioResumen, InstrumentoEnCadena } from "@/lib/dispositivosData";
-import { actualizarHabilitadoDispositivoAction, agregarInstrumentoEnCadenaAction, quitarInstrumentoEnCadenaAction } from "@/app/seteos/actions";
+import {
+  actualizarHabilitadoDispositivoAction,
+  agregarInstrumentoEnCadenaAction,
+  quitarInstrumentoEnCadenaAction,
+  ocultarCancionEnSeteosAction,
+  mostrarCancionEnSeteosAction,
+} from "@/app/seteos/actions";
 import { DispositivoBloque, type DispositivoConSeteos, type Vista } from "./DispositivoBloque";
 
 type CancionOpcion = { id: string; titulo: string };
@@ -43,6 +49,26 @@ const ACENTO_PEDAL = "oklch(0.58 0.012 235)";
 
 const MODELO_AFINADOR = "Afinador";
 const esAfinador = (d: DispositivoConSeteos) => d.disenoModelo === MODELO_AFINADOR;
+
+// Brief "Seteos: eliminar canción de la vista + contadores discretos" §2:
+// reemplaza el texto plano "Título (N)" por un badge chico -- mismo número,
+// pero como pastilla separada en vez de paréntesis pegados al título. Un
+// solo tono neutro traslúcido que se adapta al fondo (oscuro para
+// Amplificadores, claro para el resto) en vez de un color por bloque, para
+// no competir con el punto de acento que ya distingue cada grupo.
+function ContadorBadge({ n, oscuro }: { n: number; oscuro?: boolean }) {
+  return (
+    <span
+      className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1 font-mono text-[10px] font-bold leading-none"
+      style={{
+        background: oscuro ? "oklch(1 0 0 / 0.14)" : "oklch(0.24 0.02 55 / 0.08)",
+        color: oscuro ? TEXTO_CLARO_GRIS : TEXTO_GRIS,
+      }}
+    >
+      {n}
+    </span>
+  );
+}
 
 // Grupo colapsable de dispositivos (Amplificadores / Pedales·FX) -- mismo
 // patrón visual que el acordeón "Deshabilitados" de más abajo, pero con un
@@ -85,8 +111,9 @@ function GrupoCadena({
     <div className="rounded-2xl" style={{ background: fondoBloque, border: `1px solid ${color}`, borderLeft: `3px solid ${color}` }}>
       <button type="button" onClick={onToggle} className="flex w-full items-center gap-2.5 px-4 py-3 text-left">
         <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} />
-        <span className="flex-1 text-sm font-bold" style={{ color: textoBloque }}>
-          {titulo} ({dispositivos.length})
+        <span className="flex flex-1 items-center gap-1.5 text-sm font-bold" style={{ color: textoBloque }}>
+          {titulo}
+          <ContadorBadge n={dispositivos.length} oscuro={oscuro} />
         </span>
         <span className="text-xs" style={{ color: textoBloqueGris, transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
           ▾
@@ -223,6 +250,43 @@ function AgregarInstrumentoPicker({
   );
 }
 
+// Chip de canción en el picker "Canciones" -- texto (selecciona la vista) +
+// botón "×" separado (elimina la pestaña de esta vista) en vez de un solo
+// <button>, porque un botón no puede anidar otro botón interactivo. Mismo
+// lenguaje de "×" chico que ya usa InstrumentoBloque para "Quitar
+// instrumento", adaptado al fondo activo/inactivo del pill.
+function ChipCancion({
+  cancion,
+  activa,
+  onSeleccionar,
+  onEliminar,
+  pending,
+}: {
+  cancion: CancionOpcion;
+  activa: boolean;
+  onSeleccionar: () => void;
+  onEliminar: () => void;
+  pending: boolean;
+}) {
+  return (
+    <span className="flex shrink-0 items-center gap-1 rounded-full py-1 pl-3 pr-1" style={activa ? PILL_ACTIVO : PILL_INACTIVO}>
+      <button type="button" onClick={onSeleccionar} className="text-xs font-bold">
+        {cancion.titulo}
+      </button>
+      <button
+        type="button"
+        onClick={onEliminar}
+        disabled={pending}
+        aria-label={`Quitar "${cancion.titulo}" de esta vista`}
+        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-xs font-bold leading-none disabled:opacity-50"
+        style={{ background: activa ? "oklch(1 0 0 / 0.2)" : "oklch(0.24 0.02 55 / 0.1)" }}
+      >
+        ×
+      </button>
+    </span>
+  );
+}
+
 // Grupo "cadena de señal" para Instrumento -- mismo patrón visual/interactivo
 // que GrupoCadena (header con punto de color + chevron, cerrado por
 // default), pero SIEMPRE se muestra (incluso con 0 instrumentos en la vista
@@ -258,8 +322,9 @@ function GrupoInstrumento({
     >
       <button type="button" onClick={onToggle} className="flex w-full items-center gap-2.5 px-4 py-3 text-left">
         <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: ACENTO_INSTRUMENTO }} />
-        <span className="flex-1 text-sm font-bold" style={{ color: TEXTO_OSCURO }}>
-          Instrumento ({instrumentos.length})
+        <span className="flex flex-1 items-center gap-1.5 text-sm font-bold" style={{ color: TEXTO_OSCURO }}>
+          Instrumento
+          <ContadorBadge n={instrumentos.length} />
         </span>
         <span className="text-xs" style={{ color: TEXTO_GRIS, transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
           ▾
@@ -303,6 +368,7 @@ export function SeteosLista({
   bandaId,
   instrumentosPropios,
   instrumentosEnCadenaIniciales,
+  cancionesOcultasIniciales,
 }: {
   dispositivosIniciales: DispositivoConSeteos[];
   cancionesDisponibles: CancionOpcion[];
@@ -310,6 +376,7 @@ export function SeteosLista({
   bandaId: string;
   instrumentosPropios: InstrumentoPropioResumen[];
   instrumentosEnCadenaIniciales: InstrumentoEnCadena[];
+  cancionesOcultasIniciales: string[];
 }) {
   const [dispositivos, setDispositivos] = useState(dispositivosIniciales);
   const [vista, setVista] = useState<Vista>({ tipo: "general" });
@@ -330,12 +397,23 @@ export function SeteosLista({
   const [pendingAgregarInstrumento, setPendingAgregarInstrumento] = useState(false);
   const [pendingQuitarInstrumentoId, setPendingQuitarInstrumentoId] = useState<string | null>(null);
   const [errorInstrumento, setErrorInstrumento] = useState<string | null>(null);
+  // Brief "Seteos: eliminar canción de la vista + contadores discretos" §1:
+  // canciones que el usuario sacó de esta vista -- sus seteos siguen en la
+  // base (ver lib/dispositivosData.ts), esto solo decide qué pestaña se
+  // muestra. Set en vez de array para lookup O(1) en los filtros de abajo.
+  const [cancionesOcultas, setCancionesOcultas] = useState(() => new Set(cancionesOcultasIniciales));
+  const [pendingCancionId, setPendingCancionId] = useState<string | null>(null);
+  const [errorCancion, setErrorCancion] = useState<string | null>(null);
 
-  const cancionesConSeteo = cancionesDisponibles.filter((c) => dispositivos.some((d) => d.seteos.some((s) => s.cancionId === c.id)));
+  const cancionesConSeteo = cancionesDisponibles.filter(
+    (c) => !cancionesOcultas.has(c.id) && dispositivos.some((d) => d.seteos.some((s) => s.cancionId === c.id))
+  );
   // Brief "Seteos: colores, conectores, borrar por canción..." §5: una
   // canción ya agregada (con al menos un seteo propio) no vuelve a aparecer
   // en el selector "+" -- mismo criterio que ya usa el pill "Canciones" para
-  // decidir qué mostrar ahí.
+  // decidir qué mostrar ahí. Brief "...eliminar canción de la vista..." §1:
+  // una canción oculta cuenta como "no agregada" acá aunque sus seteos
+  // sigan existiendo, así vuelve a aparecer en el "+".
   const idsCancionesConSeteo = new Set(cancionesConSeteo.map((c) => c.id));
   const cancionesFiltradas = cancionesDisponibles.filter(
     (c) => !idsCancionesConSeteo.has(c.id) && c.titulo.toLowerCase().includes(busqueda.trim().toLowerCase())
@@ -370,6 +448,49 @@ export function SeteosLista({
   const elegirCancion = (c: CancionOpcion) => {
     setVista({ tipo: "cancion", cancionId: c.id, cancionTitulo: c.titulo });
     setPicker(null);
+
+    // Brief "Seteos: eliminar canción de la vista + contadores discretos"
+    // §1: si esta canción venía oculta (ya tenía seteos, solo estaba fuera
+    // de la vista), elegirla desde el "+" la vuelve a mostrar en vez de
+    // crear seteos nuevos -- los que ya existían quedan tal cual (ver
+    // DispositivoBloque, que no crea si `seteoActual` ya existe).
+    if (!cancionesOcultas.has(c.id)) return;
+    setErrorCancion(null);
+    setCancionesOcultas((prev) => {
+      const next = new Set(prev);
+      next.delete(c.id);
+      return next;
+    });
+    mostrarCancionEnSeteosAction(bandaId, c.id).catch(() => {
+      setErrorCancion("No se pudo volver a mostrar la canción.");
+      setCancionesOcultas((prev) => new Set(prev).add(c.id));
+    });
+  };
+
+  // Brief "Seteos: eliminar canción de la vista + contadores discretos" §1:
+  // "eliminar" acá es sacar la pestaña de esta vista, no borrar la canción
+  // ni sus seteos -- el confirm lo aclara para que no se lea como
+  // destructivo (mismo patrón nativo que confirm() en LugarForm/
+  // MovimientoFila/EventoDetalle, adaptado porque acá no hay nada que se
+  // pierda de verdad).
+  const eliminarCancionDeVista = (c: CancionOpcion) => {
+    if (!confirm(`¿Quitar "${c.titulo}" de esta vista? Los seteos guardados no se borran: podés volver a agregar la canción cuando la necesites.`)) return;
+
+    setErrorCancion(null);
+    setPendingCancionId(c.id);
+    setCancionesOcultas((prev) => new Set(prev).add(c.id));
+    if (vista.tipo === "cancion" && vista.cancionId === c.id) setVista({ tipo: "general" });
+
+    ocultarCancionEnSeteosAction(bandaId, c.id)
+      .catch(() => {
+        setErrorCancion("No se pudo quitar la canción de la vista.");
+        setCancionesOcultas((prev) => {
+          const next = new Set(prev);
+          next.delete(c.id);
+          return next;
+        });
+      })
+      .finally(() => setPendingCancionId(null));
   };
 
   const onValoresCambiados = (dispositivoId: string, seteoId: string, valores: Record<string, number>) => {
@@ -518,19 +639,24 @@ export function SeteosLista({
           // abajo en mobile.
           <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto rounded-xl p-2.5" style={{ background: "oklch(0.965 0.012 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
             {cancionesConSeteo.map((c) => (
-              <button
+              <ChipCancion
                 key={c.id}
-                type="button"
-                onClick={() => elegirCancion(c)}
-                className="shrink-0 rounded-full px-3 py-1.5 text-xs font-bold"
-                style={vista.tipo === "cancion" && vista.cancionId === c.id ? PILL_ACTIVO : PILL_INACTIVO}
-              >
-                {c.titulo}
-              </button>
+                cancion={c}
+                activa={vista.tipo === "cancion" && vista.cancionId === c.id}
+                onSeleccionar={() => elegirCancion(c)}
+                onEliminar={() => eliminarCancionDeVista(c)}
+                pending={pendingCancionId === c.id}
+              />
             ))}
           </div>
         )}
       </div>
+
+      {errorCancion && (
+        <p className="text-xs" style={{ color: "oklch(0.55 0.15 25)" }}>
+          {errorCancion}
+        </p>
+      )}
 
       {/* Brief "Instrumento como bloque agregable...": reemplaza el
           acordeón "Instrumento: X" (selector único, oculto con 0/1) por un
@@ -609,8 +735,9 @@ export function SeteosLista({
             onClick={() => setDeshabilitadosAbierto((v) => !v)}
             className="flex w-full items-center justify-between px-4 py-3 text-left"
           >
-            <span className="text-sm font-bold" style={{ color: TEXTO_OSCURO }}>
-              Deshabilitados ({deshabilitados.length})
+            <span className="flex items-center gap-1.5 text-sm font-bold" style={{ color: TEXTO_OSCURO }}>
+              Deshabilitados
+              <ContadorBadge n={deshabilitados.length} />
             </span>
             <span
               className="text-xs"

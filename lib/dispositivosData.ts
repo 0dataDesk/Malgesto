@@ -603,3 +603,36 @@ export async function quitarInstrumentoEnCadena(id: string): Promise<void> {
   const { error } = await admin.from("instrumentos_en_cadena").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }
+
+// Brief "Seteos: eliminar canción de la vista + contadores discretos" §1:
+// qué canciones ocultó este usuario de su vista de Seteos -- no toca los
+// `seteos` en sí (quedan intactos, ver crearSeteoParaCancion), es solo una
+// preferencia de visibilidad que la pantalla usa para excluir la pestaña de
+// "Canciones" y devolver la canción al selector "+".
+export async function obtenerCancionesOcultasEnSeteos(bandaId: string, usuarioId: string): Promise<string[]> {
+  const admin = supabaseMalgesto();
+  const { data } = await admin.from("seteos_canciones_ocultas").select("cancion_id").eq("banda_id", bandaId).eq("usuario_id", usuarioId);
+  return (data ?? []).map((r) => r.cancion_id as string);
+}
+
+export async function ocultarCancionEnSeteos(bandaId: string, usuarioId: string, cancionId: string): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin
+    .from("seteos_canciones_ocultas")
+    .upsert({ banda_id: bandaId, usuario_id: usuarioId, cancion_id: cancionId }, { onConflict: "banda_id,usuario_id,cancion_id" });
+  if (error) throw new Error(error.message);
+}
+
+// Al volver a agregar la canción desde el selector "+", se quita la marca de
+// oculta -- los seteos ya vinculados a esa canción (que nunca se borraron)
+// vuelven a aparecer tal cual quedaron.
+export async function mostrarCancionEnSeteos(bandaId: string, usuarioId: string, cancionId: string): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin
+    .from("seteos_canciones_ocultas")
+    .delete()
+    .eq("banda_id", bandaId)
+    .eq("usuario_id", usuarioId)
+    .eq("cancion_id", cancionId);
+  if (error) throw new Error(error.message);
+}
