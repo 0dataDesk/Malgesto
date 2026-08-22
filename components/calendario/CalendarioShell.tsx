@@ -18,6 +18,7 @@ import { AgendaView } from "./AgendaView";
 import { EventoDetalle } from "./EventoDetalle";
 import { NuevoEventoForm } from "./NuevoEventoForm";
 import { BandaFilterChips } from "./BandaFilterChips";
+import { BadgePrivado } from "@/components/ui/BadgePrivado";
 import { TabBar } from "@/components/shell/TabBar";
 import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
 
@@ -255,8 +256,11 @@ export function CalendarioShell({
             style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", borderLeft: `3px solid ${COLOR_TIPO[e.tipo]}` }}
           >
             <div>
-              <div className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
-                {e.titulo}
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+                  {e.titulo}
+                </span>
+                {!e.esPublico && <BadgePrivado />}
               </div>
               <div className="mt-0.5 text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
                 {ETIQUETA_TIPO[e.tipo]} · {e.bandaNombre}

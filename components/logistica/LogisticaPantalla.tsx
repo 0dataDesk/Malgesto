@@ -6,6 +6,7 @@ import type { Evento } from "@/lib/malgestoEventos";
 import type { Lugar } from "@/lib/lugaresData";
 import type { PuntoLogistica, MusicoLogistica } from "@/lib/logisticaData";
 import { enZonaApp } from "@/lib/zonaHoraria";
+import { BadgePrivado } from "@/components/ui/BadgePrivado";
 import { crearPuntoLogisticaAction, actualizarPuntoLogisticaAction, eliminarPuntoLogisticaAction } from "@/app/logistica/actions";
 
 // Brief "Logística: línea de tiempo del evento" §2: eje fijo 11:00 -> 02:00
@@ -424,9 +425,12 @@ export function LogisticaPantalla({
       <div className="mt-1 font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
         Logística{!puedeEditar && " · solo lectura"}
       </div>
-      <h1 className="mt-1 text-[26px] font-extrabold tracking-tight" style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}>
-        {evento.titulo}
-      </h1>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <h1 className="text-[26px] font-extrabold tracking-tight" style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}>
+          {evento.titulo}
+        </h1>
+        {!evento.esPublico && <BadgePrivado />}
+      </div>
       <p className="mt-1 text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
         {fechaTexto} · {evento.bandaNombre}
       </p>

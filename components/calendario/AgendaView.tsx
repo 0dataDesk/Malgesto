@@ -4,6 +4,7 @@ import type { Evento } from "@/lib/malgestoEventos";
 import { COLOR_TIPO, ETIQUETA_TIPO, colorConAlpha, formatoMoneda } from "@/lib/eventoUI";
 import { diaDelMes, diaSemanaAbrev, hora, nombreMes, mismoMesAno } from "@/lib/fechas";
 import { enZonaApp } from "@/lib/zonaHoraria";
+import { BadgePrivado } from "@/components/ui/BadgePrivado";
 
 // Brief "Color de banda...": la tira izquierda y el círculo junto al
 // nombre de banda reflejan el color fijo de la banda (no COLOR_TIPO) — el
@@ -30,13 +31,16 @@ function TarjetaEvento({ evento, colorBanda, onClick }: { evento: Evento; colorB
         </div>
       </div>
       <div className="flex-1">
-        <div className="flex items-center justify-between">
-          <span
-            className="font-mono text-[10px] font-bold uppercase"
-            style={{ color: COLOR_TIPO[evento.tipo], letterSpacing: "0.12em" }}
-          >
-            {ETIQUETA_TIPO[evento.tipo]}
-          </span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span
+              className="font-mono text-[10px] font-bold uppercase"
+              style={{ color: COLOR_TIPO[evento.tipo], letterSpacing: "0.12em" }}
+            >
+              {ETIQUETA_TIPO[evento.tipo]}
+            </span>
+            {!evento.esPublico && <BadgePrivado />}
+          </div>
           {evento.tipo !== "cumpleanos" && (
             <span className="font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
               {hora(evento.fechaInicio)}

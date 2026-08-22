@@ -7,7 +7,10 @@ import type { Membresia, NombreBloque } from "@/lib/bloques";
 export type { Membresia, NombreBloque };
 export { bloqueVisible, algunaBandaConBloque, membresiasConBloque } from "@/lib/bloques";
 
-export type TipoEvento = "ensayo" | "show" | "cumpleanos" | "gira";
+// Brief "Calendario: público/privado, nuevo tipo de evento, filtro de
+// Presskit" §2: "sesion" cubre actividades de banda que no son show ni
+// ensayo (sesión de fotos, grabación de video, etc.).
+export type TipoEvento = "ensayo" | "show" | "cumpleanos" | "gira" | "sesion";
 
 // Brief "Estado Tentativo...": solo aplica a show/gira -- ensayo/cumpleanos
 // siempre son "confirmado" (forzado a nivel app, ver crearEvento/
@@ -36,6 +39,12 @@ export type Evento = {
   // una sola ciudad por Show, solo se respeta para ese tipo (ver
   // crearEvento/actualizarEvento).
   ciudad: string | null;
+  // Brief "Calendario: público/privado...": editable solo para tipo show
+  // (ver NuevoEventoForm/crearEvento/actualizarEvento) -- el resto de los
+  // tipos nace y queda en `true` (default de columna), sin control propio.
+  // Un evento privado no se oculta en ningún lado, solo se marca (ver
+  // BadgePrivado).
+  esPublico: boolean;
 };
 
 type BandaEmbebida = {
@@ -65,7 +74,7 @@ const puedeTenerLugar = (tipo: TipoEvento) => tipo === "ensayo" || tipo === "sho
 // lectura de eventos — no solo los de fin de mes — devolviendo `[]` en vez
 // de fallar ruidosamente. Se califica con el nombre del FK para desambiguar.
 const COLUMNAS_EVENTO =
-  "id, banda_id, tipo, estado, titulo, fecha_inicio, fecha_fin, ingreso_esperado, gira_id, setlist_id, lugar_id, pais, ciudades, ciudad, bandas!eventos_banda_id_fkey(nombre), lugares(nombre, link_maps)";
+  "id, banda_id, tipo, estado, titulo, fecha_inicio, fecha_fin, ingreso_esperado, gira_id, setlist_id, lugar_id, pais, ciudades, ciudad, es_publico, bandas!eventos_banda_id_fkey(nombre), lugares(nombre, link_maps)";
 
 // Bandas del usuario, con su rol — determina si va directo al calendario de
 // su única banda o si necesita el selector (más de una). banda_id es
@@ -130,6 +139,7 @@ function mapearEvento(
     pais: string | null;
     ciudades: string | null;
     ciudad: string | null;
+    es_publico: boolean;
     bandas: unknown;
     lugares: unknown;
   },
@@ -156,6 +166,7 @@ function mapearEvento(
     pais: e.pais,
     ciudades: e.ciudades,
     ciudad: e.ciudad,
+    esPublico: e.es_publico,
   };
 }
 
@@ -246,6 +257,9 @@ export type NuevoEventoInput = {
   ciudades: string | null;
   // Solo se respeta para tipo show -- ver crearEvento/actualizarEvento.
   ciudad: string | null;
+  // Solo se respeta para tipo show -- el resto siempre nace/queda público
+  // (ver crearEvento/actualizarEvento).
+  esPublico: boolean;
 };
 
 async function resolverLugarId(
@@ -310,6 +324,7 @@ export async function crearEvento(input: NuevoEventoInput) {
   const ingresoEsperado = input.tipo === "show" ? input.ingresoEsperado : null;
   const estado = input.tipo === "show" ? input.estado : "confirmado";
   const ciudad = input.tipo === "show" ? input.ciudad : null;
+  const esPublico = input.tipo === "show" ? input.esPublico : true;
 
   const { data, error } = await admin
     .from("eventos")
@@ -325,6 +340,7 @@ export async function crearEvento(input: NuevoEventoInput) {
       setlist_id: puedeTenerSetlist(input.tipo) ? input.setlistId : null,
       lugar_id: lugarId,
       ciudad,
+      es_publico: esPublico,
     })
     .select("id")
     .single();
@@ -383,6 +399,7 @@ export async function actualizarEvento(eventoId: string, input: NuevoEventoInput
   const ingresoEsperado = input.tipo === "show" ? input.ingresoEsperado : null;
   const estado = input.tipo === "show" ? input.estado : "confirmado";
   const ciudad = input.tipo === "show" ? input.ciudad : null;
+  const esPublico = input.tipo === "show" ? input.esPublico : true;
 
   const { error } = await admin
     .from("eventos")
@@ -398,6 +415,7 @@ export async function actualizarEvento(eventoId: string, input: NuevoEventoInput
       setlist_id: puedeTenerSetlist(input.tipo) ? input.setlistId : null,
       lugar_id: lugarId,
       ciudad,
+      es_publico: esPublico,
       pais: null,
       ciudades: null,
     })

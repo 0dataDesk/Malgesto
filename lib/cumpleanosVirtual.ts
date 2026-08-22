@@ -38,6 +38,7 @@ function construirEvento(p: PersonaConCumple, anio: number): Evento {
     pais: null,
     ciudades: null,
     ciudad: null,
+    esPublico: true,
   };
 }
 

@@ -11,11 +11,15 @@ import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 // sin importar la fecha -- gira en particular unifica el valor que hoy se ve
 // distinto entre el día del calendario (por el bug de colorConAlpha con hex,
 // ver abajo) y el badge de "Próximos eventos".
+// Brief "Calendario: público/privado, nuevo tipo de evento...": "sesion"
+// suma un verde que no compite con ninguno de los hues ya usados (naranja
+// 34, teal 195, rosa/durazno, violeta).
 export const COLOR_TIPO: Record<TipoEvento, string> = {
   show: "oklch(0.64 0.15 34)",
   ensayo: "oklch(0.64 0.13 195)",
   cumpleanos: "#E0839C",
   gira: "#7C5CBF",
+  sesion: "oklch(0.62 0.13 145)",
 };
 
 function clamp01(n: number): number {
@@ -71,6 +75,7 @@ export const ETIQUETA_TIPO: Record<TipoEvento, string> = {
   ensayo: "Ensayo",
   cumpleanos: "Cumpleaños",
   gira: "Gira",
+  sesion: "Sesión",
 };
 
 // Brief "Estado Tentativo...": amarillo/ámbar de advertencia, deliberadamente

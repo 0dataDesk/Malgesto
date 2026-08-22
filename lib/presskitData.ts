@@ -296,6 +296,10 @@ export type PresskitProximaFecha = { fechaInicio: string; titulo: string; lugarN
 // el mismo campo texto "confirmado"|"tentativo" que ya usa Calendario --
 // ver EstadoEvento en malgestoEventos.ts) -- una gira tentativa (ej.
 // Colombia) no debería aparecer acá hasta confirmarse.
+// Brief "Calendario: público/privado, nuevo tipo de evento, filtro de
+// Presskit" §4: solo shows/giras (nunca ensayos, sesiones ni cumpleaños),
+// confirmadas, y públicas -- un ensayo o sesión interna, o un show privado,
+// no debe filtrarse hacia lo que ve un tercero externo (Design, prensa).
 export async function obtenerProximasFechas(bandaId: string): Promise<PresskitProximaFecha[]> {
   const admin = supabaseMalgesto();
   const ahora = new Date().toISOString();
@@ -303,7 +307,9 @@ export async function obtenerProximasFechas(bandaId: string): Promise<PresskitPr
     .from("eventos")
     .select("titulo, fecha_inicio, lugares(nombre)")
     .eq("banda_id", bandaId)
+    .in("tipo", ["show", "gira"])
     .eq("estado", "confirmado")
+    .eq("es_publico", true)
     .gt("fecha_inicio", ahora)
     .order("fecha_inicio", { ascending: true });
   return (data ?? []).map((e) => ({

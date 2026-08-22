@@ -6,6 +6,7 @@ import type { Evento } from "@/lib/malgestoEventos";
 import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_TENTATIVO, formatoMoneda, colorConAlpha, eventoYaPaso } from "@/lib/eventoUI";
 import { enZonaApp } from "@/lib/zonaHoraria";
 import { eliminarEventoAction, asignarEstadoAction, crearSetlistDesdeEventoAction } from "@/app/inicio/actions";
+import { BadgePrivado } from "@/components/ui/BadgePrivado";
 
 type SetlistOpcion = { id: string; nombre: string };
 
@@ -209,6 +210,7 @@ export function EventoDetalle({
               Ya pasó
             </span>
           )}
+          {!evento.esPublico && <BadgePrivado />}
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {evento.tipo !== "cumpleanos" && puedeEditar && (

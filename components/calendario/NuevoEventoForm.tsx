@@ -20,7 +20,7 @@ type SetlistOpcion = { id: string; bandaId: string; nombre: string };
 // es la unión de TipoEvento + esta pseudo-opción, nunca al revés.
 type TipoFormulario = TipoEvento | "ausencia";
 
-const TIPOS: TipoEvento[] = ["show", "ensayo", "gira"];
+const TIPOS: TipoEvento[] = ["show", "ensayo", "gira", "sesion"];
 const COLOR_AUSENCIA = "oklch(0.55 0.02 55)";
 
 const inputCls = "w-full rounded-xl border px-3.5 py-3 text-[15px] outline-none";
@@ -143,6 +143,11 @@ export function NuevoEventoForm({
   // Brief "Estado Tentativo...": default Confirmado -- solo aplica a
   // show/gira, se ignora (forzado a "confirmado") para el resto en onSubmit.
   const [tentativo, setTentativo] = useState(eventoExistente?.estado === "tentativo");
+  // Brief "Calendario: público/privado...": default público -- privado es
+  // la excepción que hay que marcar a propósito, solo aplica a Show (se
+  // fuerza a `true` para el resto en el server, ver crearEvento/
+  // actualizarEvento).
+  const [esPublico, setEsPublico] = useState(eventoExistente?.esPublico ?? true);
   const [titulo, setTitulo] = useState(eventoExistente && eventoExistente.tipo !== "ensayo" ? eventoExistente.titulo : "");
   const [horaInicio, setHoraInicio] = useState(inicial?.hora ?? "19:00");
   const [horaFin, setHoraFin] = useState(inicialFin?.hora ?? "22:00");
@@ -341,6 +346,7 @@ export function NuevoEventoForm({
         pais: tipo === "gira" ? pais.trim() || null : null,
         ciudades: tipo === "gira" ? ciudades.trim() || null : null,
         ciudad: tipo === "show" ? ciudad.trim() || null : null,
+        esPublico: tipo === "show" ? esPublico : true,
       };
 
       startTransition(async () => {
@@ -566,6 +572,25 @@ export function NuevoEventoForm({
               </div>
               <p className="mt-1 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
                 {tentativo ? "Fecha candidata, todavía sin confirmar." : "Fecha confirmada."}
+              </p>
+            </div>
+          )}
+
+          {/* Brief "Calendario: público/privado, nuevo tipo de evento,
+              filtro de Presskit" §1: solo Shows tienen este control -- el
+              resto de los tipos queda siempre público (forzado en el
+              server). Un show privado no se oculta en ningún lado, solo se
+              marca con el badge "Evento privado" (ver BadgePrivado). */}
+          {tipo === "show" && (
+            <div>
+              <div className="flex items-center justify-between">
+                <span className={labelCls} style={{ ...labelStyle, marginBottom: 0 }}>
+                  Público
+                </span>
+                <Switch activo={esPublico} onToggle={() => setEsPublico((v) => !v)} />
+              </div>
+              <p className="mt-1 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+                {esPublico ? "Puede aparecer en el Presskit." : "Privado — sigue visible para la banda, marcado como privado; no aparece en el Presskit."}
               </p>
             </div>
           )}
