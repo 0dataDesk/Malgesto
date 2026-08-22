@@ -18,30 +18,28 @@ const ACENTO = "oklch(0.64 0.15 34)";
 const PILL_INACTIVO = { background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" };
 const PILL_ACTIVO = { background: ACENTO, color: "oklch(0.99 0.01 82)" };
 
-// Brief "Seteos: completar selector de instrumento + rediseño de cadena"
-// §2: acentos de "cadena de señal" -- Amplificadores reusa el acento cálido
-// que ya usa toda la app (ACENTO), Pedales/FX suma uno frío nuevo para que
-// ambos grupos se distingan a simple vista y el conector entre ellos lea
-// como un degradado real, no un tinte plano.
-const ACENTO_AMPLI = ACENTO;
-const ACENTO_PEDAL = "oklch(0.58 0.12 220)";
-// Brief "Instrumento como bloque agregable...": tercer acento de "cadena de
-// señal", distinto de Amplificadores (cálido) y Pedales/FX (frío-azul) --
-// verde para que el grupo se distinga a simple vista de los otros dos.
-const ACENTO_INSTRUMENTO = "oklch(0.62 0.13 150)";
-
 // Brief "Seteos: colores, conectores, borrar por canción..." §2: colores de
-// fondo por tipo de bloque -- reemplazan el fondo gris de página que tenía
-// esta pantalla antes (revertido a cream en app/seteos/page.tsx). Texto
+// fondo por tipo de bloque, uno solo por tipo (brief "...simplificar
+// colores..." §2: ya no hay un segundo tono para el acordeón individual --
+// ver DispositivoBloque/InstrumentoBloque, que ahora van en blanco). Texto
 // claro para Amplificadores porque su fondo es oscuro; el resto conserva
 // TEXTO_OSCURO/TEXTO_GRIS porque sus fondos son claros.
 const TEXTO_CLARO = "oklch(0.96 0.006 260)";
 const TEXTO_CLARO_GRIS = "oklch(0.76 0.012 260)";
 const FONDO_INSTRUMENTO = "oklch(0.68 0.075 55)";
 const FONDO_AMPLI_BLOQUE = "oklch(0.33 0.006 260)";
-const FONDO_AMPLI_ITEM = "oklch(0.4 0.007 260)";
 const FONDO_PEDAL_BLOQUE = "oklch(0.86 0.006 235)";
-const FONDO_PEDAL_ITEM = "oklch(0.91 0.005 235)";
+
+// Brief "Seteos: simplificar colores + permiso de borrar seteo por
+// canción" §3: acentos (punto de color del acordeón de bloque, borde
+// izquierdo de cada acordeón individual) que combinan con la paleta de
+// cada bloque en vez de los genéricos verde/naranja/azul de antes --
+// mismo tono que el fondo de bloque, más oscuro/saturado para que el punto
+// se distinga tanto sobre ese fondo como sobre el blanco de cada acordeón
+// individual.
+const ACENTO_INSTRUMENTO = "oklch(0.42 0.09 55)";
+const ACENTO_AMPLI = "oklch(0.5 0.008 260)";
+const ACENTO_PEDAL = "oklch(0.58 0.012 235)";
 
 const MODELO_AFINADOR = "Afinador";
 const esAfinador = (d: DispositivoConSeteos) => d.disenoModelo === MODELO_AFINADOR;
@@ -51,15 +49,13 @@ const esAfinador = (d: DispositivoConSeteos) => d.disenoModelo === MODELO_AFINAD
 // punto de color + borde del acento del grupo (brief §2 "distinción visual")
 // y arranca cerrado (brief §2 "inician colapsados", a diferencia del
 // acordeón de Instrumento o Deshabilitados que no cambian). Brief "Seteos:
-// colores, conectores, borrar por canción..." §2/§3: `fondoBloque` tiñe este
-// acordeón del bloque completo, `fondoItem`/`oscuro` bajan al acordeón de
-// cada dispositivo individual -- sin ningún tick/conector entre ellos (§3,
-// se eliminaron por completo).
+// simplificar colores..." §2: `fondoBloque`/`oscuro` tiñen únicamente este
+// acordeón del bloque completo -- cada DispositivoBloque individual dentro
+// ya no recibe fondo propio, va en blanco (mismo criterio que Deshabilitados).
 function GrupoCadena({
   titulo,
   color,
   fondoBloque,
-  fondoItem,
   oscuro,
   dispositivos,
   abierto,
@@ -73,7 +69,6 @@ function GrupoCadena({
   titulo: string;
   color: string;
   fondoBloque: string;
-  fondoItem: string;
   oscuro: boolean;
   dispositivos: DispositivoConSeteos[];
   abierto: boolean;
@@ -104,8 +99,6 @@ function GrupoCadena({
               key={d.id}
               dispositivo={d}
               colorCadena={color}
-              fondo={fondoItem}
-              oscuro={oscuro}
               vista={vista}
               onValoresCambiados={onValoresCambiados}
               onSeteoCreado={onSeteoCreado}
@@ -140,7 +133,7 @@ function InstrumentoBloque({
   return (
     <div
       className="flex items-center justify-between gap-3 rounded-2xl p-4"
-      style={{ background: FONDO_INSTRUMENTO, border: "1px solid oklch(0.89 0.013 78)", borderLeft: `3px solid ${colorCadena}` }}
+      style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", borderLeft: `3px solid ${colorCadena}` }}
     >
       <div className="min-w-0 flex-1">
         <span className="block truncate text-[19px] font-bold" style={{ color: TEXTO_OSCURO, fontFamily: "var(--font-bricolage), sans-serif" }}>
@@ -580,7 +573,6 @@ export function SeteosLista({
           titulo="Amplificadores"
           color={ACENTO_AMPLI}
           fondoBloque={FONDO_AMPLI_BLOQUE}
-          fondoItem={FONDO_AMPLI_ITEM}
           oscuro
           dispositivos={amplificadores}
           abierto={amplificadoresAbierto}
@@ -598,7 +590,6 @@ export function SeteosLista({
           titulo="Pedales/FX"
           color={ACENTO_PEDAL}
           fondoBloque={FONDO_PEDAL_BLOQUE}
-          fondoItem={FONDO_PEDAL_ITEM}
           oscuro={false}
           dispositivos={pedales}
           abierto={pedalesAbierto}
