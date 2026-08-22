@@ -182,14 +182,25 @@ export function LigaPublicadaSeccion({
 }
 
 // Brief "Presskit: flujo de envío en Gestión/Bandas, estatus de 4 estados"
-// §2: si hay contenido editado (actualizadoEn no null) que todavía no se
-// mandó -- ya sea porque nunca se envió, o porque se editó algo después del
-// último envío -- hay algo pendiente de mandar. Exportada porque
-// EnviarPresskitSeccion y su caller (DetalleBanda) la necesitan para
-// decidir si mostrar el botón habilitado.
-export function hayEnvioPendiente(enviadoEn: string | null, actualizadoEn: string | null): boolean {
-  if (!actualizadoEn) return false;
+// §2: si hay contenido capturado que todavía no se mandó -- ya sea porque
+// nunca se envió, o porque se editó algo después del último envío -- hay
+// algo pendiente de mandar. Exportada porque EnviarPresskitSeccion y su
+// caller (DetalleBanda) la necesitan para decidir si mostrar el botón
+// habilitado.
+//
+// Fix "Enviar a Presskit deshabilitado con datos ya cargados": la versión
+// anterior usaba actualizadoEn no-null como proxy de "hay contenido", lo que
+// dejaba el botón apagado para presskits con datos reales (semblanza,
+// género, fotos) pero actualizadoEn en null -- capturados antes de que
+// tocarActualizado tocara esa columna en cada mutación, u otro caso donde
+// nunca se seteó. Ahora `hayContenido` (lib/presskitData.ts,
+// hayContenidoCapturado) revisa el contenido real en vez de esa marca de
+// tiempo: "enviadoEn null + ya hay datos capturados" siempre es "activo",
+// sin depender de actualizadoEn.
+export function hayEnvioPendiente(enviadoEn: string | null, actualizadoEn: string | null, hayContenido: boolean): boolean {
+  if (!hayContenido) return false;
   if (!enviadoEn) return true;
+  if (!actualizadoEn) return false;
   return new Date(actualizadoEn).getTime() > new Date(enviadoEn).getTime();
 }
 
@@ -206,12 +217,14 @@ export function EnviarPresskitSeccion({
   presskitId,
   enviadoEn,
   actualizadoEn,
+  hayContenido,
   onEnviado,
 }: {
   bandaId: string;
   presskitId: string;
   enviadoEn: string | null;
   actualizadoEn: string | null;
+  hayContenido: boolean;
   onEnviado: (enviadoEn: string) => void;
 }) {
   const [enviando, setEnviando] = useState(false);
@@ -219,7 +232,7 @@ export function EnviarPresskitSeccion({
   const [copiado, setCopiado] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const activo = hayEnvioPendiente(enviadoEn, actualizadoEn);
+  const activo = hayEnvioPendiente(enviadoEn, actualizadoEn, hayContenido);
 
   const enviar = async () => {
     setError(null);

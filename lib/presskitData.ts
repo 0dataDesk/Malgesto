@@ -79,6 +79,27 @@ async function tocarActualizado(admin: ReturnType<typeof supabaseMalgesto>, pres
   await admin.from("presskits").update({ actualizado_en: new Date().toISOString() }).eq("id", presskitId);
 }
 
+// Bug reportado: "Enviar a Presskit" quedaba deshabilitado para bandas con
+// semblanza/género/fotos ya cargados pero nunca enviados, porque
+// hayEnvioPendiente (PresskitEstado.tsx) inferís "hay contenido" de
+// actualizado_en no nulo -- y ese presskit se había capturado antes de que
+// `tocarActualizado` tocara esa columna en cada mutación (o por cualquier
+// otra vía que no la haya tocado), así que quedaba en null pese a tener
+// datos reales. Esta función revisa el contenido de verdad (texto propio +
+// fotos) en vez de una marca de tiempo derivada, para que "enviado_en null +
+// ya hay datos capturados" sea siempre "activo", sin depender de que
+// actualizado_en se haya seteado alguna vez.
+export async function hayContenidoCapturado(presskit: Presskit): Promise<boolean> {
+  const textoPropio = [presskit.bioLarga, presskit.pais, presskit.ciudad, presskit.contactoNombre, presskit.contactoTelefono, presskit.contactoEmail].some(
+    (v) => (v ?? "").trim() !== ""
+  );
+  if (textoPropio) return true;
+
+  const admin = supabaseMalgesto();
+  const { count } = await admin.from("presskit_fotos").select("id", { count: "exact", head: true }).eq("presskit_id", presskit.id);
+  return (count ?? 0) > 0;
+}
+
 // Un presskit por banda (UNIQUE(banda_id) en DB) -- se crea vacío la primera
 // vez que alguien entra a la pantalla de captura, mismo criterio que
 // obtenerOCrearStagePlot.

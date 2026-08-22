@@ -34,7 +34,7 @@ import {
 } from "@/lib/gestionData";
 import { crearLugar, actualizarLugar, actualizarLugarBandas, eliminarLugar } from "@/lib/lugaresData";
 import { asignarDiseno, sincronizarConsola, quitarDispositivo, type CategoriaCatalogo, type DispositivoAsignado } from "@/lib/dispositivosData";
-import { obtenerOCrearPresskit, actualizarLigaPublicada, marcarPresskitEnviado, construirDocumentoPresskit } from "@/lib/presskitData";
+import { obtenerOCrearPresskit, actualizarLigaPublicada, marcarPresskitEnviado, construirDocumentoPresskit, hayContenidoCapturado } from "@/lib/presskitData";
 
 export async function crearBandaAction(nombre: string): Promise<string> {
   const usuarioId = await requerirSuperadmin();
@@ -60,12 +60,17 @@ export async function actualizarBandaAction(bandaId: string, cambios: Actualizac
 // necesarios acá para el botón "Enviar a Presskit" (activo/inactivo) y el
 // estatus de 4 estados, que antes solo se resolvían en la pantalla de
 // captura.
+// Fix "Enviar a Presskit deshabilitado con datos ya cargados": suma
+// hayContenido (texto propio + fotos, ver hayContenidoCapturado) -- activar
+// el botón ya no depende únicamente de actualizadoEn, que puede quedar en
+// null aunque el presskit tenga datos reales capturados.
 export async function obtenerLigaPublicadaAction(bandaId: string): Promise<{
   presskitId: string;
   ligaPublicada: string | null;
   enviadoEn: string | null;
   actualizadoEn: string | null;
   ligaActualizadaEn: string | null;
+  hayContenido: boolean;
 }> {
   await requerirSuperadmin();
   const presskit = await obtenerOCrearPresskit(bandaId);
@@ -75,6 +80,7 @@ export async function obtenerLigaPublicadaAction(bandaId: string): Promise<{
     enviadoEn: presskit.enviadoEn,
     actualizadoEn: presskit.actualizadoEn,
     ligaActualizadaEn: presskit.ligaActualizadaEn,
+    hayContenido: await hayContenidoCapturado(presskit),
   };
 }
 

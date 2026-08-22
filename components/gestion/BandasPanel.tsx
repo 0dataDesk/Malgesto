@@ -387,6 +387,7 @@ function DetalleBanda({
     enviadoEn: string | null;
     actualizadoEn: string | null;
     ligaActualizadaEn: string | null;
+    hayContenido: boolean;
   } | null>(null);
   useEffect(() => {
     let cancelado = false;
@@ -512,6 +513,7 @@ function DetalleBanda({
               presskitId={liga.presskitId}
               enviadoEn={liga.enviadoEn}
               actualizadoEn={liga.actualizadoEn}
+              hayContenido={liga.hayContenido}
               onEnviado={(enviadoEn) => setLiga((p) => (p ? { ...p, enviadoEn } : p))}
             />
           </div>
