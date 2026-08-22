@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import type { Presskit, PresskitFoto, PresskitRed, ActualizacionPresskit } from "@/lib/presskitData";
+import type { Presskit, PresskitFoto, PresskitRed, ActualizacionPresskit, CategoriaFotoPresskit } from "@/lib/presskitData";
 import type { PlazaConPersona } from "@/lib/stagePlotData";
 import { etiquetaPlaza } from "@/lib/instrumentoCatalogo";
 import { PLATAFORMAS_COMUNES, PLATAFORMA_OTRA } from "@/lib/plataformaCatalogo";
@@ -52,16 +52,27 @@ function formatearFecha(iso: string): string {
 
 type BandaResumen = { id: string; nombre: string; genero: string | null };
 
+// Brief "Presskit: dos apartados de fotos (banda/conceptual y flyers)" §1:
+// mismo componente/mecanismo de subida para ambos apartados, parametrizado
+// por `categoria` -- filtra su propia porción de la lista completa de fotos
+// y calcula `orden` sobre esa porción, así cada apartado ordena sus fotos
+// de forma independiente aunque compartan la misma tabla.
 function GaleriaFotos({
   bandaId,
   presskitId,
-  fotos,
+  categoria,
+  titulo,
+  descripcion,
+  todasLasFotos,
   onFotos,
   onCambio,
 }: {
   bandaId: string;
   presskitId: string;
-  fotos: PresskitFoto[];
+  categoria: CategoriaFotoPresskit;
+  titulo: string;
+  descripcion: string;
+  todasLasFotos: PresskitFoto[];
   onFotos: (f: PresskitFoto[]) => void;
   onCambio: () => void;
 }) {
@@ -70,17 +81,20 @@ function GaleriaFotos({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const fotos = todasLasFotos.filter((f) => f.categoria === categoria);
+
   const subirArchivos = async (archivos: FileList) => {
     setError(null);
     setSubiendo(true);
     let orden = fotos.length;
-    let actuales = fotos;
+    let actuales = todasLasFotos;
     try {
       for (const archivo of Array.from(archivos)) {
         const formData = new FormData();
         formData.set("bandaId", bandaId);
         formData.set("presskitId", presskitId);
         formData.set("orden", String(orden));
+        formData.set("categoria", categoria);
         formData.set("archivo", archivo);
         const foto = await subirFotoPresskitAction(formData);
         actuales = [...actuales, foto];
@@ -100,7 +114,7 @@ function GaleriaFotos({
     startTransition(async () => {
       try {
         await eliminarFotoPresskitAction(bandaId, presskitId, foto.id, foto.storagePath);
-        onFotos(fotos.filter((f) => f.id !== foto.id));
+        onFotos(todasLasFotos.filter((f) => f.id !== foto.id));
         onCambio();
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo quitar la foto.");
@@ -110,9 +124,9 @@ function GaleriaFotos({
 
   return (
     <div>
-      <Etiqueta>Fotos</Etiqueta>
+      <Etiqueta>{titulo}</Etiqueta>
       <p className="mb-2.5 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
-        Mínimo 3 fotos, en distintas orientaciones (horizontal y vertical) — la banda puede subir más.
+        {descripcion}
       </p>
 
       {fotos.length > 0 && (
@@ -467,7 +481,29 @@ export function PresskitCaptura({
       </Tarjeta>
 
       <Tarjeta>
-        <GaleriaFotos bandaId={banda.id} presskitId={presskit.id} fotos={fotos} onFotos={setFotos} onCambio={marcarActualizado} />
+        <GaleriaFotos
+          bandaId={banda.id}
+          presskitId={presskit.id}
+          categoria="banda"
+          titulo="Fotos de banda / conceptuales"
+          descripcion="Mínimo 3 fotos, en distintas orientaciones (horizontal y vertical) — la banda puede subir más."
+          todasLasFotos={fotos}
+          onFotos={setFotos}
+          onCambio={marcarActualizado}
+        />
+      </Tarjeta>
+
+      <Tarjeta>
+        <GaleriaFotos
+          bandaId={banda.id}
+          presskitId={presskit.id}
+          categoria="flyer"
+          titulo="Flyers"
+          descripcion="Material promocional, típicamente ligado a una fecha — sin mínimo obligatorio."
+          todasLasFotos={fotos}
+          onFotos={setFotos}
+          onCambio={marcarActualizado}
+        />
       </Tarjeta>
 
       <Tarjeta>

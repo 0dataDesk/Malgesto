@@ -112,7 +112,12 @@ export async function actualizarPresskit(presskitId: string, cambios: Actualizac
   if (error) throw new Error(error.message);
 }
 
-export type PresskitFoto = { id: string; storagePath: string; orden: number; url: string };
+// Brief "Presskit: dos apartados de fotos (banda/conceptual y flyers)":
+// `categoria` distingue fotos de banda/conceptuales (semblanza) de flyers
+// (material promocional) -- dos galerías separadas en la pantalla de
+// captura y dos secciones separadas en el documento para Design.
+export type CategoriaFotoPresskit = "banda" | "flyer";
+export type PresskitFoto = { id: string; storagePath: string; orden: number; url: string; categoria: CategoriaFotoPresskit };
 
 function urlPublicaFoto(admin: ReturnType<typeof supabaseMalgesto>, storagePath: string): string {
   return admin.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
@@ -120,8 +125,18 @@ function urlPublicaFoto(admin: ReturnType<typeof supabaseMalgesto>, storagePath:
 
 export async function obtenerFotos(presskitId: string): Promise<PresskitFoto[]> {
   const admin = supabaseMalgesto();
-  const { data } = await admin.from("presskit_fotos").select("id, storage_path, orden").eq("presskit_id", presskitId).order("orden", { ascending: true });
-  return (data ?? []).map((f) => ({ id: f.id, storagePath: f.storage_path, orden: f.orden, url: urlPublicaFoto(admin, f.storage_path) }));
+  const { data } = await admin
+    .from("presskit_fotos")
+    .select("id, storage_path, orden, categoria")
+    .eq("presskit_id", presskitId)
+    .order("orden", { ascending: true });
+  return (data ?? []).map((f) => ({
+    id: f.id,
+    storagePath: f.storage_path,
+    orden: f.orden,
+    categoria: f.categoria as CategoriaFotoPresskit,
+    url: urlPublicaFoto(admin, f.storage_path),
+  }));
 }
 
 // Sube el archivo al bucket `presskit` (público, 10MB, solo imágenes -- ya
@@ -129,7 +144,13 @@ export async function obtenerFotos(presskitId: string): Promise<PresskitFoto[]> 
 // escrituras de este módulo: el bucket no tiene policies propias para
 // authenticated, así que la subida directa desde el cliente no funcionaría
 // sin RLS de Storage, que este brief no pide agregar.
-export async function subirFoto(presskitId: string, bandaId: string, archivo: File, ordenSiguiente: number): Promise<PresskitFoto> {
+export async function subirFoto(
+  presskitId: string,
+  bandaId: string,
+  archivo: File,
+  ordenSiguiente: number,
+  categoria: CategoriaFotoPresskit
+): Promise<PresskitFoto> {
   const extension = TIPOS_PERMITIDOS[archivo.type];
   if (!extension) throw new Error("Solo se aceptan imágenes JPG, PNG o WebP.");
   if (archivo.size > TAMANO_MAXIMO) throw new Error("La imagen no puede superar los 10MB.");
@@ -142,15 +163,21 @@ export async function subirFoto(presskitId: string, bandaId: string, archivo: Fi
 
   const { data, error } = await admin
     .from("presskit_fotos")
-    .insert({ presskit_id: presskitId, storage_path: path, orden: ordenSiguiente })
-    .select("id, storage_path, orden")
+    .insert({ presskit_id: presskitId, storage_path: path, orden: ordenSiguiente, categoria })
+    .select("id, storage_path, orden, categoria")
     .single();
   if (error || !data) {
     await admin.storage.from(BUCKET).remove([path]);
     throw new Error(error?.message ?? "No se pudo guardar la foto.");
   }
   await tocarActualizado(admin, presskitId);
-  return { id: data.id, storagePath: data.storage_path, orden: data.orden, url: urlPublicaFoto(admin, data.storage_path) };
+  return {
+    id: data.id,
+    storagePath: data.storage_path,
+    orden: data.orden,
+    categoria: data.categoria as CategoriaFotoPresskit,
+    url: urlPublicaFoto(admin, data.storage_path),
+  };
 }
 
 export async function eliminarFoto(presskitId: string, fotoId: string, storagePath: string): Promise<void> {
@@ -283,9 +310,23 @@ export async function construirDocumentoPresskit(bandaId: string): Promise<strin
   if (integrantes.length === 0) lineas.push("(sin completar)");
   else for (const i of integrantes) lineas.push(`- ${i.nombrePersona} — ${etiquetaPlaza(i.instrumento, i.etiqueta)}`);
 
+  // Brief "Presskit: dos apartados de fotos (banda/conceptual y flyers)"
+  // §2: agrupadas por categoría con encabezado propio, no una sola lista
+  // mezclada -- mismo orden que la pantalla de captura (banda primero).
   lineas.push("", "FOTOS");
-  if (fotos.length === 0) lineas.push("(sin fotos)");
-  else fotos.forEach((f, i) => lineas.push(`- Foto ${i + 1}: ${f.url}`));
+  const fotosBanda = fotos.filter((f) => f.categoria === "banda");
+  const fotosFlyer = fotos.filter((f) => f.categoria === "flyer");
+  if (fotos.length === 0) {
+    lineas.push("(sin fotos)");
+  } else {
+    lineas.push("Fotos de banda:");
+    if (fotosBanda.length === 0) lineas.push("(sin fotos)");
+    else fotosBanda.forEach((f, i) => lineas.push(`- Foto ${i + 1}: ${f.url}`));
+
+    lineas.push("", "Flyers:");
+    if (fotosFlyer.length === 0) lineas.push("(sin flyers)");
+    else fotosFlyer.forEach((f, i) => lineas.push(`- Flyer ${i + 1}: ${f.url}`));
+  }
 
   lineas.push("", "LINKS DE PLATAFORMAS");
   if (redes.length === 0) lineas.push("(sin completar)");
