@@ -279,7 +279,9 @@ export async function marcarPresskitEnviado(presskitId: string): Promise<string>
 // recortado)" §1: texto fijo que Jorge ya no escribe a mano cada vez -- va
 // siempre al inicio del documento (ver construirDocumentoPresskit).
 export const PROMPT_DESIGN_PRESSKIT =
-  "Vas a diseñar una página pública de presskit para esta banda, usando exactamente la información de abajo. No inventes ni completes datos que no estén incluidos.";
+  "Vas a diseñar una página pública de presskit para esta banda, usando exactamente la información de abajo. No inventes ni completes datos que no estén incluidos.\n\n" +
+  "Además del diseño completo de la página, crea una versión reducida de una sola página, tamaño carta, que sirva como resumen imprimible/descargable del presskit (mismo estilo visual, contenido condensado a lo esencial: nombre, género, semblanza breve, foto principal, integrantes, contacto y links).\n\n" +
+  "En la página principal, agrega un botón para descargar esa versión en PDF. El botón debe ser discreto — ubicado arriba a la izquierda, de bajo perfil, que no compita visualmente con el resto del diseño (no debe ser un botón llamativo ni protagonista).";
 
 export type PresskitProximaFecha = { fechaInicio: string; titulo: string; lugarNombre: string | null };
 
