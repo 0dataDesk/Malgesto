@@ -2,18 +2,23 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
-import { obtenerOCrearStagePlot } from "@/lib/stagePlotData";
-import { construirRider } from "@/lib/riderData";
+import { obtenerOCrearStagePlot, obtenerPlazasConPersonaDeBanda, obtenerAmplificadoresDeBanda } from "@/lib/stagePlotData";
+import { construirRider, obtenerRiderInfo } from "@/lib/riderData";
 import { TabBar } from "@/components/shell/TabBar";
 import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
-import { RiderVista } from "@/components/stagePlot/RiderVista";
-import { BotonCopiarLink } from "@/components/stagePlot/StagePlotAcciones";
+import { RiderTecnicoModulo } from "@/components/stagePlot/RiderTecnicoModulo";
 import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda";
 
-// Vista de solo lectura, pensada para compartir con el sonidista del venue
-// sin pasar por el editor (Brief Stage Plot §4) — mismo patrón de selector
-// de banda ?banda= que Canciones/Seteos (una plantilla por banda, se
-// reusa en todos sus shows, sin selector por show en esta primera versión).
+// Brief "Rider Técnico: renombrar módulo + rediseñar contenido de Rider":
+// el bloque pasa de "Stage Plot" a "Rider Técnico" en todo texto visible
+// (acá, TabBar, Gestión > Bandas) -- la clave interna del bloque
+// (`"stage_plot"`, la ruta `/stage-plot`, la columna `stage_plot_habilitado`)
+// se queda igual a propósito, es una decisión de scope más chica y de
+// mucho más blast radius (6+ archivos, migración) que renombrar el rótulo
+// que ve la gente. Ya no hay una ruta aparte para editar el plot
+// (/stage-plot/editar, redirige acá) -- las tres secciones (Rider/Stage/
+// Input) viven en un solo módulo (RiderTecnicoModulo), Paso 5 "coherencia
+// visual": antes se sentía como pantallas sueltas pegadas.
 export default async function StagePlotPage({
   searchParams,
 }: {
@@ -36,12 +41,29 @@ export default async function StagePlotPage({
 
   const bandaValida = bandasConBloque.some((m) => m.bandaId === bandaParam);
 
+  const propsTabBar = {
+    userEmail: user.email,
+    esSuperadmin: superadmin,
+    mostrarCanciones: algunaBandaConBloque(membresias, "canciones", superadmin),
+    mostrarSetlist: algunaBandaConBloque(membresias, "set_list", superadmin),
+    mostrarSeteos: algunaBandaConBloque(membresias, "seteos", superadmin),
+    mostrarFinanzas: algunaBandaConBloque(membresias, "finanzas", superadmin),
+    // Fix: esta página nunca pasaba mostrarStagePlot a TabBar (a diferencia
+    // de Canciones/Finanzas/Seteos/Set List/Presskit, que sí lo calculan) --
+    // quedaba en el default `true` de TabBar sin importar bloques_visibles
+    // por integrante puntual. Inofensivo en la práctica (no se puede llegar
+    // acá sin acceso a este bloque en al menos una banda, ver el redirect de
+    // arriba), pero inconsistente con el resto; se corrige de paso.
+    mostrarStagePlot: algunaBandaConBloque(membresias, "stage_plot", superadmin),
+    mostrarPresskit: algunaBandaConBloque(membresias, "presskit", superadmin),
+  };
+
   if (!bandaValida && bandasConBloque.length > 1) {
     return (
       <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
         <EspacioSuperior>
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
-            Stage Plot
+            Rider Técnico
           </div>
           <h2
             className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
@@ -50,7 +72,7 @@ export default async function StagePlotPage({
             ¿Qué banda?
           </h2>
           <p className="mt-2 text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
-            Elegí la banda antes de ver su stage plot.
+            Elegí la banda antes de ver su rider técnico.
           </p>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
@@ -60,16 +82,7 @@ export default async function StagePlotPage({
           </div>
         </EspacioSuperior>
 
-        <TabBar
-          activa="stage_plot"
-          userEmail={user.email}
-          esSuperadmin={superadmin}
-          mostrarCanciones={algunaBandaConBloque(membresias, "canciones", superadmin)}
-          mostrarSetlist={algunaBandaConBloque(membresias, "set_list", superadmin)}
-          mostrarSeteos={algunaBandaConBloque(membresias, "seteos", superadmin)}
-          mostrarFinanzas={algunaBandaConBloque(membresias, "finanzas", superadmin)}
-          mostrarPresskit={algunaBandaConBloque(membresias, "presskit", superadmin)}
-        />
+        <TabBar activa="stage_plot" {...propsTabBar} />
       </div>
     );
   }
@@ -78,14 +91,19 @@ export default async function StagePlotPage({
   const membresiaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva);
   const nombreBandaActiva = membresiaActiva?.bandaNombre ?? "";
   const colorBandaActiva = membresiaActiva?.color ?? "oklch(0.6 0.02 55)";
-  const puedeEscribir = membresiaActiva?.rol === "administrador" || membresiaActiva?.rol === "superadmin";
+  const puedeEditar = membresiaActiva?.rol === "administrador" || membresiaActiva?.rol === "superadmin";
 
+  // obtenerOCrearStagePlot va primero y sola (no en el Promise.all de abajo):
+  // crea la fila si no existe, y correrla dos veces en paralelo arriesgaría
+  // una carrera contra el UNIQUE(banda_id) si ambas ven "no existe" antes de
+  // que la primera termine de insertar.
   const stagePlot = await obtenerOCrearStagePlot(bandaActiva);
-  // Brief "Rider técnico — vista previa completa + PDF de una página": la
-  // preview interna deja de mostrar solo el lienzo -- ahora es el rider
-  // completo (imagen + Input List + resumen de equipo), mismo contenido que
-  // el link público (ver app/plot/[token]/page.tsx).
-  const rider = stagePlot.items.length > 0 ? await construirRider(stagePlot, bandaActiva, nombreBandaActiva, colorBandaActiva) : null;
+  const [rider, infoRider, plazas, amplificadores] = await Promise.all([
+    construirRider(stagePlot, bandaActiva, nombreBandaActiva, colorBandaActiva),
+    obtenerRiderInfo(stagePlot.id),
+    puedeEditar ? obtenerPlazasConPersonaDeBanda(bandaActiva) : Promise.resolve([]),
+    puedeEditar ? obtenerAmplificadoresDeBanda(bandaActiva) : Promise.resolve([]),
+  ]);
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
@@ -100,54 +118,30 @@ export default async function StagePlotPage({
             </Link>
           )}
         </div>
-        <div className="flex items-end justify-between gap-3">
-          <h2
-            className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
-            style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
-          >
-            Stage Plot
-          </h2>
-          {puedeEscribir && (
-            <Link
-              href={`/stage-plot/editar?banda=${bandaActiva}`}
-              className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold no-underline"
-              style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
-            >
-              Editar
-            </Link>
-          )}
-        </div>
+        <h2
+          className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
+          style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+        >
+          Rider Técnico
+        </h2>
 
         <div className="mt-4">
-          {rider ? (
-            <RiderVista rider={rider} />
-          ) : (
-            <p className="mb-3 text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
-              {puedeEscribir
-                ? `Todavía no armaste el stage plot de ${nombreBandaActiva}.`
-                : `${nombreBandaActiva} todavía no tiene un stage plot armado.`}
-            </p>
-          )}
-        </div>
-
-        {/* Brief "Rediseño de Stage Plot — Entrega 1" §5: "Copiar link
-            público" es la única acción fija de esta vista además de
-            "Editar" -- "Descargar PDF" ahora vive dentro de RiderVista. */}
-        <div className="mt-4">
-          <BotonCopiarLink shareToken={stagePlot.shareToken} />
+          <RiderTecnicoModulo
+            bandaId={bandaActiva}
+            bandaColor={colorBandaActiva}
+            puedeEditar={puedeEditar}
+            stagePlotId={stagePlot.id}
+            itemsIniciales={stagePlot.items}
+            rider={rider}
+            riderInfo={infoRider}
+            plazas={plazas}
+            amplificadores={amplificadores}
+            shareToken={stagePlot.shareToken}
+          />
         </div>
       </EspacioSuperior>
 
-      <TabBar
-        activa="stage_plot"
-        userEmail={user.email}
-        esSuperadmin={superadmin}
-        mostrarCanciones={algunaBandaConBloque(membresias, "canciones", superadmin)}
-        mostrarSetlist={algunaBandaConBloque(membresias, "set_list", superadmin)}
-        mostrarSeteos={algunaBandaConBloque(membresias, "seteos", superadmin)}
-        mostrarFinanzas={algunaBandaConBloque(membresias, "finanzas", superadmin)}
-        mostrarPresskit={algunaBandaConBloque(membresias, "presskit", superadmin)}
-      />
+      <TabBar activa="stage_plot" {...propsTabBar} />
     </div>
   );
 }

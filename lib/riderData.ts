@@ -5,6 +5,8 @@ import { ETIQUETA_TIPO, type TipoEscenario } from "@/lib/stagePlotCatalogo";
 import type { Voz } from "@/lib/gestionData";
 import { ahoraEnZonaApp } from "@/lib/zonaHoraria";
 import { MESES } from "@/lib/eventoUI";
+import { esCategoriaBacklineValida, type CategoriaBackline } from "./riderCatalogo";
+export type { CategoriaBackline };
 
 // Brief "Rider técnico — vista previa completa + PDF de una página": una
 // fila del Input List -- `numero` es el canal (1..N, en el orden en que los
@@ -144,4 +146,146 @@ export async function construirRider(stagePlot: StagePlot, bandaId: string, band
     pedales,
     escenario,
   };
+}
+
+// Brief "Rider Técnico: renombrar módulo + rediseñar contenido de Rider"
+// §3: a diferencia de canales/amplificadores/pedales/escenario (arriba),
+// esto NO se deriva del stage plot -- es contenido propio del Rider,
+// capturado a mano (backline requerido, requerimientos de espacio, contra
+// rider, contacto), estándar de la industria. Categorías cerradas para que
+// el énfasis quede en rendimiento/especificación, no en marca -- la marca
+// es un campo aparte y opcional (ver BacklineItem.marcaSugerida). El tipo y
+// las constantes de categoría viven en lib/riderCatalogo.ts (sin
+// "server-only"), no acá -- RiderInfoVista.tsx (cliente) necesita
+// ETIQUETA_CATEGORIA_BACKLINE/CATEGORIAS_BACKLINE como VALORES reales, y
+// este archivo sí tiene "server-only".
+export type BacklineItem = {
+  id: string;
+  categoria: CategoriaBackline;
+  especificacion: string;
+  marcaSugerida: string | null;
+  orden: number;
+};
+
+export type RiderInfo = {
+  corrienteElectrica: string | null;
+  resguardoInstrumentos: boolean;
+  resguardoNota: string | null;
+  proyeccionVideoNota: string | null;
+  tiempoMontaje: string | null;
+  contraRiderNota: string | null;
+  contactoNombre: string | null;
+  contactoTelefono: string | null;
+  contactoEmail: string | null;
+  backline: BacklineItem[];
+};
+
+const COLUMNAS_RIDER_INFO =
+  "corriente_electrica, resguardo_instrumentos, resguardo_nota, proyeccion_video_nota, tiempo_montaje, contra_rider_nota, contacto_nombre, contacto_telefono, contacto_email";
+
+export async function obtenerRiderInfo(stagePlotId: string): Promise<RiderInfo> {
+  const admin = supabaseMalgesto();
+  const [{ data: sp }, { data: backlineRows }] = await Promise.all([
+    admin.from("stage_plots").select(COLUMNAS_RIDER_INFO).eq("id", stagePlotId).single(),
+    admin.from("rider_backline_items").select("id, categoria, especificacion, marca_sugerida, orden").eq("stage_plot_id", stagePlotId).order("orden", { ascending: true }),
+  ]);
+
+  return {
+    corrienteElectrica: sp?.corriente_electrica ?? null,
+    resguardoInstrumentos: sp?.resguardo_instrumentos ?? false,
+    resguardoNota: sp?.resguardo_nota ?? null,
+    proyeccionVideoNota: sp?.proyeccion_video_nota ?? null,
+    tiempoMontaje: sp?.tiempo_montaje ?? null,
+    contraRiderNota: sp?.contra_rider_nota ?? null,
+    contactoNombre: sp?.contacto_nombre ?? null,
+    contactoTelefono: sp?.contacto_telefono ?? null,
+    contactoEmail: sp?.contacto_email ?? null,
+    backline: (backlineRows ?? []).map((r) => ({
+      id: r.id,
+      categoria: esCategoriaBacklineValida(r.categoria) ? r.categoria : "otro",
+      especificacion: r.especificacion,
+      marcaSugerida: r.marca_sugerida,
+      orden: r.orden,
+    })),
+  };
+}
+
+export type ActualizacionRiderInfo = {
+  corrienteElectrica: string | null;
+  resguardoInstrumentos: boolean;
+  resguardoNota: string | null;
+  proyeccionVideoNota: string | null;
+  tiempoMontaje: string | null;
+  contraRiderNota: string | null;
+  contactoNombre: string | null;
+  contactoTelefono: string | null;
+  contactoEmail: string | null;
+};
+
+export async function actualizarRiderInfo(stagePlotId: string, cambios: ActualizacionRiderInfo): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin
+    .from("stage_plots")
+    .update({
+      corriente_electrica: cambios.corrienteElectrica?.trim() || null,
+      resguardo_instrumentos: cambios.resguardoInstrumentos,
+      resguardo_nota: cambios.resguardoNota?.trim() || null,
+      proyeccion_video_nota: cambios.proyeccionVideoNota?.trim() || null,
+      tiempo_montaje: cambios.tiempoMontaje?.trim() || null,
+      contra_rider_nota: cambios.contraRiderNota?.trim() || null,
+      contacto_nombre: cambios.contactoNombre?.trim() || null,
+      contacto_telefono: cambios.contactoTelefono?.trim() || null,
+      contacto_email: cambios.contactoEmail?.trim() || null,
+    })
+    .eq("id", stagePlotId);
+  if (error) throw new Error(error.message);
+}
+
+export async function agregarBacklineItem(
+  stagePlotId: string,
+  categoria: CategoriaBackline,
+  especificacion: string,
+  marcaSugerida: string | null
+): Promise<BacklineItem> {
+  const admin = supabaseMalgesto();
+  const { count } = await admin.from("rider_backline_items").select("id", { count: "exact", head: true }).eq("stage_plot_id", stagePlotId);
+  const { data, error } = await admin
+    .from("rider_backline_items")
+    .insert({
+      stage_plot_id: stagePlotId,
+      categoria,
+      especificacion: especificacion.trim(),
+      marca_sugerida: marcaSugerida?.trim() || null,
+      orden: count ?? 0,
+    })
+    .select("id, categoria, especificacion, marca_sugerida, orden")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "No se pudo agregar el ítem de backline.");
+  return {
+    id: data.id,
+    categoria: esCategoriaBacklineValida(data.categoria) ? data.categoria : "otro",
+    especificacion: data.especificacion,
+    marcaSugerida: data.marca_sugerida,
+    orden: data.orden,
+  };
+}
+
+export async function actualizarBacklineItem(
+  id: string,
+  categoria: CategoriaBackline,
+  especificacion: string,
+  marcaSugerida: string | null
+): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin
+    .from("rider_backline_items")
+    .update({ categoria, especificacion: especificacion.trim(), marca_sugerida: marcaSugerida?.trim() || null })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function eliminarBacklineItem(id: string): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin.from("rider_backline_items").delete().eq("id", id);
+  if (error) throw new Error(error.message);
 }

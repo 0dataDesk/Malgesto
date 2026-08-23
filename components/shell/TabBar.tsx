@@ -144,7 +144,7 @@ const ETIQUETA_VISTA: Record<string, string> = {
   setlist: "Set List",
   seteos: "Seteos",
   finanzas: "Finanzas",
-  stage_plot: "Stage Plot",
+  stage_plot: "Rider Técnico",
   presskit: "Presskit",
 };
 
@@ -295,7 +295,7 @@ export function TabBar({
               </NavBoton>
             )}
             {mostrarStagePlot && (
-              <NavBoton href="/stage-plot" activo={activa === "stage_plot"} label="Stage Plot">
+              <NavBoton href="/stage-plot" activo={activa === "stage_plot"} label="Rider Técnico">
                 <IconoStagePlot />
               </NavBoton>
             )}

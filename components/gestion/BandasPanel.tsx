@@ -535,7 +535,7 @@ function DetalleBanda({
                 <ToggleChip label="Set List" active={setlist} onClick={() => setSetlist((v) => !v)} />
                 <ToggleChip label="Seteos" active={seteos} onClick={() => setSeteos((v) => !v)} />
                 <ToggleChip label="Finanzas" active={finanzas} onClick={() => setFinanzas((v) => !v)} />
-                <ToggleChip label="Stage Plot" active={stagePlot} onClick={() => setStagePlot((v) => !v)} />
+                <ToggleChip label="Rider Técnico" active={stagePlot} onClick={() => setStagePlot((v) => !v)} />
                 <ToggleChip label="Presskit" active={presskit} onClick={() => setPresskit((v) => !v)} />
               </div>
             </div>
@@ -801,7 +801,7 @@ export function BandasPanel({ bandas: bandasIniciales, plazas: plazasIniciales }
                 )}
                 {b.stagePlotHabilitado && (
                   <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={PILL_BLOQUE}>
-                    Stage Plot
+                    Rider Técnico
                   </span>
                 )}
                 {b.presskitHabilitado && (

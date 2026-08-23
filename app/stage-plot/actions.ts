@@ -4,6 +4,15 @@ import { revalidatePath } from "next/cache";
 import { requerirAccesoBloque } from "@/lib/malgestoAccess";
 import { crearItem, moverItem, actualizarEtiquetaItem, actualizarRotacionItem, eliminarItem, obtenerTipoItem, type StagePlotItem } from "@/lib/stagePlotData";
 import { tieneEtiquetaEditable, type TipoItem } from "@/lib/stagePlotCatalogo";
+import {
+  actualizarRiderInfo,
+  agregarBacklineItem,
+  actualizarBacklineItem,
+  eliminarBacklineItem,
+  type ActualizacionRiderInfo,
+  type BacklineItem,
+  type CategoriaBackline,
+} from "@/lib/riderData";
 
 // Mismo criterio que Canciones (requerirAccesoBloque: bloque activo +
 // administrador/superadmin) — el stage plot es una plantilla única
@@ -75,5 +84,50 @@ export async function actualizarEtiquetaItemAction(bandaId: string, itemId: stri
 export async function eliminarItemAction(bandaId: string, itemId: string): Promise<void> {
   await requerirAccesoBloque(bandaId, "stage_plot");
   await eliminarItem(itemId);
+  revalidatePath("/stage-plot");
+}
+
+// Brief "Rider Técnico: renombrar módulo + rediseñar contenido de Rider"
+// §3: contenido propio de la pestaña Rider (backline, requerimientos de
+// espacio, contra rider, contacto) -- mismo gate que el resto del bloque
+// (requerirAccesoBloque: activo + administrador/superadmin), el Rider
+// sigue siendo una plantilla única compartida por la banda, no algo
+// personal.
+export async function actualizarRiderInfoAction(bandaId: string, stagePlotId: string, cambios: ActualizacionRiderInfo): Promise<void> {
+  await requerirAccesoBloque(bandaId, "stage_plot");
+  await actualizarRiderInfo(stagePlotId, cambios);
+  revalidatePath("/stage-plot");
+}
+
+export async function agregarBacklineItemAction(
+  bandaId: string,
+  stagePlotId: string,
+  categoria: CategoriaBackline,
+  especificacion: string,
+  marcaSugerida: string | null
+): Promise<BacklineItem> {
+  await requerirAccesoBloque(bandaId, "stage_plot");
+  if (!especificacion.trim()) throw new Error("La especificación es obligatoria.");
+  const item = await agregarBacklineItem(stagePlotId, categoria, especificacion, marcaSugerida);
+  revalidatePath("/stage-plot");
+  return item;
+}
+
+export async function actualizarBacklineItemAction(
+  bandaId: string,
+  id: string,
+  categoria: CategoriaBackline,
+  especificacion: string,
+  marcaSugerida: string | null
+): Promise<void> {
+  await requerirAccesoBloque(bandaId, "stage_plot");
+  if (!especificacion.trim()) throw new Error("La especificación es obligatoria.");
+  await actualizarBacklineItem(id, categoria, especificacion, marcaSugerida);
+  revalidatePath("/stage-plot");
+}
+
+export async function eliminarBacklineItemAction(bandaId: string, id: string): Promise<void> {
+  await requerirAccesoBloque(bandaId, "stage_plot");
+  await eliminarBacklineItem(id);
   revalidatePath("/stage-plot");
 }

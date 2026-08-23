@@ -1,19 +1,21 @@
-import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
-import type { RiderTecnico } from "@/lib/riderData";
+import { Document, Page, View, Text, Image, Link, StyleSheet } from "@react-pdf/renderer";
+import type { RiderTecnico, RiderInfo } from "@/lib/riderData";
+import { ETIQUETA_CATEGORIA_BACKLINE } from "@/lib/riderCatalogo";
 
-// Brief "Rider técnico — vista previa completa + PDF de una página" §3: PDF
-// de una sola página con el mismo diseño/orden que la vista web
-// (RiderVista.tsx) -- encabezado, imagen del stage plot, Input List,
-// resumen de equipo. Paleta en hex (react-pdf no interpreta oklch) tomada
-// directo de construirSvg en stagePlotExport.ts para que el documento se
-// vea de una sola pieza con la imagen embebida, no como dos estilos
-// distintos pegados. Sin fuentes custom -- Helvetica (siempre disponible
-// en react-pdf sin embeber archivos) alcanza para el criterio "profesional/
-// editorial" sin la complejidad de cargar tipografías propias.
+// Brief "Rider Técnico: renombrar módulo + rediseñar contenido de Rider":
+// puerto del contenido nuevo de la pestaña Rider (Backline, requerimientos
+// de espacio, contra rider, contacto -- ver RiderInfoVista.tsx) a este
+// documento, además del stage plot/Input List/resumen que ya traía (Brief
+// "Rider técnico — vista previa completa + PDF de una página" §3). Mismo
+// criterio de paleta/tipografía de siempre: hex (react-pdf no interpreta
+// oklch), Helvetica sin fuentes custom. `imagenDataUrl` pasa a ser
+// opcional -- una banda puede tener Rider capturado (Backline, espacio,
+// contacto) sin haber armado su stage plot todavía.
 const COLOR_FONDO = "#fdfaf5";
 const COLOR_BORDE = "#e3d9c8";
 const COLOR_TEXTO = "#2a2622";
 const COLOR_MUTED = "#8a8175";
+const COLOR_ACENTO = "#c2410c";
 
 const styles = StyleSheet.create({
   page: { padding: 32, backgroundColor: COLOR_FONDO, fontSize: 9, color: COLOR_TEXTO, fontFamily: "Helvetica" },
@@ -43,24 +45,72 @@ const styles = StyleSheet.create({
   resumenBloque: { flex: 1 },
   resumenSubtitulo: { fontSize: 8, fontFamily: "Helvetica-Bold", marginBottom: 3 },
   resumenLinea: { fontSize: 8.5, marginBottom: 2, color: COLOR_TEXTO },
+  seccion: { marginBottom: 16 },
+  backlineFila: { marginBottom: 6 },
+  backlineCategoria: { fontSize: 7.5, fontFamily: "Helvetica-Bold", textTransform: "uppercase", letterSpacing: 0.5, color: COLOR_ACENTO },
+  backlineEspecificacion: { fontSize: 9, marginTop: 1 },
+  backlineMarca: { fontSize: 8, color: COLOR_MUTED, marginTop: 1 },
+  espacioFila: { fontSize: 8.5, marginBottom: 2 },
+  contactoFila: { flexDirection: "row", gap: 24 },
+  contactoBloque: { flex: 1 },
 });
 
-export function RiderPdfDocument({ rider, imagenDataUrl }: { rider: RiderTecnico; imagenDataUrl: string }) {
+export function RiderPdfDocument({
+  rider,
+  riderInfo,
+  imagenDataUrl,
+}: {
+  rider: RiderTecnico;
+  riderInfo: RiderInfo;
+  imagenDataUrl: string | null;
+}) {
+  const hayEspacio = riderInfo.corrienteElectrica || riderInfo.resguardoInstrumentos || riderInfo.proyeccionVideoNota || riderInfo.tiempoMontaje;
+  const hayContacto = riderInfo.contactoNombre || riderInfo.contactoTelefono || riderInfo.contactoEmail;
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View>
             <Text style={styles.bandaNombre}>{rider.bandaNombre}</Text>
-            <Text style={styles.kicker}>STAGE PLOT &amp; RIDER TÉCNICO</Text>
+            <Text style={styles.kicker}>RIDER TÉCNICO</Text>
           </View>
           <Text style={styles.fecha}>Generado el {rider.fechaGeneracion}</Text>
         </View>
 
-        <View style={styles.imagenWrap}>
-          {/* eslint-disable-next-line jsx-a11y/alt-text -- Image acá es el componente PDF de @react-pdf/renderer, no un <img> HTML; no tiene prop alt. */}
-          <Image src={imagenDataUrl} style={styles.imagen} />
-        </View>
+        {riderInfo.backline.length > 0 && (
+          <View style={styles.seccion}>
+            <Text style={styles.seccionTitulo}>Backline</Text>
+            {riderInfo.backline.map((item) => (
+              <View key={item.id} style={styles.backlineFila}>
+                <Text style={styles.backlineCategoria}>{ETIQUETA_CATEGORIA_BACKLINE[item.categoria]}</Text>
+                <Text style={styles.backlineEspecificacion}>{item.especificacion}</Text>
+                {item.marcaSugerida && <Text style={styles.backlineMarca}>Marca sugerida: {item.marcaSugerida}</Text>}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {hayEspacio && (
+          <View style={styles.seccion}>
+            <Text style={styles.seccionTitulo}>Requerimientos de espacio</Text>
+            {riderInfo.corrienteElectrica && <Text style={styles.espacioFila}>Corriente eléctrica: {riderInfo.corrienteElectrica}</Text>}
+            {riderInfo.resguardoInstrumentos && (
+              <Text style={styles.espacioFila}>
+                Espacio para resguardar instrumentos{riderInfo.resguardoNota ? ` — ${riderInfo.resguardoNota}` : ""}
+              </Text>
+            )}
+            {riderInfo.proyeccionVideoNota && <Text style={styles.espacioFila}>Proyección de video: {riderInfo.proyeccionVideoNota}</Text>}
+            {riderInfo.tiempoMontaje && <Text style={styles.espacioFila}>Tiempo de montaje/prueba de audio: {riderInfo.tiempoMontaje}</Text>}
+          </View>
+        )}
+
+        {imagenDataUrl && (
+          <View style={styles.imagenWrap}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text -- Image acá es el componente PDF de @react-pdf/renderer, no un <img> HTML; no tiene prop alt. */}
+            <Image src={imagenDataUrl} style={styles.imagen} />
+          </View>
+        )}
 
         {rider.canales.length > 0 && (
           <View style={styles.tabla}>
@@ -114,6 +164,28 @@ export function RiderPdfDocument({ rider, imagenDataUrl }: { rider: RiderTecnico
                     </Text>
                   ))}
                 </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        {riderInfo.contraRiderNota && (
+          <View style={styles.seccion}>
+            <Text style={styles.seccionTitulo}>Contra rider</Text>
+            <Text style={styles.espacioFila}>{riderInfo.contraRiderNota}</Text>
+          </View>
+        )}
+
+        {hayContacto && (
+          <View style={styles.contactoFila}>
+            <View style={styles.contactoBloque}>
+              <Text style={styles.seccionTitulo}>Contacto de requerimientos</Text>
+              {riderInfo.contactoNombre && <Text style={styles.resumenLinea}>{riderInfo.contactoNombre}</Text>}
+              {riderInfo.contactoTelefono && <Text style={styles.resumenLinea}>{riderInfo.contactoTelefono}</Text>}
+              {riderInfo.contactoEmail && (
+                <Link src={`mailto:${riderInfo.contactoEmail}`} style={[styles.resumenLinea, { color: COLOR_TEXTO }]}>
+                  {riderInfo.contactoEmail}
+                </Link>
               )}
             </View>
           </View>
