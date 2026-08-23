@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requerirAccesoBloque } from "@/lib/malgestoAccess";
+import { requerirAdminDeBandaOSuperadmin } from "@/lib/malgestoAccess";
 import { crearItem, moverItem, actualizarEtiquetaItem, actualizarRotacionItem, eliminarItem, obtenerTipoItem, type StagePlotItem } from "@/lib/stagePlotData";
 import { tieneEtiquetaEditable, type TipoItem } from "@/lib/stagePlotCatalogo";
 import {
@@ -18,10 +18,16 @@ import {
   type CanalManual,
 } from "@/lib/riderData";
 
-// Mismo criterio que Canciones (requerirAccesoBloque: bloque activo +
-// administrador/superadmin) — el stage plot es una plantilla única
-// compartida por toda la banda, no algo personal como los dispositivos de
-// Seteos, así que no cualquier miembro debería poder reordenarlo.
+// Mismo criterio que Canciones (bloque activo + administrador/superadmin)
+// -- el stage plot es una plantilla única compartida por toda la banda, no
+// algo personal como los dispositivos de Seteos, así que no cualquier
+// miembro debería poder reordenarlo.
+// Fix "Correcciones urgentes: Rider Técnico" §4: requerirAccesoBloque exige
+// una fila de membresía en ESTA banda puntual con rol literal "superadmin"
+// -- rompe la garantía de "superadmin edita cualquier banda" en cuanto esa
+// fila no diga exactamente eso (mismo issue que ya tenía Presskit antes de
+// requerirAdminDeBandaOSuperadmin, ver malgestoAccess.ts). Todo el módulo
+// usa un único gate acá, así que el fix cubre Rider/Stage/Input a la vez.
 // Brief "Rediseño de Stage Plot — Entrega 1" §1: `plazaId` reemplaza a
 // `etiqueta` en la creación -- ya no se captura texto libre al soltar
 // (nunca se capturó de verdad, la paleta vieja siempre mandaba null acá
@@ -48,14 +54,14 @@ export async function crearItemAction(
   posY: number,
   rotacion: number = 0
 ): Promise<StagePlotItem> {
-  await requerirAccesoBloque(bandaId, "stage_plot");
+  await requerirAdminDeBandaOSuperadmin(bandaId, "stage_plot");
   const item = await crearItem(bandaId, stagePlotId, tipo, plazaId, dispositivoId, etiqueta, posX, posY, rotacion);
   revalidatePath("/stage-plot");
   return item;
 }
 
 export async function moverItemAction(bandaId: string, itemId: string, posX: number, posY: number): Promise<void> {
-  await requerirAccesoBloque(bandaId, "stage_plot");
+  await requerirAdminDeBandaOSuperadmin(bandaId, "stage_plot");
   await moverItem(itemId, posX, posY);
   revalidatePath("/stage-plot");
 }
@@ -65,7 +71,7 @@ export async function moverItemAction(bandaId: string, itemId: string, posX: num
 // side_fill, que llama acá igual que cualquier otro campo editable del
 // ítem seleccionado.
 export async function actualizarRotacionItemAction(bandaId: string, itemId: string, rotacion: number): Promise<void> {
-  await requerirAccesoBloque(bandaId, "stage_plot");
+  await requerirAdminDeBandaOSuperadmin(bandaId, "stage_plot");
   await actualizarRotacionItem(itemId, rotacion);
   revalidatePath("/stage-plot");
 }
@@ -76,7 +82,7 @@ export async function actualizarRotacionItemAction(bandaId: string, itemId: stri
 // cliente ya no muestra el campo para esos tipos, pero un server action es
 // un endpoint como cualquier otro, así que se revalida acá también.
 export async function actualizarEtiquetaItemAction(bandaId: string, itemId: string, etiqueta: string | null): Promise<void> {
-  await requerirAccesoBloque(bandaId, "stage_plot");
+  await requerirAdminDeBandaOSuperadmin(bandaId, "stage_plot");
   const tipo = await obtenerTipoItem(itemId);
   if (tipo && !tieneEtiquetaEditable(tipo)) {
     throw new Error("Este ícono no lleva una etiqueta propia -- su nombre sale de la plaza o dispositivo asignado.");
@@ -86,7 +92,7 @@ export async function actualizarEtiquetaItemAction(bandaId: string, itemId: stri
 }
 
 export async function eliminarItemAction(bandaId: string, itemId: string): Promise<void> {
-  await requerirAccesoBloque(bandaId, "stage_plot");
+  await requerirAdminDeBandaOSuperadmin(bandaId, "stage_plot");
   await eliminarItem(itemId);
   revalidatePath("/stage-plot");
 }
@@ -94,11 +100,11 @@ export async function eliminarItemAction(bandaId: string, itemId: string): Promi
 // Brief "Rider Técnico: renombrar módulo + rediseñar contenido de Rider"
 // §3: contenido propio de la pestaña Rider (backline, requerimientos de
 // espacio, contra rider, contacto) -- mismo gate que el resto del bloque
-// (requerirAccesoBloque: activo + administrador/superadmin), el Rider
-// sigue siendo una plantilla única compartida por la banda, no algo
-// personal.
+// (activo + administrador/superadmin, ver requerirAdminDeBandaOSuperadmin
+// más arriba), el Rider sigue siendo una plantilla única compartida por la
+// banda, no algo personal.
 export async function actualizarRiderInfoAction(bandaId: string, stagePlotId: string, cambios: ActualizacionRiderInfo): Promise<void> {
-  await requerirAccesoBloque(bandaId, "stage_plot");
+  await requerirAdminDeBandaOSuperadmin(bandaId, "stage_plot");
   await actualizarRiderInfo(stagePlotId, cambios);
   revalidatePath("/stage-plot");
 }
@@ -110,7 +116,7 @@ export async function agregarBacklineItemAction(
   especificacion: string,
   marcaSugerida: string | null
 ): Promise<BacklineItem> {
-  await requerirAccesoBloque(bandaId, "stage_plot");
+  await requerirAdminDeBandaOSuperadmin(bandaId, "stage_plot");
   if (!especificacion.trim()) throw new Error("La especificación es obligatoria.");
   const item = await agregarBacklineItem(stagePlotId, categoria, especificacion, marcaSugerida);
   revalidatePath("/stage-plot");
@@ -124,14 +130,14 @@ export async function actualizarBacklineItemAction(
   especificacion: string,
   marcaSugerida: string | null
 ): Promise<void> {
-  await requerirAccesoBloque(bandaId, "stage_plot");
+  await requerirAdminDeBandaOSuperadmin(bandaId, "stage_plot");
   if (!especificacion.trim()) throw new Error("La especificación es obligatoria.");
   await actualizarBacklineItem(id, categoria, especificacion, marcaSugerida);
   revalidatePath("/stage-plot");
 }
 
 export async function eliminarBacklineItemAction(bandaId: string, id: string): Promise<void> {
-  await requerirAccesoBloque(bandaId, "stage_plot");
+  await requerirAdminDeBandaOSuperadmin(bandaId, "stage_plot");
   await eliminarBacklineItem(id);
   revalidatePath("/stage-plot");
 }
@@ -141,7 +147,7 @@ export async function eliminarBacklineItemAction(bandaId: string, id: string): P
 // plazas/dispositivos, así que no hay validación adicional más allá de
 // "hay descripción".
 export async function agregarCanalManualAction(bandaId: string, stagePlotId: string, numeroCanal: number, descripcion: string): Promise<CanalManual> {
-  await requerirAccesoBloque(bandaId, "stage_plot");
+  await requerirAdminDeBandaOSuperadmin(bandaId, "stage_plot");
   if (!descripcion.trim()) throw new Error("La descripción es obligatoria.");
   const canal = await agregarCanalManual(stagePlotId, numeroCanal, descripcion);
   revalidatePath("/stage-plot");
@@ -149,14 +155,14 @@ export async function agregarCanalManualAction(bandaId: string, stagePlotId: str
 }
 
 export async function actualizarCanalManualAction(bandaId: string, id: string, numeroCanal: number, descripcion: string): Promise<void> {
-  await requerirAccesoBloque(bandaId, "stage_plot");
+  await requerirAdminDeBandaOSuperadmin(bandaId, "stage_plot");
   if (!descripcion.trim()) throw new Error("La descripción es obligatoria.");
   await actualizarCanalManual(id, numeroCanal, descripcion);
   revalidatePath("/stage-plot");
 }
 
 export async function eliminarCanalManualAction(bandaId: string, id: string): Promise<void> {
-  await requerirAccesoBloque(bandaId, "stage_plot");
+  await requerirAdminDeBandaOSuperadmin(bandaId, "stage_plot");
   await eliminarCanalManual(id);
   revalidatePath("/stage-plot");
 }

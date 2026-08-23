@@ -169,9 +169,12 @@ function AgregarCanalManual({
 // Brief "Input List manual (editable), aparte del cálculo automático":
 // complemento al Input List calculado (ver InputListVista.tsx) -- captura
 // libre de canal + descripción, sin depender de plazas ni del lienzo de
-// Stage. Deliberadamente NO se mezcla ni se reconcilia con el automático
-// (§3 del brief): coexisten como dos secciones separadas y rotuladas, cada
-// una con su propio criterio de qué es "correcto".
+// Stage. Deliberadamente NO se mezcla ni se reconcilia con el automático:
+// nunca se combinan valores de ambas en la misma fila. Fix "Correcciones
+// urgentes: Rider Técnico" §5: cuando hay canales manuales, tienen
+// prioridad total y son lo único que se muestra (acá, PDF y link público)
+// -- RiderTecnicoModulo decide arriba si también renderiza el automático;
+// este componente no sabe ni le importa si el automático está visible.
 export function InputListManualVista({
   bandaId,
   stagePlotId,
@@ -195,7 +198,7 @@ export function InputListManualVista({
           Input List manual
         </h3>
         <span className="text-[10px]" style={{ color: TEXTO_GRIS }}>
-          — capturada a mano, independiente del automático de arriba
+          — capturada a mano, tiene prioridad sobre el Input List automático cuando existe
         </span>
       </div>
       {canales.length === 0 && (

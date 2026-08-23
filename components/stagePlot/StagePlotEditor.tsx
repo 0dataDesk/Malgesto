@@ -433,11 +433,14 @@ export function StagePlotEditor({
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <div>
-        <h1 className="mb-2 text-[28px] font-extrabold tracking-tight" style={{ fontFamily: "var(--font-bricolage), sans-serif" }}>
-          Editar Stage Plot
-        </h1>
+        {/* Fix "Correcciones urgentes: Rider Técnico" §3: este canvas ya no
+            vive en su propia página (/stage-plot/editar) con su propio
+            título -- ahora es el contenido de la pestaña "Stage" dentro de
+            "Rider Técnico" (RiderTecnicoModulo ya rotula la pestaña), así
+            que un <h1> propio repitiendo "Stage Plot" quedaba redundante e
+            incorrecto (el bloque se renombró en 668c9e1, este texto no). */}
         <p className="mb-3 text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
-          Arrastrá un ícono de la paleta al lienzo para colocarlo. Ya puesto, se puede volver a arrastrar para reposicionarlo, o tocarlo para
+          Arrastra un ícono de la paleta al lienzo para colocarlo. Ya puesto, se puede volver a arrastrar para reposicionarlo, o tocarlo para
           editarle la etiqueta o eliminarlo.
         </p>
         <PaletaIconos plazas={plazas} amplificadores={amplificadores} bandaColor={bandaColor} items={items} />
@@ -456,7 +459,16 @@ export function StagePlotEditor({
       {seleccionado && (
         <div className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-bold">{ETIQUETA_TIPO[seleccionado.tipo]} seleccionado</span>
+            {/* Fix "Correcciones urgentes: Rider Técnico" §1: sin color
+                explícito, este texto heredaba el --foreground casi blanco
+                del body (globals.css) -- invisible sobre la caja clara del
+                panel. Antes de 668c9e1 esta pantalla vivía sola con el fondo
+                oscuro del body detrás, por eso nunca se notó; al quedar
+                embebida en la tarjeta clara del módulo, el blanco heredado
+                pasó a ser blanco sobre blanco. */}
+            <span className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+              {ETIQUETA_TIPO[seleccionado.tipo]} seleccionado
+            </span>
             <button type="button" onClick={() => setSeleccionadoId(null)} className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
               Cerrar
             </button>

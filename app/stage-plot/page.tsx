@@ -91,7 +91,14 @@ export default async function StagePlotPage({
   const membresiaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva);
   const nombreBandaActiva = membresiaActiva?.bandaNombre ?? "";
   const colorBandaActiva = membresiaActiva?.color ?? "oklch(0.6 0.02 55)";
-  const puedeEditar = membresiaActiva?.rol === "administrador" || membresiaActiva?.rol === "superadmin";
+  // Fix "Correcciones urgentes: Rider Técnico" §4: exigir rol literal
+  // "superadmin" en la fila de ESTA banda rompía la garantía de "superadmin
+  // edita cualquier banda, sin excepción" en cuanto esa fila puntual no
+  // dijera exactamente eso -- mismo criterio que ya usan Presskit/Logística
+  // (superadmin global vía esSuperadminDeMembresias, ver `superadmin` más
+  // arriba). Un solo `puedeEditar` gatea las tres pestañas del módulo
+  // (Rider/Stage/Input), así que este fix las cubre a la vez.
+  const puedeEditar = superadmin || membresiaActiva?.rol === "administrador";
 
   // obtenerOCrearStagePlot va primero y sola (no en el Promise.all de abajo):
   // crea la fila si no existe, y correrla dos veces en paralelo arriesgaría

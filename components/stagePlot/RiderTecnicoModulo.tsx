@@ -171,14 +171,23 @@ export function RiderTecnicoModulo({
           </div>
         )}
 
+        {/* Fix "Correcciones urgentes: Rider Técnico" §5: si existe una
+            lista manual capturada, tiene prioridad total y el automático se
+            oculta acá también -- antes solo se aplicaba en PDF/link público,
+            dejando el automático visible en la app como si la regla no
+            corriera ahí. Sin manual, el automático se muestra igual que
+            siempre (y el bloque manual queda como alta inicial para quien
+            pueda escribir). */}
         {pestana === "input" && (
           <div className="flex flex-col gap-5">
-            <div>
-              <h3 className="mb-1.5 font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: TEXTO_GRIS }}>
-                Input List automático
-              </h3>
-              <InputListVista canales={rider.canales} />
-            </div>
+            {inputListManual.length === 0 && (
+              <div>
+                <h3 className="mb-1.5 font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: TEXTO_GRIS }}>
+                  Input List automático
+                </h3>
+                <InputListVista canales={rider.canales} />
+              </div>
+            )}
             <InputListManualVista bandaId={bandaId} stagePlotId={stagePlotId} canalesIniciales={inputListManual} puedeEscribir={puedeEditar} />
           </div>
         )}

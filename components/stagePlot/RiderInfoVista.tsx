@@ -362,130 +362,134 @@ export function RiderInfoVista({
         )}
       </div>
 
-      {(hayEspacio || puedeEscribir) && (
+      {/* Fix "Correcciones urgentes: Rider Técnico" §2: Requerimientos de
+          espacio + contra rider viven juntos en una sola caja, a manera de
+          lista -- antes eran dos secciones sueltas sin caja, se leían como
+          bloques inconexos en vez de "todo lo que hay que resolver antes de
+          que llegue la banda". El contacto queda aparte, en su propia caja
+          (mismo estilo de caja, título distinto). */}
+      {(hayEspacio || campos.contraRider || puedeEscribir) && (
         <div>
           <SeccionTitulo>Requerimientos de espacio</SeccionTitulo>
-          {puedeEscribir ? (
-            <div className="flex flex-col gap-3">
-              <div>
-                <span className={labelCls} style={labelStyle}>
-                  Corriente eléctrica
-                </span>
-                <input
-                  value={campos.corriente}
-                  onChange={(e) => setCampos((c) => ({ ...c, corriente: e.target.value }))}
-                  placeholder='Ej. "110-120V, bien aterrizada"'
-                  className={inputCls}
-                  style={inputStyle}
-                />
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className={labelCls} style={{ ...labelStyle, marginBottom: 0 }}>
-                    Espacio para resguardar instrumentos
+          <div className="rounded-xl p-3" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+            {puedeEscribir ? (
+              <div className="flex flex-col gap-3">
+                <div>
+                  <span className={labelCls} style={labelStyle}>
+                    Corriente eléctrica
                   </span>
-                  <Switch activo={campos.resguardo} onToggle={() => setCampos((c) => ({ ...c, resguardo: !c.resguardo }))} />
-                </div>
-                {campos.resguardo && (
                   <input
-                    value={campos.resguardoNota}
-                    onChange={(e) => setCampos((c) => ({ ...c, resguardoNota: e.target.value }))}
-                    placeholder="Nota (ej. cuarto cerrado atrás del escenario)"
-                    className={`${inputCls} mt-2`}
+                    value={campos.corriente}
+                    onChange={(e) => setCampos((c) => ({ ...c, corriente: e.target.value }))}
+                    placeholder='Ej. "110-120V, bien aterrizada"'
+                    className={inputCls}
                     style={inputStyle}
                   />
-                )}
+                </div>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className={labelCls} style={{ ...labelStyle, marginBottom: 0 }}>
+                      Espacio para resguardar instrumentos
+                    </span>
+                    <Switch activo={campos.resguardo} onToggle={() => setCampos((c) => ({ ...c, resguardo: !c.resguardo }))} />
+                  </div>
+                  {campos.resguardo && (
+                    <input
+                      value={campos.resguardoNota}
+                      onChange={(e) => setCampos((c) => ({ ...c, resguardoNota: e.target.value }))}
+                      placeholder="Nota (ej. cuarto cerrado atrás del escenario)"
+                      className={`${inputCls} mt-2`}
+                      style={inputStyle}
+                    />
+                  )}
+                </div>
+                <div>
+                  <span className={labelCls} style={labelStyle}>
+                    Proyección de video
+                  </span>
+                  <input
+                    value={campos.proyeccionNota}
+                    onChange={(e) => setCampos((c) => ({ ...c, proyeccionNota: e.target.value }))}
+                    placeholder="Avisar con anticipación si se cuenta con esto, para llevar visuales"
+                    className={inputCls}
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <span className={labelCls} style={labelStyle}>
+                    Tiempo de montaje / prueba de audio (shows privados)
+                  </span>
+                  <input
+                    value={campos.tiempoMontaje}
+                    onChange={(e) => setCampos((c) => ({ ...c, tiempoMontaje: e.target.value }))}
+                    placeholder='Ej. "1.5 a 2 horas"'
+                    className={inputCls}
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <span className={labelCls} style={labelStyle}>
+                    Contra rider
+                  </span>
+                  <textarea
+                    value={campos.contraRider}
+                    onChange={(e) => setCampos((c) => ({ ...c, contraRider: e.target.value }))}
+                    placeholder="Ej. Se puede recibir un contra rider."
+                    rows={3}
+                    className={`${inputCls} resize-none`}
+                    style={inputStyle}
+                  />
+                </div>
               </div>
-              <div>
-                <span className={labelCls} style={labelStyle}>
-                  Proyección de video
-                </span>
-                <input
-                  value={campos.proyeccionNota}
-                  onChange={(e) => setCampos((c) => ({ ...c, proyeccionNota: e.target.value }))}
-                  placeholder="Avisar con anticipación si se cuenta con esto, para llevar visuales"
-                  className={inputCls}
-                  style={inputStyle}
-                />
-              </div>
-              <div>
-                <span className={labelCls} style={labelStyle}>
-                  Tiempo de montaje / prueba de audio (shows privados)
-                </span>
-                <input
-                  value={campos.tiempoMontaje}
-                  onChange={(e) => setCampos((c) => ({ ...c, tiempoMontaje: e.target.value }))}
-                  placeholder='Ej. "1.5 a 2 horas"'
-                  className={inputCls}
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1.5 text-sm" style={{ color: TEXTO_OSCURO }}>
-              {campos.corriente && <p>Corriente eléctrica: {campos.corriente}</p>}
-              {campos.resguardo && <p>Espacio para resguardar instrumentos{campos.resguardoNota ? ` — ${campos.resguardoNota}` : ""}</p>}
-              {campos.proyeccionNota && <p>Proyección de video: {campos.proyeccionNota}</p>}
-              {campos.tiempoMontaje && <p>Tiempo de montaje/prueba de audio: {campos.tiempoMontaje}</p>}
-            </div>
-          )}
-        </div>
-      )}
-
-      {(campos.contraRider || puedeEscribir) && (
-        <div>
-          <SeccionTitulo>Contra rider</SeccionTitulo>
-          {puedeEscribir ? (
-            <textarea
-              value={campos.contraRider}
-              onChange={(e) => setCampos((c) => ({ ...c, contraRider: e.target.value }))}
-              placeholder="Ej. Se puede recibir un contra rider."
-              rows={3}
-              className={`${inputCls} resize-none`}
-              style={inputStyle}
-            />
-          ) : (
-            <p className="text-sm" style={{ color: TEXTO_OSCURO }}>
-              {campos.contraRider}
-            </p>
-          )}
+            ) : (
+              <ul className="flex flex-col gap-1.5 text-sm" style={{ color: TEXTO_OSCURO }}>
+                {campos.corriente && <li>Corriente eléctrica: {campos.corriente}</li>}
+                {campos.resguardo && <li>Espacio para resguardar instrumentos{campos.resguardoNota ? ` — ${campos.resguardoNota}` : ""}</li>}
+                {campos.proyeccionNota && <li>Proyección de video: {campos.proyeccionNota}</li>}
+                {campos.tiempoMontaje && <li>Tiempo de montaje/prueba de audio: {campos.tiempoMontaje}</li>}
+                {campos.contraRider && <li>Contra rider: {campos.contraRider}</li>}
+              </ul>
+            )}
+          </div>
         </div>
       )}
 
       {(hayContacto || puedeEscribir) && (
         <div>
           <SeccionTitulo>Contacto de requerimientos</SeccionTitulo>
-          {puedeEscribir ? (
-            <div className="flex flex-col gap-2">
-              <input
-                value={campos.contactoNombre}
-                onChange={(e) => setCampos((c) => ({ ...c, contactoNombre: e.target.value }))}
-                placeholder="Nombre"
-                className={inputCls}
-                style={inputStyle}
-              />
-              <input
-                value={campos.contactoTelefono}
-                onChange={(e) => setCampos((c) => ({ ...c, contactoTelefono: e.target.value }))}
-                placeholder="Teléfono"
-                className={inputCls}
-                style={inputStyle}
-              />
-              <input
-                value={campos.contactoEmail}
-                onChange={(e) => setCampos((c) => ({ ...c, contactoEmail: e.target.value }))}
-                placeholder="Correo"
-                className={inputCls}
-                style={inputStyle}
-              />
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1 text-sm" style={{ color: TEXTO_OSCURO }}>
-              {campos.contactoNombre && <p className="font-bold">{campos.contactoNombre}</p>}
-              {campos.contactoTelefono && <p>{campos.contactoTelefono}</p>}
-              {campos.contactoEmail && <p>{campos.contactoEmail}</p>}
-            </div>
-          )}
+          <div className="rounded-xl p-3" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+            {puedeEscribir ? (
+              <div className="flex flex-col gap-2">
+                <input
+                  value={campos.contactoNombre}
+                  onChange={(e) => setCampos((c) => ({ ...c, contactoNombre: e.target.value }))}
+                  placeholder="Nombre"
+                  className={inputCls}
+                  style={inputStyle}
+                />
+                <input
+                  value={campos.contactoTelefono}
+                  onChange={(e) => setCampos((c) => ({ ...c, contactoTelefono: e.target.value }))}
+                  placeholder="Teléfono"
+                  className={inputCls}
+                  style={inputStyle}
+                />
+                <input
+                  value={campos.contactoEmail}
+                  onChange={(e) => setCampos((c) => ({ ...c, contactoEmail: e.target.value }))}
+                  placeholder="Correo"
+                  className={inputCls}
+                  style={inputStyle}
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1 text-sm" style={{ color: TEXTO_OSCURO }}>
+                {campos.contactoNombre && <p className="font-bold">{campos.contactoNombre}</p>}
+                {campos.contactoTelefono && <p>{campos.contactoTelefono}</p>}
+                {campos.contactoEmail && <p>{campos.contactoEmail}</p>}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
