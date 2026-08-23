@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { pdf } from "@react-pdf/renderer";
 import type { StagePlotItem, PlazaConPersona, AmplificadorAsignado } from "@/lib/stagePlotData";
-import type { RiderTecnico, RiderInfo } from "@/lib/riderData";
+import type { RiderTecnico, RiderInfo, CanalManual } from "@/lib/riderData";
 import { generarStagePlotPngDataUrl } from "./stagePlotExport";
 import { RiderPdfDocument } from "./RiderPdfDocument";
 import { StagePlotEditor } from "./StagePlotEditor";
 import { InputListVista } from "./InputListVista";
+import { InputListManualVista } from "./InputListManualVista";
 import { ResumenEquipoVista } from "./ResumenEquipoVista";
 import { RiderInfoVista } from "./RiderInfoVista";
 import { BotonCopiarLink } from "./StagePlotAcciones";
@@ -52,6 +53,7 @@ export function RiderTecnicoModulo({
   itemsIniciales,
   rider,
   riderInfo,
+  inputListManual,
   plazas,
   amplificadores,
   shareToken,
@@ -63,6 +65,7 @@ export function RiderTecnicoModulo({
   itemsIniciales: StagePlotItem[];
   rider: RiderTecnico;
   riderInfo: RiderInfo;
+  inputListManual: CanalManual[];
   plazas: PlazaConPersona[];
   amplificadores: AmplificadorAsignado[];
   shareToken: string | null;
@@ -95,7 +98,9 @@ export function RiderTecnicoModulo({
     setErrorPdf(null);
     setGenerandoPdf(true);
     try {
-      const blob = await pdf(<RiderPdfDocument rider={rider} riderInfo={riderInfo} imagenDataUrl={imagenDataUrl} />).toBlob();
+      const blob = await pdf(
+        <RiderPdfDocument rider={rider} riderInfo={riderInfo} inputListManual={inputListManual} imagenDataUrl={imagenDataUrl} />
+      ).toBlob();
       const url = URL.createObjectURL(blob);
       const enlace = document.createElement("a");
       enlace.href = url;
@@ -166,7 +171,17 @@ export function RiderTecnicoModulo({
           </div>
         )}
 
-        {pestana === "input" && <InputListVista canales={rider.canales} />}
+        {pestana === "input" && (
+          <div className="flex flex-col gap-5">
+            <div>
+              <h3 className="mb-1.5 font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: TEXTO_GRIS }}>
+                Input List automático
+              </h3>
+              <InputListVista canales={rider.canales} />
+            </div>
+            <InputListManualVista bandaId={bandaId} stagePlotId={stagePlotId} canalesIniciales={inputListManual} puedeEscribir={puedeEditar} />
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

@@ -9,9 +9,13 @@ import {
   agregarBacklineItem,
   actualizarBacklineItem,
   eliminarBacklineItem,
+  agregarCanalManual,
+  actualizarCanalManual,
+  eliminarCanalManual,
   type ActualizacionRiderInfo,
   type BacklineItem,
   type CategoriaBackline,
+  type CanalManual,
 } from "@/lib/riderData";
 
 // Mismo criterio que Canciones (requerirAccesoBloque: bloque activo +
@@ -129,5 +133,30 @@ export async function actualizarBacklineItemAction(
 export async function eliminarBacklineItemAction(bandaId: string, id: string): Promise<void> {
   await requerirAccesoBloque(bandaId, "stage_plot");
   await eliminarBacklineItem(id);
+  revalidatePath("/stage-plot");
+}
+
+// Brief "Input List manual (editable), aparte del cálculo automático":
+// mismo gate que el resto del bloque -- captura libre, sin relación con
+// plazas/dispositivos, así que no hay validación adicional más allá de
+// "hay descripción".
+export async function agregarCanalManualAction(bandaId: string, stagePlotId: string, numeroCanal: number, descripcion: string): Promise<CanalManual> {
+  await requerirAccesoBloque(bandaId, "stage_plot");
+  if (!descripcion.trim()) throw new Error("La descripción es obligatoria.");
+  const canal = await agregarCanalManual(stagePlotId, numeroCanal, descripcion);
+  revalidatePath("/stage-plot");
+  return canal;
+}
+
+export async function actualizarCanalManualAction(bandaId: string, id: string, numeroCanal: number, descripcion: string): Promise<void> {
+  await requerirAccesoBloque(bandaId, "stage_plot");
+  if (!descripcion.trim()) throw new Error("La descripción es obligatoria.");
+  await actualizarCanalManual(id, numeroCanal, descripcion);
+  revalidatePath("/stage-plot");
+}
+
+export async function eliminarCanalManualAction(bandaId: string, id: string): Promise<void> {
+  await requerirAccesoBloque(bandaId, "stage_plot");
+  await eliminarCanalManual(id);
   revalidatePath("/stage-plot");
 }

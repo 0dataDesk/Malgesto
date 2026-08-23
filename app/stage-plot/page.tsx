@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
 import { obtenerOCrearStagePlot, obtenerPlazasConPersonaDeBanda, obtenerAmplificadoresDeBanda } from "@/lib/stagePlotData";
-import { construirRider, obtenerRiderInfo } from "@/lib/riderData";
+import { construirRider, obtenerRiderInfo, obtenerInputListManual } from "@/lib/riderData";
 import { TabBar } from "@/components/shell/TabBar";
 import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
 import { RiderTecnicoModulo } from "@/components/stagePlot/RiderTecnicoModulo";
@@ -98,9 +98,10 @@ export default async function StagePlotPage({
   // una carrera contra el UNIQUE(banda_id) si ambas ven "no existe" antes de
   // que la primera termine de insertar.
   const stagePlot = await obtenerOCrearStagePlot(bandaActiva);
-  const [rider, infoRider, plazas, amplificadores] = await Promise.all([
+  const [rider, infoRider, inputListManual, plazas, amplificadores] = await Promise.all([
     construirRider(stagePlot, bandaActiva, nombreBandaActiva, colorBandaActiva),
     obtenerRiderInfo(stagePlot.id),
+    obtenerInputListManual(stagePlot.id),
     puedeEditar ? obtenerPlazasConPersonaDeBanda(bandaActiva) : Promise.resolve([]),
     puedeEditar ? obtenerAmplificadoresDeBanda(bandaActiva) : Promise.resolve([]),
   ]);
@@ -134,6 +135,7 @@ export default async function StagePlotPage({
             itemsIniciales={stagePlot.items}
             rider={rider}
             riderInfo={infoRider}
+            inputListManual={inputListManual}
             plazas={plazas}
             amplificadores={amplificadores}
             shareToken={stagePlot.shareToken}

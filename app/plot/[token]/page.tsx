@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { obtenerStagePlotPorToken } from "@/lib/stagePlotData";
-import { construirRider, obtenerRiderInfo } from "@/lib/riderData";
+import { construirRider, obtenerRiderInfo, obtenerInputListManual } from "@/lib/riderData";
 import { RiderTecnicoModulo } from "@/components/stagePlot/RiderTecnicoModulo";
 
 // Ruta pública a propósito (Brief Stage Plot §5, "link público de solo
@@ -19,9 +19,10 @@ export default async function StagePlotPublicoPage({ params }: { params: Promise
   if (!resultado) notFound();
 
   const { stagePlot, bandaNombre, bandaColor } = resultado;
-  const [rider, riderInfo] = await Promise.all([
+  const [rider, riderInfo, inputListManual] = await Promise.all([
     construirRider(stagePlot, stagePlot.bandaId, bandaNombre, bandaColor),
     obtenerRiderInfo(stagePlot.id),
+    obtenerInputListManual(stagePlot.id),
   ]);
 
   return (
@@ -39,6 +40,7 @@ export default async function StagePlotPublicoPage({ params }: { params: Promise
           itemsIniciales={stagePlot.items}
           rider={rider}
           riderInfo={riderInfo}
+          inputListManual={inputListManual}
           plazas={[]}
           amplificadores={[]}
           shareToken={null}

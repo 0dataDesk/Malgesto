@@ -289,3 +289,51 @@ export async function eliminarBacklineItem(id: string): Promise<void> {
   const { error } = await admin.from("rider_backline_items").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }
+
+// Brief "Input List manual (editable), aparte del cálculo automático":
+// complemento al Input List calculado más arriba (canales/construirRider) --
+// NO lo reemplaza ni se reconcilia con él. Captura libre (número de canal +
+// descripción de texto plano, ej. "KICK IN BETA 91"), sin vínculo a plazas
+// ni al lienzo de Stage -- cubre riders reales con más detalle del que el
+// modelo automático puede representar (desglose por pieza de batería,
+// instrumentos fuera de catálogo, dos micrófonos por persona).
+export type CanalManual = {
+  id: string;
+  numeroCanal: number;
+  descripcion: string;
+  orden: number;
+};
+
+export async function obtenerInputListManual(stagePlotId: string): Promise<CanalManual[]> {
+  const admin = supabaseMalgesto();
+  const { data } = await admin
+    .from("rider_input_list_manual")
+    .select("id, numero_canal, descripcion, orden")
+    .eq("stage_plot_id", stagePlotId)
+    .order("orden", { ascending: true });
+  return (data ?? []).map((r) => ({ id: r.id, numeroCanal: r.numero_canal, descripcion: r.descripcion, orden: r.orden }));
+}
+
+export async function agregarCanalManual(stagePlotId: string, numeroCanal: number, descripcion: string): Promise<CanalManual> {
+  const admin = supabaseMalgesto();
+  const { count } = await admin.from("rider_input_list_manual").select("id", { count: "exact", head: true }).eq("stage_plot_id", stagePlotId);
+  const { data, error } = await admin
+    .from("rider_input_list_manual")
+    .insert({ stage_plot_id: stagePlotId, numero_canal: numeroCanal, descripcion: descripcion.trim(), orden: count ?? 0 })
+    .select("id, numero_canal, descripcion, orden")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "No se pudo agregar el canal.");
+  return { id: data.id, numeroCanal: data.numero_canal, descripcion: data.descripcion, orden: data.orden };
+}
+
+export async function actualizarCanalManual(id: string, numeroCanal: number, descripcion: string): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin.from("rider_input_list_manual").update({ numero_canal: numeroCanal, descripcion: descripcion.trim() }).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function eliminarCanalManual(id: string): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin.from("rider_input_list_manual").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}

@@ -1,5 +1,5 @@
 import { Document, Page, View, Text, Image, Link, StyleSheet } from "@react-pdf/renderer";
-import type { RiderTecnico, RiderInfo } from "@/lib/riderData";
+import type { RiderTecnico, RiderInfo, CanalManual } from "@/lib/riderData";
 import { ETIQUETA_CATEGORIA_BACKLINE } from "@/lib/riderCatalogo";
 
 // Brief "Rider Técnico: renombrar módulo + rediseñar contenido de Rider":
@@ -58,14 +58,23 @@ const styles = StyleSheet.create({
 export function RiderPdfDocument({
   rider,
   riderInfo,
+  inputListManual,
   imagenDataUrl,
 }: {
   rider: RiderTecnico;
   riderInfo: RiderInfo;
+  inputListManual: CanalManual[];
   imagenDataUrl: string | null;
 }) {
   const hayEspacio = riderInfo.corrienteElectrica || riderInfo.resguardoInstrumentos || riderInfo.proyeccionVideoNota || riderInfo.tiempoMontaje;
   const hayContacto = riderInfo.contactoNombre || riderInfo.contactoTelefono || riderInfo.contactoEmail;
+  // Brief "Input List manual (editable), aparte del cálculo automático" §4 +
+  // respuesta de Jorge: si existe una lista manual, el PDF muestra SOLO esa
+  // (más completa/real para riders con detalle que el modelo automático no
+  // captura) -- el automático queda de respaldo únicamente cuando no hay
+  // manual cargada. Nunca se combinan ambas en el mismo PDF.
+  const canalesManualOrdenados = [...inputListManual].sort((a, b) => a.orden - b.orden);
+  const usarManual = canalesManualOrdenados.length > 0;
 
   return (
     <Document>
@@ -112,22 +121,38 @@ export function RiderPdfDocument({
           </View>
         )}
 
-        {rider.canales.length > 0 && (
+        {usarManual ? (
           <View style={styles.tabla}>
             <Text style={styles.seccionTitulo}>Input List</Text>
             <View style={styles.filaHeader}>
               <Text style={[styles.colCanal, styles.headerCelda]}>Ch</Text>
-              <Text style={[styles.colFuente, styles.headerCelda]}>Fuente</Text>
-              <Text style={[styles.colMic, styles.headerCelda]}>Mic / DI</Text>
+              <Text style={[styles.colFuente, styles.headerCelda]}>Descripción</Text>
             </View>
-            {rider.canales.map((c) => (
-              <View key={c.numero} style={styles.fila}>
-                <Text style={styles.colCanal}>{c.numero}</Text>
-                <Text style={styles.colFuente}>{c.fuente}</Text>
-                <Text style={styles.colMic}>{c.mic ?? ""}</Text>
+            {canalesManualOrdenados.map((c) => (
+              <View key={c.id} style={styles.fila}>
+                <Text style={styles.colCanal}>{c.numeroCanal}</Text>
+                <Text style={styles.colFuente}>{c.descripcion}</Text>
               </View>
             ))}
           </View>
+        ) : (
+          rider.canales.length > 0 && (
+            <View style={styles.tabla}>
+              <Text style={styles.seccionTitulo}>Input List</Text>
+              <View style={styles.filaHeader}>
+                <Text style={[styles.colCanal, styles.headerCelda]}>Ch</Text>
+                <Text style={[styles.colFuente, styles.headerCelda]}>Fuente</Text>
+                <Text style={[styles.colMic, styles.headerCelda]}>Mic / DI</Text>
+              </View>
+              {rider.canales.map((c) => (
+                <View key={c.numero} style={styles.fila}>
+                  <Text style={styles.colCanal}>{c.numero}</Text>
+                  <Text style={styles.colFuente}>{c.fuente}</Text>
+                  <Text style={styles.colMic}>{c.mic ?? ""}</Text>
+                </View>
+              ))}
+            </View>
+          )
         )}
 
         {(rider.amplificadores.length > 0 || rider.pedales.length > 0 || rider.escenario.length > 0) && (
