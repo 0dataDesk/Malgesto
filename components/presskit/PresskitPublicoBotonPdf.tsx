@@ -5,12 +5,13 @@ import { pdf } from "@react-pdf/renderer";
 import type { PresskitPublico } from "@/lib/presskitData";
 import { PresskitPublicoPdfDocument } from "./PresskitPublicoPdfDocument";
 
-// Brief "Presskit — actualización de diseño (handoff punk de Design)" §2:
-// mismo mecanismo de descarga de siempre (@react-pdf/renderer genera el
-// blob en el cliente con los datos reales ya cargados por el server
-// component), restyleado al link flotante discreto del nuevo handoff --
-// texto chico en Space Mono, opacidad reducida hasta el hover, sin fondo ni
-// borde de botón, para que no compita con el héroe sobre el que flota.
+// Brief "Presskit — nuevo diseño para Yelincuente (Claude Design)": mismo
+// mecanismo de descarga de siempre (@react-pdf/renderer genera el blob en
+// el cliente con los datos reales ya cargados por el server component),
+// restyleado a la píldora discreta del nuevo handoff -- fondo oscuro
+// translúcido + blur, texto chico en Space Mono, sin protagonismo (hover
+// pasa a lima, el acento de sistema, no el de marca), para que no compita
+// con el héroe sobre el que flota.
 function slugSimple(nombre: string): string {
   return nombre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
@@ -48,23 +49,23 @@ export function PresskitPublicoBotonPdf({ datos }: { datos: PresskitPublico }) {
           display: "flex",
           alignItems: "center",
           gap: 8,
-          background: "transparent",
-          border: "none",
-          borderBottom: "1px solid rgba(20,17,15,.35)",
-          color: "#14110f",
-          opacity: 0.62,
+          padding: "7px 12px",
+          border: "1px solid rgba(243,238,230,.22)",
+          borderRadius: 2,
+          background: "rgba(11,8,9,.55)",
+          backdropFilter: "blur(8px)",
+          color: "rgba(243,238,230,.62)",
           fontFamily: "'Space Mono', ui-monospace, monospace",
-          fontSize: 11,
-          letterSpacing: "0.12em",
+          fontSize: 10,
+          letterSpacing: "0.14em",
           textTransform: "uppercase",
-          padding: "0 0 2px",
           cursor: generando ? "default" : "pointer",
         }}
       >
-        <span style={{ fontSize: 13 }}>↓</span>
-        <span>{generando ? "Generando…" : "Presskit 1 pág. (PDF)"}</span>
+        <span style={{ display: "inline-block", width: 6, height: 6, border: "1px solid currentColor", transform: "rotate(45deg)" }} />
+        <span>{generando ? "Generando…" : "Descargar PDF — 1 hoja"}</span>
       </button>
-      {error && <span style={{ fontFamily: "'Space Mono', ui-monospace, monospace", fontSize: 10, color: "#c81f0c" }}>{error}</span>}
+      {error && <span style={{ fontFamily: "'Space Mono', ui-monospace, monospace", fontSize: 10, color: "#ff2e6b" }}>{error}</span>}
     </div>
   );
 }
