@@ -1,19 +1,16 @@
 import { Document, Page, View, Text, Image, Link, Font, StyleSheet } from "@react-pdf/renderer";
 import type { PresskitPublico } from "@/lib/presskitData";
+import { colorSeguro, tagsGenero, truncarTexto, extraerCita } from "@/lib/presskitTexto";
 
-// Brief "Presskit — nuevo diseño para Yelincuente (Claude Design)": puerto
-// del proyecto "Yelincuente One Sheet.dc.html" (Claude Design) a este
-// documento -- reemplaza la paleta cream/tinta anterior (handoff de Juana
-// LR) por la oscura/neón de este nuevo handoff, mismo criterio de las dos
-// veces: el diseño más reciente de Design se vuelve la plantilla
-// compartida, no una piel aparte por banda. Los .ttf de Anton/Space Mono ya
-// vivían en /public/fonts; se suma la variable de Space Grotesk (única
-// fuente que ofrece el repo oficial google/fonts para esta familia -- sin
-// instancias estáticas por peso, así que acá se usa un solo peso en vez de
-// declarar bold/semibold que no se aplicarían de verdad). Solo `import
-// type` de lib/presskitData.ts: ese módulo es "server-only" y este
-// documento se renderiza client-side (ver PresskitPublicoBotonPdf.tsx) --
-// un import de valor real rompería el build.
+// Brief "Presskit público: diseño independiente por banda": PDF de una
+// página propio y exclusivo de Yelincuente (puerto de "Yelincuente One
+// Sheet.dc.html"). Los .ttf de Anton/Space Mono viven en /public/fonts;
+// Space Grotesk usa la variable del repo oficial google/fonts -- esa
+// familia no tiene instancias estáticas por peso, así que este documento
+// usa un solo peso en vez de declarar bold/semibold que no se aplicarían
+// de verdad. Solo `import type` de lib/presskitData.ts: ese módulo es
+// "server-only" y este documento se renderiza client-side (ver
+// BotonPdfDescarga.tsx) -- un import de valor real rompería el build.
 Font.register({
   family: "Anton",
   fonts: [{ src: "/fonts/Anton-Regular.ttf" }],
@@ -34,30 +31,6 @@ const COLOR_BG = "#0b0809";
 const COLOR_TEXTO = "#f3eee6";
 const COLOR_RESALTE = "#d9ff3d";
 const COLOR_BORDE = "rgba(243,238,230,0.16)";
-
-function colorSeguro(c: string): string {
-  return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : "#ff2e6b";
-}
-
-function tagsGenero(genero: string | null): string[] {
-  if (!genero) return [];
-  return genero
-    .split(/[|,·/]/)
-    .map((g) => g.trim())
-    .filter(Boolean);
-}
-
-function truncar(texto: string, max: number): string {
-  const limpio = texto.replace(/\s+/g, " ").trim();
-  if (limpio.length <= max) return limpio;
-  return limpio.slice(0, max).replace(/\s+\S*$/, "") + "…";
-}
-
-function extraerCita(bio: string): string | null {
-  const oraciones = bio.trim().split(/(?<=[.!?])\s+/).filter(Boolean);
-  const ultima = oraciones[oraciones.length - 1]?.replace(/[.!?]+$/, "").trim();
-  return ultima ? `“${ultima}”` : null;
-}
 
 const styles = StyleSheet.create({
   page: { backgroundColor: COLOR_BG, color: COLOR_TEXTO, fontFamily: "Space Grotesk" },
@@ -89,16 +62,15 @@ const styles = StyleSheet.create({
   redes: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
   red: { flexDirection: "row", alignItems: "baseline", gap: 5 },
   redPlataforma: { fontFamily: "Anton", fontSize: 11, textTransform: "uppercase" },
-  redDetalle: { fontFamily: "Space Mono", fontSize: 8 },
   pieNota: { fontFamily: "Space Mono", fontSize: 7.5, letterSpacing: 1.5, textTransform: "uppercase", opacity: 0.7 },
 });
 
-export function PresskitPublicoPdfDocument({ datos }: { datos: PresskitPublico }) {
-  const acento = colorSeguro(datos.bandaColor);
+export function YelincuentePdfDocument({ datos }: { datos: PresskitPublico }) {
+  const acento = colorSeguro(datos.bandaColor, "#ff2e6b");
   const tags = tagsGenero(datos.bandaGenero);
   const bio = datos.presskit.bioLarga?.trim() || null;
-  const semblanzaLead = bio ? truncar(bio, 220) : null;
-  const semblanzaResto = bio ? truncar(bio.slice(semblanzaLead?.length ?? 0), 340) : null;
+  const semblanzaLead = bio ? truncarTexto(bio, 220) : null;
+  const semblanzaResto = bio ? truncarTexto(bio.slice(semblanzaLead?.length ?? 0), 340) : null;
   const cita = bio ? extraerCita(bio) : null;
   const origen = [datos.presskit.pais, datos.presskit.ciudad].filter(Boolean).join(" · ");
   const hayContacto = datos.presskit.contactoTelefono || datos.presskit.contactoEmail;
