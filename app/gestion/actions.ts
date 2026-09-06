@@ -21,6 +21,7 @@ import {
   actualizarRol,
   actualizarVoz,
   actualizarBloquesVisibles,
+  actualizarVerBorradores,
   inactivarPersona,
   eliminarPersona,
   crearInstrumentoPropio,
@@ -240,6 +241,14 @@ export async function actualizarVozAction(usuarioId: string, bandaId: string, vo
 export async function actualizarBloquesVisiblesAction(usuarioId: string, bandaId: string, bloques: string[] | null): Promise<void> {
   await requerirSuperadmin();
   await actualizarBloquesVisibles(usuarioId, bandaId, bloques);
+  revalidatePath("/gestion");
+}
+
+// Brief "Fase 3: nueva vista de Canción" (Fase 1 §1): permiso "Ver
+// borradores" por persona+banda, mismo gate que el resto de Gestión.
+export async function actualizarVerBorradoresAction(usuarioId: string, bandaId: string, verBorradores: boolean): Promise<void> {
+  await requerirSuperadmin();
+  await actualizarVerBorradores(usuarioId, bandaId, verBorradores);
   revalidatePath("/gestion");
 }
 

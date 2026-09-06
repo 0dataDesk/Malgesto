@@ -16,6 +16,7 @@ import {
   asignarABandaAction,
   actualizarRolAction,
   actualizarVozAction,
+  actualizarVerBorradoresAction,
   asignarPersonaAPlazaAction,
   quitarPersonaDePlazaAction,
   actualizarBloquesVisiblesAction,
@@ -472,6 +473,7 @@ function FilaIntegrante({
   const [pendingBanda, setPendingBanda] = useState<string | null>(null);
   const [pendingRol, setPendingRol] = useState<string | null>(null);
   const [pendingVoz, setPendingVoz] = useState<string | null>(null);
+  const [pendingVerBorradores, setPendingVerBorradores] = useState<string | null>(null);
   const [pendingPlaza, setPendingPlaza] = useState<string | null>(null);
   const [errorPlaza, setErrorPlaza] = useState<string | null>(null);
   const [plazaPickerBandaId, setPlazaPickerBandaId] = useState<string | null>(null);
@@ -558,6 +560,7 @@ function FilaIntegrante({
               bloquesVisibles: null,
               dispositivos: [],
               voz: "sin_voz",
+              verBorradores: false,
             },
           ];
         });
@@ -591,6 +594,19 @@ function FilaIntegrante({
         setBandasLocal((prev) => prev.map((b) => (b.bandaId === bandaId ? { ...b, voz: siguiente } : b)));
       })
       .finally(() => setPendingVoz(null));
+  };
+
+  // Brief "Fase 3: nueva vista de Canción" (Fase 1 §1): permiso puntual para
+  // ver canciones en borrador de esta banda. administrador/superadmin las ven
+  // siempre, así que el toggle solo tiene sentido para un miembro simple.
+  const cambiarVerBorradores = (bandaId: string, actual: boolean) => {
+    if (!integrante.usuarioId) return;
+    setPendingVerBorradores(bandaId);
+    actualizarVerBorradoresAction(integrante.usuarioId, bandaId, !actual)
+      .then(() => {
+        setBandasLocal((prev) => prev.map((b) => (b.bandaId === bandaId ? { ...b, verBorradores: !actual } : b)));
+      })
+      .finally(() => setPendingVerBorradores(null));
   };
 
   // Brief 21 §1: al tildar/destildar un bloque, si el resultado cubre TODOS
@@ -1004,6 +1020,34 @@ function FilaIntegrante({
                           {ETIQUETA_VOZ[asignada.voz]}
                         </button>
                       </div>
+
+                      {/* Brief "Fase 3: nueva vista de Canción" (Fase 1 §1):
+                          permiso "Ver borradores". Solo aparece si la banda
+                          tiene el bloque Canciones activo. Para
+                          administrador/superadmin es informativo (las ven
+                          igual); para un miembro simple es el toggle real. */}
+                      {b.cancionesHabilitado && (
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.02 55)" }}>
+                            Ver borradores
+                          </span>
+                          {asignada.rol === "miembro" ? (
+                            <button
+                              type="button"
+                              onClick={() => cambiarVerBorradores(b.id, asignada.verBorradores)}
+                              disabled={pendingVerBorradores === b.id}
+                              className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
+                              style={asignada.verBorradores ? ROL_ACTIVO : ROL_INACTIVO}
+                            >
+                              {asignada.verBorradores ? "Sí" : "No"}
+                            </button>
+                          ) : (
+                            <span className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold" style={ROL_ACTIVO}>
+                              Sí · por rol
+                            </span>
+                          )}
+                        </div>
+                      )}
 
                       {/* Brief §2: 3 acordeones internos -- Instrumentos,
                           Seteo, Bloques visibles, en ese orden. */}

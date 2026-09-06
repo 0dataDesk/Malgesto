@@ -25,6 +25,10 @@ export type Membresia = {
   // el resto.
   presskitHabilitado: boolean;
   bloquesVisibles: string[] | null;
+  // Brief "Fase 3: nueva vista de Canción" (Fase 1 §1): permiso puntual por
+  // persona+banda para ver canciones en borrador. administrador/superadmin
+  // las ven siempre; un miembro simple solo si tiene este flag.
+  verBorradores: boolean;
 };
 
 // Brief 21 §1-2: bloque opcional de una banda (Calendario nunca se
@@ -59,6 +63,17 @@ export function bloqueVisible(m: Membresia, bloque: NombreBloque, superadmin: bo
   if (superadmin) return true;
   if (!m.bloquesVisibles || m.bloquesVisibles.length === 0) return true;
   return m.bloquesVisibles.includes(bloque);
+}
+
+// Brief "Fase 3: nueva vista de Canción" (Fase 1 §1): quién ve las canciones
+// en borrador de una banda — administrador/superadmin siempre, un miembro
+// simple solo con el permiso "Ver borradores". Requiere además que el bloque
+// canciones sea visible para esa persona (un borrador es una canción).
+export function puedeVerBorradores(m: Membresia, superadmin: boolean): boolean {
+  if (!bloqueVisible(m, "canciones", superadmin)) return false;
+  if (superadmin) return true;
+  if (m.rol === "administrador" || m.rol === "superadmin") return true;
+  return m.verBorradores;
 }
 
 // Para los botones flotantes de navegación: unión de todas las bandas del

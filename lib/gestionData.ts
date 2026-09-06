@@ -441,6 +441,10 @@ export type BandaDeIntegrante = {
   // consola asignados a esta persona en esta banda.
   dispositivos: DispositivoAsignado[];
   voz: Voz;
+  // Brief "Fase 3: nueva vista de Canción" (Fase 1 §1): permiso para ver
+  // canciones en borrador de esta banda. Sin efecto para administrador/
+  // superadmin (las ven igual).
+  verBorradores: boolean;
 };
 
 export type Integrante = {
@@ -485,7 +489,7 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
     { data: instrumentosPropios },
   ] = await Promise.all([
     admin.from("bandas").select("id, nombre"),
-    admin.from("miembros_banda").select("usuario_id, banda_id, rol, activo, bloques_visibles, voz"),
+    admin.from("miembros_banda").select("usuario_id, banda_id, rol, activo, bloques_visibles, voz, ver_borradores"),
     admin.from("invitaciones").select("email").eq("estado", "pendiente"),
     admin.auth.admin.listUsers({ page: 1, perPage: 200 }),
     admin.from("personas").select("usuario_id, nombre_mostrar, fecha_nacimiento, red_social_url"),
@@ -565,6 +569,7 @@ export async function obtenerIntegrantes(): Promise<Integrante[]> {
       bloquesVisibles: (m.bloques_visibles as string[] | null) ?? null,
       dispositivos: dispositivosPorPersonaYBanda.get(`${m.usuario_id}:${m.banda_id}`) ?? [],
       voz: (m.voz as Voz) ?? "sin_voz",
+      verBorradores: (m.ver_borradores as boolean | null) ?? false,
     });
     if (m.activo) acc.tieneActivo = true;
   }
@@ -677,6 +682,19 @@ export async function actualizarRol(usuarioId: string, bandaId: string, rol: Rol
 export async function actualizarVoz(usuarioId: string, bandaId: string, voz: Voz): Promise<void> {
   const admin = supabaseMalgesto();
   const { error } = await admin.from("miembros_banda").update({ voz }).eq("usuario_id", usuarioId).eq("banda_id", bandaId);
+  if (error) throw new Error(error.message);
+}
+
+// Brief "Fase 3: nueva vista de Canción" (Fase 1 §1): permiso "Ver
+// borradores" por persona+banda. Sin restricción de superadmin (igual que
+// voz): es un atributo de la persona en esa banda.
+export async function actualizarVerBorradores(usuarioId: string, bandaId: string, verBorradores: boolean): Promise<void> {
+  const admin = supabaseMalgesto();
+  const { error } = await admin
+    .from("miembros_banda")
+    .update({ ver_borradores: verBorradores })
+    .eq("usuario_id", usuarioId)
+    .eq("banda_id", bandaId);
   if (error) throw new Error(error.message);
 }
 

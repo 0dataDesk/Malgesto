@@ -1,7 +1,8 @@
 import { redirect, notFound } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias, bloqueVisible } from "@/lib/malgestoEventos";
-import { obtenerCancionCompleta, obtenerCanciones } from "@/lib/cancionesData";
+import { puedeVerBorradores } from "@/lib/bloques";
+import { obtenerCancionCompleta, obtenerCanciones, obtenerPrioridadMusico } from "@/lib/cancionesData";
 import { obtenerSetlistCompleto } from "@/lib/setlistsData";
 import { obtenerSeteosParaCancion } from "@/lib/dispositivosData";
 import { VistaFinal } from "@/components/canciones/VistaFinal";
@@ -31,15 +32,23 @@ export default async function CancionPage({
   const membresia = membresias.find((m) => m.bandaId === cancion.bandaId);
   if (!membresia) notFound();
 
-  // Brief de corrección §3: la vista final debe respetar el mismo toggle de
-  // banda (seteos_habilitado + restricción por persona) que ya aplica en la
-  // barra de navegación — antes se mostraba sin importar el bloque.
   const superadmin = esSuperadminDeMembresias(membresias);
+  if (!bloqueVisible(membresia, "canciones", superadmin)) notFound();
+
+  const puedeEscribir = membresia.rol === "administrador" || membresia.rol === "superadmin";
+
+  // Brief "Fase 3: nueva vista de Canción" (Fase 1 §1):
+  //  - Un borrador solo lo ven admins + integrantes con "Ver borradores".
+  //  - Modo de vista según es_borrador: borrador = edición vertical (para
+  //    quien puede escribir, es el editor); no-borrador = lista horizontal,
+  //    no editable.
+  if (cancion.esBorrador) {
+    if (!puedeVerBorradores(membresia, superadmin)) notFound();
+    if (puedeEscribir) redirect(`/canciones/${cancionId}/editar`);
+  }
+
   const seteosVisible = bloqueVisible(membresia, "seteos", superadmin);
 
-  // Con Set List de por medio, siguiente/anterior siguen su orden — tiene
-  // prioridad sobre el alfabético, que era la solución temporal del Brief 4
-  // para cuando no hay ningún Set List asociado a esta sesión de tocar.
   let prevId: string | null = null;
   let nextId: string | null = null;
   let setlistValido: { id: string; nombre: string } | null = null;
@@ -47,9 +56,6 @@ export default async function CancionPage({
   if (setlistId) {
     const setlist = await obtenerSetlistCompleto(setlistId);
     if (setlist && setlist.bandaId === cancion.bandaId) {
-      // Los bloques libres (sample/diálogo) no son canciones navegables — se
-      // saltan al calcular anterior/siguiente, que solo avanza entre items
-      // tipo "cancion".
       const cancionItems = setlist.items.filter((it) => it.tipo === "cancion" && it.cancion);
       const indice = cancionItems.findIndex((it) => it.cancion!.id === cancionId);
       if (indice !== -1) {
@@ -62,12 +68,16 @@ export default async function CancionPage({
 
   if (!setlistValido) {
     const canciones = await obtenerCanciones([cancion.bandaId]);
-    const indice = canciones.findIndex((c) => c.id === cancionId);
-    prevId = indice > 0 ? canciones[indice - 1].id : null;
-    nextId = indice >= 0 && indice < canciones.length - 1 ? canciones[indice + 1].id : null;
+    const listas = canciones.filter((c) => !c.esBorrador || puedeVerBorradores(membresia, superadmin));
+    const indice = listas.findIndex((c) => c.id === cancionId);
+    prevId = indice > 0 ? listas[indice - 1].id : null;
+    nextId = indice >= 0 && indice < listas.length - 1 ? listas[indice + 1].id : null;
   }
 
-  const seteosContexto = seteosVisible ? await obtenerSeteosParaCancion(cancion.bandaId, cancionId) : [];
+  const [seteosContexto, prioridad] = await Promise.all([
+    seteosVisible ? obtenerSeteosParaCancion(cancion.bandaId, cancionId) : Promise.resolve([]),
+    obtenerPrioridadMusico(user.id, cancion.bandaId),
+  ]);
 
   return (
     <VistaFinal
@@ -76,6 +86,10 @@ export default async function CancionPage({
       nextId={nextId}
       setlist={setlistValido}
       seteosContexto={seteosContexto}
+      modo={cancion.esBorrador ? "vertical" : "horizontal"}
+      prioridad={prioridad}
+      soloLectura={cancion.esBorrador}
+      puedeEditar={puedeEscribir}
     />
   );
 }

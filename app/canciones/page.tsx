@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
-import { obtenerCanciones } from "@/lib/cancionesData";
+import { puedeVerBorradores } from "@/lib/bloques";
+import { obtenerCanciones, type Cancion } from "@/lib/cancionesData";
 import { colorRaizAcorde } from "@/lib/cancionTeoria";
 import { formatoMMSS } from "@/lib/duracion";
 import { TabBar } from "@/components/shell/TabBar";
@@ -14,6 +15,79 @@ import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda
 // banda con el bloque activo, se muestra un selector explícito antes de
 // entrar, en vez de los chips-tab que había antes dentro de la misma vista.
 // Con una sola banda con el bloque, se salta directo (mismo criterio).
+//
+// Brief "Fase 3: nueva vista de Canción" (Fase 1 §1 y §1.2):
+//  - Las canciones en borrador solo las ven admins de la banda + integrantes
+//    con el permiso "Ver borradores" (puedeVerBorradores).
+//  - La lista se separa en dos secciones: Propias y Covers (es_cover).
+function SeccionCanciones({
+  titulo,
+  canciones,
+  puedeEscribir,
+}: {
+  titulo: string;
+  canciones: Cancion[];
+  puedeEscribir: boolean;
+}) {
+  if (canciones.length === 0) return null;
+  return (
+    <div className="mt-6 first:mt-4">
+      <div className="mb-2 flex items-baseline justify-between">
+        <h3 className="font-mono text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: "oklch(0.5 0.02 55)" }}>
+          {titulo}
+        </h3>
+        <span className="font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+          {canciones.length}
+        </span>
+      </div>
+      <div className="flex flex-col gap-2.5">
+        {canciones.map((c) => (
+          <div
+            key={c.id}
+            className="flex items-center justify-between gap-3 rounded-2xl p-3.5"
+            style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}
+          >
+            <Link href={`/canciones/${c.id}`} className="min-w-0 flex-1 no-underline">
+              <div
+                className="flex items-center gap-2 text-[17px] font-bold"
+                style={{ color: "oklch(0.24 0.02 55)", fontFamily: "var(--font-bricolage), sans-serif" }}
+              >
+                <span className="truncate">{c.titulo}</span>
+                {c.esBorrador && (
+                  <span
+                    className="shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide"
+                    style={{ background: "oklch(0.55 0.15 70 / 0.16)", color: "oklch(0.5 0.13 70)" }}
+                  >
+                    Borrador
+                  </span>
+                )}
+              </div>
+              <div className="mt-1 flex items-baseline gap-3 font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+                <span className="text-base font-extrabold" style={{ color: colorRaizAcorde(c.tonalidadNota, c.tonalidadModo) }}>
+                  {c.tonalidadNota}
+                  {c.tonalidadModo === "menor" ? "m" : ""}
+                </span>
+                {c.bpm && <span>{c.bpm} BPM</span>}
+                {c.duracionSegundos !== null && <span>{formatoMMSS(c.duracionSegundos)}</span>}
+                {c.totalSecciones > 0 && <span>{c.totalSecciones} {c.totalSecciones === 1 ? "sección" : "secciones"}</span>}
+              </div>
+            </Link>
+            {puedeEscribir && (
+              <Link
+                href={`/canciones/${c.id}/editar`}
+                className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-bold no-underline"
+                style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+              >
+                {c.esBorrador ? "Seguir" : "Editar"}
+              </Link>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default async function CancionesPage({
   searchParams,
 }: {
@@ -32,9 +106,6 @@ export default async function CancionesPage({
 
   const superadmin = esSuperadminDeMembresias(membresias);
 
-  // El bloque Canciones puede estar desactivado por banda, o restringido
-  // por persona (Brief 21 §1) — si ninguna banda del usuario lo hace
-  // efectivamente visible, la sección entera no es accesible.
   const bandasConBloque = membresiasConBloque(membresias, "canciones", superadmin);
   if (bandasConBloque.length === 0) redirect("/inicio");
 
@@ -79,14 +150,17 @@ export default async function CancionesPage({
   }
 
   const bandaActiva = bandaValida ? bandaParam! : bandasConBloque[0].bandaId;
-  const nombreBandaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.bandaNombre ?? "";
-  // Brief "Nuevo nivel de rol": crear/editar canciones es ahora solo para
-  // administrador/superadmin — un miembro simple ve la lista pero no estos
-  // controles (el servidor igual lo exige en actions.ts, esto es solo UX).
-  const rolEnBanda = bandasConBloque.find((m) => m.bandaId === bandaActiva)?.rol;
-  const puedeEscribir = rolEnBanda === "administrador" || rolEnBanda === "superadmin";
+  const membresiaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva)!;
+  const nombreBandaActiva = membresiaActiva.bandaNombre;
+  // Crear/editar canciones es solo para administrador/superadmin (el servidor
+  // igual lo exige en actions.ts, esto es solo UX).
+  const puedeEscribir = membresiaActiva.rol === "administrador" || membresiaActiva.rol === "superadmin";
+  const verBorradores = puedeVerBorradores(membresiaActiva, superadmin);
 
-  const canciones = await obtenerCanciones([bandaActiva]);
+  const todas = await obtenerCanciones([bandaActiva]);
+  const visibles = verBorradores ? todas : todas.filter((c) => !c.esBorrador);
+  const propias = visibles.filter((c) => !c.esCover);
+  const covers = visibles.filter((c) => c.esCover);
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
@@ -96,10 +170,6 @@ export default async function CancionesPage({
             {nombreBandaActiva}
           </div>
           {bandasConBloque.length > 1 && (
-            // Brief de corrección "Reposicionar Cambiar de banda": antes vivía
-            // a la derecha (justify-between) y se encimaba con los botones
-            // flotantes de Gestión/Cerrar sesión (top-right, fixed) — ahora
-            // vive junto al nombre de banda, a la izquierda.
             <Link
               href="/canciones"
               className="font-mono text-[10px] font-bold tracking-wide no-underline"
@@ -117,63 +187,20 @@ export default async function CancionesPage({
             Canciones
           </h2>
           <span className="font-mono text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
-            {canciones.length}
+            {visibles.length}
           </span>
         </div>
 
-        <div className="mt-4 flex flex-col gap-2.5">
-          {canciones.length === 0 && (
-            <p className="mt-6 text-center text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
-              Todavía no hay canciones para {nombreBandaActiva}.
-            </p>
-          )}
-          {canciones.map((c) => (
-            <div
-              key={c.id}
-              className="flex items-center justify-between gap-3 rounded-2xl p-3.5"
-              style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}
-            >
-              <Link href={`/canciones/${c.id}`} className="min-w-0 flex-1 no-underline">
-                <div
-                  className="flex items-center gap-2 text-[17px] font-bold"
-                  style={{ color: "oklch(0.24 0.02 55)", fontFamily: "var(--font-bricolage), sans-serif" }}
-                >
-                  {c.titulo}
-                  {c.esCover && (
-                    <span
-                      className="rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide"
-                      style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.5 0.02 55)" }}
-                    >
-                      Cover
-                    </span>
-                  )}
-                </div>
-                <div className="mt-1 flex items-baseline gap-3 font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
-                  {/* Brief de refinamiento §1: la nota usa el mismo color por
-                      tonalidad que ya existe para acordes (colorRaizAcorde) —
-                      Modo ("mayor"/"menor") entra tal cual como Calidad,
-                      mismas dos categorías de color que ya usa ChordBlock. */}
-                  <span className="text-base font-extrabold" style={{ color: colorRaizAcorde(c.tonalidadNota, c.tonalidadModo) }}>
-                    {c.tonalidadNota}
-                    {c.tonalidadModo === "menor" ? "m" : ""}
-                  </span>
-                  {c.bpm && <span>{c.bpm} BPM</span>}
-                  {c.duracionSegundos !== null && <span>{formatoMMSS(c.duracionSegundos)}</span>}
-                  {c.totalCompases > 0 && <span>{c.totalCompases} compases</span>}
-                </div>
-              </Link>
-              {puedeEscribir && (
-                <Link
-                  href={`/canciones/${c.id}/editar`}
-                  className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-bold no-underline"
-                  style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
-                >
-                  Editar
-                </Link>
-              )}
-            </div>
-          ))}
-        </div>
+        {visibles.length === 0 ? (
+          <p className="mt-6 text-center text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+            Todavía no hay canciones para {nombreBandaActiva}.
+          </p>
+        ) : (
+          <>
+            <SeccionCanciones titulo="Propias" canciones={propias} puedeEscribir={puedeEscribir} />
+            <SeccionCanciones titulo="Covers" canciones={covers} puedeEscribir={puedeEscribir} />
+          </>
+        )}
       </EspacioSuperior>
 
       {puedeEscribir && (
