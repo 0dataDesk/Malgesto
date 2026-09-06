@@ -55,10 +55,13 @@ export function ChordBlock({
   const cardOscura = colorContrasteTexto(colorRaiz) === "#ffffff";
   const colorBadge = cardOscura ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.25)";
   const colorTextoBadge = cardOscura ? "#ffffff" : "#000000";
-  const notas = [
-    { numero: "1", nota: tonos.raiz, color: colorRaiz },
-    ...tonos.acompanantes.map((t) => ({ numero: t.intervalo.replace("ª", ""), nota: t.nota, color: colorExtension(t.nota) })),
-  ];
+  // Diseño Fase 2: sin el grado 1 — la tónica ya está en el nombre del
+  // acorde. Solo 3 · 5 · 7 · 9.
+  const notas = tonos.acompanantes.map((t) => ({
+    numero: t.intervalo.replace("ª", ""),
+    nota: t.nota,
+    color: colorExtension(t.nota),
+  }));
   const tamano = TAMANOS[densidad];
 
   return (

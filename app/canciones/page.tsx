@@ -20,6 +20,13 @@ import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda
 //  - Las canciones en borrador solo las ven admins de la banda + integrantes
 //    con el permiso "Ver borradores" (puedeVerBorradores).
 //  - La lista se separa en dos secciones: Propias y Covers (es_cover).
+// Diseño Fase 2 (Vista de Cancion.dc.html, pantalla "Lista"): dos secciones
+// con encabezado tipo "PROPIAS ──── 7". Tarjeta de canción: título + badge
+// "Borrador" (borde punteado acento) o chip de autor en covers; fila de
+// datos en mono con la tonalidad coloreada. Los borradores usan fondo y
+// borde punteados para leerse "en obra" antes de abrirlos.
+const MONO = "var(--font-space-mono), ui-monospace, monospace";
+
 function SeccionCanciones({
   titulo,
   canciones,
@@ -31,51 +38,59 @@ function SeccionCanciones({
 }) {
   if (canciones.length === 0) return null;
   return (
-    <div className="mt-6 first:mt-4">
-      <div className="mb-2 flex items-baseline justify-between">
-        <h3 className="font-mono text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: "oklch(0.5 0.02 55)" }}>
+    <div className="mt-5 first:mt-4">
+      <div className="flex items-baseline gap-2">
+        <h3 className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: "oklch(0.24 0.02 55)" }}>
           {titulo}
         </h3>
-        <span className="font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+        <div className="h-px flex-1" style={{ background: "oklch(0.89 0.013 78)" }} />
+        <span className="text-[10px]" style={{ fontFamily: MONO, color: "oklch(0.5 0.02 55)" }}>
           {canciones.length}
         </span>
       </div>
-      <div className="flex flex-col gap-2.5">
+      <div className="mt-2.5 flex flex-col gap-2">
         {canciones.map((c) => (
-          <div
-            key={c.id}
-            className="flex items-center justify-between gap-3 rounded-2xl p-3.5"
-            style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}
-          >
-            <Link href={`/canciones/${c.id}`} className="min-w-0 flex-1 no-underline">
-              <div
-                className="flex items-center gap-2 text-[17px] font-bold"
-                style={{ color: "oklch(0.24 0.02 55)", fontFamily: "var(--font-bricolage), sans-serif" }}
-              >
-                <span className="truncate">{c.titulo}</span>
+          <div key={c.id} className="flex items-stretch gap-2">
+            <Link
+              href={`/canciones/${c.id}`}
+              className="min-w-0 flex-1 rounded-2xl p-3.5 no-underline"
+              style={{
+                background: c.esBorrador ? "oklch(0.975 0.01 82)" : "oklch(0.99 0.008 82)",
+                border: c.esBorrador ? "1px dashed oklch(0.85 0.016 78)" : "1px solid oklch(0.89 0.013 78)",
+              }}
+            >
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[17px] font-bold" style={{ color: "oklch(0.24 0.02 55)", fontFamily: "var(--font-bricolage), sans-serif" }}>
+                  {c.titulo}
+                </span>
+                {c.esCover && c.autor && (
+                  <span className="rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]" style={{ fontFamily: MONO, background: "oklch(0.93 0.016 78)", color: "oklch(0.5 0.02 55)" }}>
+                    {c.autor}
+                  </span>
+                )}
                 {c.esBorrador && (
                   <span
-                    className="shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide"
-                    style={{ background: "oklch(0.55 0.15 70 / 0.16)", color: "oklch(0.5 0.13 70)" }}
+                    className="rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]"
+                    style={{ fontFamily: MONO, border: "1px dashed oklch(0.64 0.15 34)", color: "oklch(0.64 0.15 34)" }}
                   >
                     Borrador
                   </span>
                 )}
               </div>
-              <div className="mt-1 flex items-baseline gap-3 font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
-                <span className="text-base font-extrabold" style={{ color: colorRaizAcorde(c.tonalidadNota, c.tonalidadModo) }}>
+              <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[11px]" style={{ fontFamily: MONO, color: "oklch(0.5 0.02 55)" }}>
+                <span className="text-[15px] font-bold" style={{ color: colorRaizAcorde(c.tonalidadNota, c.tonalidadModo) }}>
                   {c.tonalidadNota}
                   {c.tonalidadModo === "menor" ? "m" : ""}
                 </span>
                 {c.bpm && <span>{c.bpm} BPM</span>}
                 {c.duracionSegundos !== null && <span>{formatoMMSS(c.duracionSegundos)}</span>}
-                {c.totalSecciones > 0 && <span>{c.totalSecciones} {c.totalSecciones === 1 ? "sección" : "secciones"}</span>}
+                {c.totalCompases > 0 && <span>{c.totalCompases} compases</span>}
               </div>
             </Link>
             {puedeEscribir && (
               <Link
                 href={`/canciones/${c.id}/editar`}
-                className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-bold no-underline"
+                className="flex shrink-0 items-center rounded-2xl px-3 text-xs font-bold no-underline"
                 style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
               >
                 {c.esBorrador ? "Seguir" : "Editar"}
@@ -199,6 +214,10 @@ export default async function CancionesPage({
           <>
             <SeccionCanciones titulo="Propias" canciones={propias} puedeEscribir={puedeEscribir} />
             <SeccionCanciones titulo="Covers" canciones={covers} puedeEscribir={puedeEscribir} />
+            <div className="mt-5 flex items-start gap-2 text-[11px] leading-snug" style={{ color: "oklch(0.6 0.02 55)" }}>
+              <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ border: "1px dashed oklch(0.64 0.15 34)" }} />
+              <span>Los borradores solo los ven administradores de la banda y quien tenga el permiso &ldquo;Ver borradores&rdquo;.</span>
+            </div>
           </>
         )}
       </EspacioSuperior>

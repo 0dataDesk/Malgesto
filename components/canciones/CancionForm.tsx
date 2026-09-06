@@ -1,36 +1,34 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { NOTAS, type Nota, type Modo, type Calidad } from "@/lib/cancionTeoria";
+import { NOTAS, type Nota, type Modo, type Calidad, simboloAcorde, colorRaizAcorde, colorContrasteTexto, colorExtension, tonosDelAcorde } from "@/lib/cancionTeoria";
 import { NOMBRES_SECCION, colorPorTipoSeccion, type NombreSeccion } from "@/lib/seccionCatalogo";
-import type {
-  CancionCompleta,
-  CancionInput,
-  SeccionInput,
-  SeccionBaseInput,
-  LetraLineaInput,
-} from "@/lib/cancionesData";
+import { segundosPorCompas } from "@/lib/cancionTiempo";
+import type { CancionCompleta, CancionInput, SeccionInput, SeccionBaseInput, LetraLineaInput } from "@/lib/cancionesData";
 import { formatoMMSS, parseMMSS } from "@/lib/duracion";
-import {
-  crearCancionAction,
-  actualizarCancionAction,
-  subirAudioAction,
-  quitarAudioAction,
-} from "@/app/canciones/actions";
+import { crearCancionAction, actualizarCancionAction, subirAudioAction, quitarAudioAction } from "@/app/canciones/actions";
 import { AcordeSelector } from "./AcordeSelector";
 
-const inputCls = "w-full rounded-lg border px-3 py-2 text-sm outline-none";
-const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
-const labelCls = "flex flex-col gap-1 text-sm";
-const labelColor = { color: "oklch(0.5 0.02 55)" };
-const inactivoStyle = { background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" };
-const activoStyle = { background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" };
+const MONO = "var(--font-space-mono), ui-monospace, monospace";
+const DISPLAY = "var(--font-bricolage), sans-serif";
+const BG = "oklch(0.965 0.012 82)";
+const CARD = "oklch(0.99 0.008 82)";
+const CARD2 = "oklch(0.975 0.01 82)";
+const LINE = "oklch(0.89 0.013 78)";
+const INK = "oklch(0.24 0.02 55)";
+const MUTED = "oklch(0.5 0.02 55)";
+const FAINT = "oklch(0.62 0.02 55)";
+const CHIP = "oklch(0.93 0.016 78)";
+const ACCENT = "oklch(0.64 0.15 34)";
+
+const inputStyle = { background: CARD, borderColor: LINE, color: INK } as const;
+const activoStyle = { background: ACCENT, color: "oklch(0.99 0.01 82)" } as const;
+const inactivoStyle = { background: CHIP, color: "oklch(0.4 0.02 55)" } as const;
 
 const NATURALES = NOTAS.filter((n) => !n.includes("#")) as Nota[];
-
 function esNota(natural: string, sostenido: boolean): Nota {
-  const candidata = `${natural}${sostenido ? "#" : ""}`;
-  return (NOTAS as readonly string[]).includes(candidata) ? (candidata as Nota) : (natural as Nota);
+  const c = `${natural}${sostenido ? "#" : ""}`;
+  return (NOTAS as readonly string[]).includes(c) ? (c as Nota) : (natural as Nota);
 }
 function puedeSostenido(natural: string): boolean {
   return (NOTAS as readonly string[]).includes(`${natural}#`);
@@ -38,7 +36,7 @@ function puedeSostenido(natural: string): boolean {
 
 type AcordeFS = { notaRaiz: Nota; calidad: Calidad; duracionCompases: number };
 type LetraFS = { texto: string; acordes: { posicion: number; notaRaiz: Nota; calidad: Calidad }[] };
-type SeccionCuerpoFS = {
+type CuerpoFS = {
   acordes: AcordeFS[];
   letra: LetraFS[];
   tonalidadPropia: boolean;
@@ -47,56 +45,27 @@ type SeccionCuerpoFS = {
   numeroCompases: string;
   bpm: string;
 };
-type RepeticionFS = SeccionCuerpoFS & { repeticionIndice: number };
-type SeccionFS = SeccionCuerpoFS & {
-  nombre: NombreSeccion;
-  repiteVeces: number;
-  repeticiones: RepeticionFS[];
-};
+type RepeticionFS = CuerpoFS & { repeticionIndice: number };
+type SeccionFS = CuerpoFS & { nombre: NombreSeccion; repiteVeces: number; repeticiones: RepeticionFS[] };
 
-function cuerpoVacio(): SeccionCuerpoFS {
+function cuerpoVacio(): CuerpoFS {
   return { acordes: [], letra: [], tonalidadPropia: false, tonRaiz: "C", tonModo: "mayor", numeroCompases: "", bpm: "" };
 }
 function nuevaSeccion(): SeccionFS {
   return { ...cuerpoVacio(), nombre: "Intro", repiteVeces: 1, repeticiones: [] };
 }
 
-function IconoQuitar() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-      <path d="M18 6 6 18M6 6l12 12" />
-    </svg>
-  );
-}
-
 function SeccionNombreSelector({ valor, onCambio }: { valor: NombreSeccion; onCambio: (n: NombreSeccion) => void }) {
   const [abierto, setAbierto] = useState(false);
   return (
     <div className="relative">
-      <button
-        type="button"
-        onClick={() => setAbierto((v) => !v)}
-        className="rounded-md px-2 py-1 text-xs font-semibold"
-        style={{ background: colorPorTipoSeccion(valor), color: "oklch(0.99 0.01 82)" }}
-      >
+      <button type="button" onClick={() => setAbierto((v) => !v)} className="rounded-md px-2 py-1 text-xs font-bold" style={{ background: colorPorTipoSeccion(valor), color: "oklch(0.99 0.01 82)", fontFamily: DISPLAY }}>
         {valor}
       </button>
       {abierto && (
-        <div
-          className="absolute z-20 mt-1 flex w-56 flex-wrap gap-1.5 rounded-xl p-2.5"
-          style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", boxShadow: "0 16px 32px -16px rgba(0,0,0,0.25)" }}
-        >
+        <div className="absolute z-20 mt-1 flex w-56 flex-wrap gap-1.5 rounded-xl p-2.5" style={{ background: CARD, border: `1px solid ${LINE}`, boxShadow: "0 16px 32px -16px rgba(0,0,0,0.25)" }}>
           {NOMBRES_SECCION.map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => {
-                onCambio(n);
-                setAbierto(false);
-              }}
-              className="rounded-lg px-2.5 py-1.5 text-xs font-bold"
-              style={n === valor ? { background: colorPorTipoSeccion(n), color: "oklch(0.99 0.01 82)" } : inactivoStyle}
-            >
+            <button key={n} type="button" onClick={() => { onCambio(n); setAbierto(false); }} className="rounded-lg px-2.5 py-1.5 text-xs font-bold" style={n === valor ? { background: colorPorTipoSeccion(n), color: "oklch(0.99 0.01 82)" } : inactivoStyle}>
               {n}
             </button>
           ))}
@@ -106,60 +75,61 @@ function SeccionNombreSelector({ valor, onCambio }: { valor: NombreSeccion; onCa
   );
 }
 
-// -------- Editor de acordes de una sección/vuelta --------
-function AcordesEditor({
-  acordes,
+// Chip de acorde proporcional al número de compases (diseño Fase 2).
+function AcordeChip({
+  acorde,
   tonalidad,
-  raizDefault,
-  onCambio,
+  onSeleccionar,
+  onDuracion,
+  onQuitar,
 }: {
-  acordes: AcordeFS[];
+  acorde: AcordeFS;
   tonalidad: { raiz: Nota; modo: Modo };
-  raizDefault: Nota;
-  onCambio: (acordes: AcordeFS[]) => void;
+  onSeleccionar: (n: Nota, c: Calidad) => void;
+  onDuracion: (n: number) => void;
+  onQuitar: () => void;
 }) {
+  const color = colorRaizAcorde(acorde.notaRaiz, acorde.calidad);
+  const ink = colorContrasteTexto(color);
+  const tonos = tonosDelAcorde(acorde.notaRaiz, acorde.calidad);
   return (
-    <div className="flex flex-col gap-2">
-      {acordes.map((a, ai) => (
-        <div key={ai} className="flex items-center gap-2">
-          <AcordeSelector
-            tonalidad={tonalidad}
-            notaRaiz={a.notaRaiz}
-            calidad={a.calidad}
-            onSeleccionar={(notaRaiz, calidad) => onCambio(acordes.map((x, i) => (i === ai ? { ...x, notaRaiz, calidad } : x)))}
-          />
-          <input
-            type="text"
-            inputMode="numeric"
-            className="rounded-lg border text-center text-sm outline-none"
-            style={{ ...inputStyle, width: "2.75em", padding: "8px 2px" }}
-            value={a.duracionCompases}
-            onChange={(e) => {
-              const limpio = e.target.value.replace(/[^0-9.]/g, "");
-              onCambio(acordes.map((x, i) => (i === ai ? { ...x, duracionCompases: limpio === "" ? 0 : Number(limpio) } : x)));
-            }}
-          />
-          <span className="text-xs" style={labelColor}>
-            comp.
+    <div style={{ flex: Math.max(1, acorde.duracionCompases), minWidth: 92, borderRadius: 10, padding: "8px 7px", background: color, border: "1px solid rgba(0,0,0,.14)" }}>
+      <div className="flex items-start justify-between gap-1">
+        <AcordeSelector
+          tonalidad={tonalidad}
+          notaRaiz={acorde.notaRaiz}
+          calidad={acorde.calidad}
+          onSeleccionar={onSeleccionar}
+        />
+        <span style={{ borderRadius: 5, padding: "1px 4px", background: "rgba(0,0,0,.2)", color: ink, fontFamily: MONO, fontSize: 9 }}>{acorde.duracionCompases}c</span>
+      </div>
+      <div className="mt-1.5 flex flex-wrap gap-1">
+        {tonos.acompanantes.map((t, i) => (
+          <span key={i} style={{ display: "inline-flex", gap: 3, borderRadius: 999, padding: "1px 5px", background: "oklch(0.97 0.01 82)", fontFamily: MONO, fontWeight: 700, fontSize: 9, color: "oklch(0.3 0.02 55)" }}>
+            <span style={{ color: colorExtension(t.nota) }}>{t.intervalo.replace("ª", "")}</span>
+            {t.nota}
           </span>
-          <button type="button" onClick={() => onCambio(acordes.filter((_, i) => i !== ai))} className="ml-auto text-sm" style={{ color: "oklch(0.6 0.15 25)" }}>
-            Quitar
-          </button>
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={() => onCambio([...acordes, { notaRaiz: raizDefault, calidad: "mayor", duracionCompases: 1 }])}
-        className="mt-1 w-fit rounded-lg px-3 py-1.5 text-sm font-bold"
-        style={{ border: "1px dashed oklch(0.75 0.02 78)", color: "oklch(0.5 0.02 55)" }}
-      >
-        + Acorde
-      </button>
+        ))}
+      </div>
+      <div className="mt-1.5 flex items-center gap-1">
+        <input
+          inputMode="numeric"
+          value={acorde.duracionCompases}
+          onChange={(e) => {
+            const limpio = e.target.value.replace(/[^0-9.]/g, "");
+            onDuracion(limpio === "" ? 0 : Number(limpio));
+          }}
+          style={{ width: "2.4em", textAlign: "center", borderRadius: 6, padding: "3px 2px", background: "rgba(255,255,255,.85)", border: "1px solid rgba(0,0,0,.1)", fontFamily: MONO, fontSize: 11, color: INK }}
+        />
+        <span style={{ fontFamily: MONO, fontSize: 9, color: ink }}>comp.</span>
+        <button type="button" onClick={onQuitar} className="ml-auto" style={{ color: ink, fontFamily: MONO, fontSize: 10 }}>
+          ×
+        </button>
+      </div>
     </div>
   );
 }
 
-// -------- Editor de letra alineada a acordes (Fase 1 §5) --------
 function LetraEditor({
   letra,
   tonalidad,
@@ -172,109 +142,81 @@ function LetraEditor({
   onCambio: (letra: LetraFS[]) => void;
 }) {
   const [foco, setFoco] = useState<{ linea: number; pos: number } | null>(null);
-
   const setLinea = (i: number, patch: Partial<LetraFS>) => onCambio(letra.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
 
   return (
-    <div className="flex flex-col gap-2.5">
-      {letra.map((l, li) => (
-        <div key={li} className="rounded-lg p-2" style={{ background: "oklch(0.965 0.012 82)", border: "1px solid oklch(0.9 0.012 78)" }}>
-          {l.acordes.length > 0 && (
-            <div className="mb-1 flex flex-wrap gap-1.5">
-              {[...l.acordes]
-                .sort((a, b) => a.posicion - b.posicion)
-                .map((ac, idx) => (
-                  <span key={idx} className="flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold" style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.3 0.02 55)" }}>
-                    {ac.notaRaiz}
-                    {ac.calidad === "menor" ? "m" : ac.calidad === "mayor" ? "" : ac.calidad}
-                    <span style={{ color: "oklch(0.55 0.02 55)" }}>@{ac.posicion}</span>
-                    <button
-                      type="button"
-                      onClick={() => setLinea(li, { acordes: l.acordes.filter((_, i) => i !== l.acordes.indexOf(ac)) })}
-                      className="ml-0.5"
-                      style={{ color: "oklch(0.6 0.15 25)" }}
-                    >
+    <div className="mt-2.5 border-t pt-2.5" style={{ borderColor: LINE }}>
+      <div className="flex items-center gap-2">
+        <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT }}>Letra + acordes</span>
+        <div className="flex-1" />
+        <span style={{ fontFamily: MONO, fontSize: 9, color: FAINT }}>pon el acorde donde está el cursor</span>
+      </div>
+      <div className="mt-2 flex flex-col gap-2.5">
+        {letra.map((l, li) => (
+          <div key={li} className="rounded-lg p-2" style={{ background: CARD2, border: `1px solid ${LINE}` }}>
+            {l.acordes.length > 0 && (
+              <div className="mb-1 flex flex-wrap gap-1.5">
+                {[...l.acordes].sort((a, b) => a.posicion - b.posicion).map((ac, idx) => (
+                  <span key={idx} style={{ display: "flex", alignItems: "center", gap: 3, borderRadius: 6, padding: "1px 5px", background: CHIP, fontFamily: MONO, fontWeight: 700, fontSize: 11, color: colorRaizAcorde(ac.notaRaiz, ac.calidad) }}>
+                    {simboloAcorde(ac.notaRaiz, ac.calidad)}
+                    <span style={{ color: FAINT }}>@{ac.posicion}</span>
+                    <button type="button" onClick={() => setLinea(li, { acordes: l.acordes.filter((x) => x !== ac) })} style={{ color: "oklch(0.6 0.15 25)" }}>
                       ×
                     </button>
                   </span>
                 ))}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <input
+                value={l.texto}
+                placeholder="Línea de letra…"
+                onChange={(e) => setLinea(li, { texto: e.target.value })}
+                onFocus={(e) => setFoco({ linea: li, pos: e.target.selectionStart ?? 0 })}
+                onSelect={(e) => setFoco({ linea: li, pos: (e.target as HTMLInputElement).selectionStart ?? 0 })}
+                className="flex-1 rounded-lg border px-2.5 py-1.5 text-sm outline-none"
+                style={{ ...inputStyle, fontFamily: MONO }}
+              />
+              <button type="button" onClick={() => onCambio(letra.filter((_, i) => i !== li))} className="text-xs" style={{ color: "oklch(0.6 0.15 25)" }}>
+                Quitar
+              </button>
             </div>
-          )}
-          <div className="flex items-center gap-2">
-            <input
-              value={l.texto}
-              placeholder="Línea de letra…"
-              onChange={(e) => setLinea(li, { texto: e.target.value })}
-              onSelect={(e) => setFoco({ linea: li, pos: (e.target as HTMLInputElement).selectionStart ?? 0 })}
-              onFocus={(e) => setFoco({ linea: li, pos: e.target.selectionStart ?? 0 })}
-              className="flex-1 rounded-lg border px-2.5 py-1.5 text-sm outline-none"
-              style={inputStyle}
-            />
-            <button type="button" onClick={() => onCambio(letra.filter((_, i) => i !== li))} className="text-xs" style={{ color: "oklch(0.6 0.15 25)" }}>
-              Quitar
-            </button>
+            <div className="mt-1.5 flex items-center gap-2">
+              <span style={{ fontFamily: MONO, fontSize: 9, textTransform: "uppercase", color: MUTED }}>Acorde en el cursor</span>
+              <AcordeSelector
+                tonalidad={tonalidad}
+                notaRaiz={raizDefault}
+                calidad="mayor"
+                onSeleccionar={(notaRaiz, calidad) => {
+                  const pos = foco && foco.linea === li ? foco.pos : l.texto.length;
+                  setLinea(li, { acordes: [...l.acordes, { posicion: pos, notaRaiz, calidad }] });
+                }}
+              />
+            </div>
           </div>
-          <div className="mt-1.5 flex items-center gap-2">
-            <span className="font-mono text-[10px] uppercase" style={labelColor}>
-              Acorde en el cursor
-            </span>
-            <AcordeSelector
-              tonalidad={tonalidad}
-              notaRaiz={raizDefault}
-              calidad="mayor"
-              onSeleccionar={(notaRaiz, calidad) => {
-                const pos = foco && foco.linea === li ? foco.pos : l.texto.length;
-                setLinea(li, { acordes: [...l.acordes, { posicion: pos, notaRaiz, calidad }] });
-              }}
-            />
-          </div>
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={() => onCambio([...letra, { texto: "", acordes: [] }])}
-        className="w-fit rounded-lg px-3 py-1.5 text-sm font-bold"
-        style={{ border: "1px dashed oklch(0.75 0.02 78)", color: "oklch(0.5 0.02 55)" }}
-      >
-        + Línea de letra
-      </button>
+        ))}
+        <button type="button" onClick={() => onCambio([...letra, { texto: "", acordes: [] }])} className="w-fit rounded-lg px-3 py-1.5 text-xs font-bold" style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}>
+          + Línea
+        </button>
+      </div>
     </div>
   );
 }
 
-// -------- Ajustes tonalidad/compases/BPM de una sección o vuelta --------
-function CuerpoAjustes({ cuerpo, onCambio }: { cuerpo: SeccionCuerpoFS; onCambio: (patch: Partial<SeccionCuerpoFS>) => void }) {
+function AjustesCuerpo({ cuerpo, onCambio }: { cuerpo: CuerpoFS; onCambio: (patch: Partial<CuerpoFS>) => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        onClick={() => onCambio({ tonalidadPropia: !cuerpo.tonalidadPropia })}
-        className="rounded-lg px-2.5 py-1 text-xs font-bold"
-        style={cuerpo.tonalidadPropia ? activoStyle : inactivoStyle}
-      >
-        Tonalidad propia
+    <div className="flex flex-wrap items-center gap-2" style={{ fontFamily: MONO }}>
+      <button type="button" onClick={() => onCambio({ tonalidadPropia: !cuerpo.tonalidadPropia })} className="rounded-lg px-2.5 py-1 text-xs font-bold" style={cuerpo.tonalidadPropia ? activoStyle : inactivoStyle}>
+        Tono propio
       </button>
       {cuerpo.tonalidadPropia && (
         <>
-          <select
-            className="rounded-lg border px-2 py-1 text-xs outline-none"
-            style={inputStyle}
-            value={cuerpo.tonRaiz.replace("#", "")}
-            onChange={(e) => onCambio({ tonRaiz: esNota(e.target.value, cuerpo.tonRaiz.includes("#")) })}
-          >
+          <select className="rounded-lg border px-2 py-1 text-xs outline-none" style={inputStyle} value={cuerpo.tonRaiz.replace("#", "")} onChange={(e) => onCambio({ tonRaiz: esNota(e.target.value, cuerpo.tonRaiz.includes("#")) })}>
             {NATURALES.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
+              <option key={n} value={n}>{n}</option>
             ))}
           </select>
-          <button
-            type="button"
-            disabled={!puedeSostenido(cuerpo.tonRaiz.replace("#", ""))}
-            onClick={() => onCambio({ tonRaiz: esNota(cuerpo.tonRaiz.replace("#", ""), !cuerpo.tonRaiz.includes("#")) })}
-            className="rounded-lg px-2 py-1 text-xs font-bold disabled:opacity-30"
-            style={cuerpo.tonRaiz.includes("#") ? activoStyle : inactivoStyle}
-          >
+          <button type="button" disabled={!puedeSostenido(cuerpo.tonRaiz.replace("#", ""))} onClick={() => onCambio({ tonRaiz: esNota(cuerpo.tonRaiz.replace("#", ""), !cuerpo.tonRaiz.includes("#")) })} className="rounded-lg px-2 py-1 text-xs font-bold disabled:opacity-30" style={cuerpo.tonRaiz.includes("#") ? activoStyle : inactivoStyle}>
             ♯
           </button>
           {(["mayor", "menor"] as const).map((m) => (
@@ -284,46 +226,33 @@ function CuerpoAjustes({ cuerpo, onCambio }: { cuerpo: SeccionCuerpoFS; onCambio
           ))}
         </>
       )}
-      <label className="flex items-center gap-1 text-xs" style={labelColor}>
+      <label className="flex items-center gap-1 text-xs" style={{ color: MUTED }}>
         Compases
-        <input
-          type="text"
-          inputMode="numeric"
-          placeholder="auto"
-          value={cuerpo.numeroCompases}
-          onChange={(e) => onCambio({ numeroCompases: e.target.value.replace(/[^0-9]/g, "") })}
-          className="rounded-lg border text-center text-xs outline-none"
-          style={{ ...inputStyle, width: "3.5em", padding: "5px 2px" }}
-        />
+        <input inputMode="numeric" placeholder="auto" value={cuerpo.numeroCompases} onChange={(e) => onCambio({ numeroCompases: e.target.value.replace(/[^0-9]/g, "") })} className="rounded-lg border text-center text-xs outline-none" style={{ ...inputStyle, width: "3.5em", padding: "4px 2px" }} />
       </label>
-      <label className="flex items-center gap-1 text-xs" style={labelColor}>
+      <label className="flex items-center gap-1 text-xs" style={{ color: MUTED }}>
         BPM
-        <input
-          type="text"
-          inputMode="numeric"
-          placeholder="hereda"
-          value={cuerpo.bpm}
-          onChange={(e) => onCambio({ bpm: e.target.value.replace(/[^0-9]/g, "") })}
-          className="rounded-lg border text-center text-xs outline-none"
-          style={{ ...inputStyle, width: "4em", padding: "5px 2px" }}
-        />
+        <input inputMode="numeric" placeholder="hereda" value={cuerpo.bpm} onChange={(e) => onCambio({ bpm: e.target.value.replace(/[^0-9]/g, "") })} className="rounded-lg border text-center text-xs outline-none" style={{ ...inputStyle, width: "4em", padding: "4px 2px" }} />
       </label>
     </div>
   );
 }
 
-// -------- Audio (Fase 1 §4) --------
 function AudioCampo({
   cancionId,
   bandaId,
   tipo,
   titulo,
+  chip,
+  descripcion,
   urlInicial,
 }: {
   cancionId: string;
   bandaId: string;
   tipo: "referencia" | "secuencia";
   titulo: string;
+  chip: string;
+  descripcion: string;
   urlInicial: string | null;
 }) {
   const [url, setUrl] = useState(urlInicial);
@@ -336,8 +265,7 @@ function AudioCampo({
     form.set("archivo", archivo);
     startTransition(async () => {
       try {
-        const nueva = await subirAudioAction(cancionId, bandaId, tipo, form);
-        setUrl(nueva);
+        setUrl(await subirAudioAction(cancionId, bandaId, tipo, form));
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo subir.");
       }
@@ -345,57 +273,53 @@ function AudioCampo({
   };
 
   return (
-    <div className="rounded-xl p-3" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
-      <div className="mb-1.5 flex items-center justify-between">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.14em]" style={labelColor}>
-          {titulo}
-        </span>
-        {url && (
-          <button
-            type="button"
-            onClick={() =>
-              startTransition(async () => {
-                await quitarAudioAction(cancionId, bandaId, tipo);
-                setUrl(null);
-              })
-            }
-            className="text-xs"
-            style={{ color: "oklch(0.6 0.15 25)" }}
-          >
-            Quitar
-          </button>
-        )}
+    <div className="rounded-2xl p-3" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+      <div className="flex items-center gap-2">
+        <span style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 14, color: INK }}>{titulo}</span>
+        <span style={{ borderRadius: 6, padding: "2px 5px", background: tipo === "secuencia" ? ACCENT : CHIP, color: tipo === "secuencia" ? "oklch(0.99 0.01 82)" : MUTED, fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase" }}>{chip}</span>
       </div>
-      {url && <audio controls preload="none" src={url} className="mb-2 w-full" style={{ height: 34 }} />}
-      <label className="inline-block cursor-pointer rounded-lg px-3 py-1.5 text-xs font-bold" style={inactivoStyle}>
-        {pending ? "Subiendo…" : url ? "Reemplazar archivo" : "Subir archivo"}
-        <input
-          type="file"
-          accept="audio/*"
-          className="hidden"
-          disabled={pending}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) subir(f);
-            e.target.value = "";
-          }}
-        />
-      </label>
-      {error && (
-        <p className="mt-1 text-xs" style={{ color: "oklch(0.6 0.15 25)" }}>
-          {error}
-        </p>
+      <div className="mt-1 text-[11px] leading-snug" style={{ color: FAINT }}>{descripcion}</div>
+      {url ? (
+        <>
+          <audio controls preload="none" src={url} className="mt-2 w-full" style={{ height: 34 }} />
+          <div className="mt-2 flex gap-1.5">
+            <label className="flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-center text-[10px] font-bold uppercase" style={{ borderColor: LINE, color: MUTED, fontFamily: MONO }}>
+              {pending ? "Subiendo…" : "Reemplazar"}
+              <input type="file" accept="audio/*" className="hidden" disabled={pending} onChange={(e) => { const f = e.target.files?.[0]; if (f) subir(f); e.target.value = ""; }} />
+            </label>
+            <button
+              type="button"
+              onClick={() => startTransition(async () => { await quitarAudioAction(cancionId, bandaId, tipo); setUrl(null); })}
+              className="rounded-lg border px-3 py-1.5 text-[10px] font-bold uppercase"
+              style={{ borderColor: LINE, color: MUTED, fontFamily: MONO }}
+            >
+              Quitar
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="mt-2 rounded-xl border border-dashed p-3.5 text-center" style={{ borderColor: LINE }}>
+          <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: MUTED }}>
+            {tipo === "secuencia" ? "Sin secuencia todavía" : "Sin audio todavía"}
+          </div>
+          {tipo === "secuencia" && <div className="mt-1 text-[11px]" style={{ color: FAINT }}>Sin ella, el modo lista corre igual con el BPM.</div>}
+          <label className="mt-2.5 inline-block cursor-pointer rounded-lg px-3.5 py-2 text-[10px] font-bold uppercase" style={{ ...activoStyle, fontFamily: MONO }}>
+            {pending ? "Subiendo…" : tipo === "secuencia" ? "Subir secuencia" : "Subir audio"}
+            <input type="file" accept="audio/*" className="hidden" disabled={pending} onChange={(e) => { const f = e.target.files?.[0]; if (f) subir(f); e.target.value = ""; }} />
+          </label>
+        </div>
       )}
+      {error && <p className="mt-1 text-xs" style={{ color: "oklch(0.6 0.15 25)" }}>{error}</p>}
     </div>
   );
 }
 
-// -------- Componente principal --------
 export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; cancionExistente?: CancionCompleta }) {
   const [esCover, setEsCover] = useState(cancionExistente?.esCover ?? false);
+  const [autor, setAutor] = useState(cancionExistente?.autor ?? "");
   const [esBorrador, setEsBorrador] = useState(cancionExistente?.esBorrador ?? true);
   const [titulo, setTitulo] = useState(cancionExistente?.titulo ?? "");
-  const [bpm, setBpm] = useState(cancionExistente?.bpm?.toString() ?? "");
+  const [bpm, setBpm] = useState(cancionExistente?.bpm ?? 92);
   const [duracion, setDuracion] = useState(formatoMMSS(cancionExistente?.duracionSegundos ?? null) ?? "");
   const [raiz, setRaiz] = useState<Nota>(cancionExistente?.tonalidadNota ?? "C");
   const [modo, setModo] = useState<Modo>(cancionExistente?.tonalidadModo ?? "mayor");
@@ -422,14 +346,14 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
       })),
     })) ?? [nuevaSeccion()]
   );
+  const [seccionAbierta, setSeccionAbierta] = useState(0);
+  const [vueltaSel, setVueltaSel] = useState<Record<number, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const tonalidadGeneral = { raiz, modo };
-  const tonalidadDe = (c: SeccionCuerpoFS) => (c.tonalidadPropia ? { raiz: c.tonRaiz, modo: c.tonModo } : tonalidadGeneral);
-
-  const compasesDe = (c: SeccionCuerpoFS) =>
-    c.numeroCompases ? Number(c.numeroCompases) : c.acordes.reduce((t, a) => t + a.duracionCompases, 0);
+  const tonGeneral = { raiz, modo };
+  const tonDe = (c: CuerpoFS) => (c.tonalidadPropia ? { raiz: c.tonRaiz, modo: c.tonModo } : tonGeneral);
+  const compasesDe = (c: CuerpoFS) => (c.numeroCompases ? Number(c.numeroCompases) : c.acordes.reduce((t, a) => t + a.duracionCompases, 0));
   const totalCompases = secciones.reduce((total, s) => {
     let sec = 0;
     for (let v = 1; v <= s.repiteVeces; v++) {
@@ -438,15 +362,17 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
     }
     return total + sec;
   }, 0);
+  const totalVueltas = secciones.reduce((t, s) => t + s.repiteVeces, 0);
+  const duracionCalc = bpm > 0 ? totalCompases * segundosPorCompas(bpm) : 0;
 
   const patchSeccion = (i: number, patch: Partial<SeccionFS>) => setSecciones((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
   const moverSeccion = (i: number, dir: -1 | 1) =>
     setSecciones((prev) => {
       const j = i + dir;
       if (j < 0 || j >= prev.length) return prev;
-      const copia = [...prev];
-      [copia[i], copia[j]] = [copia[j], copia[i]];
-      return copia;
+      const c = [...prev];
+      [c[i], c[j]] = [c[j], c[i]];
+      return c;
     });
   const quitarSeccion = (i: number) => setSecciones((prev) => prev.filter((_, idx) => idx !== i));
 
@@ -456,7 +382,6 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
         if (idx !== si) return s;
         const existe = s.repeticiones.some((r) => r.repeticionIndice === vuelta);
         if (existe) return { ...s, repeticiones: s.repeticiones.filter((r) => r.repeticionIndice !== vuelta) };
-        // Copia ligada: arranca como clon del cuerpo actual de la plantilla.
         const clon: RepeticionFS = {
           repeticionIndice: vuelta,
           acordes: s.acordes.map((a) => ({ ...a })),
@@ -470,15 +395,10 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
         return { ...s, repeticiones: [...s.repeticiones, clon].sort((a, b) => a.repeticionIndice - b.repeticionIndice) };
       })
     );
+  const patchRepeticion = (si: number, vuelta: number, patch: Partial<CuerpoFS>) =>
+    setSecciones((prev) => prev.map((s, idx) => (idx === si ? { ...s, repeticiones: s.repeticiones.map((r) => (r.repeticionIndice === vuelta ? { ...r, ...patch } : r)) } : s)));
 
-  const patchRepeticion = (si: number, vuelta: number, patch: Partial<SeccionCuerpoFS>) =>
-    setSecciones((prev) =>
-      prev.map((s, idx) =>
-        idx === si ? { ...s, repeticiones: s.repeticiones.map((r) => (r.repeticionIndice === vuelta ? { ...r, ...patch } : r)) } : s
-      )
-    );
-
-  const construirCuerpo = (c: SeccionCuerpoFS): Omit<SeccionBaseInput, "nombre" | "repiteVeces"> => ({
+  const construirCuerpo = (c: CuerpoFS): Omit<SeccionBaseInput, "nombre" | "repiteVeces"> => ({
     tonalidadNota: c.tonalidadPropia ? c.tonRaiz : null,
     tonalidadModo: c.tonalidadPropia ? c.tonModo : null,
     numeroCompases: c.numeroCompases ? Number(c.numeroCompases) : null,
@@ -487,7 +407,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
     letra: c.letra.map((l): LetraLineaInput => ({ texto: l.texto, acordes: l.acordes })),
   });
 
-  const onSubmit = () => {
+  const onSubmit = (borradorFinal: boolean) => {
     setError(null);
     if (!titulo.trim()) {
       setError("El título es obligatorio.");
@@ -498,7 +418,6 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
       setError("Duración inválida — usá el formato mm:ss (ej. 3:24).");
       return;
     }
-
     const seccionesInput: SeccionInput[] = secciones.map((s) => ({
       nombre: s.nombre,
       repiteVeces: Math.max(1, s.repiteVeces),
@@ -507,19 +426,18 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
         .filter((r) => r.repeticionIndice >= 1 && r.repeticionIndice <= Math.max(1, s.repiteVeces))
         .map((r) => ({ nombre: s.nombre, repiteVeces: 1, repeticionIndice: r.repeticionIndice, ...construirCuerpo(r) })),
     }));
-
     const input: CancionInput = {
       bandaId,
       titulo: titulo.trim(),
       tonalidadNota: raiz,
       tonalidadModo: modo,
-      bpm: bpm ? Number(bpm) : null,
+      bpm: bpm || null,
       duracionSegundos,
       esCover,
-      esBorrador,
+      autor: esCover ? autor.trim() || null : null,
+      esBorrador: borradorFinal,
       secciones: seccionesInput,
     };
-
     startTransition(async () => {
       try {
         if (cancionExistente) await actualizarCancionAction(cancionExistente.id, input);
@@ -531,219 +449,296 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
     });
   };
 
+  const statCard = (label: string, valor: React.ReactNode, color?: string) => (
+    <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: "6px 8px" }}>
+      <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT }}>{label}</div>
+      <div style={{ marginTop: 3, fontFamily: MONO, fontWeight: 700, fontSize: 15, color: color ?? INK }}>{valor}</div>
+    </div>
+  );
+
   return (
-    <div className="flex h-full max-w-3xl flex-col">
-      <div className="mb-3 flex shrink-0 items-center gap-3 font-mono text-xs font-bold uppercase tracking-wide" style={labelColor}>
-        <span>Total: {totalCompases} {totalCompases === 1 ? "compás" : "compases"}</span>
-        <div className="flex gap-1.5">
-          <button type="button" onClick={() => setEsBorrador(true)} className="rounded-md px-2 py-1 text-[11px]" style={esBorrador ? activoStyle : inactivoStyle}>
-            Borrador
-          </button>
-          <button type="button" onClick={() => setEsBorrador(false)} className="rounded-md px-2 py-1 text-[11px]" style={!esBorrador ? activoStyle : inactivoStyle}>
-            Lista
-          </button>
+    <div className="flex h-full flex-col" style={{ maxWidth: 640, fontFamily: "var(--font-manrope), sans-serif", color: INK }}>
+      {/* Cabecera fija con datos calculados */}
+      <div className="flex-none border-b pb-3" style={{ borderColor: LINE }}>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            placeholder="Título de la canción"
+            className="min-w-0 flex-1 border-b-2 bg-transparent pb-1 text-2xl font-bold outline-none"
+            style={{ borderColor: ACCENT, fontFamily: DISPLAY, color: INK }}
+          />
+          <div className="flex gap-1">
+            <button type="button" onClick={() => setEsBorrador(true)} className="rounded-md px-2 py-1 text-[10px] font-bold uppercase" style={{ ...(esBorrador ? { border: `1px dashed ${ACCENT}`, color: ACCENT } : inactivoStyle), fontFamily: MONO }}>
+              Borrador
+            </button>
+            <button type="button" onClick={() => setEsBorrador(false)} className="rounded-md px-2 py-1 text-[10px] font-bold uppercase" style={{ ...(!esBorrador ? activoStyle : inactivoStyle), fontFamily: MONO }}>
+              Lista
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-2 grid grid-cols-4 gap-1.5">
+          {statCard("Tono", `${raiz}${modo === "menor" ? "m" : ""}`, colorRaizAcorde(raiz, modo === "menor" ? "menor" : "mayor"))}
+          <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: "6px 8px" }}>
+            <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT }}>BPM</div>
+            <div className="mt-0.5 flex items-center justify-between">
+              <button type="button" onClick={() => setBpm((b) => Math.max(20, b - 1))} style={{ width: 18, height: 18, borderRadius: 5, background: CHIP, color: MUTED, fontFamily: MONO }}>−</button>
+              <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 15 }}>{bpm}</span>
+              <button type="button" onClick={() => setBpm((b) => Math.min(300, b + 1))} style={{ width: 18, height: 18, borderRadius: 5, background: CHIP, color: MUTED, fontFamily: MONO }}>+</button>
+            </div>
+          </div>
+          {statCard("Compases", totalCompases)}
+          {statCard("Dura", mmssLocal(duracionCalc))}
+        </div>
+        <div className="mt-1.5 text-[10px] leading-snug" style={{ color: FAINT }}>
+          La duración se calcula sola: {totalCompases} compases × 4 tiempos a {bpm} BPM.
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-center gap-2" style={{ fontFamily: MONO }}>
+          <button type="button" onClick={() => setEsCover(false)} className="rounded-lg px-2.5 py-1 text-xs font-bold" style={!esCover ? activoStyle : inactivoStyle}>Propia</button>
+          <button type="button" onClick={() => setEsCover(true)} className="rounded-lg px-2.5 py-1 text-xs font-bold" style={esCover ? activoStyle : inactivoStyle}>Cover</button>
+          {esCover && (
+            <input value={autor} onChange={(e) => setAutor(e.target.value)} placeholder="Autor original" className="rounded-lg border px-2 py-1 text-xs outline-none" style={inputStyle} />
+          )}
+          <div className="flex-1" />
+          <input value={duracion} onChange={(e) => setDuracion(e.target.value)} maxLength={5} placeholder="dur. manual" className="rounded-lg border px-2 py-1 text-center text-xs outline-none" style={{ ...inputStyle, width: "6em" }} />
+        </div>
+
+        <div className="mt-2 flex items-center gap-1.5">
+          <select className="rounded-lg border px-2 py-1 text-xs outline-none" style={inputStyle} value={raiz.replace("#", "")} onChange={(e) => setRaiz(esNota(e.target.value, raiz.includes("#")))}>
+            {NATURALES.map((n) => (<option key={n} value={n}>{n}</option>))}
+          </select>
+          <button type="button" disabled={!puedeSostenido(raiz.replace("#", ""))} onClick={() => setRaiz(esNota(raiz.replace("#", ""), !raiz.includes("#")))} className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-30" style={raiz.includes("#") ? activoStyle : inactivoStyle}>♯</button>
+          {(["mayor", "menor"] as const).map((m) => (
+            <button key={m} type="button" onClick={() => setModo(m)} className="rounded-lg px-2.5 py-1 text-xs font-bold" style={m === modo ? activoStyle : inactivoStyle}>{m}</button>
+          ))}
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-0 flex-col gap-6 overflow-y-auto pb-4 pr-1">
-        <div className="flex flex-col gap-4">
-          <label className={labelCls} style={labelColor}>
-            Tipo de canción
-            <div className="flex gap-1.5">
-              <button type="button" onClick={() => setEsCover(false)} className="rounded-lg px-3 py-1.5 text-sm font-bold" style={!esCover ? activoStyle : inactivoStyle}>
-                Propia
-              </button>
-              <button type="button" onClick={() => setEsCover(true)} className="rounded-lg px-3 py-1.5 text-sm font-bold" style={esCover ? activoStyle : inactivoStyle}>
-                Cover
-              </button>
-            </div>
-          </label>
-          <label className={labelCls} style={labelColor}>
-            Título
-            <input className={inputCls} style={inputStyle} value={titulo} onChange={(e) => setTitulo(e.target.value)} />
-          </label>
-          <div className="flex gap-4">
-            <label className={labelCls} style={labelColor}>
-              Duración
-              <input className={inputCls} style={{ ...inputStyle, width: "5.5em" }} maxLength={5} placeholder="3:24" value={duracion} onChange={(e) => setDuracion(e.target.value)} />
-            </label>
-            <label className={labelCls} style={labelColor}>
-              BPM
-              <input type="number" min={0} max={999} className={inputCls} style={{ ...inputStyle, width: "4.5em" }} maxLength={3} value={bpm} onChange={(e) => setBpm(e.target.value)} />
-            </label>
-          </div>
+      {/* Cuerpo scrolleable */}
+      <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pb-4 pt-3 pr-1">
+        <div className="flex items-baseline gap-2">
+          <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: INK }}>Estructura</span>
+          <div className="h-px flex-1" style={{ background: LINE }} />
+          <span style={{ fontFamily: MONO, fontSize: 10, color: MUTED }}>{totalVueltas} vueltas</span>
         </div>
 
-        <div>
-          <div className="mb-1.5 text-sm" style={labelColor}>
-            Tonalidad general
-          </div>
-          <div className="flex items-center gap-1.5">
-            <select className={`${inputCls} w-auto`} style={inputStyle} value={raiz.replace("#", "")} onChange={(e) => setRaiz(esNota(e.target.value, raiz.includes("#")))}>
-              {NATURALES.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              disabled={!puedeSostenido(raiz.replace("#", ""))}
-              onClick={() => setRaiz(esNota(raiz.replace("#", ""), !raiz.includes("#")))}
-              className="rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-30"
-              style={raiz.includes("#") ? activoStyle : inactivoStyle}
-            >
-              ♯
-            </button>
-            {(["mayor", "menor"] as const).map((m) => (
-              <button key={m} type="button" onClick={() => setModo(m)} className="rounded-lg px-3 py-1.5 text-sm font-bold" style={m === modo ? activoStyle : inactivoStyle}>
-                {m}
-              </button>
-            ))}
-          </div>
-        </div>
+        <PaletaColor />
 
-        {cancionExistente && (
-          <div className="flex flex-col gap-2">
-            <div className="text-sm" style={labelColor}>
-              Audio
-            </div>
-            <AudioCampo cancionId={cancionExistente.id} bandaId={bandaId} tipo="referencia" titulo="Referencia (ensayo)" urlInicial={cancionExistente.audioReferenciaUrl} />
-            <AudioCampo cancionId={cancionExistente.id} bandaId={bandaId} tipo="secuencia" titulo="Secuencia (uso en vivo)" urlInicial={cancionExistente.audioSecuenciaUrl} />
-          </div>
-        )}
-
-        <div className="flex flex-col gap-4">
-          {secciones.map((s, si) => (
-            <div key={si} className="rounded-xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
-              <div className="mb-3 flex flex-wrap items-center gap-3">
-                <SeccionNombreSelector valor={s.nombre} onCambio={(nombre) => patchSeccion(si, { nombre })} />
-                <span className="font-mono text-xs" style={labelColor}>
-                  {compasesDe(s)}c
-                </span>
-                <label className="flex items-center gap-1 font-mono text-xs" style={labelColor}>
-                  ×
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={s.repiteVeces}
-                    onChange={(e) => {
-                      const n = Math.max(1, Number(e.target.value.replace(/[^0-9]/g, "")) || 1);
-                      patchSeccion(si, { repiteVeces: n, repeticiones: s.repeticiones.filter((r) => r.repeticionIndice <= n) });
-                    }}
-                    className="rounded-lg border text-center text-xs outline-none"
-                    style={{ ...inputStyle, width: "3em", padding: "5px 2px" }}
-                  />
-                  vueltas
-                </label>
-                <div className="flex gap-1">
-                  <button type="button" onClick={() => moverSeccion(si, -1)} disabled={si === 0} className="text-sm disabled:opacity-30" style={labelColor}>
-                    ↑
-                  </button>
-                  <button type="button" onClick={() => moverSeccion(si, 1)} disabled={si === secciones.length - 1} className="text-sm disabled:opacity-30" style={labelColor}>
-                    ↓
-                  </button>
+        {secciones.map((s, si) => {
+          const abierta = seccionAbierta === si;
+          const sel = Math.min(vueltaSel[si] ?? 1, s.repiteVeces);
+          const primerAcorde = s.acordes[0];
+          const numColor = primerAcorde ? colorRaizAcorde(primerAcorde.notaRaiz, primerAcorde.calidad) : CHIP;
+          const compasesSel = compasesDe(s);
+          const esVariante = s.repeticiones.some((r) => r.repeticionIndice === sel);
+          const cuerpoSel: CuerpoFS = s.repeticiones.find((r) => r.repeticionIndice === sel) ?? s;
+          // Aplica un cambio al cuerpo activo: la plantilla, o la vuelta
+          // desprendida si la que está seleccionada lo es.
+          const aplicar = (patch: Partial<CuerpoFS>) => {
+            if (esVariante) patchRepeticion(si, sel, patch);
+            else patchSeccion(si, patch as Partial<SeccionFS>);
+          };
+          return (
+            <div key={si} className="rounded-2xl p-3" style={{ background: CARD, border: `1px solid ${abierta ? ACCENT : LINE}` }}>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setSeccionAbierta(abierta ? -1 : si)} className="flex flex-1 items-center gap-2 text-left">
+                  <span style={{ width: 20, height: 20, flex: "none", borderRadius: 6, background: numColor, color: primerAcorde ? colorContrasteTexto(numColor) : MUTED, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontWeight: 700, fontSize: 10 }}>
+                    {si + 1}
+                  </span>
+                  <span style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 16, color: INK }}>{s.nombre}</span>
+                  <span style={{ fontFamily: MONO, fontSize: 10, color: MUTED }}>{compasesSel}c</span>
+                  {s.tonalidadPropia && (
+                    <span style={{ background: CHIP, borderRadius: 6, padding: "1px 5px", fontFamily: MONO, fontWeight: 700, fontSize: 10, color: colorRaizAcorde(s.tonRaiz, s.tonModo) }}>
+                      {s.tonRaiz}{s.tonModo === "menor" ? "m" : ""}
+                    </span>
+                  )}
+                </button>
+                <div className="flex gap-0.5">
+                  <button type="button" onClick={() => moverSeccion(si, -1)} disabled={si === 0} style={{ color: MUTED, opacity: si === 0 ? 0.3 : 1 }}>↑</button>
+                  <button type="button" onClick={() => moverSeccion(si, 1)} disabled={si === secciones.length - 1} style={{ color: MUTED, opacity: si === secciones.length - 1 ? 0.3 : 1 }}>↓</button>
                 </div>
-                {secciones.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => quitarSeccion(si)}
-                    className="ml-auto flex h-9 w-9 items-center justify-center rounded-full"
-                    style={{ background: "oklch(0.6 0.15 25 / 0.12)", color: "oklch(0.5 0.18 25)", border: "1px solid oklch(0.6 0.15 25 / 0.35)" }}
-                    aria-label="Quitar sección"
-                  >
-                    <IconoQuitar />
-                  </button>
-                )}
               </div>
 
-              <div className="mb-3">
-                <CuerpoAjustes cuerpo={s} onCambio={(patch) => patchSeccion(si, patch)} />
-              </div>
-
-              <div className="mb-1.5 font-mono text-[10px] font-bold uppercase tracking-wide" style={labelColor}>
-                Progresión
-              </div>
-              <AcordesEditor acordes={s.acordes} tonalidad={tonalidadDe(s)} raizDefault={tonalidadDe(s).raiz} onCambio={(acordes) => patchSeccion(si, { acordes })} />
-
-              <div className="mb-1.5 mt-4 font-mono text-[10px] font-bold uppercase tracking-wide" style={labelColor}>
-                Letra
-              </div>
-              <LetraEditor letra={s.letra} tonalidad={tonalidadDe(s)} raizDefault={tonalidadDe(s).raiz} onCambio={(letra) => patchSeccion(si, { letra })} />
-
-              {s.repiteVeces > 1 && (
-                <div className="mt-4">
-                  <div className="mb-1.5 font-mono text-[10px] font-bold uppercase tracking-wide" style={labelColor}>
-                    Vueltas — desprender una para editarla aparte
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {Array.from({ length: s.repiteVeces }).map((_, idx) => {
-                      const vuelta = idx + 1;
-                      const desprendida = s.repeticiones.some((r) => r.repeticionIndice === vuelta);
-                      return (
-                        <button
-                          key={vuelta}
-                          type="button"
-                          onClick={() => toggleDesprender(si, vuelta)}
-                          className="rounded-lg px-2.5 py-1 text-xs font-bold"
-                          style={desprendida ? activoStyle : inactivoStyle}
-                        >
-                          Vuelta {vuelta}
-                          {desprendida ? " · aparte" : ""}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {s.repeticiones.map((r) => (
-                    <div key={r.repeticionIndice} className="mt-2 rounded-lg p-3" style={{ background: "oklch(0.965 0.012 82)", border: "1px solid oklch(0.64 0.15 34 / 0.5)" }}>
-                      <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.13 34)" }}>
-                        Vuelta {r.repeticionIndice} (aparte)
-                      </div>
-                      <CuerpoAjustes cuerpo={r} onCambio={(patch) => patchRepeticion(si, r.repeticionIndice, patch)} />
-                      <div className="mt-2">
-                        <AcordesEditor
-                          acordes={r.acordes}
-                          tonalidad={tonalidadDe(r)}
-                          raizDefault={tonalidadDe(r).raiz}
-                          onCambio={(acordes) => patchRepeticion(si, r.repeticionIndice, { acordes })}
-                        />
-                      </div>
-                      <div className="mt-2">
-                        <LetraEditor
-                          letra={r.letra}
-                          tonalidad={tonalidadDe(r)}
-                          raizDefault={tonalidadDe(r).raiz}
-                          onCambio={(letra) => patchRepeticion(si, r.repeticionIndice, { letra })}
-                        />
+              {abierta && (
+                <div className="mt-2.5 flex flex-col gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <SeccionNombreSelector valor={s.nombre} onCambio={(nombre) => patchSeccion(si, { nombre })} />
+                    <div className="flex items-center" style={{ fontFamily: MONO }}>
+                      <span style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT, marginRight: 6 }}>Se repite</span>
+                      <div className="flex items-center overflow-hidden rounded-lg border" style={{ borderColor: LINE }}>
+                        <button type="button" onClick={() => patchSeccion(si, { repiteVeces: Math.max(1, s.repiteVeces - 1), repeticiones: s.repeticiones.filter((r) => r.repeticionIndice <= s.repiteVeces - 1) })} style={{ width: 22, height: 22, background: CHIP, color: MUTED, fontFamily: MONO }}>−</button>
+                        <span style={{ width: 34, textAlign: "center", fontFamily: MONO, fontWeight: 700, fontSize: 12 }}>×{s.repiteVeces}</span>
+                        <button type="button" onClick={() => patchSeccion(si, { repiteVeces: s.repiteVeces + 1 })} style={{ width: 22, height: 22, background: CHIP, color: MUTED, fontFamily: MONO }}>+</button>
                       </div>
                     </div>
-                  ))}
+                    <div className="flex-1" />
+                    <span style={{ fontFamily: MONO, fontSize: 9, color: FAINT }}>
+                      {compasesSel * s.repiteVeces} compases · {mmssLocal(compasesSel * s.repiteVeces * segundosPorCompas(Number(cuerpoSel.bpm) || bpm))}
+                    </span>
+                    {secciones.length > 1 && (
+                      <button type="button" onClick={() => quitarSeccion(si)} style={{ color: "oklch(0.55 0.15 25)", fontFamily: MONO, fontSize: 11 }}>Quitar</button>
+                    )}
+                  </div>
+
+                  {s.repiteVeces > 1 && (
+                    <div className="flex gap-1">
+                      {Array.from({ length: s.repiteVeces }).map((_, idx) => {
+                        const n = idx + 1;
+                        const variante = s.repeticiones.some((r) => r.repeticionIndice === n);
+                        const activo = n === sel;
+                        return (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => setVueltaSel((p) => ({ ...p, [si]: n }))}
+                            style={{
+                              flex: 1,
+                              border: `1px solid ${variante ? ACCENT : LINE}`,
+                              background: activo ? (variante ? ACCENT : CHIP) : "transparent",
+                              color: activo ? (variante ? "oklch(0.99 0.01 82)" : INK) : MUTED,
+                              borderRadius: 9,
+                              padding: "6px 4px",
+                              fontFamily: MONO,
+                              fontWeight: 700,
+                              fontSize: 10,
+                              textAlign: "center",
+                            }}
+                          >
+                            <div>Vuelta {n}</div>
+                            <div style={{ marginTop: 3, fontSize: 8, letterSpacing: "0.06em", textTransform: "uppercase", opacity: 0.85 }}>{variante ? "desprendida" : "igual"}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <AjustesCuerpo cuerpo={cuerpoSel} onCambio={aplicar} />
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {cuerpoSel.acordes.map((a, ai) => (
+                      <AcordeChip
+                        key={ai}
+                        acorde={a}
+                        tonalidad={tonDe(cuerpoSel)}
+                        onSeleccionar={(notaRaiz, calidad) => aplicar({ acordes: cuerpoSel.acordes.map((x, i) => (i === ai ? { ...x, notaRaiz, calidad } : x)) })}
+                        onDuracion={(n) => aplicar({ acordes: cuerpoSel.acordes.map((x, i) => (i === ai ? { ...x, duracionCompases: n } : x)) })}
+                        onQuitar={() => aplicar({ acordes: cuerpoSel.acordes.filter((_, i) => i !== ai) })}
+                      />
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => aplicar({ acordes: [...cuerpoSel.acordes, { notaRaiz: tonDe(cuerpoSel).raiz, calidad: "mayor" as Calidad, duracionCompases: 1 }] })}
+                      className="rounded-lg px-3 py-2 text-sm font-bold"
+                      style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}
+                    >
+                      + Acorde
+                    </button>
+                  </div>
+
+                  {s.repiteVeces > 1 && !esVariante && (
+                    <button type="button" onClick={() => toggleDesprender(si, sel)} className="w-full rounded-lg border border-dashed py-2 text-[10px] font-bold uppercase tracking-[0.06em]" style={{ borderColor: LINE, color: MUTED, fontFamily: MONO }}>
+                      Desprender vuelta {sel} y editarla aparte
+                    </button>
+                  )}
+                  {esVariante && (
+                    <div className="flex items-center gap-2 rounded-lg px-2.5 py-2" style={{ background: CHIP }}>
+                      <span className="flex-1 text-[10px] leading-snug" style={{ color: MUTED }}>
+                        Vuelta {sel} desprendida: cambia solo esta vez, las otras vueltas siguen igual.
+                      </span>
+                      <button type="button" onClick={() => toggleDesprender(si, sel)} className="text-[10px] font-bold uppercase" style={{ color: ACCENT, fontFamily: MONO }}>
+                        Reunir
+                      </button>
+                    </div>
+                  )}
+
+                  <LetraEditor
+                    letra={cuerpoSel.letra}
+                    tonalidad={tonDe(cuerpoSel)}
+                    raizDefault={tonDe(cuerpoSel).raiz}
+                    onCambio={(letra) => aplicar({ letra })}
+                  />
                 </div>
               )}
             </div>
-          ))}
+          );
+        })}
 
-          <button
-            type="button"
-            onClick={() => setSecciones((prev) => [...prev, nuevaSeccion()])}
-            className="w-fit rounded-lg px-4 py-2 text-sm font-bold"
-            style={{ border: "1px dashed oklch(0.75 0.02 78)", color: "oklch(0.5 0.02 55)" }}
-          >
-            + Sección
-          </button>
-        </div>
+        <button type="button" onClick={() => { setSecciones((p) => [...p, nuevaSeccion()]); setSeccionAbierta(secciones.length); }} className="rounded-2xl border border-dashed p-3 text-[11px] font-bold uppercase tracking-[0.08em]" style={{ borderColor: LINE, color: MUTED, fontFamily: MONO }}>
+          + Agregar sección
+        </button>
 
-        {error && (
-          <div className="text-sm" style={{ color: "oklch(0.6 0.15 25)" }}>
-            {error}
-          </div>
+        {cancionExistente && (
+          <>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: INK }}>Audios</span>
+              <div className="h-px flex-1" style={{ background: LINE }} />
+            </div>
+            <AudioCampo
+              cancionId={cancionExistente.id}
+              bandaId={bandaId}
+              tipo="referencia"
+              titulo="Audio de referencia"
+              chip="Ensayo"
+              descripcion="Se reemplaza: solo vive la última versión. Sirve para sacar la línea encima."
+              urlInicial={cancionExistente.audioReferenciaUrl}
+            />
+            <AudioCampo
+              cancionId={cancionExistente.id}
+              bandaId={bandaId}
+              tipo="secuencia"
+              titulo="Secuencia final"
+              chip="En vivo"
+              descripcion="Es la que suena en show. Manda el conteo del modo lista."
+              urlInicial={cancionExistente.audioSecuenciaUrl}
+            />
+          </>
         )}
+
+        {error && <div className="text-sm" style={{ color: "oklch(0.6 0.15 25)" }}>{error}</div>}
       </div>
 
-      <div className="shrink-0 pt-4" style={{ borderTop: "1px solid oklch(0.89 0.013 78)" }}>
-        <button type="button" disabled={pending} onClick={onSubmit} className="w-fit rounded-xl px-6 py-3 text-sm font-bold disabled:opacity-50" style={activoStyle}>
-          {pending ? "Guardando..." : cancionExistente ? "Guardar cambios" : "Guardar canción"}
-        </button>
+      {/* Pie: guardar */}
+      <div className="flex-none border-t pt-3" style={{ borderColor: LINE }}>
+        <div className="flex gap-2">
+          <button type="button" disabled={pending} onClick={() => onSubmit(esBorrador)} className="rounded-xl px-5 py-3 text-sm font-bold disabled:opacity-50" style={{ ...activoStyle, fontFamily: "var(--font-manrope), sans-serif" }}>
+            {pending ? "Guardando…" : cancionExistente ? "Guardar cambios" : "Guardar"}
+          </button>
+          {esBorrador && (
+            <button type="button" disabled={pending} onClick={() => onSubmit(false)} className="rounded-xl px-5 py-3 text-sm font-bold disabled:opacity-50" style={{ background: INK, color: BG, fontFamily: "var(--font-manrope), sans-serif" }}>
+              Marcar lista y pasar a modo lista →
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function mmssLocal(seg: number): string {
+  const s = Math.max(0, Math.round(seg));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+// Tira de referencia de color por nota (diseño Fase 2): 12 notas, arriba
+// mayor, abajo menor — la misma que aparece en la app para que el color se
+// vuelva memoria.
+function PaletaColor() {
+  return (
+    <div style={{ background: CARD2, border: `1px solid ${LINE}`, borderRadius: 12, padding: "9px 10px" }}>
+      <div className="flex items-center gap-2">
+        <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT }}>Color por nota</span>
+        <div className="flex-1" />
+        <span style={{ fontFamily: MONO, fontSize: 9, color: FAINT }}>arriba mayor · abajo menor</span>
+      </div>
+      <div className="mt-1.5 grid gap-0.5" style={{ gridTemplateColumns: "repeat(12,1fr)" }}>
+        {NOTAS.map((n) => (
+          <div key={n} style={{ borderRadius: 5, overflow: "hidden" }}>
+            <div style={{ height: 16, background: colorRaizAcorde(n, "mayor"), display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontWeight: 700, fontSize: 8, color: colorContrasteTexto(colorRaizAcorde(n, "mayor")) }}>{n}</div>
+            <div style={{ height: 9, background: colorRaizAcorde(n, "menor") }} />
+          </div>
+        ))}
       </div>
     </div>
   );

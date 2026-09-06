@@ -32,6 +32,9 @@ export type Cancion = {
   totalSecciones: number;
   esCover: boolean;
   esBorrador: boolean;
+  // Solo para covers: autor/intérprete original, chip junto al título en la
+  // lista (diseño Fase 2). null en canciones propias.
+  autor: string | null;
 };
 
 export type AcordeGuardado = {
@@ -140,7 +143,7 @@ export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
   const { data } = await admin
     .from("canciones")
     .select(
-      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, secciones(plantilla_id, repite_veces, numero_compases, acordes(duracion_compases))"
+      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, secciones(plantilla_id, repite_veces, numero_compases, acordes(duracion_compases))"
     )
     .in("banda_id", bandaIds)
     .order("titulo", { ascending: true });
@@ -169,6 +172,7 @@ export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
       totalSecciones: secciones.length,
       esCover: c.es_cover,
       esBorrador: c.es_borrador,
+      autor: c.autor ?? null,
     };
   });
 }
@@ -251,7 +255,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
   const { data: cancion } = await admin
     .from("canciones")
     .select(
-      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, audio_referencia_path, audio_secuencia_path"
+      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, audio_referencia_path, audio_secuencia_path"
     )
     .eq("id", cancionId)
     .single();
@@ -321,6 +325,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
     totalSecciones: seccionesArmadas.length,
     esCover: cancion.es_cover,
     esBorrador: cancion.es_borrador,
+    autor: cancion.autor ?? null,
     audioReferenciaPath: cancion.audio_referencia_path,
     audioSecuenciaPath: cancion.audio_secuencia_path,
     audioReferenciaUrl: urlPublicaAudio(admin, cancion.audio_referencia_path),
@@ -374,6 +379,7 @@ export type CancionInput = {
   duracionSegundos: number | null;
   esCover: boolean;
   esBorrador: boolean;
+  autor: string | null;
   secciones: SeccionInput[];
 };
 
@@ -484,6 +490,7 @@ export async function crearCancion(input: CancionInput): Promise<string> {
       duracion_segundos: input.duracionSegundos,
       es_cover: input.esCover,
       es_borrador: input.esBorrador,
+      autor: input.esCover ? input.autor : null,
     })
     .select("id")
     .single();
@@ -511,6 +518,7 @@ export async function actualizarCancion(cancionId: string, input: CancionInput) 
       duracion_segundos: input.duracionSegundos,
       es_cover: input.esCover,
       es_borrador: input.esBorrador,
+      autor: input.esCover ? input.autor : null,
     })
     .eq("id", cancionId);
   if (errUpdate) throw new Error(errUpdate.message);
