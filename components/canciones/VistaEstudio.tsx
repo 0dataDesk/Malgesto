@@ -279,7 +279,7 @@ function guardar(clave: string, valor: unknown) {
 type ControladorSpotify = {
   loadUri: (uri: string) => void;
   destroy: () => void;
-  addListener: (evento: string, cb: (e: { data: { isPaused?: boolean; position?: number; playingURI?: string } }) => void) => void;
+  addListener: (evento: string, cb: (e: { data: { isPaused?: boolean; position?: number; duration?: number; playingURI?: string } }) => void) => void;
 };
 type ApiSpotify = { createController: (el: HTMLElement, opciones: { uri: string; width: string; height: number }, cb: (c: ControladorSpotify) => void) => void };
 
@@ -304,6 +304,11 @@ export function VistaEstudio({
   const [reproductor, setReproductor] = useState(true);
   const [reproduciendo, setReproduciendo] = useState(false);
   const [anclas, setAnclas] = useState<Ancla[]>(cancion.tiemposMs ?? []);
+  const [grabando, setGrabando] = useState(false);
+  const [tomas, setTomas] = useState<Ancla[]>([]);
+  const tomasRef = useRef<Ancla[]>([]);
+  const grabandoRef = useRef(false);
+  const finRef = useRef<() => void>(() => undefined);
   const [aviso, setAviso] = useState("");
   const contRef = useRef<HTMLDivElement>(null);
   const ctrlRef = useRef<ControladorSpotify | null>(null);
@@ -431,8 +436,9 @@ export function VistaEstudio({
         ctrlRef.current = c;
         c.addListener("playback_update", (e) => {
           const d = e.data ?? {};
-          ultimoRef.current = { ms: d.position ?? 0, rec: performance.now(), pausado: d.isPaused ?? true, uri: d.playingURI ?? null, dur: (e.data as { duration?: number }).duration ?? 0 };
+          ultimoRef.current = { ms: d.position ?? 0, rec: performance.now(), pausado: d.isPaused ?? true, uri: d.playingURI ?? null, dur: d.duration ?? 0 };
           setReproduciendo(!(d.isPaused ?? true));
+          if (grabandoRef.current && (d.duration ?? 0) > 0 && (d.position ?? 0) >= (d.duration ?? 0) - 1000) finRef.current();
         });
       });
     };
@@ -478,7 +484,7 @@ export function VistaEstudio({
   // reparto es parejo de 0 a la duración; cada clic sobre el acorde que estás
   // oyendo agrega un ancla y lo afina.
   useEffect(() => {
-    if (ocurr.length === 0) return;
+    if (ocurr.length === 0 || grabando) return;
     const id = setInterval(() => {
       const u = ultimoRef.current;
       if (u.pausado || !suenaEsta()) return;
@@ -493,7 +499,7 @@ export function VistaEstudio({
     }, 120);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anclas, ocurr, eventos, pesos]);
+  }, [anclas, ocurr, eventos, pesos, grabando]);
 
   // Al tocar un acorde mientras suena la canción: "este es el que oigo ahora".
   const afinar = (evento: number) => {
@@ -508,6 +514,112 @@ export function VistaEstudio({
     setAnclas(nuevas);
     if (puedeEditar) void guardarTiemposAction(cancion.id, cancion.bandaId, nuevas).catch(() => setAviso("No se pudo guardar el ajuste."));
   };
+
+  // Grabar los tiempos: dale play y toca (clic, ESPACIO o ENTER) justo cuando EMPIECE
+  // el acorde que se muestra. Cada toque queda como ancla y el seguimiento se vuelve exacto.
+  const irA = (k: number) => {
+    const ev = ocurr[k]?.evento;
+    if (ev === undefined || !eventos[ev]) return;
+    setIdx(ev);
+    setFiltro([eventos[ev].clave]);
+    document.querySelector(`[data-ev="${ev}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  };
+
+  const empezarGrabado = () => {
+    if (!cancion.spotifyUri || ocurr.length === 0) {
+      setAviso("Primero pega la liga de la canción de Spotify en Editar.");
+      return;
+    }
+    tomasRef.current = [];
+    setTomas([]);
+    grabandoRef.current = true;
+    setGrabando(true);
+    setAviso("");
+    irA(0);
+  };
+
+  const terminarGrabado = (guardarTomas: boolean) => {
+    grabandoRef.current = false;
+    setGrabando(false);
+    const t = tomasRef.current;
+    if (!guardarTomas) {
+      setAviso("Grabación cancelada; se conserva lo anterior.");
+      return;
+    }
+    if (t.length === 0) {
+      setAviso("No se grabó ningún acorde.");
+      return;
+    }
+    setAnclas(t);
+    ocurrRef.current = -1;
+    if (puedeEditar) {
+      setAviso("Guardando…");
+      void guardarTiemposAction(cancion.id, cancion.bandaId, t)
+        .then(() => setAviso(`Listo: ${t.length} de ${ocurr.length} acordes grabados. Dale play y te sigue.`))
+        .catch(() => setAviso("No se pudo guardar la grabación."));
+    } else setAviso(`Grabados ${t.length} de ${ocurr.length} acordes (sin guardar: solo quien edita guarda).`);
+  };
+  useEffect(() => {
+    finRef.current = () => terminarGrabado(true);
+  });
+
+  const tocar = () => {
+    const u = ultimoRef.current;
+    if (u.pausado) {
+      setAviso("Dale play a la canción en Spotify y toca de nuevo.");
+      return;
+    }
+    const k = tomasRef.current.length;
+    if (k >= ocurr.length) return;
+    const previo = tomasRef.current[k - 1];
+    const t = Math.max(0, Math.round(posicionAhora() - 150));
+    tomasRef.current = [...tomasRef.current, [k, previo ? Math.max(t, previo[1] + 50) : t]];
+    setTomas(tomasRef.current);
+    setAviso("");
+    if (k + 1 >= ocurr.length) terminarGrabado(true);
+    else irA(k + 1);
+  };
+
+  const deshacerToma = () => {
+    if (tomasRef.current.length === 0) return;
+    tomasRef.current = tomasRef.current.slice(0, -1);
+    setTomas(tomasRef.current);
+    irA(tomasRef.current.length);
+  };
+
+  const cancelarGrabado = () => {
+    if (tomasRef.current.length > 0 && !window.confirm(`Llevas ${tomasRef.current.length} acordes grabados. ¿Cancelar y descartarlos?`)) return;
+    terminarGrabado(false);
+  };
+
+  // Teclado mientras se graba; el reproductor de Spotify se queda con el foco al darle play,
+  // así que se lo quitamos para que ESPACIO, ENTER y Esc lleguen a la página.
+  useEffect(() => {
+    if (!grabando) return;
+    const quitaFoco = setInterval(() => {
+      if (document.activeElement instanceof HTMLIFrameElement) document.activeElement.blur();
+    }, 200);
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        tocar();
+      } else if (e.key === "Backspace") {
+        e.preventDefault();
+        deshacerToma();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        cancelarGrabado();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      clearInterval(quitaFoco);
+      window.removeEventListener("keydown", onKey);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grabando, ocurr, eventos]);
 
   const borrarAjustes = () => {
     setAnclas([]);
@@ -791,10 +903,47 @@ export function VistaEstudio({
 
         {/* Derecha: mástil, todos los acordes y círculo */}
         <aside className="order-3 flex flex-col gap-3 overflow-y-auto px-4 py-3" style={{ borderLeft: `1px solid ${LINE}`, background: BG }}>
+          {grabando && (
+            <div style={{ background: INK, color: "white", borderRadius: 16, padding: "12px 14px" }}>
+              <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.8 }}>● Grabando los tiempos</div>
+              <div style={{ fontSize: 13, margin: "4px 0 8px" }}>Dale play y toca justo cuando <b>empiece</b> este acorde:</div>
+              <div className="flex items-center gap-3">
+                {ocurr[tomas.length] && eventos[ocurr[tomas.length].evento] && (
+                  <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: 34, lineHeight: 1, padding: "6px 14px", borderRadius: 12, background: colorDe(eventos[ocurr[tomas.length].evento].nota, eventos[ocurr[tomas.length].evento].calidad), color: tinta(eventos[ocurr[tomas.length].evento].nota, eventos[ocurr[tomas.length].evento].calidad) }}>
+                    {simboloAcorde(eventos[ocurr[tomas.length].evento].nota, eventos[ocurr[tomas.length].evento].calidad)}
+                  </span>
+                )}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: MONO, fontSize: 13 }}>{tomas.length + 1} de {ocurr.length}</div>
+                  <div style={{ height: 6, background: "rgba(255,255,255,0.2)", borderRadius: 3, marginTop: 4 }}>
+                    <div style={{ height: 6, borderRadius: 3, background: CORAL, width: `${(tomas.length / Math.max(ocurr.length, 1)) * 100}%` }} />
+                  </div>
+                </div>
+              </div>
+              <button onClick={tocar} style={{ width: "100%", marginTop: 10, padding: "14px 0", borderRadius: 12, border: "none", background: CORAL, color: "white", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>
+                TOCA AQUÍ cuando cambie el acorde
+              </button>
+              <div className="flex flex-wrap items-center gap-2" style={{ marginTop: 8 }}>
+                <button onClick={deshacerToma} disabled={tomas.length === 0} style={{ ...boton, background: "transparent", color: "white", borderColor: "rgba(255,255,255,0.4)" }}>↶ Deshacer</button>
+                <button onClick={() => terminarGrabado(true)} disabled={tomas.length === 0} style={{ ...boton, background: "white" }}>Terminar y guardar</button>
+                <button onClick={cancelarGrabado} style={{ ...boton, background: "transparent", color: "white", borderColor: "rgba(255,255,255,0.4)" }}>Cancelar</button>
+              </div>
+              <div style={{ fontSize: 11, opacity: 0.75, marginTop: 8, lineHeight: 1.4 }}>
+                También funciona ESPACIO o ENTER; ⌫ deshace y Esc cancela. Si te saltas acordes, toca igual: puedes terminar cuando quieras y lo que falte se estima.
+              </div>
+            </div>
+          )}
+
           {/* Spotify de esta canción; se minimiza si estorba y la música sigue */}
           <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "8px 10px" }}>
             <div className="flex items-center justify-between" style={{ marginBottom: reproductor ? 6 : 0 }}>
               <Titulo>♪ Spotify</Titulo>
+              <span className="flex items-center gap-2">
+              {puedeEditar && cancion.spotifyUri && !grabando && (
+                <button onClick={empezarGrabado} style={{ ...boton, padding: "1px 9px", fontSize: 11, color: CORAL, borderColor: CORAL, marginBottom: 6 }}>
+                  ● {anclas.length > 0 ? "Volver a grabar" : "Grabar tiempos"}
+                </button>
+              )}
               <button
                 onClick={() => {
                   setReproductor((v) => {
@@ -808,6 +957,7 @@ export function VistaEstudio({
               >
                 {reproductor ? "—" : "▢"}
               </button>
+              </span>
             </div>
             <div ref={contRef} style={{ display: reproductor && cancion.spotifyUri ? "block" : "none", minHeight: 152 }} />
             {cancion.spotifyUri ? (
