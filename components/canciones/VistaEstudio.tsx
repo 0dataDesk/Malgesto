@@ -7,7 +7,7 @@ import { eliminarCancionAction } from "@/app/canciones/actions";
 import { NOTAS, simboloAcorde, colorRaizAcorde, colorContrasteTexto, tonosDelAcorde, type Calidad, type Nota } from "@/lib/cancionTeoria";
 import { formatoMMSS } from "@/lib/duracion";
 import { guardarTiemposAction } from "@/app/canciones/actions";
-import { ocurrencias, ocurrenciaPorAnclas, agregarAncla, posicionEstimada, type Ancla } from "@/lib/estudioSync";
+import { ocurrencias, ocurrenciaPorAnclas, agregarAncla, posicionEstimada, pesosDeSeccion, type Ancla } from "@/lib/estudioSync";
 import {
   INSTRUMENTOS_ESTUDIO,
   variantesDeAcorde,
@@ -370,6 +370,20 @@ export function VistaEstudio({
   const total = eventos.length;
   const ocurr = useMemo(() => ocurrencias(indicesPorSeccion, cancion.secciones.map((x) => x.repiteVeces)), [indicesPorSeccion, cancion.secciones]);
   const uriInicialRef = useRef(cancion.spotifyUri);
+  // Peso de cada ocurrencia: cuánto texto cubre su acorde (ver pesosDeSeccion).
+  const pesos = useMemo(() => {
+    const porSeccion = cancion.secciones.map((s) => {
+      const conLetra = s.letra.some((l) => l.acordes.length > 0);
+      return pesosDeSeccion(
+        conLetra ? s.letra.map((l) => ({ largo: l.texto.length, posiciones: l.acordes.map((a) => a.posicion) })) : [],
+        s.acordes.length
+      );
+    });
+    return ocurr.map((o) => {
+      const idxEnSeccion = indicesPorSeccion[o.seccion].indexOf(o.evento);
+      return porSeccion[o.seccion][idxEnSeccion] ?? 24;
+    });
+  }, [ocurr, indicesPorSeccion, cancion.secciones]);
   const actualIdx = Math.min(idx, Math.max(total - 1, 0));
   const actual = eventos[actualIdx] ?? null;
   const siguiente = eventos[actualIdx + 1] ?? null;
@@ -468,7 +482,7 @@ export function VistaEstudio({
     const id = setInterval(() => {
       const u = ultimoRef.current;
       if (u.pausado || !suenaEsta()) return;
-      const k = ocurrenciaPorAnclas(anclas, posicionAhora(), ocurr.length, u.dur);
+      const k = ocurrenciaPorAnclas(anclas, posicionAhora(), ocurr.length, u.dur, pesos);
       if (k < 0 || k === ocurrRef.current) return;
       ocurrRef.current = k;
       const ev = ocurr[k].evento;
@@ -479,7 +493,7 @@ export function VistaEstudio({
     }, 120);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anclas, ocurr, eventos]);
+  }, [anclas, ocurr, eventos, pesos]);
 
   // Al tocar un acorde mientras suena la canción: "este es el que oigo ahora".
   const afinar = (evento: number) => {
