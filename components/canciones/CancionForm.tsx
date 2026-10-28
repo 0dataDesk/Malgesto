@@ -6,7 +6,7 @@ import { NOMBRES_SECCION, colorPorTipoSeccion, type NombreSeccion } from "@/lib/
 import { segundosPorCompas } from "@/lib/cancionTiempo";
 import type { CancionCompleta, CancionInput, SeccionInput, SeccionBaseInput, LetraLineaInput } from "@/lib/cancionesData";
 import { formatoMMSS, parseMMSS } from "@/lib/duracion";
-import { crearCancionAction, actualizarCancionAction, subirAudioAction, quitarAudioAction } from "@/app/canciones/actions";
+import { crearCancionAction, actualizarCancionAction, eliminarCancionAction, subirAudioAction, quitarAudioAction } from "@/app/canciones/actions";
 import { AcordeSelector } from "./AcordeSelector";
 
 const MONO = "var(--font-space-mono), ui-monospace, monospace";
@@ -705,6 +705,22 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
           <button type="button" disabled={pending} onClick={() => onSubmit(esBorrador)} className="rounded-xl px-5 py-3 text-sm font-bold disabled:opacity-50" style={{ ...activoStyle, fontFamily: "var(--font-dm-sans), sans-serif" }}>
             {pending ? "Guardando…" : cancionExistente ? "Guardar cambios" : "Guardar"}
           </button>
+          {cancionExistente && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                if (!window.confirm(`¿Eliminar «${cancionExistente.titulo}»? No se puede deshacer.`)) return;
+                startTransition(() => {
+                  void eliminarCancionAction(cancionExistente.id, bandaId);
+                });
+              }}
+              className="ml-auto rounded-xl px-5 py-3 text-sm font-bold disabled:opacity-50"
+              style={{ border: "1px solid oklch(0.6 0.15 25 / 0.45)", color: "oklch(0.5 0.18 25)", background: "transparent", fontFamily: "var(--font-dm-sans), sans-serif" }}
+            >
+              Eliminar canción
+            </button>
+          )}
           {esBorrador && (
             <button type="button" disabled={pending} onClick={() => onSubmit(false)} className="rounded-xl px-5 py-3 text-sm font-bold disabled:opacity-50" style={{ background: INK, color: BG, fontFamily: "var(--font-dm-sans), sans-serif" }}>
               Marcar lista y pasar a modo lista →

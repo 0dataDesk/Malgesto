@@ -6,16 +6,17 @@ import { obtenerCancionCompleta, obtenerCanciones, obtenerPrioridadMusico } from
 import { obtenerSetlistCompleto } from "@/lib/setlistsData";
 import { obtenerSeteosParaCancion } from "@/lib/dispositivosData";
 import { VistaFinal } from "@/components/canciones/VistaFinal";
+import { VistaEstudio } from "@/components/canciones/VistaEstudio";
 
 export default async function CancionPage({
   params,
   searchParams,
 }: {
   params: Promise<{ cancionId: string }>;
-  searchParams: Promise<{ setlist?: string }>;
+  searchParams: Promise<{ setlist?: string; vista?: string }>;
 }) {
   const { cancionId } = await params;
-  const { setlist: setlistId } = await searchParams;
+  const { setlist: setlistId, vista } = await searchParams;
   const supabase = await supabaseServerAuth();
   const {
     data: { user },
@@ -42,10 +43,24 @@ export default async function CancionPage({
   //  - Modo de vista según es_borrador: borrador = edición vertical (para
   //    quien puede escribir, es el editor); no-borrador = lista horizontal,
   //    no editable.
-  if (cancion.esBorrador) {
-    if (!puedeVerBorradores(membresia, superadmin)) notFound();
-    if (puedeEscribir) redirect(`/canciones/${cancionId}/editar`);
+  if (cancion.esBorrador && !puedeVerBorradores(membresia, superadmin)) notFound();
+
+  // Modo Estudio (aprender tocando): por defecto en la banda personal
+  // "Malgesto"; en las demás bandas se entra con ?vista=estudio. Con
+  // ?vista=escenario se fuerza la vista de siempre.
+  const usarEstudio = vista === "estudio" || (vista !== "escenario" && membresia.bandaNombre === "Malgesto");
+  if (usarEstudio) {
+    return (
+      <VistaEstudio
+        cancion={cancion}
+        volverHref={`/canciones?banda=${cancion.bandaId}`}
+        puedeEditar={puedeEscribir}
+        escenarioHref={`/canciones/${cancionId}?vista=escenario`}
+      />
+    );
   }
+
+  if (cancion.esBorrador && puedeEscribir) redirect(`/canciones/${cancionId}/editar`);
 
   const seteosVisible = bloqueVisible(membresia, "seteos", superadmin);
 

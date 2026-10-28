@@ -309,6 +309,12 @@ function ModoLista({
           )
         )}
 
+        {!desdeSetlist && (
+          <Link href={`/canciones/${cancion.id}?vista=estudio`} style={{ display: "flex", alignItems: "center", gap: 5, border: "1px solid var(--line)", background: "var(--card)", color: "var(--ink)", borderRadius: 9, padding: "6px 10px", fontFamily: MONO, fontWeight: 700, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "none" }}>
+            Estudio
+          </Link>
+        )}
+
         {puedeEditar && !desdeSetlist && (
           <button
             type="button"
