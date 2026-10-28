@@ -6,6 +6,7 @@ import { NOMBRES_SECCION, colorPorTipoSeccion, type NombreSeccion } from "@/lib/
 import { segundosPorCompas } from "@/lib/cancionTiempo";
 import type { CancionCompleta, CancionInput, SeccionInput, SeccionBaseInput, LetraLineaInput } from "@/lib/cancionesData";
 import { formatoMMSS, parseMMSS } from "@/lib/duracion";
+import { uriDeSpotify } from "@/lib/estudioSync";
 import { crearCancionAction, actualizarCancionAction, eliminarCancionAction, subirAudioAction, quitarAudioAction } from "@/app/canciones/actions";
 import { AcordeSelector } from "./AcordeSelector";
 
@@ -320,6 +321,8 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
   const [esBorrador, setEsBorrador] = useState(cancionExistente?.esBorrador ?? true);
   const [titulo, setTitulo] = useState(cancionExistente?.titulo ?? "");
   const [bpm, setBpm] = useState(cancionExistente?.bpm ?? 92);
+  const [capo, setCapo] = useState(cancionExistente?.capo ?? 0);
+  const [spotify, setSpotify] = useState(cancionExistente?.spotifyUri ? `https://open.spotify.com/track/${cancionExistente.spotifyUri.split(":").pop()}` : "");
   const [duracion, setDuracion] = useState(formatoMMSS(cancionExistente?.duracionSegundos ?? null) ?? "");
   const [raiz, setRaiz] = useState<Nota>(cancionExistente?.tonalidadNota ?? "C");
   const [modo, setModo] = useState<Modo>(cancionExistente?.tonalidadModo ?? "mayor");
@@ -435,6 +438,8 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
       duracionSegundos,
       esCover,
       autor: esCover ? autor.trim() || null : null,
+      capo,
+      spotifyUri: uriDeSpotify(spotify),
       esBorrador: borradorFinal,
       secciones: seccionesInput,
     };
@@ -502,6 +507,10 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
             <input value={autor} onChange={(e) => setAutor(e.target.value)} placeholder="Autor original" className="rounded-lg border px-2 py-1 text-xs outline-none" style={inputStyle} />
           )}
           <div className="flex-1" />
+          <select value={capo} onChange={(e) => setCapo(Number(e.target.value))} className="rounded-lg border px-2 py-1 text-xs outline-none" style={inputStyle} aria-label="Capo" title="Traste del capo">
+            {Array.from({ length: 13 }, (_, i) => (<option key={i} value={i}>{i === 0 ? "sin capo" : `capo ${i}`}</option>))}
+          </select>
+          <input value={spotify} onChange={(e) => setSpotify(e.target.value)} placeholder="liga de la canción en Spotify" className="rounded-lg border px-2 py-1 text-xs outline-none" style={{ ...inputStyle, width: "15em" }} />
           <input value={duracion} onChange={(e) => setDuracion(e.target.value)} maxLength={5} placeholder="dur. manual" className="rounded-lg border px-2 py-1 text-center text-xs outline-none" style={{ ...inputStyle, width: "6em" }} />
         </div>
 
