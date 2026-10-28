@@ -10,20 +10,20 @@ import { crearCancionAction, actualizarCancionAction, subirAudioAction, quitarAu
 import { AcordeSelector } from "./AcordeSelector";
 
 const MONO = "var(--font-space-mono), ui-monospace, monospace";
-const DISPLAY = "var(--font-bricolage), sans-serif";
-const BG = "oklch(0.965 0.012 82)";
-const CARD = "oklch(0.99 0.008 82)";
-const CARD2 = "oklch(0.975 0.01 82)";
-const LINE = "oklch(0.89 0.013 78)";
-const INK = "oklch(0.24 0.02 55)";
-const MUTED = "oklch(0.5 0.02 55)";
-const FAINT = "oklch(0.62 0.02 55)";
-const CHIP = "oklch(0.93 0.016 78)";
-const ACCENT = "oklch(0.64 0.15 34)";
+const DISPLAY = "var(--font-fraunces), sans-serif";
+const BG = "oklch(0.965 0.007 85)";
+const CARD = "oklch(0.99 0.005 85)";
+const CARD2 = "oklch(0.975 0.006 85)";
+const LINE = "oklch(0.89 0.008 85)";
+const INK = "oklch(0.24 0.044 262)";
+const MUTED = "oklch(0.5 0.044 262)";
+const FAINT = "oklch(0.62 0.044 262)";
+const CHIP = "oklch(0.93 0.010 85)";
+const ACCENT = "oklch(0.64 0.170 28)";
 
 const inputStyle = { background: CARD, borderColor: LINE, color: INK } as const;
-const activoStyle = { background: ACCENT, color: "oklch(0.99 0.01 82)" } as const;
-const inactivoStyle = { background: CHIP, color: "oklch(0.4 0.02 55)" } as const;
+const activoStyle = { background: ACCENT, color: "oklch(0.99 0.006 85)" } as const;
+const inactivoStyle = { background: CHIP, color: "oklch(0.4 0.044 262)" } as const;
 
 const NATURALES = NOTAS.filter((n) => !n.includes("#")) as Nota[];
 function esNota(natural: string, sostenido: boolean): Nota {
@@ -59,13 +59,13 @@ function SeccionNombreSelector({ valor, onCambio }: { valor: NombreSeccion; onCa
   const [abierto, setAbierto] = useState(false);
   return (
     <div className="relative">
-      <button type="button" onClick={() => setAbierto((v) => !v)} className="rounded-md px-2 py-1 text-xs font-bold" style={{ background: colorPorTipoSeccion(valor), color: "oklch(0.99 0.01 82)", fontFamily: DISPLAY }}>
+      <button type="button" onClick={() => setAbierto((v) => !v)} className="rounded-md px-2 py-1 text-xs font-bold" style={{ background: colorPorTipoSeccion(valor), color: "oklch(0.99 0.006 85)", fontFamily: DISPLAY }}>
         {valor}
       </button>
       {abierto && (
         <div className="absolute z-20 mt-1 flex w-56 flex-wrap gap-1.5 rounded-xl p-2.5" style={{ background: CARD, border: `1px solid ${LINE}`, boxShadow: "0 16px 32px -16px rgba(0,0,0,0.25)" }}>
           {NOMBRES_SECCION.map((n) => (
-            <button key={n} type="button" onClick={() => { onCambio(n); setAbierto(false); }} className="rounded-lg px-2.5 py-1.5 text-xs font-bold" style={n === valor ? { background: colorPorTipoSeccion(n), color: "oklch(0.99 0.01 82)" } : inactivoStyle}>
+            <button key={n} type="button" onClick={() => { onCambio(n); setAbierto(false); }} className="rounded-lg px-2.5 py-1.5 text-xs font-bold" style={n === valor ? { background: colorPorTipoSeccion(n), color: "oklch(0.99 0.006 85)" } : inactivoStyle}>
               {n}
             </button>
           ))}
@@ -105,7 +105,7 @@ function AcordeChip({
       </div>
       <div className="mt-1.5 flex flex-wrap gap-1">
         {tonos.acompanantes.map((t, i) => (
-          <span key={i} style={{ display: "inline-flex", gap: 3, borderRadius: 999, padding: "1px 5px", background: "oklch(0.97 0.01 82)", fontFamily: MONO, fontWeight: 700, fontSize: 9, color: "oklch(0.3 0.02 55)" }}>
+          <span key={i} style={{ display: "inline-flex", gap: 3, borderRadius: 999, padding: "1px 5px", background: "oklch(0.97 0.006 85)", fontFamily: MONO, fontWeight: 700, fontSize: 9, color: "oklch(0.3 0.044 262)" }}>
             <span style={{ color: colorExtension(t.nota) }}>{t.intervalo.replace("ª", "")}</span>
             {t.nota}
           </span>
@@ -276,7 +276,7 @@ function AudioCampo({
     <div className="rounded-2xl p-3" style={{ background: CARD, border: `1px solid ${LINE}` }}>
       <div className="flex items-center gap-2">
         <span style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 14, color: INK }}>{titulo}</span>
-        <span style={{ borderRadius: 6, padding: "2px 5px", background: tipo === "secuencia" ? ACCENT : CHIP, color: tipo === "secuencia" ? "oklch(0.99 0.01 82)" : MUTED, fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase" }}>{chip}</span>
+        <span style={{ borderRadius: 6, padding: "2px 5px", background: tipo === "secuencia" ? ACCENT : CHIP, color: tipo === "secuencia" ? "oklch(0.99 0.006 85)" : MUTED, fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase" }}>{chip}</span>
       </div>
       <div className="mt-1 text-[11px] leading-snug" style={{ color: FAINT }}>{descripcion}</div>
       {url ? (
@@ -457,7 +457,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
   );
 
   return (
-    <div className="flex h-full flex-col" style={{ maxWidth: 640, fontFamily: "var(--font-manrope), sans-serif", color: INK }}>
+    <div className="flex h-full flex-col" style={{ maxWidth: 640, fontFamily: "var(--font-dm-sans), sans-serif", color: INK }}>
       {/* Cabecera fija con datos calculados */}
       <div className="flex-none border-b pb-3" style={{ borderColor: LINE }}>
         <div className="flex flex-wrap items-center gap-2">
@@ -597,7 +597,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                               flex: 1,
                               border: `1px solid ${variante ? ACCENT : LINE}`,
                               background: activo ? (variante ? ACCENT : CHIP) : "transparent",
-                              color: activo ? (variante ? "oklch(0.99 0.01 82)" : INK) : MUTED,
+                              color: activo ? (variante ? "oklch(0.99 0.006 85)" : INK) : MUTED,
                               borderRadius: 9,
                               padding: "6px 4px",
                               fontFamily: MONO,
@@ -702,11 +702,11 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
       {/* Pie: guardar */}
       <div className="flex-none border-t pt-3" style={{ borderColor: LINE }}>
         <div className="flex gap-2">
-          <button type="button" disabled={pending} onClick={() => onSubmit(esBorrador)} className="rounded-xl px-5 py-3 text-sm font-bold disabled:opacity-50" style={{ ...activoStyle, fontFamily: "var(--font-manrope), sans-serif" }}>
+          <button type="button" disabled={pending} onClick={() => onSubmit(esBorrador)} className="rounded-xl px-5 py-3 text-sm font-bold disabled:opacity-50" style={{ ...activoStyle, fontFamily: "var(--font-dm-sans), sans-serif" }}>
             {pending ? "Guardando…" : cancionExistente ? "Guardar cambios" : "Guardar"}
           </button>
           {esBorrador && (
-            <button type="button" disabled={pending} onClick={() => onSubmit(false)} className="rounded-xl px-5 py-3 text-sm font-bold disabled:opacity-50" style={{ background: INK, color: BG, fontFamily: "var(--font-manrope), sans-serif" }}>
+            <button type="button" disabled={pending} onClick={() => onSubmit(false)} className="rounded-xl px-5 py-3 text-sm font-bold disabled:opacity-50" style={{ background: INK, color: BG, fontFamily: "var(--font-dm-sans), sans-serif" }}>
               Marcar lista y pasar a modo lista →
             </button>
           )}

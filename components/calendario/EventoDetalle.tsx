@@ -43,7 +43,7 @@ function IconoLogistica() {
 // haya pero no es clickeable (ej. lugar sin link de Maps todavía cargado).
 function FilaAccion({ href, externo, children }: { href?: string | null; externo?: boolean; children: React.ReactNode }) {
   const className = "mt-2.5 flex items-center gap-2.5 rounded-2xl px-3 py-2.5 no-underline";
-  const style = { background: "oklch(0.93 0.016 78)", color: "oklch(0.55 0.02 55)" };
+  const style = { background: "oklch(0.93 0.010 85)", color: "oklch(0.55 0.044 262)" };
 
   if (!href) {
     return (
@@ -180,7 +180,7 @@ export function EventoDetalle({
   const contenido = (
     <div
       className={inline ? "rounded-3xl p-4" : "max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl p-4 sm:rounded-3xl"}
-      style={{ background: "oklch(0.99 0.008 82)", border: inline ? "1px solid oklch(0.89 0.013 78)" : undefined }}
+      style={{ background: "oklch(0.99 0.005 85)", border: inline ? "1px solid oklch(0.89 0.008 85)" : undefined }}
       onClick={inline ? undefined : (e) => e.stopPropagation()}
     >
       {/* Brief "...calendario más compacto...": el badge de tipo comparte
@@ -190,7 +190,7 @@ export function EventoDetalle({
         <div className="flex flex-wrap items-center gap-1.5">
           <span
             className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[11px] font-bold tracking-wide uppercase"
-            style={{ background: COLOR_TIPO[evento.tipo], color: "oklch(0.99 0.01 82)" }}
+            style={{ background: COLOR_TIPO[evento.tipo], color: "oklch(0.99 0.006 85)" }}
           >
             {ETIQUETA_TIPO[evento.tipo]}
           </span>
@@ -205,7 +205,7 @@ export function EventoDetalle({
           {yaPaso && (
             <span
               className="inline-flex items-center rounded-full px-2.5 py-1 font-mono text-[11px] font-bold tracking-wide uppercase"
-              style={{ background: "oklch(0.9 0.013 78)", color: "oklch(0.5 0.02 55)" }}
+              style={{ background: "oklch(0.9 0.008 85)", color: "oklch(0.5 0.044 262)" }}
             >
               Ya pasó
             </span>
@@ -214,20 +214,20 @@ export function EventoDetalle({
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {evento.tipo !== "cumpleanos" && puedeEditar && (
-            <button type="button" onClick={() => onEditar(evento)} className="text-sm font-bold" style={{ color: "oklch(0.64 0.15 34)" }}>
+            <button type="button" onClick={() => onEditar(evento)} className="text-sm font-bold" style={{ color: "oklch(0.64 0.170 28)" }}>
               Editar
             </button>
           )}
-          <button type="button" onClick={onCerrar} className="text-xl" style={{ color: "oklch(0.5 0.02 55)" }} aria-label="Cerrar">
+          <button type="button" onClick={onCerrar} className="text-xl" style={{ color: "oklch(0.5 0.044 262)" }} aria-label="Cerrar">
             ×
           </button>
         </div>
       </div>
 
-      <h2 className="mt-2 text-2xl font-extrabold tracking-tight" style={{ color: "oklch(0.24 0.02 55)", fontFamily: "var(--font-bricolage), sans-serif" }}>
+      <h2 className="mt-2 text-2xl font-extrabold tracking-tight" style={{ color: "oklch(0.24 0.044 262)", fontFamily: "var(--font-fraunces), sans-serif" }}>
         {evento.titulo}
       </h2>
-      <div className="mt-1 text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
+      <div className="mt-1 text-sm" style={{ color: "oklch(0.5 0.044 262)" }}>
         {fechaTexto} · {evento.bandaNombre}
       </div>
 
@@ -236,12 +236,12 @@ export function EventoDetalle({
           <IconoPin />
           <div className="min-w-0 flex-1">
             {nombreUbicacion && (
-              <div className="truncate text-[15px] font-semibold" style={{ color: "oklch(0.24 0.02 55)" }}>
+              <div className="truncate text-[15px] font-semibold" style={{ color: "oklch(0.24 0.044 262)" }}>
                 {nombreUbicacion}
               </div>
             )}
             {evento.ciudad && (
-              <div className="truncate text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+              <div className="truncate text-xs" style={{ color: "oklch(0.5 0.044 262)" }}>
                 {evento.ciudad}
               </div>
             )}
@@ -258,7 +258,7 @@ export function EventoDetalle({
       {evento.tipo !== "cumpleanos" && (
         <FilaAccion href={`/logistica/${evento.id}`}>
           <IconoLogistica />
-          <div className="min-w-0 flex-1 truncate text-[15px] font-semibold" style={{ color: "oklch(0.24 0.02 55)" }}>
+          <div className="min-w-0 flex-1 truncate text-[15px] font-semibold" style={{ color: "oklch(0.24 0.044 262)" }}>
             Logística
           </div>
           <span className="shrink-0 text-xs">›</span>
@@ -266,11 +266,11 @@ export function EventoDetalle({
       )}
 
       {giraAsignada && (
-        <div className="mt-2.5 rounded-2xl p-3" style={{ background: "oklch(0.93 0.016 78)" }}>
-          <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+        <div className="mt-2.5 rounded-2xl p-3" style={{ background: "oklch(0.93 0.010 85)" }}>
+          <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.044 262)" }}>
             Gira
           </div>
-          <div className="mt-1 text-[15px]" style={{ color: "oklch(0.24 0.02 55)" }}>
+          <div className="mt-1 text-[15px]" style={{ color: "oklch(0.24 0.044 262)" }}>
             {giraAsignada.titulo}
           </div>
         </div>
@@ -279,7 +279,7 @@ export function EventoDetalle({
       {setlistAsignado && (
         <FilaAccion href={`/set-list/${setlistAsignado.id}`}>
           <IconoLista />
-          <div className="min-w-0 flex-1 truncate text-[15px] font-semibold" style={{ color: "oklch(0.24 0.02 55)" }}>
+          <div className="min-w-0 flex-1 truncate text-[15px] font-semibold" style={{ color: "oklch(0.24 0.044 262)" }}>
             {setlistAsignado.nombre}
           </div>
           <span className="shrink-0 text-xs">›</span>
@@ -289,13 +289,13 @@ export function EventoDetalle({
       {!setlistAsignado && puedeEditar && (evento.tipo === "show" || evento.tipo === "ensayo") && (
         <div className="mt-2.5">
           {creandoSetlist ? (
-            <div className="rounded-2xl p-3" style={{ background: "oklch(0.93 0.016 78)" }}>
-              <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+            <div className="rounded-2xl p-3" style={{ background: "oklch(0.93 0.010 85)" }}>
+              <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.044 262)" }}>
                 Nuevo Set List
               </div>
               <input
                 className="mt-1.5 w-full rounded-xl border px-3 py-2 text-sm outline-none"
-                style={{ background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" }}
+                style={{ background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: "oklch(0.24 0.044 262)" }}
                 value={nombreSetlist}
                 onChange={(e) => setNombreSetlist(e.target.value)}
                 placeholder="Nombre del Set List"
@@ -306,7 +306,7 @@ export function EventoDetalle({
                   onClick={crearSetlist}
                   disabled={pendienteSetlist}
                   className="flex-1 rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-60"
-                  style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+                  style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
                 >
                   {pendienteSetlist ? "Creando…" : "Crear y asignar"}
                 </button>
@@ -314,7 +314,7 @@ export function EventoDetalle({
                   type="button"
                   onClick={() => setCreandoSetlist(false)}
                   className="rounded-lg px-3 py-2 text-sm font-bold"
-                  style={{ background: "oklch(0.99 0.008 82)", color: "oklch(0.4 0.02 55)" }}
+                  style={{ background: "oklch(0.99 0.005 85)", color: "oklch(0.4 0.044 262)" }}
                 >
                   Cancelar
                 </button>
@@ -328,7 +328,7 @@ export function EventoDetalle({
                 setCreandoSetlist(true);
               }}
               className="text-sm font-bold"
-              style={{ color: "oklch(0.64 0.15 34)" }}
+              style={{ color: "oklch(0.64 0.170 28)" }}
             >
               + Crear Set List
             </button>
@@ -337,11 +337,11 @@ export function EventoDetalle({
       )}
 
       {evento.ingresoEsperado !== null && (
-        <div className="mt-2.5 rounded-2xl p-3" style={{ background: "oklch(0.93 0.016 78)" }}>
-          <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+        <div className="mt-2.5 rounded-2xl p-3" style={{ background: "oklch(0.93 0.010 85)" }}>
+          <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.55 0.044 262)" }}>
             Ingreso esperado
           </div>
-          <div className="mt-1 font-mono text-2xl font-bold" style={{ color: "oklch(0.64 0.15 34)" }}>
+          <div className="mt-1 font-mono text-2xl font-bold" style={{ color: "oklch(0.64 0.170 28)" }}>
             {formatoMoneda(evento.ingresoEsperado)}
           </div>
         </div>

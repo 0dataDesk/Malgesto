@@ -36,18 +36,18 @@ export default async function SetListPage({
 
   if (!bandaValida && bandasConBloque.length > 1) {
     return (
-      <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
+      <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.007 85)" }}>
         <EspacioSuperior>
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
             Set List
           </div>
           <h2
             className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
-            style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+            style={{ fontFamily: "var(--font-fraunces), sans-serif", color: "oklch(0.24 0.044 262)" }}
           >
             ¿Qué banda?
           </h2>
-          <p className="mt-2 text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <p className="mt-2 text-sm" style={{ color: "oklch(0.5 0.044 262)" }}>
             Elegí la banda antes de ver sus Set Lists.
           </p>
 
@@ -79,17 +79,17 @@ export default async function SetListPage({
   const crear = crearSetlistAction.bind(null, bandaActiva);
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
+    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.007 85)" }}>
       <EspacioSuperior>
         <div className="flex items-center gap-2.5">
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
             {nombreBandaActiva}
           </div>
           {bandasConBloque.length > 1 && (
             <Link
               href="/set-list"
               className="font-mono text-[10px] font-bold tracking-wide no-underline"
-              style={{ color: "oklch(0.5 0.02 55)" }}
+              style={{ color: "oklch(0.5 0.044 262)" }}
             >
               · ‹ Cambiar de banda
             </Link>
@@ -98,18 +98,18 @@ export default async function SetListPage({
         <div className="flex items-end justify-between gap-3">
           <h2
             className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
-            style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+            style={{ fontFamily: "var(--font-fraunces), sans-serif", color: "oklch(0.24 0.044 262)" }}
           >
             Set Lists
           </h2>
-          <span className="font-mono text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <span className="font-mono text-sm" style={{ color: "oklch(0.5 0.044 262)" }}>
             {setlists.length}
           </span>
         </div>
 
         <div className="mt-4 flex flex-col gap-2.5">
           {setlists.length === 0 && (
-            <p className="mt-6 text-center text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+            <p className="mt-6 text-center text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
               Todavía no hay Set Lists para {nombreBandaActiva}.
             </p>
           )}
@@ -118,15 +118,15 @@ export default async function SetListPage({
               key={s.id}
               href={`/set-list/${s.id}`}
               className="flex items-center justify-between gap-3 rounded-2xl p-4 no-underline"
-              style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}
+              style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}
             >
               <div
                 className="text-[19px] font-bold"
-                style={{ color: "oklch(0.24 0.02 55)", fontFamily: "var(--font-bricolage), sans-serif" }}
+                style={{ color: "oklch(0.24 0.044 262)", fontFamily: "var(--font-fraunces), sans-serif" }}
               >
                 {s.nombre}
               </div>
-              <div className="font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+              <div className="font-mono text-xs" style={{ color: "oklch(0.5 0.044 262)" }}>
                 {s.cantidadCanciones} {s.cantidadCanciones === 1 ? "canción" : "canciones"}
               </div>
             </Link>
@@ -139,12 +139,12 @@ export default async function SetListPage({
             required
             placeholder="Nombre del Set List"
             className="flex-1 rounded-xl border px-3.5 py-2.5 text-sm outline-none"
-            style={{ background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" }}
+            style={{ background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: "oklch(0.24 0.044 262)" }}
           />
           <button
             type="submit"
             className="rounded-xl px-4 py-2.5 text-sm font-bold"
-            style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+            style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
           >
             + Nuevo set
           </button>

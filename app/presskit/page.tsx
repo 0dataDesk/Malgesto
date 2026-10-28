@@ -54,18 +54,18 @@ export default async function PresskitPage({
 
   if (!bandaValida && bandasConBloque.length > 1) {
     return (
-      <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
+      <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.007 85)" }}>
         <EspacioSuperior>
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
             Presskit
           </div>
           <h2
             className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
-            style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+            style={{ fontFamily: "var(--font-fraunces), sans-serif", color: "oklch(0.24 0.044 262)" }}
           >
             ¿Qué banda?
           </h2>
-          <p className="mt-2 text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <p className="mt-2 text-sm" style={{ color: "oklch(0.5 0.044 262)" }}>
             Elegí la banda antes de ver su presskit.
           </p>
 
@@ -86,14 +86,14 @@ export default async function PresskitPage({
   const presskit = await obtenerOCrearPresskit(bandaActiva);
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
+    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.007 85)" }}>
       <EspacioSuperior>
         <div className="flex items-center gap-2.5">
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
             {membresiaActiva.bandaNombre}
           </div>
           {bandasConBloque.length > 1 && (
-            <Link href="/presskit" className="font-mono text-[10px] font-bold tracking-wide no-underline" style={{ color: "oklch(0.5 0.02 55)" }}>
+            <Link href="/presskit" className="font-mono text-[10px] font-bold tracking-wide no-underline" style={{ color: "oklch(0.5 0.044 262)" }}>
               · ‹ Cambiar de banda
             </Link>
           )}
@@ -101,7 +101,7 @@ export default async function PresskitPage({
         <div className="flex items-end justify-between gap-3">
           <h2
             className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
-            style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+            style={{ fontFamily: "var(--font-fraunces), sans-serif", color: "oklch(0.24 0.044 262)" }}
           >
             Presskit
           </h2>
@@ -109,7 +109,7 @@ export default async function PresskitPage({
             <Link
               href={`/presskit-captura/${bandaActiva}`}
               className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold no-underline"
-              style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+              style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
             >
               Editar
             </Link>
@@ -117,19 +117,19 @@ export default async function PresskitPage({
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
-          <div className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+          <div className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+              <span className="text-sm font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
                 Estatus
               </span>
               <EstadoBadge presskit={presskit} />
             </div>
           </div>
 
-          <div className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+          <div className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
             <VisitarCompartirPresskit liga={presskit.ligaPublicada} />
             {!presskit.ligaPublicada && (
-              <p className="mt-2 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+              <p className="mt-2 text-xs" style={{ color: "oklch(0.55 0.044 262)" }}>
                 Todavía no hay página publicada.
               </p>
             )}

@@ -51,21 +51,21 @@ export function GestionShell({
   };
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
+    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.007 85)" }}>
       <div className="mx-auto max-w-2xl px-5 pt-5">
         <div className="mb-2 flex items-center justify-between">
-          <Link href="/inicio" className="text-sm no-underline" style={{ color: "oklch(0.6 0.02 55)" }}>
+          <Link href="/inicio" className="text-sm no-underline" style={{ color: "oklch(0.6 0.044 262)" }}>
             ‹ Inicio
           </Link>
         </div>
         <h2
           className="text-[30px] font-extrabold tracking-[-0.02em]"
-          style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+          style={{ fontFamily: "var(--font-fraunces), sans-serif", color: "oklch(0.24 0.044 262)" }}
         >
           Gestión
         </h2>
 
-        <div className="mt-4 flex gap-1 rounded-[12px] p-[3px]" style={{ background: "oklch(0.93 0.016 78)" }}>
+        <div className="mt-4 flex gap-1 rounded-[12px] p-[3px]" style={{ background: "oklch(0.93 0.010 85)" }}>
           {SECCIONES.map((s) => (
             <button
               key={s}
@@ -73,8 +73,8 @@ export function GestionShell({
               onClick={() => cambiarSeccion(s)}
               className="flex-1 rounded-[9px] px-2 py-2 text-xs font-bold"
               style={{
-                background: seccion === s ? "oklch(0.24 0.02 55)" : "transparent",
-                color: seccion === s ? "oklch(0.96 0.012 82)" : "oklch(0.45 0.02 55)",
+                background: seccion === s ? "oklch(0.24 0.044 262)" : "transparent",
+                color: seccion === s ? "oklch(0.96 0.007 85)" : "oklch(0.45 0.044 262)",
               }}
             >
               {ETIQUETA_SECCION[s]}

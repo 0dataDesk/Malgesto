@@ -20,16 +20,16 @@ import { ChordBlock } from "./ChordBlock";
 // Tokens de tema del diseño Fase 2. "Ensayo" (claro) / "Escenario" (oscuro).
 const TEMA = {
   claro: {
-    "--bg": "oklch(0.965 0.012 82)",
-    "--card": "oklch(0.99 0.008 82)",
-    "--card2": "oklch(0.975 0.01 82)",
-    "--line": "oklch(0.89 0.013 78)",
-    "--ink": "oklch(0.24 0.02 55)",
-    "--muted": "oklch(0.5 0.02 55)",
-    "--faint": "oklch(0.62 0.02 55)",
-    "--chip": "oklch(0.93 0.016 78)",
-    "--accent": "oklch(0.64 0.15 34)",
-    "--accentInk": "oklch(0.99 0.01 82)",
+    "--bg": "oklch(0.965 0.007 85)",
+    "--card": "oklch(0.99 0.005 85)",
+    "--card2": "oklch(0.975 0.006 85)",
+    "--line": "oklch(0.89 0.008 85)",
+    "--ink": "oklch(0.24 0.044 262)",
+    "--muted": "oklch(0.5 0.044 262)",
+    "--faint": "oklch(0.62 0.044 262)",
+    "--chip": "oklch(0.93 0.010 85)",
+    "--accent": "oklch(0.64 0.170 28)",
+    "--accentInk": "oklch(0.99 0.006 85)",
   },
   oscuro: {
     "--bg": "oklch(0.16 0.01 260)",
@@ -46,7 +46,7 @@ const TEMA = {
 } as const;
 
 const MONO = "var(--font-space-mono), ui-monospace, monospace";
-const DISPLAY = "var(--font-bricolage), sans-serif";
+const DISPLAY = "var(--font-fraunces), sans-serif";
 
 type Tema = "claro" | "oscuro";
 
@@ -282,7 +282,7 @@ function ModoLista({
   const beat = Math.floor((t / (60 / (pos.vuelta.bpmEfectivo || 92))) % 4);
 
   return (
-    <div style={{ ...vars, minHeight: "100vh", background: "var(--bg)", color: "var(--ink)", fontFamily: "var(--font-manrope), sans-serif", display: "flex", flexDirection: "column" }}>
+    <div style={{ ...vars, minHeight: "100vh", background: "var(--bg)", color: "var(--ink)", fontFamily: "var(--font-dm-sans), sans-serif", display: "flex", flexDirection: "column" }}>
       <div className="portrait-hint" style={{ display: "none", padding: "10px 16px", fontFamily: MONO, fontSize: 11, color: "var(--faint)", textAlign: "center", background: "var(--card2)", borderBottom: "1px solid var(--line)" }}>
         Girá el teléfono para el modo lista.
       </div>
@@ -404,7 +404,7 @@ function ModoLista({
                 </div>
                 <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
                   {tonos.acompanantes.map((tn, i) => (
-                    <span key={i} style={{ display: "inline-flex", gap: 3, borderRadius: 999, padding: "2px 6px", background: "oklch(0.97 0.01 82)", fontFamily: MONO, fontWeight: 700, fontSize: 10, color: "oklch(0.3 0.02 55)" }}>
+                    <span key={i} style={{ display: "inline-flex", gap: 3, borderRadius: 999, padding: "2px 6px", background: "oklch(0.97 0.006 85)", fontFamily: MONO, fontWeight: 700, fontSize: 10, color: "oklch(0.3 0.044 262)" }}>
                       <span style={{ color: colorExtension(tn.nota) }}>{tn.intervalo.replace("ª", "")}</span>
                       {tn.nota}
                     </span>
@@ -467,7 +467,7 @@ function ModoLista({
                 <div style={{ display: "flex", gap: 6, overflow: "hidden" }}>
                   {vueltas.slice(pos.idx, pos.idx + 4).map((b, i) => (
                     <div key={i} style={{ flex: 1, minWidth: 0, borderRadius: 10, padding: "8px 9px", background: i === 0 ? colorRaizAcorde(b.acordes[0]?.notaRaiz ?? "C", b.acordes[0]?.calidad ?? "mayor") : "var(--card2)", border: i === 0 ? "1px solid transparent" : "1px solid var(--line)", color: i === 0 ? "#fff" : "var(--muted)" }}>
-                      <div style={{ fontFamily: "var(--font-manrope), sans-serif", fontWeight: 700, fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <div style={{ fontFamily: "var(--font-dm-sans), sans-serif", fontWeight: 700, fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {b.deVueltas > 1 ? `${b.nombre} ${b.indice}/${b.deVueltas}` : b.nombre}
                       </div>
                       <div style={{ marginTop: 4, fontFamily: MONO, fontSize: 9, opacity: 0.8 }}>{b.compases}c · {mmss(b.duracionSegundos)}</div>
@@ -552,18 +552,18 @@ function ModoVertical({ cancion, prioridad, volverHref }: { cancion: CancionComp
   const letraGrande = prioridad === "voz";
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: "oklch(0.965 0.012 82)" }}>
+    <div className="min-h-screen pb-24" style={{ background: "oklch(0.965 0.007 85)" }}>
       <div className="mx-auto max-w-2xl px-5 pt-6">
-        <Link href={volverHref} className="mb-3 inline-block text-sm no-underline" style={{ color: "oklch(0.55 0.02 55)" }}>
+        <Link href={volverHref} className="mb-3 inline-block text-sm no-underline" style={{ color: "oklch(0.55 0.044 262)" }}>
           ‹ Canciones
         </Link>
-        <h1 className="flex flex-wrap items-center gap-2.5 text-[26px] font-extrabold tracking-tight" style={{ color: "oklch(0.24 0.02 55)", fontFamily: DISPLAY }}>
+        <h1 className="flex flex-wrap items-center gap-2.5 text-[26px] font-extrabold tracking-tight" style={{ color: "oklch(0.24 0.044 262)", fontFamily: DISPLAY }}>
           {cancion.titulo}
-          <span className="rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide" style={{ fontFamily: MONO, border: "1px dashed oklch(0.64 0.15 34)", color: "oklch(0.64 0.15 34)" }}>
+          <span className="rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide" style={{ fontFamily: MONO, border: "1px dashed oklch(0.64 0.170 28)", color: "oklch(0.64 0.170 28)" }}>
             Borrador
           </span>
         </h1>
-        <div className="mt-1 text-xs uppercase tracking-[0.1em]" style={{ fontFamily: MONO, color: "oklch(0.5 0.02 55)" }}>
+        <div className="mt-1 text-xs uppercase tracking-[0.1em]" style={{ fontFamily: MONO, color: "oklch(0.5 0.044 262)" }}>
           {cancion.tonalidadNota}
           {cancion.tonalidadModo === "menor" ? "m" : ""} · {cancion.bpm ?? "—"} BPM · {total} compases · {cancion.duracionSegundos !== null ? formatoMMSS(cancion.duracionSegundos) : mmss(dur)}
         </div>
@@ -581,16 +581,16 @@ function ModoVertical({ cancion, prioridad, volverHref }: { cancion: CancionComp
 
       <div className="mx-auto mt-5 flex max-w-2xl flex-col gap-3 px-5">
         {vueltas.map((v, i) => (
-          <div key={`${v.seccionId}-${v.indice}`} className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: `1px solid ${v.esVariante ? "oklch(0.64 0.15 34)" : "oklch(0.89 0.013 78)"}` }}>
+          <div key={`${v.seccionId}-${v.indice}`} className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.005 85)", border: `1px solid ${v.esVariante ? "oklch(0.64 0.170 28)" : "oklch(0.89 0.008 85)"}` }}>
             <div className="mb-3 flex flex-wrap items-baseline gap-2">
-              <span className="text-xs" style={{ fontFamily: MONO, color: "oklch(0.6 0.02 55)" }}>{i + 1}</span>
-              <h2 className="text-xl font-extrabold tracking-tight" style={{ color: "oklch(0.24 0.02 55)", fontFamily: DISPLAY }}>{v.nombre}</h2>
+              <span className="text-xs" style={{ fontFamily: MONO, color: "oklch(0.6 0.044 262)" }}>{i + 1}</span>
+              <h2 className="text-xl font-extrabold tracking-tight" style={{ color: "oklch(0.24 0.044 262)", fontFamily: DISPLAY }}>{v.nombre}</h2>
               {v.deVueltas > 1 && (
-                <span className="text-xs" style={{ fontFamily: MONO, color: v.esVariante ? "oklch(0.5 0.13 34)" : "oklch(0.6 0.02 55)" }}>
+                <span className="text-xs" style={{ fontFamily: MONO, color: v.esVariante ? "oklch(0.5 0.13 34)" : "oklch(0.6 0.044 262)" }}>
                   vuelta {v.indice}/{v.deVueltas}{v.esVariante ? " · aparte" : ""}
                 </span>
               )}
-              <span className="text-xs" style={{ fontFamily: MONO, color: "oklch(0.6 0.02 55)" }}>— {v.compases} compases</span>
+              <span className="text-xs" style={{ fontFamily: MONO, color: "oklch(0.6 0.044 262)" }}>— {v.compases} compases</span>
             </div>
             {v.acordes.length > 0 && (
               <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(4, Math.max(2, v.acordes.length))}, 1fr)` }}>
@@ -613,8 +613,8 @@ function ModoVertical({ cancion, prioridad, volverHref }: { cancion: CancionComp
 
 function AudioMini({ titulo, url }: { titulo: string; url: string }) {
   return (
-    <div className="rounded-xl p-3" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
-      <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: "oklch(0.5 0.02 55)" }}>{titulo}</div>
+    <div className="rounded-xl p-3" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
+      <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: "oklch(0.5 0.044 262)" }}>{titulo}</div>
       <audio controls preload="none" src={url} className="w-full" style={{ height: 36 }} />
     </div>
   );

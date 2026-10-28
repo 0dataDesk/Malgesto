@@ -68,7 +68,7 @@ export default async function LogisticaPage({
     obtenerStagePlot(evento.bandaId),
   ]);
 
-  const rider = stagePlot && stagePlot.items.length > 0 ? await construirRider(stagePlot, evento.bandaId, evento.bandaNombre, "oklch(0.6 0.02 55)") : null;
+  const rider = stagePlot && stagePlot.items.length > 0 ? await construirRider(stagePlot, evento.bandaId, evento.bandaNombre, "oklch(0.6 0.044 262)") : null;
   const musicos = rider ? consolidarMusicos(rider.canales) : [];
 
   if (!puedeEditar) return <LogisticaSoloLectura evento={evento} puntos={puntos} musicos={musicos} />;

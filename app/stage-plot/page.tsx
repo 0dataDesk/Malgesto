@@ -60,18 +60,18 @@ export default async function StagePlotPage({
 
   if (!bandaValida && bandasConBloque.length > 1) {
     return (
-      <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
+      <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.007 85)" }}>
         <EspacioSuperior>
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
             Rider Técnico
           </div>
           <h2
             className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
-            style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+            style={{ fontFamily: "var(--font-fraunces), sans-serif", color: "oklch(0.24 0.044 262)" }}
           >
             ¿Qué banda?
           </h2>
-          <p className="mt-2 text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <p className="mt-2 text-sm" style={{ color: "oklch(0.5 0.044 262)" }}>
             Elegí la banda antes de ver su rider técnico.
           </p>
 
@@ -90,7 +90,7 @@ export default async function StagePlotPage({
   const bandaActiva = bandaValida ? bandaParam! : bandasConBloque[0].bandaId;
   const membresiaActiva = bandasConBloque.find((m) => m.bandaId === bandaActiva);
   const nombreBandaActiva = membresiaActiva?.bandaNombre ?? "";
-  const colorBandaActiva = membresiaActiva?.color ?? "oklch(0.6 0.02 55)";
+  const colorBandaActiva = membresiaActiva?.color ?? "oklch(0.6 0.044 262)";
   // Fix "Correcciones urgentes: Rider Técnico" §4: exigir rol literal
   // "superadmin" en la fila de ESTA banda rompía la garantía de "superadmin
   // edita cualquier banda, sin excepción" en cuanto esa fila puntual no
@@ -114,21 +114,21 @@ export default async function StagePlotPage({
   ]);
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
+    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.007 85)" }}>
       <EspacioSuperior maxWidth="max-w-3xl">
         <div className="flex items-center gap-2.5">
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
             {nombreBandaActiva}
           </div>
           {bandasConBloque.length > 1 && (
-            <Link href="/stage-plot" className="font-mono text-[10px] font-bold tracking-wide no-underline" style={{ color: "oklch(0.5 0.02 55)" }}>
+            <Link href="/stage-plot" className="font-mono text-[10px] font-bold tracking-wide no-underline" style={{ color: "oklch(0.5 0.044 262)" }}>
               · ‹ Cambiar de banda
             </Link>
           )}
         </div>
         <h2
           className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
-          style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+          style={{ fontFamily: "var(--font-fraunces), sans-serif", color: "oklch(0.24 0.044 262)" }}
         >
           Rider Técnico
         </h2>

@@ -25,7 +25,7 @@ export default async function OnboardingPage({
       className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6"
       style={{
         background:
-          "radial-gradient(120% 80% at 50% 0%, oklch(0.64 0.15 34) 0%, oklch(0.56 0.15 24) 42%, oklch(0.4 0.11 30) 100%)",
+          "radial-gradient(120% 80% at 50% 0%, oklch(0.42 0.07 262) 0%, oklch(0.32 0.06 262) 45%, oklch(0.22 0.045 262) 100%)",
       }}
     >
       <FechaNacimientoForm next={next} />

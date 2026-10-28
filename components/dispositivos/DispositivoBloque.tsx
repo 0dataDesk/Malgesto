@@ -30,15 +30,15 @@ export type DispositivoConSeteos = {
   colorTexto: string | null;
 };
 
-const TEXTO_OSCURO = "oklch(0.24 0.02 55)";
-const TEXTO_GRIS = "oklch(0.5 0.02 55)";
+const TEXTO_OSCURO = "oklch(0.24 0.044 262)";
+const TEXTO_GRIS = "oklch(0.5 0.044 262)";
 const ROJO = "oklch(0.55 0.15 25)";
 // Brief "Seteos: simplificar colores + permiso de borrar seteo por
 // canción" §2: el fondo de color queda solo en el acordeón de bloque (ver
 // GrupoCadena en SeteosLista) -- cada acordeón individual va siempre en
 // blanco, sin variante de texto claro.
-const FONDO_DEFAULT = "oklch(0.99 0.008 82)";
-const BORDE_DEFAULT = "1px solid oklch(0.89 0.013 78)";
+const FONDO_DEFAULT = "oklch(0.99 0.005 85)";
+const BORDE_DEFAULT = "1px solid oklch(0.89 0.008 85)";
 
 // Foco/LED de habilitado (brief "DispositivoBloque — el switch de
 // habilitado se ve como foco/LED"): mismo lenguaje visual que ya usa
@@ -59,7 +59,7 @@ function LedHabilitado({ activo, onClick, disabled }: { activo: boolean; onClick
       <span
         className="block h-3 w-3 rounded-full transition-all"
         style={{
-          background: activo ? "oklch(0.72 0.19 25)" : "oklch(0.8 0.013 78)",
+          background: activo ? "oklch(0.72 0.19 25)" : "oklch(0.8 0.008 85)",
           boxShadow: activo ? "0 0 6px 1px oklch(0.72 0.19 25 / 0.7)" : "none",
         }}
       />
@@ -171,7 +171,7 @@ export function DispositivoBloque({
             ›
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[19px] font-bold" style={{ color: TEXTO_OSCURO, fontFamily: "var(--font-bricolage), sans-serif" }}>
+            <span className="block truncate text-[19px] font-bold" style={{ color: TEXTO_OSCURO, fontFamily: "var(--font-fraunces), sans-serif" }}>
               {nombreMostrado}
             </span>
             {!colapsado && dispositivo.apodo && (

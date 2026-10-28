@@ -46,18 +46,18 @@ export default async function SeteosPage({
 
   if (!bandaValida && bandasConBloque.length > 1) {
     return (
-      <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
+      <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.007 85)" }}>
         <EspacioSuperior>
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
             Seteos
           </div>
           <h2
             className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
-            style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+            style={{ fontFamily: "var(--font-fraunces), sans-serif", color: "oklch(0.24 0.044 262)" }}
           >
             ¿Qué banda?
           </h2>
-          <p className="mt-2 text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <p className="mt-2 text-sm" style={{ color: "oklch(0.5 0.044 262)" }}>
             Elegí la banda antes de ver tus dispositivos.
           </p>
 
@@ -125,14 +125,14 @@ export default async function SeteosPage({
     }));
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
+    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.007 85)" }}>
       <EspacioSuperior>
         <div className="flex items-center gap-2.5">
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
             {nombreBandaActiva}
           </div>
           {bandasConBloque.length > 1 && (
-            <Link href="/seteos" className="font-mono text-[10px] font-bold tracking-wide no-underline" style={{ color: "oklch(0.5 0.02 55)" }}>
+            <Link href="/seteos" className="font-mono text-[10px] font-bold tracking-wide no-underline" style={{ color: "oklch(0.5 0.044 262)" }}>
               · ‹ Cambiar de banda
             </Link>
           )}
@@ -140,7 +140,7 @@ export default async function SeteosPage({
         <div className="flex items-end justify-between gap-3">
           <h2
             className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
-            style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+            style={{ fontFamily: "var(--font-fraunces), sans-serif", color: "oklch(0.24 0.044 262)" }}
           >
             Seteos
           </h2>

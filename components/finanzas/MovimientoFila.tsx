@@ -47,14 +47,14 @@ export function MovimientoFila({
   return (
     <div
       className="rounded-2xl p-3.5"
-      style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", opacity: disponible ? 1 : 0.7 }}
+      style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)", opacity: disponible ? 1 : 0.7 }}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-[15px] font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+          <div className="truncate text-[15px] font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
             {m.concepto}
           </div>
-          <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.5 0.044 262)" }}>
             {formatearFecha(m.fecha)}
             {m.eventoTitulo && ` · ${m.eventoTitulo}`}
             {m.automatico && (disponible ? " · Automático" : " · Pendiente hasta el show")}
@@ -63,7 +63,7 @@ export function MovimientoFila({
         <div className="flex shrink-0 items-center gap-2">
           <span
             className="font-mono text-sm font-bold"
-            style={{ color: !disponible ? "oklch(0.6 0.02 55)" : m.tipo === "entrada" ? "oklch(0.5 0.13 148)" : "oklch(0.55 0.15 25)" }}
+            style={{ color: !disponible ? "oklch(0.6 0.044 262)" : m.tipo === "entrada" ? "oklch(0.5 0.13 148)" : "oklch(0.55 0.15 25)" }}
           >
             {disponible ? (m.tipo === "entrada" ? "+" : "−") : ""}
             {formatoMoneda(m.monto)}

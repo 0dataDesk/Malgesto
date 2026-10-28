@@ -22,7 +22,7 @@ import { BadgePrivado } from "@/components/ui/BadgePrivado";
 import { TabBar } from "@/components/shell/TabBar";
 import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
 
-const fuenteEncabezado = { fontFamily: "var(--font-bricolage), sans-serif" };
+const fuenteEncabezado = { fontFamily: "var(--font-fraunces), sans-serif" };
 
 type SetlistOpcion = { id: string; bandaId: string; nombre: string };
 
@@ -220,7 +220,7 @@ export function CalendarioShell({
     listaContenido = <AgendaView eventos={eventosFiltradosAgenda} colorPorBanda={colorPorBanda} onEventoClick={(e) => setEventoSeleccionadoId(e.id)} />;
   } else if (eventosDelDia.length === 0) {
     listaContenido = (
-      <p className="pt-10 text-center text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+      <p className="pt-10 text-center text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
         Sin eventos este día.
       </p>
     );
@@ -253,21 +253,21 @@ export function CalendarioShell({
             type="button"
             onClick={() => setEventoDelDiaElegidoId(e.id)}
             className="flex items-center justify-between gap-3 rounded-2xl p-3.5 text-left"
-            style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", borderLeft: `3px solid ${COLOR_TIPO[e.tipo]}` }}
+            style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)", borderLeft: `3px solid ${COLOR_TIPO[e.tipo]}` }}
           >
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+                <span className="text-sm font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
                   {e.titulo}
                 </span>
                 {!e.esPublico && <BadgePrivado />}
               </div>
-              <div className="mt-0.5 text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+              <div className="mt-0.5 text-xs" style={{ color: "oklch(0.5 0.044 262)" }}>
                 {ETIQUETA_TIPO[e.tipo]} · {e.bandaNombre}
               </div>
             </div>
             {e.tipo !== "cumpleanos" && (
-              <span className="font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+              <span className="font-mono text-xs" style={{ color: "oklch(0.5 0.044 262)" }}>
                 {hora(e.fechaInicio)}
               </span>
             )}
@@ -278,7 +278,7 @@ export function CalendarioShell({
   }
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden" style={{ background: "oklch(0.965 0.012 82)" }}>
+    <div className="flex h-dvh flex-col overflow-hidden" style={{ background: "oklch(0.965 0.007 85)" }}>
       {/* Brief "...menú de vistas arriba centrado...": el título no debe
           quedar debajo de la pill flotante de vistas, que vive arriba-centro
           (antes abajo-derecha, no competía con este espacio). Brief
@@ -293,7 +293,7 @@ export function CalendarioShell({
           className="overflow-hidden transition-all duration-200"
           style={{ maxHeight: scrolleado ? 0 : 40, opacity: scrolleado ? 0 : 1 }}
         >
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
             Calendario
           </div>
         </div>
@@ -302,14 +302,14 @@ export function CalendarioShell({
             fila, alineados a la derecha del título — eliminan la fila propia
             que ocupaban antes para ganar espacio vertical. */}
         <div className="mt-1 flex items-center justify-between gap-3">
-          <h2 className="text-[30px] font-extrabold tracking-[-0.02em]" style={{ ...fuenteEncabezado, color: "oklch(0.24 0.02 55)" }}>
+          <h2 className="text-[30px] font-extrabold tracking-[-0.02em]" style={{ ...fuenteEncabezado, color: "oklch(0.24 0.044 262)" }}>
             {nombreMesAno(mes)}
           </h2>
           <BandaFilterChips membresias={membresias} activas={activas} onToggle={toggleBanda} />
         </div>
 
         <div className="mt-3 flex items-center gap-3">
-          <button type="button" onClick={() => setMes((m) => sumarMeses(m, -1))} className="text-lg" style={{ color: "oklch(0.6 0.02 55)" }} aria-label="Mes anterior">
+          <button type="button" onClick={() => setMes((m) => sumarMeses(m, -1))} className="text-lg" style={{ color: "oklch(0.6 0.044 262)" }} aria-label="Mes anterior">
             ‹
           </button>
           {/* Brief "Botón Hoy": vuelve al mes actual de un clic — útil tras
@@ -320,11 +320,11 @@ export function CalendarioShell({
             type="button"
             onClick={() => setMes(ahoraEnZonaApp())}
             className="rounded-full px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wide"
-            style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+            style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
           >
             Hoy
           </button>
-          <button type="button" onClick={() => setMes((m) => sumarMeses(m, 1))} className="text-lg" style={{ color: "oklch(0.6 0.02 55)" }} aria-label="Mes siguiente">
+          <button type="button" onClick={() => setMes((m) => sumarMeses(m, 1))} className="text-lg" style={{ color: "oklch(0.6 0.044 262)" }} aria-label="Mes siguiente">
             ›
           </button>
         </div>
@@ -347,11 +347,11 @@ export function CalendarioShell({
         onScroll={(e) => setScrolleado(e.currentTarget.scrollTop > 8)}
       >
         <div className="mb-2 flex items-center justify-between">
-          <span className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <span className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
             {diaSeleccionado ? diaSeleccionado.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" }) : "Próximos eventos"}
           </span>
           {diaSeleccionado && (
-            <button type="button" onClick={quitarSeleccionDia} className="text-xs font-semibold" style={{ color: "oklch(0.64 0.15 34)" }}>
+            <button type="button" onClick={quitarSeleccionDia} className="text-xs font-semibold" style={{ color: "oklch(0.64 0.170 28)" }}>
               Quitar selección
             </button>
           )}
@@ -363,24 +363,24 @@ export function CalendarioShell({
             administradores) — nombre + instrumento(s), nunca el motivo ni,
             si es un conflicto automático, con qué otra banda. */}
         {ausenciasDelDia.length > 0 && (
-          <div className="mt-4 rounded-2xl p-3.5" style={{ background: "oklch(0.93 0.016 78 / 0.6)", border: "1px dashed oklch(0.75 0.02 60)" }}>
-            <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.05 60)" }}>
+          <div className="mt-4 rounded-2xl p-3.5" style={{ background: "oklch(0.93 0.010 85 / 0.6)", border: "1px dashed oklch(0.75 0.044 262)" }}>
+            <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.060 262)" }}>
               Ausencias
             </div>
             <div className="flex flex-col gap-1.5">
               {ausenciasDelDia.map((a) => (
                 <div key={`${a.usuarioId}:${a.bandaId}`} className="flex items-center justify-between gap-2 text-sm">
-                  <span style={{ color: "oklch(0.3 0.02 55)" }}>
+                  <span style={{ color: "oklch(0.3 0.044 262)" }}>
                     {a.nombre}
                     {a.instrumentos.length > 0 && (
-                      <span className="ml-1 font-mono text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+                      <span className="ml-1 font-mono text-xs" style={{ color: "oklch(0.55 0.044 262)" }}>
                         ({a.instrumentos.join(", ")})
                       </span>
                     )}
                   </span>
                   <div className="flex shrink-0 items-center gap-2">
                     {membresias.length > 1 && (
-                      <span className="font-mono text-xs" style={{ color: colorPorBanda.get(a.bandaId) ?? "oklch(0.55 0.02 55)" }}>
+                      <span className="font-mono text-xs" style={{ color: colorPorBanda.get(a.bandaId) ?? "oklch(0.55 0.044 262)" }}>
                         {membresias.find((m) => m.bandaId === a.bandaId)?.bandaNombre ?? ""}
                       </span>
                     )}
@@ -400,7 +400,7 @@ export function CalendarioShell({
                         aria-label="Borrar ausencia"
                         title="Borrar ausencia"
                         className="flex h-5 w-5 items-center justify-center rounded-full text-xs disabled:opacity-50"
-                        style={{ background: "oklch(0.85 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+                        style={{ background: "oklch(0.85 0.010 85)", color: "oklch(0.4 0.044 262)" }}
                       >
                         ×
                       </button>
@@ -426,7 +426,7 @@ export function CalendarioShell({
             type="button"
             onClick={() => abrirNuevoEnDia(diaSeleccionado)}
             className="mt-5 w-full rounded-xl py-2.5 text-center text-sm font-bold"
-            style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+            style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
           >
             + Nuevo evento este día
           </button>

@@ -15,7 +15,7 @@ import { enZonaApp, ahoraEnZonaApp } from "@/lib/zonaHoraria";
 // suma un verde que no compite con ninguno de los hues ya usados (naranja
 // 34, teal 195, rosa/durazno, violeta).
 export const COLOR_TIPO: Record<TipoEvento, string> = {
-  show: "oklch(0.64 0.15 34)",
+  show: "oklch(0.64 0.170 28)",
   ensayo: "oklch(0.64 0.13 195)",
   cumpleanos: "#E0839C",
   gira: "#7C5CBF",
@@ -65,8 +65,8 @@ export type IntensidadFondoDia = "pasado" | "normal" | "mesSiguiente";
 // pasa a un gris neutro puro en hex -- el oklch anterior se veía con tinte
 // café.
 export const FONDO_GRISES: Record<IntensidadFondoDia, string> = {
-  pasado: "oklch(0.915 0.008 55)",
-  normal: "oklch(0.82 0.012 55)",
+  pasado: "oklch(0.915 0.018 262)",
+  normal: "oklch(0.82 0.026 262)",
   mesSiguiente: "#5A5A60",
 };
 

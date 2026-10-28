@@ -301,7 +301,7 @@ export async function obtenerStagePlotPorToken(token: string): Promise<StagePlot
   if (!data) return null;
 
   const banda = data.bandas as unknown as { nombre: string; color: string } | null;
-  return { stagePlot: await mapStagePlot(data), bandaNombre: banda?.nombre ?? "Banda", bandaColor: banda?.color ?? "oklch(0.6 0.02 55)" };
+  return { stagePlot: await mapStagePlot(data), bandaNombre: banda?.nombre ?? "Banda", bandaColor: banda?.color ?? "oklch(0.6 0.044 262)" };
 }
 
 // Brief §1: la paleta del editor -- una plaza entra acá solo si tiene una

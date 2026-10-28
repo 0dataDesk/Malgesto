@@ -18,11 +18,11 @@ function etiquetaInstrumentoPropio(i: InstrumentoPropioResumen): string {
   return detalle ? `${i.instrumento} · ${detalle}` : i.instrumento;
 }
 
-const TEXTO_OSCURO = "oklch(0.24 0.02 55)";
-const TEXTO_GRIS = "oklch(0.5 0.02 55)";
-const ACENTO = "oklch(0.64 0.15 34)";
-const PILL_INACTIVO = { background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" };
-const PILL_ACTIVO = { background: ACENTO, color: "oklch(0.99 0.01 82)" };
+const TEXTO_OSCURO = "oklch(0.24 0.044 262)";
+const TEXTO_GRIS = "oklch(0.5 0.044 262)";
+const ACENTO = "oklch(0.64 0.170 28)";
+const PILL_INACTIVO = { background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" };
+const PILL_ACTIVO = { background: ACENTO, color: "oklch(0.99 0.006 85)" };
 
 // Brief "Seteos: colores, conectores, borrar por canción..." §2: colores de
 // fondo por tipo de bloque, uno solo por tipo (brief "...simplificar
@@ -61,7 +61,7 @@ function ContadorBadge({ n, oscuro }: { n: number; oscuro?: boolean }) {
     <span
       className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1 font-mono text-[10px] font-bold leading-none"
       style={{
-        background: oscuro ? "oklch(1 0 0 / 0.14)" : "oklch(0.24 0.02 55 / 0.08)",
+        background: oscuro ? "oklch(1 0 0 / 0.14)" : "oklch(0.24 0.044 262 / 0.08)",
         color: oscuro ? TEXTO_CLARO_GRIS : TEXTO_GRIS,
       }}
     >
@@ -160,10 +160,10 @@ function InstrumentoBloque({
   return (
     <div
       className="flex items-center justify-between gap-3 rounded-2xl p-4"
-      style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", borderLeft: `3px solid ${colorCadena}` }}
+      style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)", borderLeft: `3px solid ${colorCadena}` }}
     >
       <div className="min-w-0 flex-1">
-        <span className="block truncate text-[19px] font-bold" style={{ color: TEXTO_OSCURO, fontFamily: "var(--font-bricolage), sans-serif" }}>
+        <span className="block truncate text-[19px] font-bold" style={{ color: TEXTO_OSCURO, fontFamily: "var(--font-fraunces), sans-serif" }}>
           {instrumento.instrumento}
         </span>
         {detalle && (
@@ -178,7 +178,7 @@ function InstrumentoBloque({
         disabled={pendingQuitar}
         aria-label="Quitar instrumento"
         className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold disabled:opacity-50"
-        style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+        style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
       >
         ×
       </button>
@@ -211,7 +211,7 @@ function AgregarInstrumentoPicker({
         type="button"
         onClick={() => setAbierto(true)}
         className="rounded-lg border border-dashed px-2.5 py-1.5 text-xs font-semibold"
-        style={{ borderColor: "oklch(0.8 0.02 60)", color: TEXTO_GRIS }}
+        style={{ borderColor: "oklch(0.8 0.044 262)", color: TEXTO_GRIS }}
       >
         + Agregar instrumento
       </button>
@@ -219,7 +219,7 @@ function AgregarInstrumentoPicker({
   }
 
   return (
-    <div className="rounded-lg p-2" style={{ background: "oklch(0.965 0.012 82)", border: "1px solid oklch(0.9 0.012 78)" }}>
+    <div className="rounded-lg p-2" style={{ background: "oklch(0.965 0.007 85)", border: "1px solid oklch(0.9 0.007 85)" }}>
       {opciones.length === 0 ? (
         <p className="text-xs" style={{ color: TEXTO_GRIS }}>
           {mensajeVacio}
@@ -279,7 +279,7 @@ function ChipCancion({
         disabled={pending}
         aria-label={`Quitar "${cancion.titulo}" de esta vista`}
         className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-xs font-bold leading-none disabled:opacity-50"
-        style={{ background: activa ? "oklch(1 0 0 / 0.2)" : "oklch(0.24 0.02 55 / 0.1)" }}
+        style={{ background: activa ? "oklch(1 0 0 / 0.2)" : "oklch(0.24 0.044 262 / 0.1)" }}
       >
         ×
       </button>
@@ -558,7 +558,7 @@ export function SeteosLista({
         {nombreBanda}
       </div>
 
-      <div className="rounded-2xl p-3.5" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+      <div className="rounded-2xl p-3.5" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
         {/* Brief "Seteos: colores, conectores, borrar por canción..." §6:
             tira horizontal con scroll (una sola línea) en vez de wrap --
             crece la lista de canciones sin empujar el resto de la pantalla
@@ -600,14 +600,14 @@ export function SeteosLista({
         </div>
 
         {picker === "nueva" && (
-          <div className="mt-2.5 rounded-xl p-2.5" style={{ background: "oklch(0.965 0.012 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+          <div className="mt-2.5 rounded-xl p-2.5" style={{ background: "oklch(0.965 0.007 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
             <input
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar canción…"
               autoFocus
               className="w-full rounded-lg border px-2.5 py-1.5 text-sm outline-none"
-              style={{ background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: TEXTO_OSCURO }}
+              style={{ background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: TEXTO_OSCURO }}
             />
             <div className="mt-1.5 flex max-h-48 flex-col gap-1 overflow-y-auto">
               {cancionesFiltradas.length === 0 ? (
@@ -637,7 +637,7 @@ export function SeteosLista({
           // -- tira horizontal con scroll (una sola línea) en vez de
           // flex-wrap, para que no empuje el resto de la pantalla hacia
           // abajo en mobile.
-          <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto rounded-xl p-2.5" style={{ background: "oklch(0.965 0.012 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+          <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto rounded-xl p-2.5" style={{ background: "oklch(0.965 0.007 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
             {cancionesConSeteo.map((c) => (
               <ChipCancion
                 key={c.id}
@@ -680,7 +680,7 @@ export function SeteosLista({
       )}
 
       {dispositivos.length === 0 && (
-        <p className="mt-6 text-center text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+        <p className="mt-6 text-center text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
           Todavía no tenés dispositivos asignados en {nombreBanda}. Pedile a un administrador que te asigne uno desde Gestión
           &gt; Integrantes.
         </p>
@@ -729,7 +729,7 @@ export function SeteosLista({
       )}
 
       {deshabilitados.length > 0 && (
-        <div className="rounded-2xl" style={{ background: "oklch(0.965 0.012 82)", border: "1px solid oklch(0.9 0.012 78)" }}>
+        <div className="rounded-2xl" style={{ background: "oklch(0.965 0.007 85)", border: "1px solid oklch(0.9 0.007 85)" }}>
           <button
             type="button"
             onClick={() => setDeshabilitadosAbierto((v) => !v)}

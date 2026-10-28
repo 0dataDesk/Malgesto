@@ -39,7 +39,7 @@ function esOverflowMesSiguiente(dia: Date, mesVisible: Date): boolean {
 // naranja de acento que ya usa el resto de la app (COLOR_DEFECTO en
 // BandasPanel, COLOR_TIPO.show en eventoUI.ts) -- antes el negro se
 // confundía con el gris oscuro de "mesSiguiente".
-const FONDO_HOY = "oklch(0.64 0.15 34)";
+const FONDO_HOY = "oklch(0.64 0.170 28)";
 
 export function MesView({
   mes,
@@ -64,7 +64,7 @@ export function MesView({
 
   return (
     <div>
-      <div className="mb-2 grid grid-cols-7 text-center font-mono text-[10px]" style={{ color: "oklch(0.55 0.02 55)" }}>
+      <div className="mb-2 grid grid-cols-7 text-center font-mono text-[10px]" style={{ color: "oklch(0.55 0.044 262)" }}>
         {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
           <span key={i}>{d}</span>
         ))}
@@ -152,7 +152,7 @@ export function MesView({
             if (radius === "0") radius = "9px";
           }
           const anillos = [
-            esSeleccionado ? "inset 0 0 0 2px oklch(0.64 0.15 34)" : null,
+            esSeleccionado ? "inset 0 0 0 2px oklch(0.64 0.170 28)" : null,
             tieneTentativo ? "inset 0 0 0 2px oklch(0.62 0.17 88)" : null,
             bordeEnsayo ? `inset 0 0 0 2px ${bordeEnsayo}` : null,
           ].filter(Boolean);
@@ -183,8 +183,8 @@ export function MesView({
                   : bg !== "transparent"
                     ? textoLegibleSobre(bg)
                     : fueraDeMes
-                      ? "oklch(0.72 0.02 60)"
-                      : "oklch(0.3 0.02 55)",
+                      ? "oklch(0.72 0.044 262)"
+                      : "oklch(0.3 0.044 262)",
                 fontWeight: esHoy || giraDelDia || bandaIdsDelDia.length > 0 ? 700 : 400,
               }}
             >
@@ -208,7 +208,7 @@ export function MesView({
                     <span
                       key={bandaId}
                       className="h-[6px] w-[6px] rounded-full"
-                      style={{ background: colorPorBanda.get(bandaId) ?? "oklch(0.6 0.02 55)", opacity: pasado ? 0.4 : 1 }}
+                      style={{ background: colorPorBanda.get(bandaId) ?? "oklch(0.6 0.044 262)", opacity: pasado ? 0.4 : 1 }}
                     />
                   ))}
               </div>
@@ -237,7 +237,7 @@ export function MesView({
               <span className="font-mono text-[11px]" style={{ color: "oklch(0.5 0.05 70)" }}>
                 {enZonaApp(g.fechaInicio).getDate()}–{g.fechaFin ? enZonaApp(g.fechaFin).getDate() : enZonaApp(g.fechaInicio).getDate()}
               </span>
-              <span className="flex-1 text-left text-sm font-bold" style={{ color: "oklch(0.28 0.03 60)" }}>
+              <span className="flex-1 text-left text-sm font-bold" style={{ color: "oklch(0.28 0.060 262)" }}>
                 {g.titulo} · {g.bandaNombre}
               </span>
               <span className="font-mono text-[11px]" style={{ color: "oklch(0.5 0.05 70)" }}>

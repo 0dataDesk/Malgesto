@@ -17,11 +17,11 @@ import {
 import { EstadoBadge } from "@/components/presskit/PresskitEstado";
 
 const inputCls = "w-full rounded-lg border px-3 py-2 text-sm outline-none";
-const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
+const inputStyle = { background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: "oklch(0.24 0.044 262)" };
 
 function Etiqueta({ children }: { children: string }) {
   return (
-    <label className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.02 55)" }}>
+    <label className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.044 262)" }}>
       {children}
     </label>
   );
@@ -29,7 +29,7 @@ function Etiqueta({ children }: { children: string }) {
 
 function Tarjeta({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+    <div className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
       {children}
     </div>
   );
@@ -124,14 +124,14 @@ function GaleriaFotos({
   return (
     <div>
       <Etiqueta>{titulo}</Etiqueta>
-      <p className="mb-2.5 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+      <p className="mb-2.5 text-xs" style={{ color: "oklch(0.55 0.044 262)" }}>
         {descripcion}
       </p>
 
       {fotos.length > 0 && (
         <div className="mb-2.5 grid grid-cols-3 gap-2 sm:grid-cols-4">
           {fotos.map((f) => (
-            <div key={f.id} className="relative aspect-square overflow-hidden rounded-lg" style={{ border: "1px solid oklch(0.88 0.013 78)" }}>
+            <div key={f.id} className="relative aspect-square overflow-hidden rounded-lg" style={{ border: "1px solid oklch(0.88 0.008 85)" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={f.url} alt="" className="h-full w-full object-cover" />
               <button
@@ -140,7 +140,7 @@ function GaleriaFotos({
                 disabled={pending}
                 aria-label="Quitar foto"
                 className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
-                style={{ background: "rgba(0,0,0,0.55)", color: "oklch(0.99 0.01 82)" }}
+                style={{ background: "rgba(0,0,0,0.55)", color: "oklch(0.99 0.006 85)" }}
               >
                 ×
               </button>
@@ -162,7 +162,7 @@ function GaleriaFotos({
         onClick={() => inputRef.current?.click()}
         disabled={subiendo}
         className="rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-60"
-        style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+        style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
       >
         {subiendo ? "Subiendo…" : "+ Agregar fotos"}
       </button>
@@ -231,7 +231,7 @@ function LinksDePlataformas({
   return (
     <div>
       <Etiqueta>Links de plataformas</Etiqueta>
-      <p className="mb-2.5 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+      <p className="mb-2.5 text-xs" style={{ color: "oklch(0.55 0.044 262)" }}>
         Redes sociales y streaming, todo junto — Spotify, YouTube, Instagram, TikTok, etc.
       </p>
 
@@ -241,7 +241,7 @@ function LinksDePlataformas({
             <span
               key={r.id}
               className="flex items-center gap-2 rounded-full py-1.5 pl-4 pr-2 text-xs font-semibold"
-              style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+              style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
             >
               {r.plataforma}: <a href={r.url} target="_blank" rel="noreferrer" className="max-w-[200px] truncate no-underline" style={{ color: "oklch(0.5 0.14 34)" }}>{r.url}</a>
               <button
@@ -249,7 +249,7 @@ function LinksDePlataformas({
                 onClick={() => quitar(r.id)}
                 disabled={pending}
                 className="flex h-4 w-4 items-center justify-center rounded-full text-[10px]"
-                style={{ background: "oklch(0.85 0.016 78)" }}
+                style={{ background: "oklch(0.85 0.010 85)" }}
                 aria-label="Quitar link"
               >
                 ×
@@ -283,7 +283,7 @@ function LinksDePlataformas({
           onClick={agregar}
           disabled={pending}
           className="shrink-0 rounded-lg px-3 text-sm font-bold disabled:opacity-60"
-          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+          style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
         >
           +
         </button>
@@ -373,11 +373,11 @@ export function PresskitCaptura({
       <Tarjeta>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-lg font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+            <div className="text-lg font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
               {banda.nombre}
             </div>
             {banda.genero && (
-              <div className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+              <div className="text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
                 {banda.genero}
               </div>
             )}
@@ -385,7 +385,7 @@ export function PresskitCaptura({
           <div className="flex shrink-0 flex-col items-end gap-1">
             <EstadoBadge presskit={presskit} />
             {presskit.enviadoEn && (
-              <span className="text-[10px]" style={{ color: "oklch(0.55 0.02 55)" }}>
+              <span className="text-[10px]" style={{ color: "oklch(0.55 0.044 262)" }}>
                 Enviado el {formatearFecha(presskit.enviadoEn)}
               </span>
             )}
@@ -401,13 +401,13 @@ export function PresskitCaptura({
       <Tarjeta>
         <Etiqueta>Integrantes</Etiqueta>
         {integrantes.length === 0 ? (
-          <p className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+          <p className="text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
             Todavía no hay integrantes con instrumento asignado en Gestión &gt; Integrantes.
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {integrantes.map((i) => (
-              <span key={i.plazaId} className="rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}>
+              <span key={i.plazaId} className="rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}>
                 {i.nombrePersona} · {etiquetaPlaza(i.instrumento, i.etiqueta)}
               </span>
             ))}
@@ -493,8 +493,8 @@ export function PresskitCaptura({
           disabled={pendingGuardar || estadoGuardado === "guardado"}
           className="fixed bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-full px-6 py-3 text-sm font-bold disabled:opacity-90"
           style={{
-            background: estadoGuardado === "guardado" ? "oklch(0.6 0.14 150)" : "oklch(0.64 0.15 34)",
-            color: "oklch(0.99 0.01 82)",
+            background: estadoGuardado === "guardado" ? "oklch(0.6 0.14 150)" : "oklch(0.64 0.170 28)",
+            color: "oklch(0.99 0.006 85)",
             boxShadow: "0 14px 26px -12px rgba(0,0,0,0.5)",
           }}
         >

@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 const botonCls = "rounded-lg px-3.5 py-2 text-xs font-bold disabled:opacity-60";
-const botonStyle = { background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" };
+const botonStyle = { background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" };
 
 // Brief "Rediseño de Stage Plot — Entrega 1" §4/§5: "Copiar link" es la
 // única acción (más "Editar") de la vista previa interna del superadmin/

@@ -8,9 +8,9 @@ import { ToggleChip } from "@/components/ui/ToggleChip";
 import { crearLugarAction, actualizarLugarAction, actualizarLugarBandasAction, eliminarLugarAction } from "@/app/gestion/actions";
 
 const inputCls = "w-full rounded-lg border px-3 py-2 text-sm outline-none";
-const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
+const inputStyle = { background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: "oklch(0.24 0.044 262)" };
 const labelCls = "flex flex-col gap-1.5 text-sm";
-const labelColor = { color: "oklch(0.5 0.02 55)" };
+const labelColor = { color: "oklch(0.5 0.044 262)" };
 
 // Mismo ícono/patrón que "Eliminar cuenta" en IntegrantesPanel.
 function IconoEliminar() {
@@ -93,7 +93,7 @@ export function LugarForm({ lugar, bandas }: { lugar?: Lugar; bandas: BandaSimpl
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
-        <h2 className="text-lg font-extrabold" style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}>
+        <h2 className="text-lg font-extrabold" style={{ fontFamily: "var(--font-fraunces), sans-serif", color: "oklch(0.24 0.044 262)" }}>
           {esNuevo ? "Nuevo lugar" : "Editar lugar"}
         </h2>
         {lugar && (
@@ -144,7 +144,7 @@ export function LugarForm({ lugar, bandas }: { lugar?: Lugar; bandas: BandaSimpl
           onClick={guardar}
           disabled={pending}
           className="flex-1 rounded-xl py-2.5 text-sm font-bold disabled:opacity-60"
-          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+          style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
         >
           {pending ? (esNuevo ? "Creando…" : "Guardando…") : esNuevo ? "Crear" : "Guardar"}
         </button>
@@ -152,7 +152,7 @@ export function LugarForm({ lugar, bandas }: { lugar?: Lugar; bandas: BandaSimpl
           type="button"
           onClick={volver}
           className="rounded-xl px-4 py-2.5 text-sm font-bold"
-          style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+          style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
         >
           Cancelar
         </button>

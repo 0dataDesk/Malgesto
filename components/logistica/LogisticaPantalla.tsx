@@ -72,10 +72,10 @@ function construirSugerencias(evento: Evento): Sugerencia[] {
 }
 
 const inputCls = "w-full rounded-xl border px-3 py-2 text-sm outline-none";
-const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
+const inputStyle = { background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: "oklch(0.24 0.044 262)" };
 const labelCls = "mb-1 block font-mono text-[10px] font-bold tracking-wide uppercase";
-const labelStyle = { color: "oklch(0.55 0.02 55)" };
-const ACENTO = "oklch(0.64 0.15 34)";
+const labelStyle = { color: "oklch(0.55 0.044 262)" };
+const ACENTO = "oklch(0.64 0.170 28)";
 
 function SelectorLugar({ lugares, value, onChange }: { lugares: Lugar[]; value: string | null; onChange: (v: string | null) => void }) {
   return (
@@ -115,7 +115,7 @@ function FormularioPunto({
   tituloBoton: string;
 }) {
   return (
-    <div className="mt-2 flex flex-col gap-2.5 rounded-2xl p-3" style={{ background: "oklch(0.93 0.016 78)" }}>
+    <div className="mt-2 flex flex-col gap-2.5 rounded-2xl p-3" style={{ background: "oklch(0.93 0.010 85)" }}>
       <div className="flex gap-2">
         <div className="w-28 shrink-0">
           <span className={labelCls} style={labelStyle}>
@@ -166,7 +166,7 @@ function FormularioPunto({
           onClick={onGuardar}
           disabled={guardando || !form.hora || !form.etiqueta.trim()}
           className="flex-1 rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-50"
-          style={{ background: ACENTO, color: "oklch(0.99 0.01 82)" }}
+          style={{ background: ACENTO, color: "oklch(0.99 0.006 85)" }}
         >
           {guardando ? "Guardando…" : tituloBoton}
         </button>
@@ -181,7 +181,7 @@ function FormularioPunto({
             Eliminar
           </button>
         )}
-        <button type="button" onClick={onCancelar} disabled={guardando} className="rounded-lg px-3 py-2 text-sm font-bold" style={{ color: "oklch(0.4 0.02 55)" }}>
+        <button type="button" onClick={onCancelar} disabled={guardando} className="rounded-lg px-3 py-2 text-sm font-bold" style={{ color: "oklch(0.4 0.044 262)" }}>
           Cancelar
         </button>
       </div>
@@ -217,10 +217,10 @@ function TarjetaSugerencia({
   onMostrar: () => void;
 }) {
   return (
-    <div className="rounded-xl p-2.5" style={{ background: "oklch(0.99 0.008 82)", opacity: oculta ? 0.6 : 1 }}>
+    <div className="rounded-xl p-2.5" style={{ background: "oklch(0.99 0.005 85)", opacity: oculta ? 0.6 : 1 }}>
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold" style={{ color: "oklch(0.24 0.02 55)" }}>
+          <div className="truncate text-sm font-semibold" style={{ color: "oklch(0.24 0.044 262)" }}>
             {s.etiqueta}
           </div>
           <div className="text-xs" style={labelStyle}>
@@ -419,19 +419,19 @@ export function LogisticaPantalla({
 
   return (
     <div className="mx-auto max-w-2xl px-5 pb-16 pt-6">
-      <Link href="/inicio" className="text-sm no-underline" style={{ color: "oklch(0.5 0.02 55)" }}>
+      <Link href="/inicio" className="text-sm no-underline" style={{ color: "oklch(0.5 0.044 262)" }}>
         ‹ Calendario
       </Link>
-      <div className="mt-1 font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+      <div className="mt-1 font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
         Logística{!puedeEditar && " · solo lectura"}
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-2">
-        <h1 className="text-[26px] font-extrabold tracking-tight" style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}>
+        <h1 className="text-[26px] font-extrabold tracking-tight" style={{ fontFamily: "var(--font-fraunces), sans-serif", color: "oklch(0.24 0.044 262)" }}>
           {evento.titulo}
         </h1>
         {!evento.esPublico && <BadgePrivado />}
       </div>
-      <p className="mt-1 text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
+      <p className="mt-1 text-sm" style={{ color: "oklch(0.5 0.044 262)" }}>
         {fechaTexto} · {evento.bandaNombre}
       </p>
 
@@ -448,16 +448,16 @@ export function LogisticaPantalla({
           sugerencia, visible u oculta -- si se descartan todas hay que
           poder seguir abriendo el acordeón para recuperarlas. */}
       {puedeEditar && sugerencias.length > 0 && (
-        <div className="mt-4 rounded-2xl" style={{ background: "oklch(0.93 0.016 78 / 0.7)", border: "1px dashed oklch(0.75 0.02 60)" }}>
+        <div className="mt-4 rounded-2xl" style={{ background: "oklch(0.93 0.010 85 / 0.7)", border: "1px dashed oklch(0.75 0.044 262)" }}>
           <button
             type="button"
             onClick={() => setSugerenciasAbierto((v) => !v)}
             className="flex w-full items-center justify-between px-3 py-2.5 text-left"
           >
-            <span className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.05 60)" }}>
+            <span className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.060 262)" }}>
               Sugerencias{sugerenciasVisibles.length > 0 ? ` (${sugerenciasVisibles.length})` : ""}
             </span>
-            <span className="text-xs" style={{ color: "oklch(0.5 0.05 60)", transform: sugerenciasAbierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+            <span className="text-xs" style={{ color: "oklch(0.5 0.060 262)", transform: sugerenciasAbierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
               ▾
             </span>
           </button>
@@ -546,7 +546,7 @@ export function LogisticaPantalla({
       <div className="mt-2 flex gap-2 overflow-y-auto" style={{ maxHeight: "68vh" }}>
         <div className="shrink-0" style={{ width: 46 }}>
           {marcasHora.map((m) => (
-            <div key={m.minutos} className="relative font-mono text-[10px]" style={{ height: 60 * PX_POR_MINUTO, color: "oklch(0.55 0.02 55)" }}>
+            <div key={m.minutos} className="relative font-mono text-[10px]" style={{ height: 60 * PX_POR_MINUTO, color: "oklch(0.55 0.044 262)" }}>
               <span className="absolute -top-1.5">{m.etiqueta}</span>
             </div>
           ))}
@@ -558,10 +558,10 @@ export function LogisticaPantalla({
           onPointerMove={puedeEditar ? onPointerMoveEje : undefined}
           onPointerUp={puedeEditar ? onPointerUpEje : undefined}
           className={`relative flex-1 rounded-2xl ${puedeEditar ? "touch-none" : ""}`}
-          style={{ height: ALTURA_EJE, background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}
+          style={{ height: ALTURA_EJE, background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}
         >
           {marcasHora.map((m) => (
-            <div key={m.minutos} className="absolute left-0 right-0" style={{ top: m.minutos * PX_POR_MINUTO, borderTop: "1px solid oklch(0.91 0.013 78)" }} />
+            <div key={m.minutos} className="absolute left-0 right-0" style={{ top: m.minutos * PX_POR_MINUTO, borderTop: "1px solid oklch(0.91 0.008 85)" }} />
           ))}
 
           {puedeEditar && arrastrando !== null && (
@@ -578,7 +578,7 @@ export function LogisticaPantalla({
             const contenido = (
               <>
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: ACENTO }} />
-                <span className="truncate text-[13px] font-semibold" style={{ color: "oklch(0.24 0.02 55)" }}>
+                <span className="truncate text-[13px] font-semibold" style={{ color: "oklch(0.24 0.044 262)" }}>
                   {p.hora} · {p.etiqueta}
                 </span>
                 {p.lugarNombre && (
@@ -598,12 +598,12 @@ export function LogisticaPantalla({
                   abrirEdicion(p);
                 }}
                 className="absolute left-1 right-1 flex items-center gap-2 rounded-lg px-2 py-1 text-left"
-                style={{ top: top - 11, background: "oklch(0.99 0.01 82)" }}
+                style={{ top: top - 11, background: "oklch(0.99 0.006 85)" }}
               >
                 {contenido}
               </button>
             ) : (
-              <div key={p.id} className="absolute left-1 right-1 flex items-center gap-2 rounded-lg px-2 py-1" style={{ top: top - 11, background: "oklch(0.99 0.01 82)" }}>
+              <div key={p.id} className="absolute left-1 right-1 flex items-center gap-2 rounded-lg px-2 py-1" style={{ top: top - 11, background: "oklch(0.99 0.006 85)" }}>
                 {contenido}
               </div>
             );
@@ -626,9 +626,9 @@ export function LogisticaPantalla({
             {evento.bandaNombre} todavía no tiene un stage plot armado con músicos.
           </p>
         ) : (
-          <div className="mt-2 flex flex-col gap-1 rounded-2xl p-3" style={{ background: "oklch(0.93 0.016 78)" }}>
+          <div className="mt-2 flex flex-col gap-1 rounded-2xl p-3" style={{ background: "oklch(0.93 0.010 85)" }}>
             {musicos.map((m, i) => (
-              <div key={i} className="text-sm" style={{ color: "oklch(0.3 0.02 55)" }}>
+              <div key={i} className="text-sm" style={{ color: "oklch(0.3 0.044 262)" }}>
                 <span className="font-semibold">{m.persona}</span>
                 {m.roles && <> — {m.roles}</>}
               </div>

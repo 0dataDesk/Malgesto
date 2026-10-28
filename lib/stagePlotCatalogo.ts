@@ -150,7 +150,7 @@ export const GLIFO_TIPO: Record<TipoItem, string> = {
 export type TipoEscenario = Exclude<TipoItem, "musico" | "mic" | "teclado" | "pedalera" | "amplificador">;
 
 export const COLOR_ESCENARIO: Record<TipoEscenario, string> = {
-  mix: "oklch(0.5 0.02 55)",
+  mix: "oklch(0.5 0.044 262)",
   // Brief §5: "mismo criterio que Mix" -- misma familia neutra, tono propio
   // para poder distinguirlos uno al lado del otro en la paleta/lienzo.
   side_fill: "oklch(0.45 0.03 250)",

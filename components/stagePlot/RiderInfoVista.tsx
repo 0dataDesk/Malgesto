@@ -10,11 +10,11 @@ import {
   eliminarBacklineItemAction,
 } from "@/app/stage-plot/actions";
 
-const TEXTO_OSCURO = "oklch(0.24 0.02 55)";
-const TEXTO_GRIS = "oklch(0.5 0.02 55)";
+const TEXTO_OSCURO = "oklch(0.24 0.044 262)";
+const TEXTO_GRIS = "oklch(0.5 0.044 262)";
 const ROJO = "oklch(0.55 0.15 25)";
 const inputCls = "w-full rounded-lg border px-3 py-2 text-sm outline-none";
-const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: TEXTO_OSCURO };
+const inputStyle = { background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: TEXTO_OSCURO };
 const labelCls = "mb-1.5 block font-mono text-[10px] font-bold tracking-wide uppercase";
 const labelStyle = { color: TEXTO_GRIS };
 
@@ -26,7 +26,7 @@ function Switch({ activo, onToggle }: { activo: boolean; onToggle: () => void })
       role="switch"
       aria-checked={activo}
       className="relative h-6 w-11 shrink-0 rounded-full transition-colors"
-      style={{ background: activo ? "oklch(0.64 0.15 34)" : "oklch(0.85 0.013 78)" }}
+      style={{ background: activo ? "oklch(0.64 0.170 28)" : "oklch(0.85 0.008 85)" }}
     >
       <span
         className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
@@ -44,8 +44,8 @@ function Switch({ activo, onToggle }: { activo: boolean; onToggle: () => void })
 // rendimiento/tamaño).
 function FilaBacklineLectura({ item }: { item: BacklineItem }) {
   return (
-    <div className="rounded-xl p-3" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
-      <div className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.64 0.15 34)" }}>
+    <div className="rounded-xl p-3" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
+      <div className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.64 0.170 28)" }}>
         {ETIQUETA_CATEGORIA_BACKLINE[item.categoria]}
       </div>
       <div className="mt-1 text-sm" style={{ color: TEXTO_OSCURO }}>
@@ -105,7 +105,7 @@ function FilaBacklineEditable({
   };
 
   return (
-    <div className="rounded-xl p-3" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+    <div className="rounded-xl p-3" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
       <div className="flex gap-2">
         <select className={`${inputCls} flex-1`} style={inputStyle} value={categoria} onChange={(e) => setCategoria(e.target.value as CategoriaBackline)}>
           {CATEGORIAS_BACKLINE.map((c) => (
@@ -120,7 +120,7 @@ function FilaBacklineEditable({
           disabled={pending}
           aria-label="Quitar ítem"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold disabled:opacity-50"
-          style={{ background: "oklch(0.93 0.016 78)", color: TEXTO_GRIS }}
+          style={{ background: "oklch(0.93 0.010 85)", color: TEXTO_GRIS }}
         >
           ×
         </button>
@@ -146,7 +146,7 @@ function FilaBacklineEditable({
           onClick={guardar}
           disabled={pending || !especificacion.trim()}
           className="mt-2 w-full rounded-lg py-1.5 text-xs font-bold disabled:opacity-50"
-          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+          style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
         >
           {pending ? "Guardando…" : "Guardar"}
         </button>
@@ -174,7 +174,7 @@ function AgregarBacklineItem({ bandaId, stagePlotId, onAgregado }: { bandaId: st
         type="button"
         onClick={() => setAbierto(true)}
         className="rounded-lg border border-dashed px-3 py-2 text-sm font-semibold"
-        style={{ borderColor: "oklch(0.8 0.02 60)", color: TEXTO_GRIS }}
+        style={{ borderColor: "oklch(0.8 0.044 262)", color: TEXTO_GRIS }}
       >
         + Agregar ítem al Backline
       </button>
@@ -201,7 +201,7 @@ function AgregarBacklineItem({ bandaId, stagePlotId, onAgregado }: { bandaId: st
   };
 
   return (
-    <div className="rounded-xl p-3" style={{ background: "oklch(0.965 0.012 82)", border: "1px dashed oklch(0.8 0.02 60)" }}>
+    <div className="rounded-xl p-3" style={{ background: "oklch(0.965 0.007 85)", border: "1px dashed oklch(0.8 0.044 262)" }}>
       <select className={inputCls} style={inputStyle} value={categoria} onChange={(e) => setCategoria(e.target.value as CategoriaBackline)}>
         {CATEGORIAS_BACKLINE.map((c) => (
           <option key={c} value={c}>
@@ -231,7 +231,7 @@ function AgregarBacklineItem({ bandaId, stagePlotId, onAgregado }: { bandaId: st
           onClick={agregar}
           disabled={pending}
           className="flex-1 rounded-lg py-1.5 text-xs font-bold disabled:opacity-50"
-          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+          style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
         >
           {pending ? "Agregando…" : "Agregar"}
         </button>
@@ -239,7 +239,7 @@ function AgregarBacklineItem({ bandaId, stagePlotId, onAgregado }: { bandaId: st
           type="button"
           onClick={() => setAbierto(false)}
           className="rounded-lg px-3 py-1.5 text-xs font-bold"
-          style={{ background: "oklch(0.93 0.016 78)", color: TEXTO_GRIS }}
+          style={{ background: "oklch(0.93 0.010 85)", color: TEXTO_GRIS }}
         >
           Cancelar
         </button>
@@ -371,7 +371,7 @@ export function RiderInfoVista({
       {(hayEspacio || campos.contraRider || puedeEscribir) && (
         <div>
           <SeccionTitulo>Requerimientos de espacio</SeccionTitulo>
-          <div className="rounded-xl p-3" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+          <div className="rounded-xl p-3" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
             {puedeEscribir ? (
               <div className="flex flex-col gap-3">
                 <div>
@@ -457,7 +457,7 @@ export function RiderInfoVista({
       {(hayContacto || puedeEscribir) && (
         <div>
           <SeccionTitulo>Contacto de requerimientos</SeccionTitulo>
-          <div className="rounded-xl p-3" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+          <div className="rounded-xl p-3" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
             {puedeEscribir ? (
               <div className="flex flex-col gap-2">
                 <input
@@ -506,7 +506,7 @@ export function RiderInfoVista({
             onClick={guardar}
             disabled={pending}
             className="w-full rounded-lg py-2.5 text-sm font-bold shadow-lg disabled:opacity-60"
-            style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+            style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
           >
             {pending ? "Guardando…" : "Guardar cambios del Rider"}
           </button>

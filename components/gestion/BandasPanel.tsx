@@ -12,14 +12,14 @@ import { LigaPublicadaSeccion, EnviarPresskitSeccion } from "@/components/pressk
 
 // Mismo valor que el DEFAULT de bandas.color en la base -- lo que recibe una
 // banda recién creada hasta que alguien la abra y le elija un color propio.
-const COLOR_DEFECTO = "oklch(0.64 0.15 34)";
+const COLOR_DEFECTO = "oklch(0.64 0.170 28)";
 
 // Brief "Rediseño de Gestión > Bandas" §3: la tarjeta ya no tiñe su fondo
 // con el color de banda (ver dirección de diseño del brief), así que el
 // fondo del pill vuelve a necesitar contraste propio -- gris neutro, el
 // mismo tono que usan los chips inactivos (ToggleChip) y las opciones de
 // InstrumentoDropdown, en vez de blanco casi idéntico al de la tarjeta.
-const PILL_BLOQUE = { background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)", border: "1px solid oklch(0.87 0.013 78)" };
+const PILL_BLOQUE = { background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)", border: "1px solid oklch(0.87 0.008 85)" };
 
 function esHexValido(color: string): boolean {
   return /^#[0-9a-fA-F]{6}$/.test(color);
@@ -69,7 +69,7 @@ function SelectorColorBanda({ value, onChange }: { value: string; onChange: (col
         }}
         aria-label="Color de la banda"
         className="h-8 w-8 cursor-pointer rounded-md border p-0.5"
-        style={{ borderColor: "oklch(0.88 0.013 78)" }}
+        style={{ borderColor: "oklch(0.88 0.008 85)" }}
       />
       <input
         value={texto}
@@ -78,9 +78,9 @@ function SelectorColorBanda({ value, onChange }: { value: string; onChange: (col
         maxLength={7}
         className="w-full rounded-md border px-1 py-0.5 text-center font-mono text-[10px] outline-none"
         style={{
-          background: "oklch(0.99 0.008 82)",
-          borderColor: valido ? "oklch(0.88 0.013 78)" : "oklch(0.65 0.18 25)",
-          color: "oklch(0.3 0.02 55)",
+          background: "oklch(0.99 0.005 85)",
+          borderColor: valido ? "oklch(0.88 0.008 85)" : "oklch(0.65 0.18 25)",
+          color: "oklch(0.3 0.044 262)",
         }}
       />
     </div>
@@ -103,7 +103,7 @@ function SelectorEmojiBanda({ value, onChange }: { value: string; onChange: (emo
         onClick={() => setAbierto(true)}
         aria-label="Elegir emoji de la banda"
         className="mx-auto flex h-9 w-9 items-center justify-center rounded-md border text-lg"
-        style={{ background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", opacity: value ? 1 : 0.4 }}
+        style={{ background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", opacity: value ? 1 : 0.4 }}
       >
         {value || "🙂"}
       </button>
@@ -133,11 +133,11 @@ function SelectorEmojiBanda({ value, onChange }: { value: string; onChange: (emo
 }
 
 const inputCls = "w-full rounded-lg border px-3 py-2 text-sm outline-none";
-const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
+const inputStyle = { background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: "oklch(0.24 0.044 262)" };
 
 function MiniLabel({ children }: { children: string }) {
   return (
-    <span className="mb-1 block text-center font-mono text-[9px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.02 55)" }}>
+    <span className="mb-1 block text-center font-mono text-[9px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.044 262)" }}>
       {children}
     </span>
   );
@@ -166,7 +166,7 @@ function InstrumentoDropdown({
         style={inputStyle}
       >
         <span>{ETIQUETA_INSTRUMENTO[value]}</span>
-        <span style={{ color: "oklch(0.6 0.02 55)" }}>▾</span>
+        <span style={{ color: "oklch(0.6 0.044 262)" }}>▾</span>
       </button>
 
       {abierto && (
@@ -174,7 +174,7 @@ function InstrumentoDropdown({
           <div className="fixed inset-0 z-10" onClick={() => setAbierto(false)} />
           <div
             className="absolute z-20 mt-1.5 w-full rounded-xl p-2"
-            style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", boxShadow: "0 16px 32px -16px rgba(0,0,0,0.25)" }}
+            style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)", boxShadow: "0 16px 32px -16px rgba(0,0,0,0.25)" }}
           >
             <div className="flex flex-wrap gap-1.5">
               {opciones.map((i) => (
@@ -188,8 +188,8 @@ function InstrumentoDropdown({
                   className="rounded-lg px-2.5 py-1.5 text-xs font-bold"
                   style={
                     i === value
-                      ? { background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }
-                      : { background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }
+                      ? { background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }
+                      : { background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }
                   }
                 >
                   {ETIQUETA_INSTRUMENTO[i]}
@@ -249,11 +249,11 @@ function InstrumentosDeLaBanda({ bandaId, plazas, onPlazas }: { bandaId: string;
 
   return (
     <div>
-      <span className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.02 55)" }}>
+      <span className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.044 262)" }}>
         Instrumentos
       </span>
       {plazas.length === 0 ? (
-        <p className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+        <p className="text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
           Todavía no hay instrumentos definidos para esta banda.
         </p>
       ) : (
@@ -262,7 +262,7 @@ function InstrumentosDeLaBanda({ bandaId, plazas, onPlazas }: { bandaId: string;
             <span
               key={p.id}
               className="flex items-center gap-2 rounded-full py-1.5 pl-4 pr-2 text-xs font-semibold"
-              style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+              style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
             >
               {etiquetaPlaza(p.instrumento, p.etiqueta)}
               <button
@@ -270,7 +270,7 @@ function InstrumentosDeLaBanda({ bandaId, plazas, onPlazas }: { bandaId: string;
                 onClick={() => quitar(p.id)}
                 disabled={pending}
                 className="flex h-4 w-4 items-center justify-center rounded-full text-[10px]"
-                style={{ background: "oklch(0.85 0.016 78)" }}
+                style={{ background: "oklch(0.85 0.010 85)" }}
                 aria-label="Quitar instrumento"
               >
                 ×
@@ -296,7 +296,7 @@ function InstrumentosDeLaBanda({ bandaId, plazas, onPlazas }: { bandaId: string;
           onClick={agregar}
           disabled={pending}
           className="shrink-0 rounded-lg px-3 text-sm font-bold disabled:opacity-60"
-          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+          style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
         >
           +
         </button>
@@ -323,14 +323,14 @@ function InstrumentosDeLaBanda({ bandaId, plazas, onPlazas }: { bandaId: string;
 function AcordeonPlegable({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   const [abierto, setAbierto] = useState(false);
   return (
-    <div className="rounded-lg" style={{ background: "oklch(0.965 0.012 82)", border: "1px solid oklch(0.9 0.012 78)" }}>
+    <div className="rounded-lg" style={{ background: "oklch(0.965 0.007 85)", border: "1px solid oklch(0.9 0.007 85)" }}>
       <button type="button" onClick={() => setAbierto((v) => !v)} className="flex w-full items-center justify-between px-2.5 py-2 text-left">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.02 55)" }}>
+        <span className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.044 262)" }}>
           {titulo}
         </span>
         <span
           className="text-[10px]"
-          style={{ color: "oklch(0.5 0.02 55)", transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+          style={{ color: "oklch(0.5 0.044 262)", transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
         >
           ▾
         </span>
@@ -448,13 +448,13 @@ function DetalleBanda({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
-        <button type="button" onClick={onVolver} className="text-left text-sm" style={{ color: "oklch(0.6 0.02 55)" }}>
+        <button type="button" onClick={onVolver} className="text-left text-sm" style={{ color: "oklch(0.6 0.044 262)" }}>
           ‹ Bandas
         </button>
       </div>
 
-      <div className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
-        <label className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.02 55)" }}>
+      <div className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
+        <label className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.044 262)" }}>
           Nombre
         </label>
         <input value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputCls} style={inputStyle} />
@@ -463,7 +463,7 @@ function DetalleBanda({
             comparten el tercio restante entre los tres (~1/9 cada uno). */}
         <div className="mt-3 flex gap-3">
           <div className="flex-[2]">
-            <label className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.02 55)" }}>
+            <label className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.044 262)" }}>
               Género
             </label>
             <input value={genero} onChange={(e) => setGenero(e.target.value)} className={inputCls} style={inputStyle} placeholder="Ej. Cumbia, Rock…" />
@@ -526,7 +526,7 @@ function DetalleBanda({
         <div className="mt-3">
           <AcordeonPlegable titulo="Bloques e instrumentos">
             <div>
-              <span className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.02 55)" }}>
+              <span className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.044 262)" }}>
                 Bloques
               </span>
               <div className="flex flex-wrap items-center gap-2">
@@ -558,8 +558,8 @@ function DetalleBanda({
           disabled={pending || estadoGuardado === "guardado"}
           className="fixed bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-full px-6 py-3 text-sm font-bold disabled:opacity-90"
           style={{
-            background: estadoGuardado === "guardado" ? "oklch(0.6 0.14 150)" : "oklch(0.64 0.15 34)",
-            color: "oklch(0.99 0.01 82)",
+            background: estadoGuardado === "guardado" ? "oklch(0.6 0.14 150)" : "oklch(0.64 0.170 28)",
+            color: "oklch(0.99 0.006 85)",
             boxShadow: "0 14px 26px -12px rgba(0,0,0,0.5)",
           }}
         >
@@ -616,7 +616,7 @@ function BotonCrearBanda({ onCreada }: { onCreada: (id: string, nombre: string) 
         onClick={() => setAbierto(true)}
         aria-label="Crear banda nueva"
         className="fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full text-2xl font-bold"
-        style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)", boxShadow: "0 14px 26px -12px rgba(0,0,0,0.5)" }}
+        style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)", boxShadow: "0 14px 26px -12px rgba(0,0,0,0.5)" }}
       >
         +
       </button>
@@ -630,7 +630,7 @@ function BotonCrearBanda({ onCreada }: { onCreada: (id: string, nombre: string) 
         {error && (
           <p
             className="rounded-lg px-2.5 py-1.5 text-xs font-semibold"
-            style={{ background: "oklch(0.99 0.01 82)", color: "oklch(0.55 0.15 25)", boxShadow: "0 8px 20px -10px rgba(0,0,0,0.35)" }}
+            style={{ background: "oklch(0.99 0.006 85)", color: "oklch(0.55 0.15 25)", boxShadow: "0 8px 20px -10px rgba(0,0,0,0.35)" }}
           >
             {error}
           </p>
@@ -638,7 +638,7 @@ function BotonCrearBanda({ onCreada }: { onCreada: (id: string, nombre: string) 
         <div
           onClick={(e) => e.stopPropagation()}
           className="flex items-center gap-1.5 rounded-full py-1.5 pl-4 pr-1.5"
-          style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", boxShadow: "0 14px 26px -12px rgba(0,0,0,0.5)" }}
+          style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)", boxShadow: "0 14px 26px -12px rgba(0,0,0,0.5)" }}
         >
           <input
             ref={inputRef}
@@ -650,7 +650,7 @@ function BotonCrearBanda({ onCreada }: { onCreada: (id: string, nombre: string) 
             }}
             placeholder="Nombre de la banda"
             className="w-44 bg-transparent text-sm outline-none"
-            style={{ color: "oklch(0.24 0.02 55)" }}
+            style={{ color: "oklch(0.24 0.044 262)" }}
           />
           <button
             type="button"
@@ -658,7 +658,7 @@ function BotonCrearBanda({ onCreada }: { onCreada: (id: string, nombre: string) 
             disabled={pending}
             aria-label="Crear banda"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-bold disabled:opacity-60"
-            style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+            style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
           >
             {pending ? "…" : "✓"}
           </button>
@@ -741,13 +741,13 @@ export function BandasPanel({ bandas: bandasIniciales, plazas: plazasIniciales }
         type="button"
         onClick={() => setVerArchivadas((v) => !v)}
         className="self-start text-xs font-semibold"
-        style={{ color: "oklch(0.6 0.02 55)" }}
+        style={{ color: "oklch(0.6 0.044 262)" }}
       >
         {verArchivadas ? "‹ Ver bandas activas" : "Ver archivadas"}
       </button>
 
       {listado.length === 0 ? (
-        <p className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+        <p className="text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
           {verArchivadas ? "No hay bandas archivadas." : "Todavía no hay bandas."}
         </p>
       ) : (
@@ -761,17 +761,17 @@ export function BandasPanel({ bandas: bandasIniciales, plazas: plazasIniciales }
               onClick={() => setBandaSeleccionadaId(b.id)}
               className="flex flex-col items-center gap-2 rounded-2xl p-4 text-center"
               style={{
-                background: "oklch(0.99 0.008 82)",
-                border: "1px solid oklch(0.89 0.013 78)",
+                background: "oklch(0.99 0.005 85)",
+                border: "1px solid oklch(0.89 0.008 85)",
                 borderTop: `4px solid ${b.color}`,
               }}
             >
               <BadgeBanda banda={b} />
-              <div className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+              <div className="text-sm font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
                 {b.nombre}
               </div>
               {b.genero && (
-                <div className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+                <div className="text-xs" style={{ color: "oklch(0.55 0.044 262)" }}>
                   {b.genero}
                 </div>
               )}

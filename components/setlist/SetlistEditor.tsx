@@ -160,7 +160,7 @@ export function SetlistEditor({
         <Link href="/set-list" className="text-sm no-underline" style={{ color: "oklch(0.6 0.01 260)" }}>
           ‹ Set Lists
         </Link>
-        <Link href={`/set-list/${setlistId}/vivo`} className="text-sm font-bold no-underline" style={{ color: "oklch(0.64 0.15 34)" }}>
+        <Link href={`/set-list/${setlistId}/vivo`} className="text-sm font-bold no-underline" style={{ color: "oklch(0.64 0.170 28)" }}>
           Ver en vivo ›
         </Link>
       </div>
@@ -193,7 +193,7 @@ export function SetlistEditor({
             // como las canciones — sin número (ver `numeros` más arriba),
             // pero con los mismos controles compactos de reordenar/eliminar.
             <div key={i} className="flex items-center gap-2 py-1">
-              <div className="h-px flex-1" style={{ background: "oklch(0.34 0.03 55)" }} />
+              <div className="h-px flex-1" style={{ background: "oklch(0.34 0.060 262)" }} />
               <span
                 className="shrink-0 rounded-full px-3 py-1 font-mono text-xs font-bold uppercase tracking-wide"
                 style={{ background: colorConAlpha(COLOR_BLOQUE.marcador, 0.2), color: COLOR_BLOQUE.marcador }}
@@ -206,7 +206,7 @@ export function SetlistEditor({
                   </span>
                 )}
               </span>
-              <div className="h-px flex-1" style={{ background: "oklch(0.34 0.03 55)" }} />
+              <div className="h-px flex-1" style={{ background: "oklch(0.34 0.060 262)" }} />
               <div className="flex shrink-0 items-center gap-2">
                 <button type="button" onClick={() => mover(i, -1)} disabled={i === 0} className="text-xs disabled:opacity-30" style={{ color: "oklch(0.6 0.01 260)" }}>
                   ↑
@@ -235,7 +235,7 @@ export function SetlistEditor({
                   : { background: "oklch(0.185 0.008 260)", border: `1px dashed ${COLOR_BLOQUE[it.tipo]}` }
               }
             >
-              <span className="font-mono text-sm font-bold" style={{ color: "oklch(0.64 0.15 34)" }}>
+              <span className="font-mono text-sm font-bold" style={{ color: "oklch(0.64 0.170 28)" }}>
                 {numeros[i]}
               </span>
               <div className="flex-1">
@@ -341,7 +341,7 @@ export function SetlistEditor({
           onChange={(e) => setNuevaEtiqueta(e.target.value)}
           placeholder="Etiqueta (ej. Intro ambiental)"
           className="flex-1 rounded-xl border px-3.5 py-2.5 text-sm outline-none"
-          style={{ background: "oklch(0.185 0.008 260)", borderColor: "oklch(0.34 0.03 55)", color: "oklch(0.95 0.005 260)" }}
+          style={{ background: "oklch(0.185 0.008 260)", borderColor: "oklch(0.34 0.060 262)", color: "oklch(0.95 0.005 260)" }}
         />
         <input
           type="text"
@@ -350,7 +350,7 @@ export function SetlistEditor({
           placeholder="mm:ss"
           maxLength={6}
           className="w-20 shrink-0 rounded-xl border px-3 py-2.5 text-sm outline-none"
-          style={{ background: "oklch(0.185 0.008 260)", borderColor: "oklch(0.34 0.03 55)", color: "oklch(0.95 0.005 260)" }}
+          style={{ background: "oklch(0.185 0.008 260)", borderColor: "oklch(0.34 0.060 262)", color: "oklch(0.95 0.005 260)" }}
         />
         <button
           type="button"
@@ -413,7 +413,7 @@ export function SetlistEditor({
           onChange={(e) => setTextoMarcador(e.target.value)}
           placeholder="Otro texto (ej. Bloque acústico)"
           className="flex-1 rounded-xl border px-3.5 py-2.5 text-sm outline-none"
-          style={{ background: "oklch(0.185 0.008 260)", borderColor: "oklch(0.34 0.03 55)", color: "oklch(0.95 0.005 260)" }}
+          style={{ background: "oklch(0.185 0.008 260)", borderColor: "oklch(0.34 0.060 262)", color: "oklch(0.95 0.005 260)" }}
         />
         <button
           type="button"

@@ -21,12 +21,12 @@ type SetlistOpcion = { id: string; bandaId: string; nombre: string };
 type TipoFormulario = TipoEvento | "ausencia";
 
 const TIPOS: TipoEvento[] = ["show", "ensayo", "gira", "sesion"];
-const COLOR_AUSENCIA = "oklch(0.55 0.02 55)";
+const COLOR_AUSENCIA = "oklch(0.55 0.044 262)";
 
 const inputCls = "w-full rounded-xl border px-3.5 py-3 text-[15px] outline-none";
-const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
+const inputStyle = { background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: "oklch(0.24 0.044 262)" };
 const labelCls = "mb-1.5 block font-mono text-[10px] font-bold tracking-wide uppercase";
-const labelStyle = { color: "oklch(0.55 0.02 55)" };
+const labelStyle = { color: "oklch(0.55 0.044 262)" };
 
 // Brief 16: `iso` es UTC (fecha_inicio/fecha_fin) — hay que leerlo en
 // ZONA_HORARIA_APP, no en la zona ambiente del navegador, para precargar el
@@ -61,7 +61,7 @@ function Switch({ activo, onToggle }: { activo: boolean; onToggle: () => void })
       role="switch"
       aria-checked={activo}
       className="relative h-6 w-11 shrink-0 rounded-full transition-colors"
-      style={{ background: activo ? "oklch(0.64 0.15 34)" : "oklch(0.85 0.013 78)" }}
+      style={{ background: activo ? "oklch(0.64 0.170 28)" : "oklch(0.85 0.008 85)" }}
     >
       <span
         className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
@@ -413,7 +413,7 @@ export function NuevoEventoForm({
       {!nuevoLugar ? (
         <>
           {lugaresDeLaBanda.length === 0 ? (
-            <p className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+            <p className="text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
               Todavía no hay lugares guardados para esta banda.
             </p>
           ) : (
@@ -426,12 +426,12 @@ export function NuevoEventoForm({
               ))}
             </select>
           )}
-          <button type="button" onClick={() => setNuevoLugar(true)} className="mt-1.5 text-left text-sm font-bold" style={{ color: "oklch(0.64 0.15 34)" }}>
+          <button type="button" onClick={() => setNuevoLugar(true)} className="mt-1.5 text-left text-sm font-bold" style={{ color: "oklch(0.64 0.170 28)" }}>
             + Nuevo lugar
           </button>
         </>
       ) : (
-        <div className="rounded-xl p-3" style={{ background: "oklch(0.93 0.016 78)" }}>
+        <div className="rounded-xl p-3" style={{ background: "oklch(0.93 0.010 85)" }}>
           <input className={inputCls} style={inputStyle} value={nuevoLugarNombre} onChange={(e) => setNuevoLugarNombre(e.target.value)} placeholder="Nombre del lugar" />
           <input
             className={`${inputCls} mt-2`}
@@ -440,7 +440,7 @@ export function NuevoEventoForm({
             onChange={(e) => setNuevoLugarLink(e.target.value)}
             placeholder="Link de Google Maps"
           />
-          <button type="button" onClick={() => setNuevoLugar(false)} className="mt-2 text-sm font-bold" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <button type="button" onClick={() => setNuevoLugar(false)} className="mt-2 text-sm font-bold" style={{ color: "oklch(0.5 0.044 262)" }}>
             Cancelar, elegir uno guardado
           </button>
         </div>
@@ -452,14 +452,14 @@ export function NuevoEventoForm({
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/50 sm:items-center" onClick={onCancelar}>
       <div
         className="flex max-h-[90vh] w-full max-w-md flex-col rounded-t-3xl sm:rounded-3xl"
-        style={{ background: "oklch(0.99 0.008 82)" }}
+        style={{ background: "oklch(0.99 0.005 85)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid oklch(0.89 0.013 78)" }}>
-          <button type="button" onClick={onCancelar} className="text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid oklch(0.89 0.008 85)" }}>
+          <button type="button" onClick={onCancelar} className="text-sm" style={{ color: "oklch(0.5 0.044 262)" }}>
             Cancelar
           </button>
-          <div className="font-mono text-[11px] font-bold tracking-wide uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <div className="font-mono text-[11px] font-bold tracking-wide uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
             {tituloForm}
           </div>
           <button
@@ -467,7 +467,7 @@ export function NuevoEventoForm({
             onClick={onSubmit}
             disabled={pending}
             className="text-sm font-bold disabled:opacity-50"
-            style={{ color: "oklch(0.64 0.15 34)" }}
+            style={{ color: "oklch(0.64 0.170 28)" }}
           >
             {pending ? "Guardando…" : eventoExistente ? "Guardar" : "Crear"}
           </button>
@@ -547,11 +547,11 @@ export function NuevoEventoForm({
               -- se recalcula solo, reactivo a banda(s) y fecha(s) elegidas
               más abajo en el form. */}
           {personasAusentes.length > 0 && (
-            <div className="rounded-xl p-3" style={{ background: "oklch(0.93 0.016 78 / 0.7)", border: "1px dashed oklch(0.75 0.02 60)" }}>
-              <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.05 60)" }}>
+            <div className="rounded-xl p-3" style={{ background: "oklch(0.93 0.010 85 / 0.7)", border: "1px dashed oklch(0.75 0.044 262)" }}>
+              <div className="mb-1 font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.060 262)" }}>
                 Posible ausencia
               </div>
-              <div className="flex flex-col gap-0.5 text-sm" style={{ color: "oklch(0.35 0.02 55)" }}>
+              <div className="flex flex-col gap-0.5 text-sm" style={{ color: "oklch(0.35 0.044 262)" }}>
                 {personasAusentes.map((a) => (
                   <span key={`${a.usuarioId}:${a.bandaId}`}>
                     {a.nombre}
@@ -570,7 +570,7 @@ export function NuevoEventoForm({
                 </span>
                 <Switch activo={tentativo} onToggle={() => setTentativo((v) => !v)} />
               </div>
-              <p className="mt-1 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+              <p className="mt-1 text-xs" style={{ color: "oklch(0.55 0.044 262)" }}>
                 {tentativo ? "Fecha candidata, todavía sin confirmar." : "Fecha confirmada."}
               </p>
             </div>
@@ -589,7 +589,7 @@ export function NuevoEventoForm({
                 </span>
                 <Switch activo={esPublico} onToggle={() => setEsPublico((v) => !v)} />
               </div>
-              <p className="mt-1 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+              <p className="mt-1 text-xs" style={{ color: "oklch(0.55 0.044 262)" }}>
                 {esPublico ? "Puede aparecer en el Presskit." : "Privado — sigue visible para la banda, marcado como privado; no aparece en el Presskit."}
               </p>
             </div>
@@ -603,7 +603,7 @@ export function NuevoEventoForm({
                 <span className={labelCls} style={labelStyle}>
                   Título
                 </span>
-                <div className="rounded-xl border px-3.5 py-3 text-[15px]" style={{ ...inputStyle, color: "oklch(0.5 0.02 55)" }}>
+                <div className="rounded-xl border px-3.5 py-3 text-[15px]" style={{ ...inputStyle, color: "oklch(0.5 0.044 262)" }}>
                   Ensayo
                 </div>
               </div>
@@ -706,7 +706,7 @@ export function NuevoEventoForm({
               </div>
               {setlistOn &&
                 (setlistsDeLaBanda.length === 0 ? (
-                  <p className="mt-1.5 text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+                  <p className="mt-1.5 text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
                     Sin Set Lists todavía para esta banda.
                   </p>
                 ) : (
@@ -743,7 +743,7 @@ export function NuevoEventoForm({
                     </select>
                   )}
                   {nuevaGira ? (
-                    <div className="rounded-xl p-3" style={{ background: "oklch(0.93 0.016 78)" }}>
+                    <div className="rounded-xl p-3" style={{ background: "oklch(0.93 0.010 85)" }}>
                       <input
                         className={inputCls}
                         style={inputStyle}
@@ -795,7 +795,7 @@ export function NuevoEventoForm({
                         />
                       </div>
                       <div className="mt-2 flex items-center justify-between">
-                        <span className="text-sm font-semibold" style={{ color: "oklch(0.4 0.02 55)" }}>
+                        <span className="text-sm font-semibold" style={{ color: "oklch(0.4 0.044 262)" }}>
                           Tentativo
                         </span>
                         <Switch activo={nuevaGiraTentativo} onToggle={() => setNuevaGiraTentativo((v) => !v)} />
@@ -806,7 +806,7 @@ export function NuevoEventoForm({
                           onClick={crearGiraRapida}
                           disabled={creandoGira}
                           className="flex-1 rounded-lg px-3 py-2 text-sm font-bold disabled:opacity-60"
-                          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+                          style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
                         >
                           {creandoGira ? "Creando…" : "Crear gira"}
                         </button>
@@ -814,7 +814,7 @@ export function NuevoEventoForm({
                           type="button"
                           onClick={() => setNuevaGira(false)}
                           className="rounded-lg px-3 py-2 text-sm font-bold"
-                          style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+                          style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
                         >
                           Cancelar
                         </button>
@@ -825,7 +825,7 @@ export function NuevoEventoForm({
                       type="button"
                       onClick={() => setNuevaGira(true)}
                       className="text-left text-sm font-bold"
-                      style={{ color: "oklch(0.64 0.15 34)" }}
+                      style={{ color: "oklch(0.64 0.170 28)" }}
                     >
                       + Nueva gira
                     </button>

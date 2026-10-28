@@ -17,16 +17,16 @@ function TarjetaEvento({ evento, colorBanda, onClick }: { evento: Evento; colorB
       onClick={onClick}
       className="flex w-full gap-3 rounded-[14px] p-3.5 text-left"
       style={{
-        background: "oklch(0.99 0.008 82)",
-        border: "1px solid oklch(0.89 0.013 78)",
+        background: "oklch(0.99 0.005 85)",
+        border: "1px solid oklch(0.89 0.008 85)",
         borderLeft: `3px solid ${colorBanda}`,
       }}
     >
       <div className="min-w-[38px] text-center">
-        <div className="font-mono text-lg font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+        <div className="font-mono text-lg font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
           {diaDelMes(evento.fechaInicio)}
         </div>
-        <div className="text-[10px]" style={{ color: "oklch(0.5 0.02 55)" }}>
+        <div className="text-[10px]" style={{ color: "oklch(0.5 0.044 262)" }}>
           {diaSemanaAbrev(evento.fechaInicio)}
         </div>
       </div>
@@ -42,18 +42,18 @@ function TarjetaEvento({ evento, colorBanda, onClick }: { evento: Evento; colorB
             {!evento.esPublico && <BadgePrivado />}
           </div>
           {evento.tipo !== "cumpleanos" && (
-            <span className="font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+            <span className="font-mono text-xs" style={{ color: "oklch(0.5 0.044 262)" }}>
               {hora(evento.fechaInicio)}
             </span>
           )}
         </div>
         <div
           className="my-0.5 text-[17px] font-bold"
-          style={{ color: "oklch(0.24 0.02 55)", fontFamily: "var(--font-bricolage), sans-serif" }}
+          style={{ color: "oklch(0.24 0.044 262)", fontFamily: "var(--font-fraunces), sans-serif" }}
         >
           {evento.titulo}
         </div>
-        <div className="flex flex-wrap items-center gap-2.5 text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+        <div className="flex flex-wrap items-center gap-2.5 text-xs" style={{ color: "oklch(0.5 0.044 262)" }}>
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: colorBanda }} />
             {evento.bandaNombre}
@@ -97,7 +97,7 @@ function TarjetaGira({
         </span>
         <span
           className="flex-1 text-[16px] font-bold"
-          style={{ color: "oklch(0.28 0.03 60)", fontFamily: "var(--font-bricolage), sans-serif" }}
+          style={{ color: "oklch(0.28 0.060 262)", fontFamily: "var(--font-fraunces), sans-serif" }}
         >
           {gira.titulo}
         </span>
@@ -112,12 +112,12 @@ function TarjetaGira({
             key={s.id}
             onClick={() => onClickShow(s)}
             className="flex w-full gap-2.5 border-b py-2 text-left last:border-b-0"
-            style={{ borderColor: "oklch(0.9 0.012 78)" }}
+            style={{ borderColor: "oklch(0.9 0.007 85)" }}
           >
-            <span className="min-w-[34px] font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+            <span className="min-w-[34px] font-mono text-xs" style={{ color: "oklch(0.5 0.044 262)" }}>
               {diaDelMes(s.fechaInicio)}
             </span>
-            <span className="flex-1 text-[13px]" style={{ color: "oklch(0.3 0.02 55)" }}>
+            <span className="flex-1 text-[13px]" style={{ color: "oklch(0.3 0.044 262)" }}>
               Show · {s.lugarNombre ?? s.titulo}
             </span>
           </button>
@@ -144,7 +144,7 @@ export function AgendaView({
 
   if (items.length === 0) {
     return (
-      <p className="mt-8 text-center text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+      <p className="mt-8 text-center text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
         Sin eventos próximos.
       </p>
     );
@@ -163,7 +163,7 @@ export function AgendaView({
             {mostrarMes && (
               <div
                 className="mb-2.5 mt-1 font-mono text-[10px] font-bold tracking-widest uppercase"
-                style={{ color: "oklch(0.55 0.02 55)" }}
+                style={{ color: "oklch(0.55 0.044 262)" }}
               >
                 {nombreMes(item.fechaInicio)}
               </div>
@@ -178,7 +178,7 @@ export function AgendaView({
             ) : (
               <TarjetaEvento
                 evento={item}
-                colorBanda={colorPorBanda.get(item.bandaId) ?? "oklch(0.6 0.02 55)"}
+                colorBanda={colorPorBanda.get(item.bandaId) ?? "oklch(0.6 0.044 262)"}
                 onClick={() => onEventoClick(item)}
               />
             )}

@@ -29,9 +29,9 @@ export default async function StagePlotPublicoPage({ params }: { params: Promise
   ]);
 
   return (
-    <div className="min-h-screen pb-12" style={{ background: "oklch(0.965 0.012 82)" }}>
+    <div className="min-h-screen pb-12" style={{ background: "oklch(0.965 0.007 85)" }}>
       <div className="mx-auto max-w-3xl px-5 pt-8">
-        <div className="mb-4 font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+        <div className="mb-4 font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
           Rider Técnico
         </div>
 
