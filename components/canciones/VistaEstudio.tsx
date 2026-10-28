@@ -6,6 +6,7 @@ import type { CancionCompleta } from "@/lib/cancionesData";
 import { eliminarCancionAction } from "@/app/canciones/actions";
 import { NOTAS, simboloAcorde, colorRaizAcorde, colorContrasteTexto, tonosDelAcorde, type Calidad, type Nota } from "@/lib/cancionTeoria";
 import { colorPorTipoSeccion } from "@/lib/seccionCatalogo";
+import { formatoMMSS } from "@/lib/duracion";
 import {
   INSTRUMENTOS_ESTUDIO,
   variantesDeAcorde,
@@ -50,9 +51,9 @@ function tono(base: string, nivel: number): string {
 // ---- Diagrama de acorde (con dedos y cejilla) --------------------------------
 function Diagrama({ forma, afinacion, mini = false }: { forma: Forma; afinacion: Afinacion; mini?: boolean }) {
   const n = afinacion.cuerdas.length;
-  const ancho = mini ? 70 : 150;
-  const alto = mini ? 82 : 160;
-  const izq = mini ? 9 : 18;
+  const ancho = mini ? 78 : 150;
+  const alto = mini ? 84 : 160;
+  const izq = mini ? 15 : 24;
   const arriba = mini ? 15 : 26;
   const filas = 5;
   const sx = (ancho - izq * 2) / (n - 1);
@@ -60,7 +61,7 @@ function Diagrama({ forma, afinacion, mini = false }: { forma: Forma; afinacion:
   const pisados = forma.trastes.filter((t): t is number => t !== null && t > 0);
   const inicio = pisados.length && Math.max(...pisados) > 4 ? Math.min(...pisados) : 1;
   const yFila = (t: number) => arriba + (t - inicio + 0.5) * sy;
-  const r = mini ? 5.4 : 9;
+  const r = mini ? 4.7 : 9;
   return (
     <svg width={ancho} height={alto} viewBox={`0 0 ${ancho} ${alto}`} aria-hidden style={{ display: "block" }}>
       <g stroke={INK} strokeWidth={mini ? 0.8 : 1.3}>
@@ -90,7 +91,7 @@ function Diagrama({ forma, afinacion, mini = false }: { forma: Forma; afinacion:
           <g key={i}>
             {!enBarre && <circle cx={x} cy={yFila(t)} r={r} fill={INK} />}
             {forma.dedos[i] !== null && !(enBarre && i !== forma.barre!.desde) && (
-              <text x={x} y={yFila(t) + (mini ? 2.6 : 4)} textAnchor="middle" fontSize={mini ? 7.5 : 11} fontWeight={700} fill="white" fontFamily={MONO}>
+              <text x={x} y={yFila(t) + (mini ? 2.6 : 4)} textAnchor="middle" fontSize={mini ? 7 : 11} fontWeight={700} fill="white" fontFamily={MONO}>
                 {forma.dedos[i]}
               </text>
             )}
@@ -98,22 +99,16 @@ function Diagrama({ forma, afinacion, mini = false }: { forma: Forma; afinacion:
         );
       })}
       {inicio > 1 && (
-        <text x={ancho - 1} y={arriba + sy * 0.7} fontSize={mini ? 8 : 11} fill={MUTED} textAnchor="end" fontFamily={MONO}>{inicio}</text>
+        <text x={1} y={arriba + sy * 0.7} fontSize={mini ? 9 : 11} fontWeight={700} fill={INK} textAnchor="start" fontFamily={MONO}>{inicio}</text>
       )}
     </svg>
   );
 }
 
 // ---- Mástil -----------------------------------------------------------------
-function Mastil({
-  afinacion,
-  actual,
-  otros,
-}: {
-  afinacion: Afinacion;
-  actual: { nota: Nota; calidad: Calidad };
-  otros: { nota: Nota; calidad: Calidad }[];
-}) {
+// Dibuja las notas de uno o varios acordes. Si dos acordes comparten una nota
+// en el mismo lugar, el círculo se parte en gajos de sus colores.
+function Mastil({ afinacion, acordes }: { afinacion: Afinacion; acordes: { nota: Nota; calidad: Calidad }[] }) {
   const trastes = 12;
   const n = afinacion.cuerdas.length;
   const izq = 26;
@@ -123,23 +118,33 @@ function Mastil({
   const ancho = izq + trastes * wf + 10;
   const y = (cuerda: number) => 12 + (n - 1 - cuerda) * sy;
   const x = (t: number) => (t === 0 ? izq - 12 : izq + (t - 0.5) * wf);
-  const dibujar = (c: { nota: Nota; calidad: Calidad }, fuerte: boolean) => {
+  const un = acordes.length === 1;
+
+  const puntos = new Map<string, { cuerda: number; traste: number; nota: Nota; raiz: boolean; colores: string[]; base: string; nivel: number }>();
+  acordes.forEach((c) => {
     const base = colorDe(c.nota, c.calidad);
     const clase = notasDelAcorde(c.nota, c.calidad);
-    return posicionesEnMastil(afinacion, c.nota, c.calidad, trastes).map((p, i) => {
-      const nivel = clase.indexOf(NOTAS.indexOf(p.nota));
-      return (
-        <g key={`${c.nota}${c.calidad}${i}`} opacity={fuerte ? 1 : 0.3}>
-          <circle cx={x(p.traste)} cy={y(p.cuerda)} r={fuerte ? (p.esRaiz ? 12 : 10) : 5} fill={tono(base, Math.max(nivel, 0))} stroke={fuerte && p.esRaiz ? INK : "none"} strokeWidth={2} />
-          {fuerte && (
-            <text x={x(p.traste)} y={y(p.cuerda) + 3.5} textAnchor="middle" fontSize={10} fontWeight={800} fontFamily={MONO} fill={nivel === 0 ? colorContrasteTexto(base) : INK}>
-              {p.nota}
-            </text>
-          )}
-        </g>
-      );
+    posicionesEnMastil(afinacion, c.nota, c.calidad, trastes).forEach((p) => {
+      const k = `${p.cuerda}-${p.traste}`;
+      const nivel = Math.max(clase.indexOf(NOTAS.indexOf(p.nota)), 0);
+      const colorPunto = un ? tono(base, nivel) : base;
+      const previo = puntos.get(k);
+      if (previo) {
+        if (!previo.colores.includes(colorPunto)) previo.colores.push(colorPunto);
+        previo.raiz = previo.raiz || p.esRaiz;
+      } else puntos.set(k, { cuerda: p.cuerda, traste: p.traste, nota: p.nota, raiz: p.esRaiz, colores: [colorPunto], base, nivel });
     });
+  });
+
+  const gajo = (cx: number, cy: number, r: number, i: number, k: number, color: string) => {
+    const a0 = (i * 2 * Math.PI) / k - Math.PI / 2;
+    const a1 = ((i + 1) * 2 * Math.PI) / k - Math.PI / 2;
+    const large = a1 - a0 > Math.PI ? 1 : 0;
+    return (
+      <path key={i} d={`M${cx} ${cy} L${cx + r * Math.cos(a0)} ${cy + r * Math.sin(a0)} A${r} ${r} 0 ${large} 1 ${cx + r * Math.cos(a1)} ${cy + r * Math.sin(a1)} Z`} fill={color} />
+    );
   };
+
   return (
     <svg width="100%" viewBox={`0 0 ${ancho} ${alto}`} aria-hidden>
       {Array.from({ length: trastes + 1 }, (_, i) => (
@@ -154,8 +159,24 @@ function Mastil({
       {[3, 5, 7, 9, 12].map((f) => (
         <text key={f} x={izq + (f - 0.5) * wf} y={alto - 4} fontSize={9} textAnchor="middle" fill={MUTED} fontFamily={MONO}>{f}</text>
       ))}
-      {otros.map((c) => dibujar(c, false))}
-      {dibujar(actual, true)}
+      {[...puntos.values()].map((p, i) => {
+        const r = p.raiz && un ? 12 : 10;
+        const cx = x(p.traste);
+        const cy = y(p.cuerda);
+        return (
+          <g key={i}>
+            {p.colores.length === 1 ? (
+              <circle cx={cx} cy={cy} r={r} fill={p.colores[0]} />
+            ) : (
+              p.colores.map((col, gi) => gajo(cx, cy, r, gi, p.colores.length, col))
+            )}
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke={p.raiz && un ? INK : "white"} strokeWidth={p.raiz && un ? 2 : 1.5} />
+            <text x={cx} y={cy + 3.5} textAnchor="middle" fontSize={10} fontWeight={800} fontFamily={MONO} fill={un && p.nivel === 0 ? colorContrasteTexto(p.base) : INK} stroke="white" strokeWidth={un && p.nivel === 0 ? 0 : 2.5} paintOrder="stroke">
+              {p.nota}
+            </text>
+          </g>
+        );
+      })}
     </svg>
   );
 }
@@ -267,7 +288,7 @@ export function VistaEstudio({
   const [idx, setIdx] = useState(0);
   const [variantes, setVariantes] = useState<Record<string, number>>({});
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
-  const [verTodos, setVerTodos] = useState(false);
+  const [filtro, setFiltro] = useState<string[]>([]);
   const [lista, setLista] = useState("");
   const [reproductor, setReproductor] = useState(false);
   const [borrador, setBorrador] = useState("");
@@ -334,16 +355,28 @@ export function VistaEstudio({
   const actual = eventos[actualIdx] ?? null;
   const siguiente = eventos[actualIdx + 1] ?? null;
 
+  // Elegir un acorde de la canción: se mueve el marcador y el mástil se filtra a ese acorde.
+  const elegir = (i: number) => {
+    const ev = eventos[i];
+    if (!ev) return;
+    setIdx(i);
+    setFiltro([ev.clave]);
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
-      if (e.key === "ArrowRight") setIdx((i) => Math.min(i + 1, total - 1));
-      if (e.key === "ArrowLeft") setIdx((i) => Math.max(i - 1, 0));
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      const nuevo = Math.min(Math.max(actualIdx + (e.key === "ArrowRight" ? 1 : -1), 0), total - 1);
+      const ev = eventos[nuevo];
+      if (!ev) return;
+      setIdx(nuevo);
+      setFiltro([ev.clave]);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [total]);
+  }, [total, actualIdx, eventos]);
 
   const distintos = useMemo(() => {
     const m = new Map<string, { nota: Nota; calidad: Calidad; veces: number; primero: number }>();
@@ -395,9 +428,16 @@ export function VistaEstudio({
         <Link href={volverHref} className="text-sm no-underline" style={{ color: MUTED }}>‹ Canciones</Link>
         <h1 style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 22, lineHeight: 1 }}>{cancion.titulo}</h1>
         {cancion.autor && <span style={{ fontSize: 12, color: MUTED }}>{cancion.autor}</span>}
-        <span style={{ fontFamily: MONO, fontSize: 11, color: MUTED }}>
-          {tonalidad.raiz} {tonalidad.modo}{cancion.bpm ? ` · ${cancion.bpm} BPM` : ""}
-        </span>
+        <span style={{ fontFamily: MONO, fontSize: 11, color: MUTED }}>{tonalidad.raiz} {tonalidad.modo}</span>
+        {[
+          { etiqueta: "BPM", valor: cancion.bpm ? String(cancion.bpm) : "—" },
+          { etiqueta: "Duración", valor: cancion.duracionSegundos ? formatoMMSS(cancion.duracionSegundos) : "—" },
+        ].map((c) => (
+          <div key={c.etiqueta} title={c.valor === "—" ? "Sin dato todavía: se llena en Editar" : c.etiqueta} style={{ border: `1px solid ${LINE}`, borderRadius: 9, padding: "2px 10px", background: BG, lineHeight: 1.1 }}>
+            <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED }}>{c.etiqueta}</div>
+            <div style={{ fontFamily: MONO, fontSize: 14, fontWeight: 800 }}>{c.valor}</div>
+          </div>
+        ))}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <span title="Sube o baja TODA la canción de tono, de medio en medio tono" style={{ fontSize: 11, color: MUTED }}>Cambiar tono</span>
           <button style={boton} onClick={() => setSemi((s) => s - 1)} aria-label="Bajar medio tono" title="Bajar medio tono">−</button>
@@ -444,15 +484,15 @@ export function VistaEstudio({
         </div>
       )}
 
-      {/* Línea de tiempo de la canción */}
-      <div className="px-5 pb-2 pt-3" style={{ borderBottom: `1px solid ${LINE}`, background: BG }}>
+      {/* Línea de tiempo de la canción: franja oscura para distinguirla de la página */}
+      <div className="px-5 pb-2.5 pt-3" style={{ background: INK }}>
         <div className="relative flex" style={{ height: 38 }}>
           {cancion.secciones.map((s, si) => {
             const ids = indicesPorSeccion[si] ?? [];
             const aqui = actual?.sec === si;
             return (
-              <div key={s.id} className="relative flex items-end" style={{ flex: Math.max(ids.length, 1), borderLeft: si === 0 ? "none" : `1px dotted ${MUTED}`, paddingLeft: 3, paddingRight: 3, opacity: aqui ? 1 : 0.85 }}>
-                <span style={{ position: "absolute", top: -2, right: 4, fontFamily: MONO, fontSize: 9, color: aqui ? INK : MUTED, fontWeight: aqui ? 700 : 400, letterSpacing: "0.06em", textTransform: "uppercase" }}>{s.nombre}</span>
+              <div key={s.id} className="relative flex items-end" style={{ flex: Math.max(ids.length, 1), borderLeft: si === 0 ? "none" : "1px dotted oklch(0.85 0.02 262 / 0.6)", paddingLeft: 3, paddingRight: 3 }}>
+                <span style={{ position: "absolute", top: -2, right: 4, fontFamily: MONO, fontSize: 9, color: aqui ? "white" : "oklch(0.8 0.02 262)", fontWeight: aqui ? 700 : 400, letterSpacing: "0.06em", textTransform: "uppercase" }}>{s.nombre}</span>
                 <div className="flex w-full items-end gap-px">
                   {ids.map((ei) => {
                     const e = eventos[ei];
@@ -460,9 +500,9 @@ export function VistaEstudio({
                     return (
                       <button
                         key={ei}
-                        onClick={() => setIdx(ei)}
+                        onClick={() => elegir(ei)}
                         title={`${simboloAcorde(e.nota, e.calidad)} · ${gradoEnTonalidad(e.nota, e.calidad, tonalidad).romano}`}
-                        style={{ flex: 1, minWidth: 2, height: esActual ? 22 : 12, border: "none", padding: 0, cursor: "pointer", borderRadius: 2, background: colorDe(e.nota, e.calidad), opacity: esActual ? 1 : ei < actualIdx ? 0.45 : 0.9, outline: esActual ? `2px solid ${INK}` : "none", outlineOffset: 1 }}
+                        style={{ flex: 1, minWidth: 2, height: esActual ? 24 : 12, border: "none", padding: 0, cursor: "pointer", borderRadius: 2, background: colorDe(e.nota, e.calidad), opacity: esActual ? 1 : ei < actualIdx ? 0.45 : 0.95, outline: esActual ? "2px solid white" : "none", outlineOffset: 1 }}
                       />
                     );
                   })}
@@ -478,11 +518,16 @@ export function VistaEstudio({
         <aside className="overflow-y-auto px-2.5 py-3" style={{ borderRight: `1px solid ${LINE}`, background: CARD }}>
           <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
             <Titulo>Acordes · {distintos.length}</Titulo>
+            {filtro.length > 0 && (
+              <button onClick={() => setFiltro([])} style={{ fontSize: 10, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", marginBottom: 6 }}>
+                quitar selección
+              </button>
+            )}
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {distintos.map((d) => {
               const k = claveDe(d.nota, d.calidad);
-              const activo = actual?.clave === k;
+              const activo = filtro.includes(k);
               const vs = variantesDeAcorde(instrumento, afinacion, d.nota, d.calidad);
               const elegida = Math.min(variantes[claveVar(d.nota, d.calidad)] ?? 0, Math.max(vs.length - 1, 0));
               const g = gradoEnTonalidad(d.nota, d.calidad, tonalidad);
@@ -490,19 +535,26 @@ export function VistaEstudio({
               const ink = tinta(d.nota, d.calidad);
               const abierto = !!abiertos[`${instrumento}|${k}`];
               return (
-                <div key={k} style={{ background: fondo, color: ink, borderRadius: 14, padding: 6, outline: activo ? `3px solid ${CORAL}` : "none", outlineOffset: 1 }}>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setIdx(d.primero)} className="flex flex-1 items-center gap-2 text-left" style={{ background: "transparent", border: "none", cursor: "pointer", color: ink, padding: 0 }}>
-                      <div style={{ background: "white", borderRadius: 9, padding: 2, minWidth: 70, minHeight: 40, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div key={k} style={{ gridColumn: abierto ? "1 / -1" : undefined, background: fondo, color: ink, borderRadius: 13, padding: 5, outline: activo ? `3px solid ${CORAL}` : "none", outlineOffset: 1, opacity: filtro.length && !activo ? 0.6 : 1 }}>
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        setFiltro((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
+                        if (!activo) setIdx(d.primero);
+                      }}
+                      className="flex w-full flex-col items-center gap-1"
+                      style={{ background: "transparent", border: "none", cursor: "pointer", color: ink, padding: 0 }}
+                    >
+                      <div style={{ background: "white", borderRadius: 9, padding: 2, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 50, width: "100%" }}>
                         {vs[elegida] ? (
                           <Diagrama forma={vs[elegida]} afinacion={afinacion} mini />
                         ) : (
                           <span style={{ fontFamily: MONO, fontSize: 11, color: INK }}>{notasDelAcorde(d.nota, d.calidad).map((p) => NOTAS[p]).join(" ")}</span>
                         )}
                       </div>
-                      <div>
-                        <div style={{ fontFamily: MONO, fontWeight: 800, fontSize: 20, lineHeight: 1.05 }}>{simboloAcorde(d.nota, d.calidad)}</div>
-                        <div style={{ fontSize: 10, opacity: 0.9 }}>{g.romano} · {d.veces}×</div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: 18, lineHeight: 1 }}>{simboloAcorde(d.nota, d.calidad)}</span>
+                        <span style={{ fontSize: 10, opacity: 0.9 }}>{g.romano} · {d.veces}×</span>
                       </div>
                     </button>
                     {vs.length > 1 && (
@@ -510,20 +562,20 @@ export function VistaEstudio({
                         onClick={() => setAbiertos((a) => ({ ...a, [`${instrumento}|${k}`]: !abierto }))}
                         aria-label="Ver otras formas de tocarlo"
                         title="Otras formas de tocarlo"
-                        style={{ background: "rgba(255,255,255,0.25)", border: "none", color: ink, borderRadius: 8, padding: "4px 7px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}
+                        style={{ position: "absolute", top: 3, right: 3, background: "rgba(255,255,255,0.85)", border: "none", color: INK, borderRadius: 7, padding: "1px 5px", cursor: "pointer", fontSize: 10, fontWeight: 700 }}
                       >
-                        {abierto ? "▴" : `▾ ${vs.length}`}
+                        {abierto ? "▴" : `▾${vs.length}`}
                       </button>
                     )}
                   </div>
                   {abierto && (
-                    <div className="mt-2 grid grid-cols-2 gap-1.5">
+                    <div className="mt-2 grid grid-cols-3 gap-1">
                       {vs.map((f, i) => (
                         <button
                           key={i}
                           onClick={() => elegirVariante(d.nota, d.calidad, i)}
                           title={f.origen === "catalogo" ? "Forma común" : "Forma sugerida"}
-                          style={{ background: "white", borderRadius: 9, border: i === elegida ? `3px solid ${INK}` : "3px solid transparent", padding: 2, cursor: "pointer", display: "flex", justifyContent: "center" }}
+                          style={{ background: "white", borderRadius: 8, border: i === elegida ? `3px solid ${INK}` : "3px solid transparent", padding: 1, cursor: "pointer", display: "flex", justifyContent: "center" }}
                         >
                           <Diagrama forma={f} afinacion={afinacion} mini />
                         </button>
@@ -539,7 +591,7 @@ export function VistaEstudio({
 
         {/* Centro: letra con la palabra subrayada del color del acorde */}
         <main className="overflow-y-auto px-6 py-4">
-          <div style={{ columnWidth: 440, columnGap: 40 }}>
+          <div style={{ columnWidth: 430, columnGap: 64, columnRule: "1px dotted oklch(0.5 0.044 262 / 0.35)" }}>
             {cancion.secciones.map((s, si) => {
               const conLetra = s.letra.some((l) => l.acordes.length > 0 || l.texto.trim());
               return (
@@ -569,9 +621,10 @@ export function VistaEstudio({
                             return (
                               <span
                                 key={k}
-                                onClick={() => setIdx(ei!)}
+                                onClick={() => elegir(ei!)}
                                 title={`${simboloAcorde(e.nota, e.calidad)} · ${gradoEnTonalidad(e.nota, e.calidad, tonalidad).romano}`}
                                 style={{
+                                  position: "relative",
                                   cursor: "pointer",
                                   background: esActual ? `color-mix(in srgb, ${color} 22%, transparent)` : mismo ? `color-mix(in srgb, ${color} 10%, transparent)` : "transparent",
                                   textDecoration: "underline",
@@ -582,10 +635,12 @@ export function VistaEstudio({
                                   borderRadius: 4,
                                 }}
                               >
-                                <span style={{ display: "inline-block", fontFamily: MONO, fontWeight: 800, fontSize: 10.5, lineHeight: 1, padding: "2px 4px", marginRight: 3, borderRadius: 4, background: color, color: tinta(e.nota, e.calidad), transform: "translateY(-6px)", textDecoration: "none" }}>
-                                  {simboloAcorde(e.nota, e.calidad)}
-                                </span>
-                                {trozo.length ? trozo : "   "}
+                                {esActual && (
+                                  <span style={{ position: "absolute", left: 0, top: -9, fontFamily: MONO, fontWeight: 800, fontSize: 10.5, lineHeight: 1, padding: "2px 4px", borderRadius: 4, background: color, color: tinta(e.nota, e.calidad), textDecoration: "none", pointerEvents: "none", whiteSpace: "nowrap" }}>
+                                    {simboloAcorde(e.nota, e.calidad)}
+                                  </span>
+                                )}
+                                {trozo.length ? trozo : "\u00A0\u00A0\u00A0"}
                               </span>
                             );
                           })}
@@ -599,8 +654,8 @@ export function VistaEstudio({
                         return (
                           <button
                             key={ei}
-                            onClick={() => setIdx(ei)}
-                            style={{ fontFamily: MONO, fontWeight: 800, fontSize: 13, padding: "3px 9px", borderRadius: 7, border: "none", cursor: "pointer", background: colorDe(e.nota, e.calidad), color: tinta(e.nota, e.calidad), outline: ei === actualIdx ? `3px solid ${CORAL}` : "none", outlineOffset: 1 }}
+                            onClick={() => elegir(ei)}
+                            style={{ fontFamily: MONO, fontWeight: 800, fontSize: 10.5, lineHeight: 1, padding: "3px 6px", borderRadius: 4, border: "none", cursor: "pointer", background: colorDe(e.nota, e.calidad), color: tinta(e.nota, e.calidad), outline: ei === actualIdx ? `3px solid ${CORAL}` : "none", outlineOffset: 1 }}
                           >
                             {simboloAcorde(e.nota, e.calidad)}
                           </button>
@@ -646,17 +701,14 @@ export function VistaEstudio({
 
               <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "10px 12px" }}>
                 <div className="flex items-center justify-between">
-                  <Titulo>Mástil</Titulo>
-                  <label style={{ fontSize: 11, color: MUTED, cursor: "pointer" }}>
-                    <input type="checkbox" checked={verTodos} onChange={(e) => setVerTodos(e.target.checked)} style={{ marginRight: 4 }} />
-                    ver los demás acordes
-                  </label>
+                  <Titulo>Mástil · {filtro.length ? filtro.map((k) => k.replace("|", "").replace("mayor", "").replace("menor", "m")).join(", ") : "todas las notas de la canción"}</Titulo>
+                  {filtro.length > 0 && (
+                    <button onClick={() => setFiltro([])} style={{ fontSize: 11, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", marginBottom: 6 }}>
+                      ver todas
+                    </button>
+                  )}
                 </div>
-                <Mastil
-                  afinacion={afinacion}
-                  actual={{ nota: actual.nota, calidad: actual.calidad }}
-                  otros={verTodos ? distintos.filter((d) => d.nota !== actual.nota || d.calidad !== actual.calidad) : []}
-                />
+                <Mastil afinacion={afinacion} acordes={(filtro.length ? distintos.filter((d) => filtro.includes(claveDe(d.nota, d.calidad))) : distintos).map((d) => ({ nota: d.nota, calidad: d.calidad }))} />
               </section>
 
               <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(0,1fr) 230px" }}>
