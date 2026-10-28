@@ -258,6 +258,7 @@ function Titulo({ children }: { children: React.ReactNode }) {
 const PREF = "malgesto-estudio";
 const PREF_VAR = "malgesto-estudio-variantes";
 const PREF_REPRO = "malgesto-estudio-reproductor";
+const PREF_ADELANTO = "malgesto-estudio-adelanto-";
 
 function leer<T>(clave: string, defecto: T): T {
   try {
@@ -305,6 +306,8 @@ export function VistaEstudio({
   const [reproduciendo, setReproduciendo] = useState(false);
   const [anclas, setAnclas] = useState<Ancla[]>(cancion.tiemposMs ?? []);
   const [grabando, setGrabando] = useState(false);
+  // Adelanto (ms): el acorde se marca un poco antes de lo grabado, para compensar lo que tardas en tocar.
+  const [adelanto, setAdelanto] = useState(400);
   const [tomas, setTomas] = useState<Ancla[]>([]);
   const tomasRef = useRef<Ancla[]>([]);
   const grabandoRef = useRef(false);
@@ -327,10 +330,11 @@ export function VistaEstudio({
       }
       setVariantes(leer(PREF_VAR, {}));
       setReproductor(leer<boolean>(PREF_REPRO, true));
+      setAdelanto(leer<number>(PREF_ADELANTO + cancion.id, 400));
       prefsLeidas.current = true;
     }, 0);
     return () => clearTimeout(t);
-  }, []);
+  }, [cancion.id]);
   useEffect(() => {
     if (prefsLeidas.current) guardar(PREF, { instrumento, afinId });
   }, [instrumento, afinId]);
@@ -488,7 +492,7 @@ export function VistaEstudio({
     const id = setInterval(() => {
       const u = ultimoRef.current;
       if (u.pausado || !suenaEsta()) return;
-      const k = ocurrenciaPorAnclas(anclas, posicionAhora(), ocurr.length, u.dur, pesos);
+      const k = ocurrenciaPorAnclas(anclas, posicionAhora() + adelanto, ocurr.length, u.dur, pesos);
       if (k < 0 || k === ocurrRef.current) return;
       ocurrRef.current = k;
       const ev = ocurr[k].evento;
@@ -499,7 +503,7 @@ export function VistaEstudio({
     }, 120);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anclas, ocurr, eventos, pesos, grabando]);
+  }, [anclas, ocurr, eventos, pesos, grabando, adelanto]);
 
   // Al tocar un acorde mientras suena la canción: "este es el que oigo ahora".
   const afinar = (evento: number) => {
@@ -509,7 +513,7 @@ export function VistaEstudio({
     if (candidatas.length === 0) return;
     const ref = ocurrRef.current >= 0 ? ocurrRef.current : 0;
     const k = candidatas.reduce((m, x) => (Math.abs(x.k - ref) < Math.abs(m.k - ref) ? x : m)).k;
-    const nuevas = agregarAncla(anclas, [k, Math.max(0, Math.round(posicionAhora() - 250))]);
+    const nuevas = agregarAncla(anclas, [k, Math.max(0, Math.round(posicionAhora()))]);
     ocurrRef.current = k;
     setAnclas(nuevas);
     if (puedeEditar) void guardarTiemposAction(cancion.id, cancion.bandaId, nuevas).catch(() => setAviso("No se pudo guardar el ajuste."));
@@ -572,7 +576,7 @@ export function VistaEstudio({
     const k = tomasRef.current.length;
     if (k >= ocurr.length) return;
     const previo = tomasRef.current[k - 1];
-    const t = Math.max(0, Math.round(posicionAhora() - 150));
+    const t = Math.max(0, Math.round(posicionAhora()));
     tomasRef.current = [...tomasRef.current, [k, previo ? Math.max(t, previo[1] + 50) : t]];
     setTomas(tomasRef.current);
     setAviso("");
@@ -964,6 +968,32 @@ export function VistaEstudio({
               <div style={{ marginTop: 6, fontSize: 11, color: MUTED, lineHeight: 1.35 }}>
                 {reproduciendo ? "● Siguiendo la canción. " : "Dale play y te sigue. "}
                 Si se adelanta o se atrasa, toca el acorde que estás oyendo y se ajusta.
+                <span className="flex items-center gap-2" style={{ marginTop: 6 }}>
+                  <span>Sincronía: si la letra va <b>atrás</b> de la canción, sube el adelanto.</span>
+                  <button
+                    onClick={() => {
+                      const n = Math.max(-2000, adelanto - 100);
+                      setAdelanto(n);
+                      guardar(PREF_ADELANTO + cancion.id, n);
+                    }}
+                    style={{ ...boton, padding: "0 8px" }}
+                    aria-label="Menos adelanto"
+                  >
+                    −
+                  </button>
+                  <b style={{ fontFamily: MONO, minWidth: 44, textAlign: "center" }}>{(adelanto / 1000).toFixed(1)} s</b>
+                  <button
+                    onClick={() => {
+                      const n = Math.min(3000, adelanto + 100);
+                      setAdelanto(n);
+                      guardar(PREF_ADELANTO + cancion.id, n);
+                    }}
+                    style={{ ...boton, padding: "0 8px" }}
+                    aria-label="Más adelanto"
+                  >
+                    +
+                  </button>
+                </span>
                 {anclas.length > 0 && (
                   <>
                     {" "}({anclas.length} {anclas.length === 1 ? "ajuste" : "ajustes"}){" "}
