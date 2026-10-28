@@ -258,6 +258,7 @@ function Titulo({ children }: { children: React.ReactNode }) {
 const PREF = "malgesto-estudio";
 const PREF_VAR = "malgesto-estudio-variantes";
 const PREF_REPRO = "malgesto-estudio-reproductor";
+const PREF_ADELANTO = "malgesto-estudio-adelanto-";
 
 function leer<T>(clave: string, defecto: T): T {
   try {
@@ -305,6 +306,8 @@ export function VistaEstudio({
   const [reproduciendo, setReproduciendo] = useState(false);
   const [anclas, setAnclas] = useState<Ancla[]>(cancion.tiemposMs ?? []);
   const [grabando, setGrabando] = useState(false);
+  // Adelanto (ms): el acorde se marca un poco antes de lo grabado, para compensar lo que tardas en tocar.
+  const [adelanto, setAdelanto] = useState(400);
   const [tomas, setTomas] = useState<Ancla[]>([]);
   const tomasRef = useRef<Ancla[]>([]);
   const grabandoRef = useRef(false);
@@ -327,10 +330,11 @@ export function VistaEstudio({
       }
       setVariantes(leer(PREF_VAR, {}));
       setReproductor(leer<boolean>(PREF_REPRO, true));
+      setAdelanto(leer<number>(PREF_ADELANTO + cancion.id, 400));
       prefsLeidas.current = true;
     }, 0);
     return () => clearTimeout(t);
-  }, []);
+  }, [cancion.id]);
   useEffect(() => {
     if (prefsLeidas.current) guardar(PREF, { instrumento, afinId });
   }, [instrumento, afinId]);
@@ -488,7 +492,7 @@ export function VistaEstudio({
     const id = setInterval(() => {
       const u = ultimoRef.current;
       if (u.pausado || !suenaEsta()) return;
-      const k = ocurrenciaPorAnclas(anclas, posicionAhora(), ocurr.length, u.dur, pesos);
+      const k = ocurrenciaPorAnclas(anclas, posicionAhora() + adelanto, ocurr.length, u.dur, pesos);
       if (k < 0 || k === ocurrRef.current) return;
       ocurrRef.current = k;
       const ev = ocurr[k].evento;
@@ -499,7 +503,7 @@ export function VistaEstudio({
     }, 120);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anclas, ocurr, eventos, pesos, grabando]);
+  }, [anclas, ocurr, eventos, pesos, grabando, adelanto]);
 
   // Al tocar un acorde mientras suena la canción: "este es el que oigo ahora".
   const afinar = (evento: number) => {
@@ -509,7 +513,7 @@ export function VistaEstudio({
     if (candidatas.length === 0) return;
     const ref = ocurrRef.current >= 0 ? ocurrRef.current : 0;
     const k = candidatas.reduce((m, x) => (Math.abs(x.k - ref) < Math.abs(m.k - ref) ? x : m)).k;
-    const nuevas = agregarAncla(anclas, [k, Math.max(0, Math.round(posicionAhora() - 250))]);
+    const nuevas = agregarAncla(anclas, [k, Math.max(0, Math.round(posicionAhora()))]);
     ocurrRef.current = k;
     setAnclas(nuevas);
     if (puedeEditar) void guardarTiemposAction(cancion.id, cancion.bandaId, nuevas).catch(() => setAviso("No se pudo guardar el ajuste."));
@@ -572,7 +576,7 @@ export function VistaEstudio({
     const k = tomasRef.current.length;
     if (k >= ocurr.length) return;
     const previo = tomasRef.current[k - 1];
-    const t = Math.max(0, Math.round(posicionAhora() - 150));
+    const t = Math.max(0, Math.round(posicionAhora()));
     tomasRef.current = [...tomasRef.current, [k, previo ? Math.max(t, previo[1] + 50) : t]];
     setTomas(tomasRef.current);
     setAviso("");
@@ -902,90 +906,8 @@ export function VistaEstudio({
         </main>
 
         {/* Derecha: mástil, todos los acordes y círculo */}
-        <aside className="order-3 flex flex-col gap-3 overflow-y-auto px-4 py-3" style={{ borderLeft: `1px solid ${LINE}`, background: BG }}>
-          {grabando && (
-            <div style={{ background: INK, color: "white", borderRadius: 16, padding: "12px 14px" }}>
-              <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.8 }}>● Grabando los tiempos</div>
-              <div style={{ fontSize: 13, margin: "4px 0 8px" }}>Dale play y toca justo cuando <b>empiece</b> este acorde:</div>
-              <div className="flex items-center gap-3">
-                {ocurr[tomas.length] && eventos[ocurr[tomas.length].evento] && (
-                  <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: 34, lineHeight: 1, padding: "6px 14px", borderRadius: 12, background: colorDe(eventos[ocurr[tomas.length].evento].nota, eventos[ocurr[tomas.length].evento].calidad), color: tinta(eventos[ocurr[tomas.length].evento].nota, eventos[ocurr[tomas.length].evento].calidad) }}>
-                    {simboloAcorde(eventos[ocurr[tomas.length].evento].nota, eventos[ocurr[tomas.length].evento].calidad)}
-                  </span>
-                )}
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: MONO, fontSize: 13 }}>{tomas.length + 1} de {ocurr.length}</div>
-                  <div style={{ height: 6, background: "rgba(255,255,255,0.2)", borderRadius: 3, marginTop: 4 }}>
-                    <div style={{ height: 6, borderRadius: 3, background: CORAL, width: `${(tomas.length / Math.max(ocurr.length, 1)) * 100}%` }} />
-                  </div>
-                </div>
-              </div>
-              <button onClick={tocar} style={{ width: "100%", marginTop: 10, padding: "14px 0", borderRadius: 12, border: "none", background: CORAL, color: "white", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>
-                TOCA AQUÍ cuando cambie el acorde
-              </button>
-              <div className="flex flex-wrap items-center gap-2" style={{ marginTop: 8 }}>
-                <button onClick={deshacerToma} disabled={tomas.length === 0} style={{ ...boton, background: "transparent", color: "white", borderColor: "rgba(255,255,255,0.4)" }}>↶ Deshacer</button>
-                <button onClick={() => terminarGrabado(true)} disabled={tomas.length === 0} style={{ ...boton, background: "white" }}>Terminar y guardar</button>
-                <button onClick={cancelarGrabado} style={{ ...boton, background: "transparent", color: "white", borderColor: "rgba(255,255,255,0.4)" }}>Cancelar</button>
-              </div>
-              <div style={{ fontSize: 11, opacity: 0.75, marginTop: 8, lineHeight: 1.4 }}>
-                También funciona ESPACIO o ENTER; ⌫ deshace y Esc cancela. Si te saltas acordes, toca igual: puedes terminar cuando quieras y lo que falte se estima.
-              </div>
-            </div>
-          )}
-
-          {/* Spotify de esta canción; se minimiza si estorba y la música sigue */}
-          <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "8px 10px" }}>
-            <div className="flex items-center justify-between" style={{ marginBottom: reproductor ? 6 : 0 }}>
-              <Titulo>♪ Spotify</Titulo>
-              <span className="flex items-center gap-2">
-              {puedeEditar && cancion.spotifyUri && !grabando && (
-                <button onClick={empezarGrabado} style={{ ...boton, padding: "1px 9px", fontSize: 11, color: CORAL, borderColor: CORAL, marginBottom: 6 }}>
-                  ● {anclas.length > 0 ? "Volver a grabar" : "Grabar tiempos"}
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  setReproductor((v) => {
-                    guardar(PREF_REPRO, !v);
-                    return !v;
-                  });
-                }}
-                aria-label={reproductor ? "Minimizar" : "Mostrar"}
-                title={reproductor ? "Minimizar (la música sigue)" : "Mostrar"}
-                style={{ ...boton, padding: "0 7px", fontSize: 12, lineHeight: "18px", marginBottom: 6 }}
-              >
-                {reproductor ? "—" : "▢"}
-              </button>
-              </span>
-            </div>
-            <div ref={contRef} style={{ display: reproductor && cancion.spotifyUri ? "block" : "none", minHeight: 152 }} />
-            {cancion.spotifyUri ? (
-              <div style={{ marginTop: 6, fontSize: 11, color: MUTED, lineHeight: 1.35 }}>
-                {reproduciendo ? "● Siguiendo la canción. " : "Dale play y te sigue. "}
-                Si se adelanta o se atrasa, toca el acorde que estás oyendo y se ajusta.
-                {anclas.length > 0 && (
-                  <>
-                    {" "}({anclas.length} {anclas.length === 1 ? "ajuste" : "ajustes"}){" "}
-                    <button onClick={borrarAjustes} style={{ fontSize: 11, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0 }}>
-                      borrar
-                    </button>
-                  </>
-                )}
-              </div>
-            ) : (
-              <p style={{ fontSize: 12, color: MUTED }}>
-                Esta canción aún no tiene liga de Spotify.{" "}
-                {puedeEditar && (
-                  <Link href={`/canciones/${cancion.id}/editar`} style={{ color: CORAL, fontWeight: 700 }}>
-                    Pégala en Editar
-                  </Link>
-                )}
-              </p>
-            )}
-            {aviso && <div style={{ marginTop: 4, fontSize: 11, color: MUTED }}>{aviso}</div>}
-          </section>
-
+        <aside className="order-3 flex min-h-0 flex-col" style={{ borderLeft: `1px solid ${LINE}`, background: BG }}>
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
           <div className="flex flex-wrap items-center gap-1.5">
             {(Object.keys(INSTRUMENTOS_ESTUDIO) as NombreInstrumento[]).map((k) => (
               <button
@@ -1076,6 +998,120 @@ export function VistaEstudio({
           ) : (
             <p style={{ fontSize: 13, color: MUTED }}>Cuando la canción tenga acordes, aquí verás el mástil, sus notas y el círculo de quintas.</p>
           )}
+          </div>
+
+          {/* Abajo y siempre a la vista: la grabación y Spotify */}
+          <div className="flex-none flex flex-col gap-3 px-4 pb-3 pt-3" style={{ borderTop: `1px solid ${LINE}` }}>
+          {grabando && (
+            <div style={{ background: INK, color: "white", borderRadius: 16, padding: "12px 14px" }}>
+              <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.8 }}>● Grabando los tiempos</div>
+              <div style={{ fontSize: 13, margin: "4px 0 8px" }}>Dale play y toca justo cuando <b>empiece</b> este acorde:</div>
+              <div className="flex items-center gap-3">
+                {ocurr[tomas.length] && eventos[ocurr[tomas.length].evento] && (
+                  <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: 34, lineHeight: 1, padding: "6px 14px", borderRadius: 12, background: colorDe(eventos[ocurr[tomas.length].evento].nota, eventos[ocurr[tomas.length].evento].calidad), color: tinta(eventos[ocurr[tomas.length].evento].nota, eventos[ocurr[tomas.length].evento].calidad) }}>
+                    {simboloAcorde(eventos[ocurr[tomas.length].evento].nota, eventos[ocurr[tomas.length].evento].calidad)}
+                  </span>
+                )}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: MONO, fontSize: 13 }}>{tomas.length + 1} de {ocurr.length}</div>
+                  <div style={{ height: 6, background: "rgba(255,255,255,0.2)", borderRadius: 3, marginTop: 4 }}>
+                    <div style={{ height: 6, borderRadius: 3, background: CORAL, width: `${(tomas.length / Math.max(ocurr.length, 1)) * 100}%` }} />
+                  </div>
+                </div>
+              </div>
+              <button onClick={tocar} style={{ width: "100%", marginTop: 10, padding: "14px 0", borderRadius: 12, border: "none", background: CORAL, color: "white", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>
+                TOCA AQUÍ cuando cambie el acorde
+              </button>
+              <div className="flex flex-wrap items-center gap-2" style={{ marginTop: 8 }}>
+                <button onClick={deshacerToma} disabled={tomas.length === 0} style={{ ...boton, background: "transparent", color: "white", borderColor: "rgba(255,255,255,0.4)" }}>↶ Deshacer</button>
+                <button onClick={() => terminarGrabado(true)} disabled={tomas.length === 0} style={{ ...boton, background: "white" }}>Terminar y guardar</button>
+                <button onClick={cancelarGrabado} style={{ ...boton, background: "transparent", color: "white", borderColor: "rgba(255,255,255,0.4)" }}>Cancelar</button>
+              </div>
+              <div style={{ fontSize: 11, opacity: 0.75, marginTop: 8, lineHeight: 1.4 }}>
+                También funciona ESPACIO o ENTER; ⌫ deshace y Esc cancela. Si te saltas acordes, toca igual: puedes terminar cuando quieras y lo que falte se estima.
+              </div>
+            </div>
+          )}
+
+          {/* Spotify de esta canción; se minimiza si estorba y la música sigue */}
+          <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "8px 10px" }}>
+            <div className="flex items-center justify-between" style={{ marginBottom: reproductor ? 6 : 0 }}>
+              <Titulo>♪ Spotify</Titulo>
+              <span className="flex items-center gap-2">
+              {puedeEditar && cancion.spotifyUri && !grabando && (
+                <button onClick={empezarGrabado} style={{ ...boton, padding: "1px 9px", fontSize: 11, color: CORAL, borderColor: CORAL, marginBottom: 6 }}>
+                  ● {anclas.length > 0 ? "Volver a grabar" : "Grabar tiempos"}
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setReproductor((v) => {
+                    guardar(PREF_REPRO, !v);
+                    return !v;
+                  });
+                }}
+                aria-label={reproductor ? "Minimizar" : "Mostrar"}
+                title={reproductor ? "Minimizar (la música sigue)" : "Mostrar"}
+                style={{ ...boton, padding: "0 7px", fontSize: 12, lineHeight: "18px", marginBottom: 6 }}
+              >
+                {reproductor ? "—" : "▢"}
+              </button>
+              </span>
+            </div>
+            <div ref={contRef} style={{ display: reproductor && cancion.spotifyUri ? "block" : "none", minHeight: 152 }} />
+            {cancion.spotifyUri ? (
+              <div style={{ marginTop: 6, fontSize: 11, color: MUTED, lineHeight: 1.35 }}>
+                {reproduciendo ? "● Siguiendo la canción. " : "Dale play y te sigue. "}
+                Si se adelanta o se atrasa, toca el acorde que estás oyendo y se ajusta.
+                <span className="flex items-center gap-2" style={{ marginTop: 6 }}>
+                  <span>Sincronía: si la letra va <b>atrás</b> de la canción, sube el adelanto.</span>
+                  <button
+                    onClick={() => {
+                      const n = Math.max(-2000, adelanto - 100);
+                      setAdelanto(n);
+                      guardar(PREF_ADELANTO + cancion.id, n);
+                    }}
+                    style={{ ...boton, padding: "0 8px" }}
+                    aria-label="Menos adelanto"
+                  >
+                    −
+                  </button>
+                  <b style={{ fontFamily: MONO, minWidth: 44, textAlign: "center" }}>{(adelanto / 1000).toFixed(1)} s</b>
+                  <button
+                    onClick={() => {
+                      const n = Math.min(3000, adelanto + 100);
+                      setAdelanto(n);
+                      guardar(PREF_ADELANTO + cancion.id, n);
+                    }}
+                    style={{ ...boton, padding: "0 8px" }}
+                    aria-label="Más adelanto"
+                  >
+                    +
+                  </button>
+                </span>
+                {anclas.length > 0 && (
+                  <>
+                    {" "}({anclas.length} {anclas.length === 1 ? "ajuste" : "ajustes"}){" "}
+                    <button onClick={borrarAjustes} style={{ fontSize: 11, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0 }}>
+                      borrar
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <p style={{ fontSize: 12, color: MUTED }}>
+                Esta canción aún no tiene liga de Spotify.{" "}
+                {puedeEditar && (
+                  <Link href={`/canciones/${cancion.id}/editar`} style={{ color: CORAL, fontWeight: 700 }}>
+                    Pégala en Editar
+                  </Link>
+                )}
+              </p>
+            )}
+            {aviso && <div style={{ marginTop: 4, fontSize: 11, color: MUTED }}>{aviso}</div>}
+          </section>
+
+          </div>
         </aside>
       </div>
     </div>
