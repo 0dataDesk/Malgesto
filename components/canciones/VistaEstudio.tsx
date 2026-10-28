@@ -248,6 +248,8 @@ function Titulo({ children }: { children: React.ReactNode }) {
 const PREF = "malgesto-estudio";
 const PREF_VAR = "malgesto-estudio-variantes";
 const PREF_LISTA = "malgesto-estudio-lista";
+// Lista de Spotify para estudiar (la de Jorge); se puede cambiar desde el reproductor.
+const LISTA_POR_DEFECTO = "https://open.spotify.com/playlist/1TAu56wH8UZi7861k2jU9k";
 
 function leer<T>(clave: string, defecto: T): T {
   try {
@@ -289,7 +291,7 @@ export function VistaEstudio({
   const [variantes, setVariantes] = useState<Record<string, number>>({});
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
   const [filtro, setFiltro] = useState<string[]>([]);
-  const [lista, setLista] = useState("");
+  const [lista, setLista] = useState(LISTA_POR_DEFECTO);
   const [reproductor, setReproductor] = useState(false);
   const [borrador, setBorrador] = useState("");
   const [eliminando, iniciarEliminar] = useTransition();
@@ -304,7 +306,7 @@ export function VistaEstudio({
         if (INSTRUMENTOS_ESTUDIO[g.instrumento].afinaciones.some((a) => a.id === g.afinId)) setAfinId(g.afinId as string);
       }
       setVariantes(leer(PREF_VAR, {}));
-      setLista(leer(PREF_LISTA, ""));
+      setLista(leer<string>(PREF_LISTA, LISTA_POR_DEFECTO));
       prefsLeidas.current = true;
     }, 0);
     return () => clearTimeout(t);
