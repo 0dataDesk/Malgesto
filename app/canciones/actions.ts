@@ -8,6 +8,7 @@ import {
   actualizarCancion,
   eliminarCancion,
   actualizarEstadoBorrador,
+  guardarTiempos,
   reemplazarAudio,
   quitarAudio,
   type CancionInput,
@@ -37,6 +38,15 @@ export async function eliminarCancionAction(cancionId: string, bandaId: string) 
   await eliminarCancion(cancionId);
   revalidatePath("/canciones");
   redirect(`/canciones?banda=${bandaId}`);
+}
+
+// Modo Estudio: tiempos marcados por acorde (milisegundos, en el orden en que
+// suenan). Quien puede editar la canción puede marcar.
+export async function guardarTiemposAction(cancionId: string, bandaId: string, tiemposMs: number[] | null) {
+  await requerirAccesoBloque(bandaId, "canciones");
+  if (tiemposMs && (!Array.isArray(tiemposMs) || tiemposMs.some((t) => !Number.isFinite(t) || t < 0))) throw new Error("Tiempos inválidos.");
+  await guardarTiempos(cancionId, tiemposMs);
+  revalidatePath(`/canciones/${cancionId}`);
 }
 
 // Brief "Fase 3: nueva vista de Canción" (Fase 1 §1 y §6): pasar de borrador
