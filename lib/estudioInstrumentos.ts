@@ -34,7 +34,14 @@ export const INSTRUMENTOS_ESTUDIO: Record<NombreInstrumento, { etiqueta: string;
   },
 };
 
-export type Forma = { trastes: (number | null)[]; origen: "catalogo" | "calculada" };
+export type Barre = { traste: number; desde: number; hasta: number };
+export type Forma = {
+  trastes: (number | null)[];
+  // Dedo (1 índice … 4 meñique) que pisa cada cuerda; null si está al aire o apagada.
+  dedos: (number | null)[];
+  barre: Barre | null;
+  origen: "catalogo" | "calculada";
+};
 
 // Formas comunes (guitarra, afinación estándar), de la cuerda 6 a la 1. "x" = no tocar.
 const CATALOGO_GUITARRA: Record<string, string> = {
@@ -53,75 +60,111 @@ const CATALOGO_UKULELE: Record<string, string> = {
 };
 
 function desdeTexto(txt: string): (number | null)[] {
-  // Los trastes de dos dígitos no están en el catálogo; cada carácter es una cuerda.
   return txt.split("").map((c) => (c === "x" ? null : Number(c)));
 }
 
-const cacheFormas = new Map<string, Forma | null>();
+// Sugerencia de digitación. Cejilla (dedo 1 sobre varias cuerdas) cuando hay
+// 2+ notas en el traste más bajo y harían falta más de 4 dedos, o 3+ notas ahí.
+// Los demás dedos van de menor a mayor traste. Es una guía, no una verdad única.
+export function asignarDedos(trastes: (number | null)[]): { dedos: (number | null)[]; barre: Barre | null; valido: boolean } {
+  const pisadas = trastes.map((t, cuerda) => ({ t, cuerda })).filter((x): x is { t: number; cuerda: number } => x.t !== null && x.t > 0);
+  const dedos: (number | null)[] = trastes.map(() => null);
+  if (pisadas.length === 0) return { dedos, barre: null, valido: true };
+  const minTraste = Math.min(...pisadas.map((p) => p.t));
+  const enMin = pisadas.filter((p) => p.t === minTraste);
+  let barre: Barre | null = null;
+  if (enMin.length >= 2 && (pisadas.length > 4 || enMin.length >= 3)) {
+    const desde = Math.min(...enMin.map((p) => p.cuerda));
+    const hasta = Math.max(...enMin.map((p) => p.cuerda));
+    const libre = trastes.slice(desde, hasta + 1).every((t) => t === null || t >= minTraste);
+    if (libre) barre = { traste: minTraste, desde, hasta };
+  }
+  const resto = pisadas
+    .filter((p) => !(barre && p.t === minTraste && p.cuerda >= barre.desde && p.cuerda <= barre.hasta))
+    .sort((x, y) => x.t - y.t || x.cuerda - y.cuerda);
+  let dedo = barre ? 2 : 1;
+  if (barre) enMin.forEach((p) => (dedos[p.cuerda] = 1));
+  for (const p of resto) {
+    if (dedo > 4) return { dedos, barre, valido: false };
+    dedos[p.cuerda] = dedo;
+    dedo += 1;
+  }
+  return { dedos, barre, valido: true };
+}
+
+function conDedos(trastes: (number | null)[], origen: Forma["origen"]): Forma {
+  const { dedos, barre } = asignarDedos(trastes);
+  return { trastes, dedos, barre, origen };
+}
+
+const cacheVariantes = new Map<string, Forma[]>();
 
 export function notasDelAcorde(raiz: Nota, calidad: Calidad): number[] {
   const r = NOTAS.indexOf(raiz);
   return semitonosDeCalidad(calidad).map((s) => (r + s) % 12);
 }
 
-// Forma del acorde en el instrumento y la afinación dados. Bajo: sin formas
-// (se toca nota por nota; para eso está el mástil).
-export function formaDeAcorde(
-  instrumento: NombreInstrumento,
-  afinacion: Afinacion,
-  raiz: Nota,
-  calidad: Calidad
-): Forma | null {
-  if (instrumento === "bajo") return null;
+// Varias formas de tocar el mismo acorde, de la más cómoda/abierta a las más
+// agudas. Bajo: sin formas (se toca nota por nota; para eso está el mástil).
+export function variantesDeAcorde(instrumento: NombreInstrumento, afinacion: Afinacion, raiz: Nota, calidad: Calidad): Forma[] {
+  if (instrumento === "bajo") return [];
   const clave = `${instrumento}|${afinacion.id}|${raiz}|${calidad}`;
-  if (cacheFormas.has(clave)) return cacheFormas.get(clave)!;
+  const guardada = cacheVariantes.get(clave);
+  if (guardada) return guardada;
 
   const simbolo = simboloAcorde(raiz, calidad);
-  let forma: Forma | null = null;
+  const lista: Forma[] = [];
+  const agregar = (f: Forma) => {
+    if (!lista.some((x) => x.trastes.join(",") === f.trastes.join(","))) lista.push(f);
+  };
   const esEstandarGuitarra = instrumento === "guitarra" && afinacion.id === "estandar";
-  if (esEstandarGuitarra && CATALOGO_GUITARRA[simbolo]) {
-    forma = { trastes: desdeTexto(CATALOGO_GUITARRA[simbolo]), origen: "catalogo" };
-  } else if (instrumento === "ukulele" && CATALOGO_UKULELE[simbolo]) {
-    forma = { trastes: desdeTexto(CATALOGO_UKULELE[simbolo]), origen: "catalogo" };
-  } else {
-    forma = calcularForma(afinacion, raiz, calidad);
-  }
-  cacheFormas.set(clave, forma);
-  return forma;
+  if (esEstandarGuitarra && CATALOGO_GUITARRA[simbolo]) agregar(conDedos(desdeTexto(CATALOGO_GUITARRA[simbolo]), "catalogo"));
+  if (instrumento === "ukulele" && CATALOGO_UKULELE[simbolo]) agregar(conDedos(desdeTexto(CATALOGO_UKULELE[simbolo]), "catalogo"));
+  calcularFormas(afinacion, raiz, calidad).forEach(agregar);
+  const res = lista.slice(0, 6);
+  cacheVariantes.set(clave, res);
+  return res;
 }
 
-// Búsqueda de una forma tocable: todas las notas del acorde presentes, la raíz
-// como nota más grave, pocas cuerdas apagadas, mano compacta y cerca del inicio.
-function calcularForma(afinacion: Afinacion, raiz: Nota, calidad: Calidad): Forma | null {
+export function formaDeAcorde(instrumento: NombreInstrumento, afinacion: Afinacion, raiz: Nota, calidad: Calidad, variante = 0): Forma | null {
+  const v = variantesDeAcorde(instrumento, afinacion, raiz, calidad);
+  return v[Math.min(variante, v.length - 1)] ?? null;
+}
+
+// Busca la mejor forma tocable en cada zona del mástil: todas las notas del
+// acorde, la raíz como nota más grave, pocas cuerdas apagadas, mano compacta y
+// una digitación posible con 4 dedos (cejilla incluida).
+function calcularFormas(afinacion: Afinacion, raiz: Nota, calidad: Calidad): Forma[] {
   const cuerdas = afinacion.cuerdas;
   const n = cuerdas.length;
   const clase = notasDelAcorde(raiz, calidad);
   const idxRaiz = clase[0];
   const minSonando = n > 4 ? 4 : 3;
+  const porZona: { trastes: (number | null)[]; puntos: number }[] = [];
 
-  let mejor: { trastes: (number | null)[]; puntos: number } | null = null;
-  for (let base = 0; base <= 9; base++) {
+  for (let base = 0; base <= 10; base += 2) {
     const opciones: (number | null)[][] = cuerdas.map((abierta) => {
       const o: (number | null)[] = [null];
-      if (clase.includes(abierta % 12)) o.push(0);
+      if (base === 0 && clase.includes(abierta % 12)) o.push(0);
       for (let t = Math.max(base, 1); t <= base + 3; t++) if (clase.includes((abierta + t) % 12)) o.push(t);
       return o;
     });
+    let mejor: { trastes: (number | null)[]; puntos: number } | null = null;
     const actual: (number | null)[] = new Array(n).fill(null);
     const recorrer = (i: number) => {
       if (i === n) {
         const sonando = actual.filter((t) => t !== null).length;
         if (sonando < minSonando) return;
         const primera = actual.findIndex((t) => t !== null);
-        if (actual.slice(primera).some((t) => t === null)) return; // sin huecos
-        if ((cuerdas[primera] + (actual[primera] as number)) % 12 !== idxRaiz) return; // raíz abajo
+        if (actual.slice(primera).some((t) => t === null)) return;
+        if ((cuerdas[primera] + (actual[primera] as number)) % 12 !== idxRaiz) return;
         const presentes = new Set(actual.map((t, k) => (t === null ? -1 : (cuerdas[k] + t) % 12)));
         if (!clase.every((c) => presentes.has(c))) return;
+        if (!asignarDedos(actual).valido) return;
         const pisados = actual.filter((t): t is number => t !== null && t > 0);
         const span = pisados.length ? Math.max(...pisados) - Math.min(...pisados) : 0;
         const abiertas = actual.filter((t) => t === 0).length;
-        const puntos =
-          (n - sonando) * 2 + span * 1.5 + pisados.reduce((a, b) => a + b, 0) * 0.15 - abiertas * 0.8 + (pisados.length > 4 ? 3 : 0);
+        const puntos = (n - sonando) * 2 + span * 1.5 + pisados.reduce((a, b) => a + b, 0) * 0.12 - abiertas * 0.8;
         if (!mejor || puntos < mejor.puntos) mejor = { trastes: [...actual], puntos };
         return;
       }
@@ -132,9 +175,9 @@ function calcularForma(afinacion: Afinacion, raiz: Nota, calidad: Calidad): Form
       actual[i] = null;
     };
     recorrer(0);
+    if (mejor) porZona.push(mejor);
   }
-  const m = mejor as { trastes: (number | null)[]; puntos: number } | null;
-  return m ? { trastes: m.trastes, origen: "calculada" } : null;
+  return porZona.sort((a, b) => a.puntos - b.puntos).map((z) => conDedos(z.trastes, "calculada"));
 }
 
 // Todas las posiciones de las notas del acorde en el mástil (traste 0 a `hasta`).
