@@ -111,9 +111,13 @@ export function contarBloquesActivos(b: {
   stagePlotHabilitado: boolean;
   presskitHabilitado: boolean;
 }): number {
-  return (
-    1 +
-    [b.cancionesHabilitado, b.setlistHabilitado, b.seteosHabilitado, b.finanzasHabilitado, b.stagePlotHabilitado, b.presskitHabilitado].filter(Boolean)
-      .length
-  );
+  const activos: [NombreBloque, boolean][] = [
+    ["canciones", b.cancionesHabilitado],
+    ["set_list", b.setlistHabilitado],
+    ["seteos", b.seteosHabilitado],
+    ["finanzas", b.finanzasHabilitado],
+    ["stage_plot", b.stagePlotHabilitado],
+    ["presskit", b.presskitHabilitado],
+  ];
+  return 1 + activos.filter(([k, v]) => v && !VISTAS_APAGADAS.includes(k)).length;
 }

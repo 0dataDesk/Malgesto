@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { VISTAS_APAGADAS } from "@/lib/bloques";
 import { obtenerStagePlotPorToken } from "@/lib/stagePlotData";
 import { construirRider, obtenerRiderInfo, obtenerInputListManual } from "@/lib/riderData";
 import { RiderTecnicoModulo } from "@/components/stagePlot/RiderTecnicoModulo";
@@ -15,6 +16,8 @@ import { RiderTecnicoModulo } from "@/components/stagePlot/RiderTecnicoModulo";
 // el link público, solo lectura.
 export default async function StagePlotPublicoPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  // Rider Técnico está en el estante de vistas apagadas: la liga pública también.
+  if (VISTAS_APAGADAS.includes("stage_plot")) notFound();
   const resultado = await obtenerStagePlotPorToken(token);
   if (!resultado) notFound();
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import type { BandaSimple, ActualizacionBanda, Plaza } from "@/lib/gestionData";
-import { contarBloquesActivos } from "@/lib/bloques";
+import { contarBloquesActivos, VISTAS_APAGADAS } from "@/lib/bloques";
 import { INSTRUMENTOS, ETIQUETA_INSTRUMENTO, etiquetaPlaza, type Instrumento } from "@/lib/instrumentoCatalogo";
 import { textoLegibleSobre } from "@/lib/colorContraste";
 import { ToggleChip } from "@/components/ui/ToggleChip";
@@ -533,9 +533,9 @@ function DetalleBanda({
                 <ToggleChip label="Calendario" active dot={false} onClick={() => {}} />
                 <ToggleChip label="Canciones" active={canciones} onClick={() => setCanciones((v) => !v)} />
                 <ToggleChip label="Set List" active={setlist} onClick={() => setSetlist((v) => !v)} />
-                <ToggleChip label="Seteos" active={seteos} onClick={() => setSeteos((v) => !v)} />
-                <ToggleChip label="Finanzas" active={finanzas} onClick={() => setFinanzas((v) => !v)} />
-                <ToggleChip label="Rider Técnico" active={stagePlot} onClick={() => setStagePlot((v) => !v)} />
+                {!VISTAS_APAGADAS.includes("seteos") && <ToggleChip label="Seteos" active={seteos} onClick={() => setSeteos((v) => !v)} />}
+                {!VISTAS_APAGADAS.includes("finanzas") && <ToggleChip label="Finanzas" active={finanzas} onClick={() => setFinanzas((v) => !v)} />}
+                {!VISTAS_APAGADAS.includes("stage_plot") && <ToggleChip label="Rider Técnico" active={stagePlot} onClick={() => setStagePlot((v) => !v)} />}
                 <ToggleChip label="Presskit" active={presskit} onClick={() => setPresskit((v) => !v)} />
               </div>
             </div>
@@ -789,17 +789,17 @@ export function BandasPanel({ bandas: bandasIniciales, plazas: plazasIniciales }
                     Set List
                   </span>
                 )}
-                {b.seteosHabilitado && (
+                {b.seteosHabilitado && !VISTAS_APAGADAS.includes("seteos") && (
                   <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={PILL_BLOQUE}>
                     Seteos
                   </span>
                 )}
-                {b.finanzasHabilitado && (
+                {b.finanzasHabilitado && !VISTAS_APAGADAS.includes("finanzas") && (
                   <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={PILL_BLOQUE}>
                     Finanzas
                   </span>
                 )}
-                {b.stagePlotHabilitado && (
+                {b.stagePlotHabilitado && !VISTAS_APAGADAS.includes("stage_plot") && (
                   <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={PILL_BLOQUE}>
                     Rider Técnico
                   </span>
