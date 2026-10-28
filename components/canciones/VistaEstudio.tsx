@@ -50,12 +50,12 @@ function tono(base: string, nivel: number): string {
 }
 
 // ---- Diagrama de acorde (con dedos y cejilla) --------------------------------
-function Diagrama({ forma, afinacion, mini = false }: { forma: Forma; afinacion: Afinacion; mini?: boolean }) {
+function Diagrama({ forma, afinacion, mini = false, capo = 0 }: { forma: Forma; afinacion: Afinacion; mini?: boolean; capo?: number }) {
   const n = afinacion.cuerdas.length;
   const ancho = mini ? 78 : 150;
-  const alto = mini ? 84 : 160;
+  const alto = (mini ? 84 : 160) + (capo > 0 ? (mini ? 4 : 6) : 0);
   const izq = mini ? 15 : 24;
-  const arriba = mini ? 15 : 26;
+  const arriba = (mini ? 15 : 26) + (capo > 0 ? (mini ? 4 : 6) : 0);
   const filas = 5;
   const sx = (ancho - izq * 2) / (n - 1);
   const sy = (alto - arriba - 5) / filas;
@@ -73,6 +73,13 @@ function Diagrama({ forma, afinacion, mini = false }: { forma: Forma; afinacion:
           <line key={i} x1={izq + i * sx} x2={izq + i * sx} y1={arriba} y2={arriba + filas * sy} />
         ))}
       </g>
+      {capo > 0 && (
+        <g>
+          <rect x={izq - 4} y={arriba - (mini ? 3 : 5)} width={ancho - izq * 2 + 8} height={mini ? 6 : 10} rx={mini ? 3 : 5} fill={CORAL} />
+          <text x={1} y={arriba + (mini ? 3 : 4)} fontSize={mini ? 9 : 12} fontWeight={800} fill={CORAL} fontFamily={MONO}>{capo}</text>
+          {!mini && <text x={ancho / 2} y={arriba + 3.5} textAnchor="middle" fontSize={9} fontWeight={800} fill="white" fontFamily={MONO}>CAPO</text>}
+        </g>
+      )}
       {forma.barre && (
         <rect
           x={izq + forma.barre.desde * sx - r}
@@ -109,7 +116,7 @@ function Diagrama({ forma, afinacion, mini = false }: { forma: Forma; afinacion:
 // ---- Mástil -----------------------------------------------------------------
 // Dibuja las notas de uno o varios acordes. Si dos acordes comparten una nota
 // en el mismo lugar, el círculo se parte en gajos de sus colores.
-function Mastil({ afinacion, acordes }: { afinacion: Afinacion; acordes: { nota: Nota; calidad: Calidad }[] }) {
+function Mastil({ afinacion, acordes, capo = 0 }: { afinacion: Afinacion; acordes: { nota: Nota; calidad: Calidad }[]; capo?: number }) {
   const trastes = 12;
   const n = afinacion.cuerdas.length;
   const izq = 26;
@@ -148,8 +155,11 @@ function Mastil({ afinacion, acordes }: { afinacion: Afinacion; acordes: { nota:
   return (
     <svg width="100%" viewBox={`0 0 ${ancho} ${alto}`} aria-hidden>
       {Array.from({ length: trastes + 1 }, (_, i) => (
-        <line key={i} x1={izq + i * wf} x2={izq + i * wf} y1={12} y2={12 + (n - 1) * sy} stroke={INK} strokeWidth={i === 0 ? 3 : 0.8} opacity={i === 0 ? 1 : 0.5} />
+        <line key={i} x1={izq + i * wf} x2={izq + i * wf} y1={12} y2={12 + (n - 1) * sy} stroke={i === 0 && capo > 0 ? CORAL : INK} strokeWidth={i === 0 ? (capo > 0 ? 8 : 3) : 0.8} opacity={i === 0 ? 1 : 0.5} strokeLinecap="round" />
       ))}
+      {capo > 0 && (
+        <text x={izq} y={8} textAnchor="middle" fontSize={9} fontWeight={800} fill={CORAL} fontFamily={MONO}>CAPO {capo}</text>
+      )}
       {afinacion.cuerdas.map((_, c) => (
         <g key={c}>
           <line x1={izq} x2={izq + trastes * wf} y1={y(c)} y2={y(c)} stroke={INK} strokeWidth={0.9} opacity={0.65} />
@@ -157,7 +167,7 @@ function Mastil({ afinacion, acordes }: { afinacion: Afinacion; acordes: { nota:
         </g>
       ))}
       {[3, 5, 7, 9, 12].map((f) => (
-        <text key={f} x={izq + (f - 0.5) * wf} y={alto - 4} fontSize={9} textAnchor="middle" fill={MUTED} fontFamily={MONO}>{f}</text>
+        <text key={f} x={izq + (f - 0.5) * wf} y={alto - 4} fontSize={9} textAnchor="middle" fill={MUTED} fontFamily={MONO}>{f + capo}</text>
       ))}
       {[...puntos.values()].map((p, i) => {
         const r = p.raiz ? 12 : 10;
@@ -704,7 +714,7 @@ export function VistaEstudio({
                     >
                       <div style={{ background: "white", borderRadius: 9, padding: 2, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 50, width: "100%" }}>
                         {vs[elegida] ? (
-                          <Diagrama forma={vs[elegida]} afinacion={afinacion} mini />
+                          <Diagrama forma={vs[elegida]} afinacion={afinacion} mini capo={cancion.capo} />
                         ) : (
                           <span style={{ fontFamily: MONO, fontSize: 11, color: INK }}>{notasDelAcorde(d.nota, d.calidad).map((p) => NOTAS[p]).join(" ")}</span>
                         )}
@@ -734,7 +744,7 @@ export function VistaEstudio({
                           title={f.origen === "catalogo" ? "Forma común" : "Forma sugerida"}
                           style={{ background: "white", borderRadius: 8, border: i === elegida ? `3px solid ${INK}` : "3px solid transparent", padding: 1, cursor: "pointer", display: "flex", justifyContent: "center" }}
                         >
-                          <Diagrama forma={f} afinacion={afinacion} mini />
+                          <Diagrama forma={f} afinacion={afinacion} mini capo={cancion.capo} />
                         </button>
                       ))}
                     </div>
@@ -950,7 +960,7 @@ export function VistaEstudio({
                     </button>
                   )}
                 </div>
-                <Mastil afinacion={afinacion} acordes={(filtro.length ? distintos.filter((d) => filtro.includes(claveDe(d.nota, d.calidad))) : distintos).map((d) => ({ nota: d.nota, calidad: d.calidad }))} />
+                <Mastil capo={cancion.capo} afinacion={afinacion} acordes={(filtro.length ? distintos.filter((d) => filtro.includes(claveDe(d.nota, d.calidad))) : distintos).map((d) => ({ nota: d.nota, calidad: d.calidad }))} />
               </section>
 
               <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(0,1fr) 230px" }}>
