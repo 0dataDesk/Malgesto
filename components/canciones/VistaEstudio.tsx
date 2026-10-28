@@ -7,7 +7,7 @@ import { eliminarCancionAction } from "@/app/canciones/actions";
 import { NOTAS, simboloAcorde, colorRaizAcorde, colorContrasteTexto, tonosDelAcorde, type Calidad, type Nota } from "@/lib/cancionTeoria";
 import { formatoMMSS } from "@/lib/duracion";
 import { guardarTiemposAction } from "@/app/canciones/actions";
-import { ocurrencias, ocurrenciaEn, posicionEstimada } from "@/lib/estudioSync";
+import { ocurrencias, ocurrenciaPorAnclas, agregarAncla, posicionEstimada, type Ancla } from "@/lib/estudioSync";
 import {
   INSTRUMENTOS_ESTUDIO,
   variantesDeAcorde,
@@ -314,13 +314,11 @@ export function VistaEstudio({
   const [reproductor, setReproductor] = useState(true);
   const [fuente, setFuente] = useState<"cancion" | "lista">(cancion.spotifyUri ? "cancion" : "lista");
   const [reproduciendo, setReproduciendo] = useState(false);
-  const [marcando, setMarcando] = useState(false);
-  const [marcas, setMarcas] = useState<number[]>([]);
-  const [tiempos, setTiempos] = useState<number[] | null>(cancion.tiemposMs);
+  const [anclas, setAnclas] = useState<Ancla[]>(cancion.tiemposMs ?? []);
   const [aviso, setAviso] = useState("");
   const contRef = useRef<HTMLDivElement>(null);
   const ctrlRef = useRef<ControladorSpotify | null>(null);
-  const ultimoRef = useRef<{ ms: number; rec: number; pausado: boolean; uri: string | null }>({ ms: 0, rec: 0, pausado: true, uri: null });
+  const ultimoRef = useRef<{ ms: number; rec: number; pausado: boolean; uri: string | null; dur: number }>({ ms: 0, rec: 0, pausado: true, uri: null, dur: 0 });
   const ocurrRef = useRef(-1);
   const [eliminando, iniciarEliminar] = useTransition();
   const prefsLeidas = useRef(false);
@@ -383,7 +381,6 @@ export function VistaEstudio({
 
   const total = eventos.length;
   const ocurr = useMemo(() => ocurrencias(indicesPorSeccion, cancion.secciones.map((x) => x.repiteVeces)), [indicesPorSeccion, cancion.secciones]);
-  const tiemposValidos = !!tiempos && tiempos.length === ocurr.length && ocurr.length > 0;
   const uriActual = fuente === "cancion" && cancion.spotifyUri ? cancion.spotifyUri : uriDeLiga(lista);
   const uriInicialRef = useRef(uriActual);
   const actualIdx = Math.min(idx, Math.max(total - 1, 0));
@@ -396,6 +393,7 @@ export function VistaEstudio({
     if (!ev) return;
     setIdx(i);
     setFiltro([ev.clave]);
+    afinar(i);
   };
 
   useEffect(() => {
@@ -432,7 +430,7 @@ export function VistaEstudio({
         ctrlRef.current = c;
         c.addListener("playback_update", (e) => {
           const d = e.data ?? {};
-          ultimoRef.current = { ms: d.position ?? 0, rec: performance.now(), pausado: d.isPaused ?? true, uri: d.playingURI ?? null };
+          ultimoRef.current = { ms: d.position ?? 0, rec: performance.now(), pausado: d.isPaused ?? true, uri: d.playingURI ?? null, dur: (e.data as { duration?: number }).duration ?? 0 };
           setReproduciendo(!(d.isPaused ?? true));
         });
       });
@@ -485,12 +483,15 @@ export function VistaEstudio({
     return u.uri ? u.uri === cancion.spotifyUri : fuente === "cancion" && !!cancion.spotifyUri;
   };
 
-  // Seguir la canción: el acorde que suena según las marcas.
+  // Seguir la canción: arranca solo cuando le das play en Spotify. Sin ajustes, el
+  // reparto es parejo de 0 a la duración; cada clic sobre el acorde que estás
+  // oyendo agrega un ancla y lo afina.
   useEffect(() => {
-    if (!tiemposValidos || marcando || !tiempos) return;
+    if (ocurr.length === 0) return;
     const id = setInterval(() => {
-      if (!suenaEsta()) return;
-      const k = ocurrenciaEn(tiempos, posicionAhora());
+      const u = ultimoRef.current;
+      if (u.pausado || !suenaEsta()) return;
+      const k = ocurrenciaPorAnclas(anclas, posicionAhora(), ocurr.length, u.dur);
       if (k < 0 || k === ocurrRef.current) return;
       ocurrRef.current = k;
       const ev = ocurr[k].evento;
@@ -501,73 +502,27 @@ export function VistaEstudio({
     }, 120);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tiemposValidos, marcando, tiempos, ocurr, eventos, fuente]);
+  }, [anclas, ocurr, eventos, fuente]);
 
-  // Marcar tiempos: ESPACIO en cada cambio de acorde, ⌫ deshace, Esc cancela.
-  useEffect(() => {
-    if (!marcando) return;
-    const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement | null)?.tagName;
-      if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
-      if (e.key === "Escape") {
-        setMarcando(false);
-        setAviso("Marcado cancelado.");
-        return;
-      }
-      if (e.key === "Backspace") {
-        e.preventDefault();
-        setMarcas((m) => {
-          const nuevo = m.slice(0, -1);
-          const ev = ocurr[nuevo.length]?.evento;
-          if (ev !== undefined && eventos[ev]) setIdx(ev);
-          return nuevo;
-        });
-        return;
-      }
-      if (e.key !== " ") return;
-      e.preventDefault();
-      const u = ultimoRef.current;
-      if (u.pausado) {
-        setAviso("Dale play a la canción en Spotify y marca de nuevo.");
-        return;
-      }
-      setMarcas((m) => {
-        if (m.length >= ocurr.length) return m;
-        const t = Math.max(0, Math.round(posicionAhora() - 150));
-        const nuevo = [...m, Math.max(t, m.length ? m[m.length - 1] : 0)];
-        const sig = ocurr[nuevo.length]?.evento;
-        if (sig !== undefined && eventos[sig]) setIdx(sig);
-        if (nuevo.length === ocurr.length) {
-          setMarcando(false);
-          setTiempos(nuevo);
-          setAviso("Guardando marcas…");
-          void guardarTiemposAction(cancion.id, cancion.bandaId, nuevo)
-            .then(() => setAviso("Marcas guardadas. Dale play y la canción te sigue."))
-            .catch(() => setAviso("No se pudieron guardar las marcas."));
-        }
-        return nuevo;
-      });
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [marcando, ocurr, eventos]);
+  // Al tocar un acorde mientras suena la canción: "este es el que oigo ahora".
+  const afinar = (evento: number) => {
+    const u = ultimoRef.current;
+    if (u.pausado || !suenaEsta()) return;
+    const candidatas = ocurr.map((o, k) => ({ o, k })).filter((x) => x.o.evento === evento);
+    if (candidatas.length === 0) return;
+    const ref = ocurrRef.current >= 0 ? ocurrRef.current : 0;
+    const k = candidatas.reduce((m, x) => (Math.abs(x.k - ref) < Math.abs(m.k - ref) ? x : m)).k;
+    const nuevas = agregarAncla(anclas, [k, Math.max(0, Math.round(posicionAhora() - 250))]);
+    ocurrRef.current = k;
+    setAnclas(nuevas);
+    if (puedeEditar) void guardarTiemposAction(cancion.id, cancion.bandaId, nuevas).catch(() => setAviso("No se pudo guardar el ajuste."));
+  };
 
-  const empezarMarcado = () => {
-    if (!cancion.spotifyUri) {
-      setAviso("Primero pega la liga de la canción de Spotify en Editar.");
-      return;
-    }
-    setFuente("cancion");
-    setMarcas([]);
+  const borrarAjustes = () => {
+    setAnclas([]);
     ocurrRef.current = -1;
-    const ev = ocurr[0]?.evento;
-    if (ev !== undefined && eventos[ev]) {
-      setIdx(ev);
-      setFiltro([eventos[ev].clave]);
-    }
-    setAviso("");
-    setMarcando(true);
+    if (puedeEditar) void guardarTiemposAction(cancion.id, cancion.bandaId, null).catch(() => undefined);
+    setAviso("Ajustes borrados.");
   };
 
   const distintos = useMemo(() => {
@@ -599,7 +554,6 @@ export function VistaEstudio({
   const grado = actual ? gradoEnTonalidad(actual.nota, actual.calidad, tonalidad) : null;
   const rutaActual = actual ? indicesPorSeccion[actual.sec] ?? [] : [];
   const patron = patronEnSecuencia(rutaActual.map((i) => gradoEnTonalidad(eventos[i].nota, eventos[i].calidad, tonalidad).romano));
-  const siguienteMarca = marcando ? ocurr[marcas.length] : null;
 
   const eliminar = () => {
     if (!window.confirm(`¿Eliminar «${cancion.titulo}»? No se puede deshacer.`)) return;
@@ -638,21 +592,6 @@ export function VistaEstudio({
           <button style={boton} onClick={() => setSemi((s) => s - 1)} aria-label="Bajar medio tono" title="Bajar medio tono">−</button>
           <span style={{ fontFamily: MONO, fontSize: 12, minWidth: 22, textAlign: "center" }}>{semi > 0 ? `+${semi}` : semi}</span>
           <button style={boton} onClick={() => setSemi((s) => s + 1)} aria-label="Subir medio tono" title="Subir medio tono">+</button>
-          {puedeEditar && cancion.spotifyUri && (
-            <button
-              style={{ ...boton, background: marcando ? INK : CARD, color: marcando ? "white" : CORAL, borderColor: CORAL }}
-              onClick={empezarMarcado}
-              disabled={marcando}
-              title="Dale play en Spotify y presiona ESPACIO en cada cambio de acorde"
-            >
-              {marcando ? "● Marcando…" : tiempos ? "↻ Volver a marcar" : "● Marcar tiempos"}
-            </button>
-          )}
-          {puedeEditar && !cancion.spotifyUri && (
-            <Link href={`/canciones/${cancion.id}/editar`} style={{ ...boton, color: CORAL, borderColor: CORAL }} title="Pega la liga de la canción en Spotify para poder marcar tiempos">
-              + Liga de Spotify
-            </Link>
-          )}
           <Link href={escenarioHref} style={boton}>Vista escenario</Link>
           {puedeEditar && (
             <>
@@ -819,22 +758,16 @@ export function VistaEstudio({
             </div>
             <div ref={contRef} style={{ display: reproductor ? "block" : "none", minHeight: reproductor ? 152 : 0 }} />
             {cancion.spotifyUri && (
-              <div className="flex items-center justify-between gap-2" style={{ marginTop: 6, fontSize: 10, color: MUTED }}>
-                <span>
-                  {marcando
-                    ? "Marcando…"
-                    : tiemposValidos
-                    ? reproduciendo
-                      ? "● Siguiendo la canción"
-                      : "Sincronizada: dale play"
-                    : tiempos
-                    ? "Marcas desfasadas: vuelve a marcar"
-                    : "Sin marcar"}
-                </span>
-                {puedeEditar && !marcando && (
-                  <button onClick={empezarMarcado} style={{ ...boton, padding: "1px 7px", fontSize: 10 }}>
-                    {tiempos ? "Volver a marcar" : "Marcar tiempos"}
-                  </button>
+              <div style={{ marginTop: 6, fontSize: 10, color: MUTED, lineHeight: 1.35 }}>
+                {reproduciendo ? "● Siguiendo la canción. " : "Dale play y te sigue. "}
+                Si se adelanta o se atrasa, toca el acorde que estás oyendo y se ajusta.
+                {anclas.length > 0 && (
+                  <>
+                    {" "}({anclas.length} {anclas.length === 1 ? "ajuste" : "ajustes"}){" "}
+                    <button onClick={borrarAjustes} style={{ fontSize: 10, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0 }}>
+                      borrar
+                    </button>
+                  </>
                 )}
               </div>
             )}
@@ -930,16 +863,6 @@ export function VistaEstudio({
 
         {/* Derecha: mástil, todos los acordes y círculo */}
         <aside className="order-3 flex flex-col gap-3 overflow-y-auto px-4 py-3" style={{ borderLeft: `1px solid ${LINE}`, background: BG }}>
-          {marcando && (
-            <div style={{ background: INK, color: "white", borderRadius: 14, padding: "10px 12px", fontSize: 13, lineHeight: 1.4 }}>
-              <b>Marcando tiempos.</b> Dale play a la canción en Spotify y presiona <b>ESPACIO</b> justo cuando cambie cada acorde.
-              <div style={{ marginTop: 6 }}>
-                Siguiente:{" "}
-                <b style={{ fontFamily: MONO }}>{siguienteMarca && eventos[siguienteMarca.evento] ? simboloAcorde(eventos[siguienteMarca.evento].nota, eventos[siguienteMarca.evento].calidad) : "—"}</b>{" "}
-                ({marcas.length + 1} de {ocurr.length}) · ⌫ deshace · Esc cancela
-              </div>
-            </div>
-          )}
           <div className="flex flex-wrap items-center gap-1.5">
             {(Object.keys(INSTRUMENTOS_ESTUDIO) as NombreInstrumento[]).map((k) => (
               <button

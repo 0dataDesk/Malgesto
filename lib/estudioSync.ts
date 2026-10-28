@@ -23,35 +23,39 @@ export function ocurrencias(indicesPorSeccion: number[][], repeticiones: number[
   return out;
 }
 
-// Índice de la ocurrencia que suena en `posicionMs`: la última marca que ya
-// pasó. -1 si todavía no empieza (o no hay marcas).
-export function ocurrenciaEn(tiemposMs: (number | null)[], posicionMs: number): number {
-  let lo = 0;
-  let hi = tiemposMs.length - 1;
-  let res = -1;
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1;
-    const t = tiemposMs[mid];
-    if (t === null || t === undefined) {
-      // marca faltante: buscar hacia atrás la más cercana válida
-      let k = mid - 1;
-      while (k >= lo && (tiemposMs[k] === null || tiemposMs[k] === undefined)) k--;
-      if (k < lo) {
-        lo = mid + 1;
-        continue;
-      }
-      if ((tiemposMs[k] as number) <= posicionMs) {
-        res = k;
-        lo = mid + 1;
-      } else hi = k - 1;
-      continue;
+// Anclas: pares [ocurrencia, milisegundo] que dicen "este acorde suena aquí".
+// Entre dos anclas el tiempo se reparte parejo; si no hay anclas, la canción se
+// reparte parejo de 0 a su duración. Cada ancla que se agrega afina el reparto.
+export type Ancla = [number, number];
+
+export function anclasValidas(x: unknown): Ancla[] {
+  if (!Array.isArray(x)) return [];
+  return x.filter((a): a is Ancla => Array.isArray(a) && a.length === 2 && Number.isFinite(a[0]) && Number.isFinite(a[1]) && a[0] >= 0 && a[1] >= 0).sort((a, b) => a[0] - b[0]);
+}
+
+// Agrega (o reemplaza) un ancla y descarta las que quedarían en desorden.
+export function agregarAncla(anclas: Ancla[], nueva: Ancla): Ancla[] {
+  const sin = anclas.filter((a) => a[0] !== nueva[0]);
+  const coherentes = sin.filter((a) => (a[0] < nueva[0] ? a[1] < nueva[1] : a[1] > nueva[1]));
+  return [...coherentes, nueva].sort((a, b) => a[0] - b[0]);
+}
+
+// Ocurrencia que suena en `posicionMs`; -1 si aún no empieza.
+export function ocurrenciaPorAnclas(anclas: Ancla[], posicionMs: number, total: number, duracionMs: number): number {
+  if (total <= 0) return -1;
+  const puntos: Ancla[] = [...anclas];
+  if (!puntos.some((a) => a[0] === 0)) puntos.unshift([0, 0]);
+  if (!puntos.some((a) => a[0] >= total)) puntos.push([total, Math.max(duracionMs, (puntos[puntos.length - 1]?.[1] ?? 0) + 1000)]);
+  if (posicionMs < puntos[0][1]) return -1;
+  for (let i = 0; i < puntos.length - 1; i++) {
+    const [k0, t0] = puntos[i];
+    const [k1, t1] = puntos[i + 1];
+    if (posicionMs < t1 || i === puntos.length - 2) {
+      const frac = t1 > t0 ? (posicionMs - t0) / (t1 - t0) : 0;
+      return Math.min(total - 1, Math.max(0, Math.floor(k0 + frac * (k1 - k0))));
     }
-    if (t <= posicionMs) {
-      res = mid;
-      lo = mid + 1;
-    } else hi = mid - 1;
   }
-  return res;
+  return total - 1;
 }
 
 // Posición estimada entre dos avisos del reproductor (que llegan cada cierto tiempo).
