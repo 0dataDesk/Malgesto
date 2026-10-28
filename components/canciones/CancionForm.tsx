@@ -320,7 +320,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
   const [autor, setAutor] = useState(cancionExistente?.autor ?? "");
   const [esBorrador, setEsBorrador] = useState(cancionExistente?.esBorrador ?? true);
   const [titulo, setTitulo] = useState(cancionExistente?.titulo ?? "");
-  const [bpm, setBpm] = useState(cancionExistente?.bpm ?? 92);
+  const [bpm, setBpm] = useState(cancionExistente ? cancionExistente.bpm ?? 0 : 92);
   const [capo, setCapo] = useState(cancionExistente?.capo ?? 0);
   const [spotify, setSpotify] = useState(cancionExistente?.spotifyUri ? `https://open.spotify.com/track/${cancionExistente.spotifyUri.split(":").pop()}` : "");
   const [duracion, setDuracion] = useState(formatoMMSS(cancionExistente?.duracionSegundos ?? null) ?? "");
@@ -488,16 +488,16 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
           <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: "6px 8px" }}>
             <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT }}>BPM</div>
             <div className="mt-0.5 flex items-center justify-between">
-              <button type="button" onClick={() => setBpm((b) => Math.max(20, b - 1))} style={{ width: 18, height: 18, borderRadius: 5, background: CHIP, color: MUTED, fontFamily: MONO }}>−</button>
-              <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 15 }}>{bpm}</span>
-              <button type="button" onClick={() => setBpm((b) => Math.min(300, b + 1))} style={{ width: 18, height: 18, borderRadius: 5, background: CHIP, color: MUTED, fontFamily: MONO }}>+</button>
+              <button type="button" onClick={() => setBpm((b) => Math.max(20, (b || 92) - 1))} style={{ width: 18, height: 18, borderRadius: 5, background: CHIP, color: MUTED, fontFamily: MONO }}>−</button>
+              <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 15 }}>{bpm || "—"}</span>
+              <button type="button" onClick={() => setBpm((b) => Math.min(300, (b || 92) + 1))} style={{ width: 18, height: 18, borderRadius: 5, background: CHIP, color: MUTED, fontFamily: MONO }}>+</button>
             </div>
           </div>
           {statCard("Compases", totalCompases)}
           {statCard("Dura", mmssLocal(duracionCalc))}
         </div>
         <div className="mt-1.5 text-[10px] leading-snug" style={{ color: FAINT }}>
-          La duración se calcula sola: {totalCompases} compases × 4 tiempos a {bpm} BPM.
+          {bpm > 0 ? `La duración se calcula sola: ${totalCompases} compases × 4 tiempos a ${bpm} BPM.` : "Sin BPM: pon el tempo con + / − para calcular la duración."}
         </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-2" style={{ fontFamily: MONO }}>
