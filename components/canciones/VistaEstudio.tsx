@@ -906,7 +906,102 @@ export function VistaEstudio({
         </main>
 
         {/* Derecha: mástil, todos los acordes y círculo */}
-        <aside className="order-3 flex flex-col gap-3 overflow-y-auto px-4 py-3" style={{ borderLeft: `1px solid ${LINE}`, background: BG }}>
+        <aside className="order-3 flex min-h-0 flex-col" style={{ borderLeft: `1px solid ${LINE}`, background: BG }}>
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(Object.keys(INSTRUMENTOS_ESTUDIO) as NombreInstrumento[]).map((k) => (
+              <button
+                key={k}
+                onClick={() => { setInstrumento(k); setAfinId("estandar"); }}
+                style={{ ...boton, background: instrumento === k ? INK : CARD, color: instrumento === k ? "white" : INK, borderRadius: 99 }}
+              >
+                {INSTRUMENTOS_ESTUDIO[k].etiqueta}
+              </button>
+            ))}
+            <select value={afinacion.id} onChange={(e) => setAfinId(e.target.value)} aria-label="Afinación" style={{ ...boton, marginLeft: "auto", fontWeight: 500 }}>
+              {afinaciones.map((a) => (
+                <option key={a.id} value={a.id}>{a.etiqueta}</option>
+              ))}
+            </select>
+          </div>
+
+          {actual && grado ? (
+            <>
+              <div style={{ fontSize: 13, lineHeight: 1.35 }}>
+                <b style={{ fontFamily: MONO, color: colorDe(actual.nota, actual.calidad) }}>{simboloAcorde(actual.nota, actual.calidad)}</b>{" "}
+                es el <b>{grado.romano}</b> de {tonalidad.raiz} {tonalidad.modo}: <span style={{ color: MUTED }}>{grado.sentir}</span>
+                {siguiente && <> Sigue <b style={{ fontFamily: MONO }}>{simboloAcorde(siguiente.nota, siguiente.calidad)}</b>.</>}
+                {patron && <span style={{ color: MUTED }}> Esta sección usa {patron.romanos.join("–")}: {patron.nombre}.</span>}
+              </div>
+
+              <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "10px 12px" }}>
+                <div className="flex items-center justify-between">
+                  <Titulo>Mástil · {filtro.length ? filtro.map((k) => k.replace("|", "").replace("mayor", "").replace("menor", "m")).join(", ") : "todas las notas de la canción"}</Titulo>
+                  {filtro.length > 0 && (
+                    <button onClick={() => setFiltro([])} style={{ fontSize: 11, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", marginBottom: 6 }}>
+                      ver todas
+                    </button>
+                  )}
+                </div>
+                <Mastil capo={cancion.capo} afinacion={afinacion} acordes={(filtro.length ? distintos.filter((d) => filtro.includes(claveDe(d.nota, d.calidad))) : distintos).map((d) => ({ nota: d.nota, calidad: d.calidad }))} />
+              </section>
+
+              <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(0,1fr) 230px" }}>
+                <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "10px 12px" }}>
+                  <Titulo>Raíz y grados de cada acorde</Titulo>
+                  <div className="flex flex-col gap-1.5">
+                    {distintos.map((d) => {
+                      const base = colorDe(d.nota, d.calidad);
+                      const g = gradoEnTonalidad(d.nota, d.calidad, tonalidad);
+                      const t = tonosDelAcorde(d.nota, d.calidad);
+                      const piezas = [{ intervalo: "raíz", nota: t.raiz }, ...t.acompanantes.filter((a) => a.intervalo !== "9ª")];
+                      const activo = actual.clave === claveDe(d.nota, d.calidad);
+                      return (
+                        <button
+                          key={claveDe(d.nota, d.calidad)}
+                          onClick={() => setIdx(d.primero)}
+                          className="flex items-center gap-2 text-left"
+                          style={{ border: `2px solid ${activo ? CORAL : "transparent"}`, background: BG, borderRadius: 11, padding: "4px 6px", cursor: "pointer" }}
+                        >
+                          <div style={{ minWidth: 58 }}>
+                            <div style={{ fontFamily: MONO, fontWeight: 800, fontSize: 15, color: base }}>{simboloAcorde(d.nota, d.calidad)}</div>
+                            <div style={{ fontSize: 10, color: MUTED }}>{g.romano}</div>
+                          </div>
+                          <div className="flex flex-1 gap-1">
+                            {piezas.map((p, i) => (
+                              <div key={i} style={{ flex: 1, textAlign: "center", borderRadius: 7, padding: "3px 0", background: tono(base, i), color: i === 0 ? colorContrasteTexto(base) : INK, fontWeight: 800, fontSize: 12, fontFamily: MONO }}>
+                                {p.nota}
+                                <div style={{ fontSize: 8, fontWeight: 500, opacity: 0.85 }}>{p.intervalo}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "10px 8px" }}>
+                  <Titulo>Círculo de quintas</Titulo>
+                  <Circulo
+                    tonalidad={tonalidad}
+                    usados={usados}
+                    actual={posicionEnCirculo(actual.nota, actual.calidad)}
+                    siguiente={siguiente ? posicionEnCirculo(siguiente.nota, siguiente.calidad) : null}
+                  />
+                  <div style={{ fontSize: 10, color: MUTED, lineHeight: 1.35 }}>
+                    Azul claro: acordes de {tonalidad.raiz} {tonalidad.modo}. Color: los de esta canción. Contorno oscuro: el actual. Punteado: a dónde vas.
+                  </div>
+                </section>
+              </div>
+            </>
+          ) : (
+            <p style={{ fontSize: 13, color: MUTED }}>Cuando la canción tenga acordes, aquí verás el mástil, sus notas y el círculo de quintas.</p>
+          )}
+          </div>
+
+          {/* Abajo y siempre a la vista: la grabación y Spotify */}
+          <div className="flex-none flex flex-col gap-3 px-4 pb-3 pt-3" style={{ borderTop: `1px solid ${LINE}` }}>
           {grabando && (
             <div style={{ background: INK, color: "white", borderRadius: 16, padding: "12px 14px" }}>
               <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.8 }}>● Grabando los tiempos</div>
@@ -1016,96 +1111,7 @@ export function VistaEstudio({
             {aviso && <div style={{ marginTop: 4, fontSize: 11, color: MUTED }}>{aviso}</div>}
           </section>
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            {(Object.keys(INSTRUMENTOS_ESTUDIO) as NombreInstrumento[]).map((k) => (
-              <button
-                key={k}
-                onClick={() => { setInstrumento(k); setAfinId("estandar"); }}
-                style={{ ...boton, background: instrumento === k ? INK : CARD, color: instrumento === k ? "white" : INK, borderRadius: 99 }}
-              >
-                {INSTRUMENTOS_ESTUDIO[k].etiqueta}
-              </button>
-            ))}
-            <select value={afinacion.id} onChange={(e) => setAfinId(e.target.value)} aria-label="Afinación" style={{ ...boton, marginLeft: "auto", fontWeight: 500 }}>
-              {afinaciones.map((a) => (
-                <option key={a.id} value={a.id}>{a.etiqueta}</option>
-              ))}
-            </select>
           </div>
-
-          {actual && grado ? (
-            <>
-              <div style={{ fontSize: 13, lineHeight: 1.35 }}>
-                <b style={{ fontFamily: MONO, color: colorDe(actual.nota, actual.calidad) }}>{simboloAcorde(actual.nota, actual.calidad)}</b>{" "}
-                es el <b>{grado.romano}</b> de {tonalidad.raiz} {tonalidad.modo}: <span style={{ color: MUTED }}>{grado.sentir}</span>
-                {siguiente && <> Sigue <b style={{ fontFamily: MONO }}>{simboloAcorde(siguiente.nota, siguiente.calidad)}</b>.</>}
-                {patron && <span style={{ color: MUTED }}> Esta sección usa {patron.romanos.join("–")}: {patron.nombre}.</span>}
-              </div>
-
-              <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "10px 12px" }}>
-                <div className="flex items-center justify-between">
-                  <Titulo>Mástil · {filtro.length ? filtro.map((k) => k.replace("|", "").replace("mayor", "").replace("menor", "m")).join(", ") : "todas las notas de la canción"}</Titulo>
-                  {filtro.length > 0 && (
-                    <button onClick={() => setFiltro([])} style={{ fontSize: 11, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", marginBottom: 6 }}>
-                      ver todas
-                    </button>
-                  )}
-                </div>
-                <Mastil capo={cancion.capo} afinacion={afinacion} acordes={(filtro.length ? distintos.filter((d) => filtro.includes(claveDe(d.nota, d.calidad))) : distintos).map((d) => ({ nota: d.nota, calidad: d.calidad }))} />
-              </section>
-
-              <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(0,1fr) 230px" }}>
-                <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "10px 12px" }}>
-                  <Titulo>Raíz y grados de cada acorde</Titulo>
-                  <div className="flex flex-col gap-1.5">
-                    {distintos.map((d) => {
-                      const base = colorDe(d.nota, d.calidad);
-                      const g = gradoEnTonalidad(d.nota, d.calidad, tonalidad);
-                      const t = tonosDelAcorde(d.nota, d.calidad);
-                      const piezas = [{ intervalo: "raíz", nota: t.raiz }, ...t.acompanantes.filter((a) => a.intervalo !== "9ª")];
-                      const activo = actual.clave === claveDe(d.nota, d.calidad);
-                      return (
-                        <button
-                          key={claveDe(d.nota, d.calidad)}
-                          onClick={() => setIdx(d.primero)}
-                          className="flex items-center gap-2 text-left"
-                          style={{ border: `2px solid ${activo ? CORAL : "transparent"}`, background: BG, borderRadius: 11, padding: "4px 6px", cursor: "pointer" }}
-                        >
-                          <div style={{ minWidth: 58 }}>
-                            <div style={{ fontFamily: MONO, fontWeight: 800, fontSize: 15, color: base }}>{simboloAcorde(d.nota, d.calidad)}</div>
-                            <div style={{ fontSize: 10, color: MUTED }}>{g.romano}</div>
-                          </div>
-                          <div className="flex flex-1 gap-1">
-                            {piezas.map((p, i) => (
-                              <div key={i} style={{ flex: 1, textAlign: "center", borderRadius: 7, padding: "3px 0", background: tono(base, i), color: i === 0 ? colorContrasteTexto(base) : INK, fontWeight: 800, fontSize: 12, fontFamily: MONO }}>
-                                {p.nota}
-                                <div style={{ fontSize: 8, fontWeight: 500, opacity: 0.85 }}>{p.intervalo}</div>
-                              </div>
-                            ))}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
-
-                <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "10px 8px" }}>
-                  <Titulo>Círculo de quintas</Titulo>
-                  <Circulo
-                    tonalidad={tonalidad}
-                    usados={usados}
-                    actual={posicionEnCirculo(actual.nota, actual.calidad)}
-                    siguiente={siguiente ? posicionEnCirculo(siguiente.nota, siguiente.calidad) : null}
-                  />
-                  <div style={{ fontSize: 10, color: MUTED, lineHeight: 1.35 }}>
-                    Azul claro: acordes de {tonalidad.raiz} {tonalidad.modo}. Color: los de esta canción. Contorno oscuro: el actual. Punteado: a dónde vas.
-                  </div>
-                </section>
-              </div>
-            </>
-          ) : (
-            <p style={{ fontSize: 13, color: MUTED }}>Cuando la canción tenga acordes, aquí verás el mástil, sus notas y el círculo de quintas.</p>
-          )}
         </aside>
       </div>
     </div>

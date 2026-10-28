@@ -1,4 +1,5 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { RegistrarServiceWorker } from "@/components/shell/RegistrarServiceWorker";
 import { DM_Sans, Fraunces, Space_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -25,7 +26,14 @@ const fraunces = Fraunces({
   weight: ["600", "700"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#16233b",
+};
+
 export const metadata: Metadata = {
+  manifest: "/manifest.json",
+  appleWebApp: { capable: true, title: "Malgesto", statusBarStyle: "default" },
+  icons: { apple: "/icons/icon-192.png" },
   title: "Malgesto App",
   description: "El taller de tus bandas: repertorio, fechas, sets y seteos en un solo lugar.",
 };
@@ -37,7 +45,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${dmSans.variable} ${fraunces.variable} ${spaceMono.variable} h-full antialiased`}>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        {children}
+        <RegistrarServiceWorker />
+      </body>
     </html>
   );
 }
