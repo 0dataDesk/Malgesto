@@ -614,7 +614,7 @@ export function VistaEstudio({
   };
 
   return (
-    <div className="flex h-screen flex-col" style={{ background: BG, color: INK }}>
+    <div className="flex min-h-screen flex-col xl:h-screen" style={{ background: BG, color: INK }}>
       {/* Cabecera */}
       <header className="flex flex-wrap items-center gap-3 px-5 py-2.5" style={{ borderBottom: `1px solid ${LINE}`, background: CARD }}>
         <Link href={volverHref} className="text-sm no-underline" style={{ color: MUTED }}>‹ Canciones</Link>
@@ -638,6 +638,21 @@ export function VistaEstudio({
           <button style={boton} onClick={() => setSemi((s) => s - 1)} aria-label="Bajar medio tono" title="Bajar medio tono">−</button>
           <span style={{ fontFamily: MONO, fontSize: 12, minWidth: 22, textAlign: "center" }}>{semi > 0 ? `+${semi}` : semi}</span>
           <button style={boton} onClick={() => setSemi((s) => s + 1)} aria-label="Subir medio tono" title="Subir medio tono">+</button>
+          {puedeEditar && cancion.spotifyUri && (
+            <button
+              style={{ ...boton, background: marcando ? INK : CARD, color: marcando ? "white" : CORAL, borderColor: CORAL }}
+              onClick={empezarMarcado}
+              disabled={marcando}
+              title="Dale play en Spotify y presiona ESPACIO en cada cambio de acorde"
+            >
+              {marcando ? "● Marcando…" : tiempos ? "↻ Volver a marcar" : "● Marcar tiempos"}
+            </button>
+          )}
+          {puedeEditar && !cancion.spotifyUri && (
+            <Link href={`/canciones/${cancion.id}/editar`} style={{ ...boton, color: CORAL, borderColor: CORAL }} title="Pega la liga de la canción en Spotify para poder marcar tiempos">
+              + Liga de Spotify
+            </Link>
+          )}
           <Link href={escenarioHref} style={boton}>Vista escenario</Link>
           {puedeEditar && (
             <>
@@ -679,9 +694,9 @@ export function VistaEstudio({
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: "250px minmax(0,1fr) 560px" }}>
+      <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[250px_minmax(0,1fr)_560px]">
         {/* Izquierda: acordes con color y formas */}
-        <aside className="flex min-h-0 flex-col" style={{ borderRight: `1px solid ${LINE}`, background: CARD }}>
+        <aside className="order-2 flex min-h-0 flex-col xl:order-1" style={{ borderRight: `1px solid ${LINE}`, background: CARD }}>
          <div className="min-h-0 flex-1 overflow-y-auto px-2.5 py-3">
           <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
             <Titulo>Acordes · {distintos.length}</Titulo>
@@ -828,7 +843,7 @@ export function VistaEstudio({
         </aside>
 
         {/* Centro: letra con la palabra subrayada del color del acorde */}
-        <main className="overflow-y-auto px-6 py-4">
+        <main className="order-1 overflow-y-auto px-6 py-4 xl:order-2">
           <div style={{ columnWidth: 430, columnGap: 64, columnRule: "1px dotted oklch(0.5 0.044 262 / 0.35)" }}>
             {cancion.secciones.map((s, si) => {
               const conLetra = s.letra.some((l) => l.acordes.length > 0 || l.texto.trim());
@@ -914,7 +929,7 @@ export function VistaEstudio({
         </main>
 
         {/* Derecha: mástil, todos los acordes y círculo */}
-        <aside className="flex flex-col gap-3 overflow-y-auto px-4 py-3" style={{ borderLeft: `1px solid ${LINE}`, background: BG }}>
+        <aside className="order-3 flex flex-col gap-3 overflow-y-auto px-4 py-3" style={{ borderLeft: `1px solid ${LINE}`, background: BG }}>
           {marcando && (
             <div style={{ background: INK, color: "white", borderRadius: 14, padding: "10px 12px", fontSize: 13, lineHeight: 1.4 }}>
               <b>Marcando tiempos.</b> Dale play a la canción en Spotify y presiona <b>ESPACIO</b> justo cuando cambie cada acorde.
