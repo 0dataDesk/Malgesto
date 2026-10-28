@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requerirAccesoBloque } from "@/lib/malgestoAccess";
+import { anclasValidas } from "@/lib/estudioSync";
 import {
   crearCancion,
   actualizarCancion,
@@ -40,11 +41,10 @@ export async function eliminarCancionAction(cancionId: string, bandaId: string) 
   redirect(`/canciones?banda=${bandaId}`);
 }
 
-// Modo Estudio: tiempos marcados por acorde (milisegundos, en el orden en que
-// suenan). Quien puede editar la canción puede marcar.
-export async function guardarTiemposAction(cancionId: string, bandaId: string, tiemposMs: number[] | null) {
+// Modo Estudio: anclas [acorde, milisegundo] que afinan el seguimiento. Quien puede editar la canción puede marcar.
+export async function guardarTiemposAction(cancionId: string, bandaId: string, tiemposMs: [number, number][] | null) {
   await requerirAccesoBloque(bandaId, "canciones");
-  if (tiemposMs && (!Array.isArray(tiemposMs) || tiemposMs.some((t) => !Number.isFinite(t) || t < 0))) throw new Error("Tiempos inválidos.");
+  if (tiemposMs && (!Array.isArray(tiemposMs) || tiemposMs.length > 500 || anclasValidas(tiemposMs).length !== tiemposMs.length)) throw new Error("Tiempos inválidos.");
   await guardarTiempos(cancionId, tiemposMs);
   revalidatePath(`/canciones/${cancionId}`);
 }

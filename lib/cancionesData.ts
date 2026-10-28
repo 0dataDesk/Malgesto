@@ -3,6 +3,7 @@ import { supabaseMalgesto } from "@/lib/supabase/malgesto";
 import type { Nota, Modo, Calidad } from "@/lib/cancionTeoria";
 import type { NombreSeccion } from "@/lib/seccionCatalogo";
 import { compasesDeSeccion } from "@/lib/cancionTiempo";
+import { anclasValidas } from "@/lib/estudioSync";
 
 export { compasesDeSeccion };
 
@@ -39,7 +40,7 @@ export type Cancion = {
   // ('spotify:track:ID') y milisegundo de cada acorde en el orden en que suenan.
   capo: number;
   spotifyUri: string | null;
-  tiemposMs: number[] | null;
+  tiemposMs: [number, number][] | null;
 };
 
 export type AcordeGuardado = {
@@ -180,7 +181,7 @@ export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
       autor: c.autor ?? null,
       capo: Number(c.capo) || 0,
       spotifyUri: c.spotify_uri ?? null,
-      tiemposMs: Array.isArray(c.tiempos_ms) ? (c.tiempos_ms as number[]) : null,
+      tiemposMs: Array.isArray(c.tiempos_ms) ? anclasValidas(c.tiempos_ms) : null,
     };
   });
 }
@@ -336,7 +337,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
     autor: cancion.autor ?? null,
     capo: Number(cancion.capo) || 0,
     spotifyUri: cancion.spotify_uri ?? null,
-    tiemposMs: Array.isArray(cancion.tiempos_ms) ? (cancion.tiempos_ms as number[]) : null,
+    tiemposMs: Array.isArray(cancion.tiempos_ms) ? anclasValidas(cancion.tiempos_ms) : null,
     audioReferenciaPath: cancion.audio_referencia_path,
     audioSecuenciaPath: cancion.audio_secuencia_path,
     audioReferenciaUrl: urlPublicaAudio(admin, cancion.audio_referencia_path),
@@ -547,7 +548,7 @@ export async function actualizarCancion(cancionId: string, input: CancionInput) 
 }
 
 // Tiempos marcados en el modo Estudio (null = borrar las marcas).
-export async function guardarTiempos(cancionId: string, tiemposMs: number[] | null) {
+export async function guardarTiempos(cancionId: string, tiemposMs: [number, number][] | null) {
   const admin = supabaseMalgesto();
   const { error } = await admin.from("canciones").update({ tiempos_ms: tiemposMs }).eq("id", cancionId);
   if (error) throw new Error(error.message);
