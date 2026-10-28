@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { CancionCompleta } from "@/lib/cancionesData";
 import { eliminarCancionAction } from "@/app/canciones/actions";
 import { NOTAS, simboloAcorde, colorRaizAcorde, colorContrasteTexto, tonosDelAcorde, type Calidad, type Nota } from "@/lib/cancionTeoria";
-import { colorPorTipoSeccion } from "@/lib/seccionCatalogo";
 import { formatoMMSS } from "@/lib/duracion";
 import {
   INSTRUMENTOS_ESTUDIO,
@@ -118,7 +117,6 @@ function Mastil({ afinacion, acordes }: { afinacion: Afinacion; acordes: { nota:
   const ancho = izq + trastes * wf + 10;
   const y = (cuerda: number) => 12 + (n - 1 - cuerda) * sy;
   const x = (t: number) => (t === 0 ? izq - 12 : izq + (t - 0.5) * wf);
-  const un = acordes.length === 1;
 
   const puntos = new Map<string, { cuerda: number; traste: number; nota: Nota; raiz: boolean; colores: string[]; base: string; nivel: number }>();
   acordes.forEach((c) => {
@@ -127,7 +125,7 @@ function Mastil({ afinacion, acordes }: { afinacion: Afinacion; acordes: { nota:
     posicionesEnMastil(afinacion, c.nota, c.calidad, trastes).forEach((p) => {
       const k = `${p.cuerda}-${p.traste}`;
       const nivel = Math.max(clase.indexOf(NOTAS.indexOf(p.nota)), 0);
-      const colorPunto = un ? tono(base, nivel) : base;
+      const colorPunto = tono(base, nivel);
       const previo = puntos.get(k);
       if (previo) {
         if (!previo.colores.includes(colorPunto)) previo.colores.push(colorPunto);
@@ -160,7 +158,7 @@ function Mastil({ afinacion, acordes }: { afinacion: Afinacion; acordes: { nota:
         <text key={f} x={izq + (f - 0.5) * wf} y={alto - 4} fontSize={9} textAnchor="middle" fill={MUTED} fontFamily={MONO}>{f}</text>
       ))}
       {[...puntos.values()].map((p, i) => {
-        const r = p.raiz && un ? 12 : 10;
+        const r = p.raiz ? 12 : 10;
         const cx = x(p.traste);
         const cy = y(p.cuerda);
         return (
@@ -170,8 +168,8 @@ function Mastil({ afinacion, acordes }: { afinacion: Afinacion; acordes: { nota:
             ) : (
               p.colores.map((col, gi) => gajo(cx, cy, r, gi, p.colores.length, col))
             )}
-            <circle cx={cx} cy={cy} r={r} fill="none" stroke={p.raiz && un ? INK : "white"} strokeWidth={p.raiz && un ? 2 : 1.5} />
-            <text x={cx} y={cy + 3.5} textAnchor="middle" fontSize={10} fontWeight={800} fontFamily={MONO} fill={un && p.nivel === 0 ? colorContrasteTexto(p.base) : INK} stroke="white" strokeWidth={un && p.nivel === 0 ? 0 : 2.5} paintOrder="stroke">
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke={p.raiz ? INK : "white"} strokeWidth={p.raiz ? 2 : 1.5} />
+            <text x={cx} y={cy + 3.5} textAnchor="middle" fontSize={10} fontWeight={800} fontFamily={MONO} fill={p.colores.length === 1 ? colorContrasteTexto(p.colores[0]) : INK} stroke="white" strokeWidth={p.colores.length === 1 ? 0 : 2.5} paintOrder="stroke">
               {p.nota}
             </text>
           </g>
@@ -248,6 +246,7 @@ function Titulo({ children }: { children: React.ReactNode }) {
 const PREF = "malgesto-estudio";
 const PREF_VAR = "malgesto-estudio-variantes";
 const PREF_LISTA = "malgesto-estudio-lista";
+const PREF_REPRO = "malgesto-estudio-reproductor";
 // Lista de Spotify para estudiar (la de Jorge); se puede cambiar desde el reproductor.
 const LISTA_POR_DEFECTO = "https://open.spotify.com/playlist/1TAu56wH8UZi7861k2jU9k";
 
@@ -292,8 +291,7 @@ export function VistaEstudio({
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
   const [filtro, setFiltro] = useState<string[]>([]);
   const [lista, setLista] = useState(LISTA_POR_DEFECTO);
-  const [reproductor, setReproductor] = useState(false);
-  const [borrador, setBorrador] = useState("");
+  const [reproductor, setReproductor] = useState(true);
   const [eliminando, iniciarEliminar] = useTransition();
   const prefsLeidas = useRef(false);
 
@@ -307,6 +305,7 @@ export function VistaEstudio({
       }
       setVariantes(leer(PREF_VAR, {}));
       setLista(leer<string>(PREF_LISTA, LISTA_POR_DEFECTO));
+      setReproductor(leer<boolean>(PREF_REPRO, true));
       prefsLeidas.current = true;
     }, 0);
     return () => clearTimeout(t);
@@ -445,7 +444,6 @@ export function VistaEstudio({
           <button style={boton} onClick={() => setSemi((s) => s - 1)} aria-label="Bajar medio tono" title="Bajar medio tono">−</button>
           <span style={{ fontFamily: MONO, fontSize: 12, minWidth: 22, textAlign: "center" }}>{semi > 0 ? `+${semi}` : semi}</span>
           <button style={boton} onClick={() => setSemi((s) => s + 1)} aria-label="Subir medio tono" title="Subir medio tono">+</button>
-          <button style={{ ...boton, background: reproductor ? INK : CARD, color: reproductor ? "white" : INK }} onClick={() => setReproductor((v) => !v)}>♪ Reproductor</button>
           <Link href={escenarioHref} style={boton}>Vista escenario</Link>
           {puedeEditar && (
             <>
@@ -457,34 +455,6 @@ export function VistaEstudio({
           )}
         </div>
       </header>
-
-      {/* Reproductor de Spotify (plegable) */}
-      {reproductor && (
-        <div className="flex items-center gap-3 px-5 py-2" style={{ borderBottom: `1px solid ${LINE}`, background: CARD }}>
-          {embed ? (
-            <>
-              <iframe title="Spotify" src={embed} width="100%" height="80" style={{ border: 0, borderRadius: 12, maxWidth: 640 }} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" />
-              <button style={boton} onClick={() => { setLista(""); guardar(PREF_LISTA, ""); }}>Cambiar lista</button>
-            </>
-          ) : (
-            <>
-              <input value={borrador} onChange={(e) => setBorrador(e.target.value)} placeholder="Pega aquí la liga de tu lista de Spotify" style={{ ...boton, fontWeight: 500, width: 420, cursor: "text" }} />
-              <button
-                style={boton}
-                onClick={() => {
-                  if (urlEmbed(borrador)) {
-                    setLista(borrador);
-                    guardar(PREF_LISTA, borrador);
-                  }
-                }}
-              >
-                Usar lista
-              </button>
-              <span style={{ fontSize: 11, color: MUTED }}>Spotify → tu lista → Compartir → Copiar enlace.</span>
-            </>
-          )}
-        </div>
-      )}
 
       {/* Línea de tiempo de la canción: franja oscura para distinguirla de la página */}
       <div className="px-5 pb-2.5 pt-3" style={{ background: INK }}>
@@ -517,7 +487,8 @@ export function VistaEstudio({
 
       <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: "250px minmax(0,1fr) 560px" }}>
         {/* Izquierda: acordes con color y formas */}
-        <aside className="overflow-y-auto px-2.5 py-3" style={{ borderRight: `1px solid ${LINE}`, background: CARD }}>
+        <aside className="flex min-h-0 flex-col" style={{ borderRight: `1px solid ${LINE}`, background: CARD }}>
+         <div className="min-h-0 flex-1 overflow-y-auto px-2.5 py-3">
           <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
             <Titulo>Acordes · {distintos.length}</Titulo>
             {filtro.length > 0 && (
@@ -589,6 +560,46 @@ export function VistaEstudio({
             })}
             {distintos.length === 0 && <p style={{ fontSize: 12, color: MUTED }}>Esta canción aún no tiene acordes.</p>}
           </div>
+         </div>
+
+          {/* Lista de Spotify incrustada; se minimiza si estorba */}
+          <div className="flex-none" style={{ borderTop: `1px solid ${LINE}`, padding: "6px 8px 8px" }}>
+            <div className="flex items-center justify-between" style={{ marginBottom: reproductor ? 4 : 0 }}>
+              <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: MUTED }}>♪ Mi lista</span>
+              <span className="flex items-center gap-2">
+                {reproductor && (
+                  <button
+                    onClick={() => {
+                      const nueva = window.prompt("Liga de la lista, álbum o canción de Spotify", lista);
+                      if (nueva && urlEmbed(nueva)) {
+                        setLista(nueva);
+                        guardar(PREF_LISTA, nueva);
+                      }
+                    }}
+                    style={{ fontSize: 10, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
+                  >
+                    cambiar
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setReproductor((v) => {
+                      guardar(PREF_REPRO, !v);
+                      return !v;
+                    });
+                  }}
+                  aria-label={reproductor ? "Minimizar la lista" : "Mostrar la lista"}
+                  title={reproductor ? "Minimizar" : "Mostrar"}
+                  style={{ ...boton, padding: "0 7px", fontSize: 12, lineHeight: "18px" }}
+                >
+                  {reproductor ? "—" : "▢"}
+                </button>
+              </span>
+            </div>
+            {reproductor && embed && (
+              <iframe title="Spotify" src={embed} width="100%" height="152" style={{ border: 0, borderRadius: 12, display: "block" }} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" />
+            )}
+          </div>
         </aside>
 
         {/* Centro: letra con la palabra subrayada del color del acorde */}
@@ -614,9 +625,11 @@ export function VistaEstudio({
                         <div key={l.id} style={{ fontSize: 17, lineHeight: 2.05, whiteSpace: "pre-wrap" }}>
                           {cortes.slice(0, -1).map((c, k) => {
                             const trozo = texto.slice(c, cortes[k + 1]);
-                            const ei = k > 0 ? ids[k - 1] : undefined;
+                            // Antes del primer acorde de la línea sigue sonando el anterior.
+                            const ei = k > 0 ? ids[k - 1] : trozo.length > 0 && ids.length > 0 && ids[0] > 0 ? ids[0] - 1 : undefined;
                             const e = ei !== undefined ? eventos[ei] : null;
                             if (!e) return <span key={k}>{trozo}</span>;
+                            const heredado = k === 0;
                             const color = colorDe(e.nota, e.calidad);
                             const esActual = ei === actualIdx;
                             const mismo = !!actual && e.clave === actual.clave;
@@ -637,7 +650,7 @@ export function VistaEstudio({
                                   borderRadius: 4,
                                 }}
                               >
-                                {esActual && (
+                                {esActual && !heredado && (
                                   <span style={{ position: "absolute", left: 0, top: -9, fontFamily: MONO, fontWeight: 800, fontSize: 10.5, lineHeight: 1, padding: "2px 4px", borderRadius: 4, background: color, color: tinta(e.nota, e.calidad), textDecoration: "none", pointerEvents: "none", whiteSpace: "nowrap" }}>
                                     {simboloAcorde(e.nota, e.calidad)}
                                   </span>
