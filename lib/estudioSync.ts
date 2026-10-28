@@ -40,22 +40,60 @@ export function agregarAncla(anclas: Ancla[], nueva: Ancla): Ancla[] {
   return [...coherentes, nueva].sort((a, b) => a[0] - b[0]);
 }
 
-// Ocurrencia que suena en `posicionMs`; -1 si aún no empieza.
-export function ocurrenciaPorAnclas(anclas: Ancla[], posicionMs: number, total: number, duracionMs: number): number {
+// Peso de cada acorde de UNA sección: lo que dura se parece a cuánto texto cubre
+// hasta el siguiente acorde (una línea cantada tarda más o menos lo mismo). Una
+// sección sin letra (solo acordes) da el mismo peso fijo a cada acorde.
+const HUECO_ENTRE_LINEAS = 8;
+const PESO_ACORDE_SIN_LETRA = 24;
+const PESO_MINIMO = 4;
+
+export function pesosDeSeccion(lineas: { largo: number; posiciones: number[] }[], acordesSinLetra: number): number[] {
+  const coords: number[] = [];
+  let desplazamiento = 0;
+  for (const l of lineas) {
+    for (const p of [...l.posiciones].sort((x, y) => x - y)) coords.push(desplazamiento + Math.min(Math.max(p, 0), l.largo));
+    desplazamiento += l.largo + HUECO_ENTRE_LINEAS;
+  }
+  if (coords.length === 0) return new Array(acordesSinLetra).fill(PESO_ACORDE_SIN_LETRA);
+  return coords.map((c, j) => Math.max(PESO_MINIMO, (j + 1 < coords.length ? coords[j + 1] : desplazamiento) - c));
+}
+
+// Ocurrencia que suena en `posicionMs`; -1 si aún no empieza. `pesos` (uno por
+// ocurrencia) reparte el tiempo en proporción; sin pesos, parejo.
+export function ocurrenciaPorAnclas(anclas: Ancla[], posicionMs: number, total: number, duracionMs: number, pesos?: number[]): number {
   if (total <= 0) return -1;
-  const puntos: Ancla[] = [...anclas];
-  if (!puntos.some((a) => a[0] === 0)) puntos.unshift([0, 0]);
-  if (!puntos.some((a) => a[0] >= total)) puntos.push([total, Math.max(duracionMs, (puntos[puntos.length - 1]?.[1] ?? 0) + 1000)]);
+  const pw = pesos && pesos.length === total ? pesos : new Array<number>(total).fill(1);
+  const inicio: number[] = [0];
+  for (let k = 0; k < total; k++) inicio.push(inicio[k] + Math.max(pw[k], 0.0001));
+  const W = inicio[total];
+
+  // puntos [peso acumulado, ms] por los que pasa la canción
+  const puntos: [number, number][] = anclas.filter((a) => a[0] < total).map((a) => [inicio[a[0]], a[1]] as [number, number]);
+  if (!puntos.some((q) => q[0] === 0)) puntos.unshift([0, 0]);
+  puntos.push([W, Math.max(duracionMs, (puntos[puntos.length - 1]?.[1] ?? 0) + 1000)]);
   if (posicionMs < puntos[0][1]) return -1;
+
+  let w = W;
   for (let i = 0; i < puntos.length - 1; i++) {
-    const [k0, t0] = puntos[i];
-    const [k1, t1] = puntos[i + 1];
+    const [w0, t0] = puntos[i];
+    const [w1, t1] = puntos[i + 1];
     if (posicionMs < t1 || i === puntos.length - 2) {
-      const frac = t1 > t0 ? (posicionMs - t0) / (t1 - t0) : 0;
-      return Math.min(total - 1, Math.max(0, Math.floor(k0 + frac * (k1 - k0))));
+      w = t1 > t0 ? w0 + ((posicionMs - t0) / (t1 - t0)) * (w1 - w0) : w0;
+      break;
     }
   }
-  return total - 1;
+  // último k con inicio[k] <= w
+  let lo = 0;
+  let hi = total - 1;
+  let res = 0;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (inicio[mid] <= w) {
+      res = mid;
+      lo = mid + 1;
+    } else hi = mid - 1;
+  }
+  return Math.min(total - 1, res);
 }
 
 // Posición estimada entre dos avisos del reproductor (que llegan cada cierto tiempo).
