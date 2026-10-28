@@ -40,11 +40,11 @@ function SeccionCanciones({
   return (
     <div className="mt-5 first:mt-4">
       <div className="flex items-baseline gap-2">
-        <h3 className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: "oklch(0.24 0.02 55)" }}>
+        <h3 className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: "oklch(0.24 0.044 262)" }}>
           {titulo}
         </h3>
-        <div className="h-px flex-1" style={{ background: "oklch(0.89 0.013 78)" }} />
-        <span className="text-[10px]" style={{ fontFamily: MONO, color: "oklch(0.5 0.02 55)" }}>
+        <div className="h-px flex-1" style={{ background: "oklch(0.89 0.008 85)" }} />
+        <span className="text-[10px]" style={{ fontFamily: MONO, color: "oklch(0.5 0.044 262)" }}>
           {canciones.length}
         </span>
       </div>
@@ -55,29 +55,29 @@ function SeccionCanciones({
               href={`/canciones/${c.id}`}
               className="min-w-0 flex-1 rounded-2xl p-3.5 no-underline"
               style={{
-                background: c.esBorrador ? "oklch(0.975 0.01 82)" : "oklch(0.99 0.008 82)",
-                border: c.esBorrador ? "1px dashed oklch(0.85 0.016 78)" : "1px solid oklch(0.89 0.013 78)",
+                background: c.esBorrador ? "oklch(0.975 0.006 85)" : "oklch(0.99 0.005 85)",
+                border: c.esBorrador ? "1px dashed oklch(0.85 0.010 85)" : "1px solid oklch(0.89 0.008 85)",
               }}
             >
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[17px] font-bold" style={{ color: "oklch(0.24 0.02 55)", fontFamily: "var(--font-bricolage), sans-serif" }}>
+                <span className="text-[17px] font-bold" style={{ color: "oklch(0.24 0.044 262)", fontFamily: "var(--font-fraunces), sans-serif" }}>
                   {c.titulo}
                 </span>
                 {c.esCover && c.autor && (
-                  <span className="rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]" style={{ fontFamily: MONO, background: "oklch(0.93 0.016 78)", color: "oklch(0.5 0.02 55)" }}>
+                  <span className="rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]" style={{ fontFamily: MONO, background: "oklch(0.93 0.010 85)", color: "oklch(0.5 0.044 262)" }}>
                     {c.autor}
                   </span>
                 )}
                 {c.esBorrador && (
                   <span
                     className="rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]"
-                    style={{ fontFamily: MONO, border: "1px dashed oklch(0.64 0.15 34)", color: "oklch(0.64 0.15 34)" }}
+                    style={{ fontFamily: MONO, border: "1px dashed oklch(0.64 0.170 28)", color: "oklch(0.64 0.170 28)" }}
                   >
                     Borrador
                   </span>
                 )}
               </div>
-              <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[11px]" style={{ fontFamily: MONO, color: "oklch(0.5 0.02 55)" }}>
+              <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[11px]" style={{ fontFamily: MONO, color: "oklch(0.5 0.044 262)" }}>
                 <span className="text-[15px] font-bold" style={{ color: colorRaizAcorde(c.tonalidadNota, c.tonalidadModo) }}>
                   {c.tonalidadNota}
                   {c.tonalidadModo === "menor" ? "m" : ""}
@@ -91,7 +91,7 @@ function SeccionCanciones({
               <Link
                 href={`/canciones/${c.id}/editar`}
                 className="flex shrink-0 items-center rounded-2xl px-3 text-xs font-bold no-underline"
-                style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+                style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
               >
                 {c.esBorrador ? "Seguir" : "Editar"}
               </Link>
@@ -128,18 +128,18 @@ export default async function CancionesPage({
 
   if (!bandaValida && bandasConBloque.length > 1) {
     return (
-      <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
+      <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.007 85)" }}>
         <EspacioSuperior>
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
             Canciones
           </div>
           <h2
             className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
-            style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+            style={{ fontFamily: "var(--font-fraunces), sans-serif", color: "oklch(0.24 0.044 262)" }}
           >
             ¿Qué banda?
           </h2>
-          <p className="mt-2 text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <p className="mt-2 text-sm" style={{ color: "oklch(0.5 0.044 262)" }}>
             Elegí la banda antes de ver su repertorio.
           </p>
 
@@ -178,17 +178,17 @@ export default async function CancionesPage({
   const covers = visibles.filter((c) => c.esCover);
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
+    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.007 85)" }}>
       <EspacioSuperior>
         <div className="flex items-center gap-2.5">
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
             {nombreBandaActiva}
           </div>
           {bandasConBloque.length > 1 && (
             <Link
               href="/canciones"
               className="font-mono text-[10px] font-bold tracking-wide no-underline"
-              style={{ color: "oklch(0.5 0.02 55)" }}
+              style={{ color: "oklch(0.5 0.044 262)" }}
             >
               · ‹ Cambiar de banda
             </Link>
@@ -197,25 +197,25 @@ export default async function CancionesPage({
         <div className="flex items-end justify-between gap-3">
           <h2
             className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
-            style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+            style={{ fontFamily: "var(--font-fraunces), sans-serif", color: "oklch(0.24 0.044 262)" }}
           >
             Canciones
           </h2>
-          <span className="font-mono text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <span className="font-mono text-sm" style={{ color: "oklch(0.5 0.044 262)" }}>
             {visibles.length}
           </span>
         </div>
 
         {visibles.length === 0 ? (
-          <p className="mt-6 text-center text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+          <p className="mt-6 text-center text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
             Todavía no hay canciones para {nombreBandaActiva}.
           </p>
         ) : (
           <>
             <SeccionCanciones titulo="Propias" canciones={propias} puedeEscribir={puedeEscribir} />
             <SeccionCanciones titulo="Covers" canciones={covers} puedeEscribir={puedeEscribir} />
-            <div className="mt-5 flex items-start gap-2 text-[11px] leading-snug" style={{ color: "oklch(0.6 0.02 55)" }}>
-              <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ border: "1px dashed oklch(0.64 0.15 34)" }} />
+            <div className="mt-5 flex items-start gap-2 text-[11px] leading-snug" style={{ color: "oklch(0.6 0.044 262)" }}>
+              <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ border: "1px dashed oklch(0.64 0.170 28)" }} />
               <span>Los borradores solo los ven administradores de la banda y quien tenga el permiso &ldquo;Ver borradores&rdquo;.</span>
             </div>
           </>
@@ -226,7 +226,7 @@ export default async function CancionesPage({
         <Link
           href={`/canciones/nueva?banda=${bandaActiva}`}
           className="fixed bottom-24 right-6 flex h-14 w-14 items-center justify-center rounded-full text-2xl no-underline"
-          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)", boxShadow: "0 14px 26px -12px rgba(0,0,0,0.5)" }}
+          style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)", boxShadow: "0 14px 26px -12px rgba(0,0,0,0.5)" }}
         >
           +
         </Link>

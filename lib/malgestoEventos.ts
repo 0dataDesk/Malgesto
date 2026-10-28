@@ -101,7 +101,7 @@ export async function obtenerMembresias(usuarioId: string): Promise<Membresia[]>
       // Brief "Color de banda configurable...": color fijo, ya no calculado
       // por índice -- este fallback neutro solo cubre el caso (no debería
       // pasar) de una membresía sin banda embebida.
-      color: banda?.color ?? "oklch(0.6 0.02 55)",
+      color: banda?.color ?? "oklch(0.6 0.044 262)",
       emoji: banda?.emoji ?? null,
       genero: banda?.genero ?? null,
       rol: m.rol,

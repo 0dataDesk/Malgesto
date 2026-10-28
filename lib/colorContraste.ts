@@ -7,8 +7,8 @@
 
 type RGB = [number, number, number];
 
-const TEXTO_OSCURO = "oklch(0.24 0.02 55)";
-const TEXTO_CLARO = "oklch(0.99 0.01 82)";
+const TEXTO_OSCURO = "oklch(0.24 0.044 262)";
+const TEXTO_CLARO = "oklch(0.99 0.006 85)";
 
 function clamp01(n: number): number {
   return Math.min(1, Math.max(0, n));

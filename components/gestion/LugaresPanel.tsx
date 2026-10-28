@@ -21,8 +21,8 @@ function IconoMaps() {
 function TarjetaLugar({ lugar, bandas }: { lugar: Lugar; bandas: BandaSimple[] }) {
   const bandasDelLugar = bandas.filter((b) => lugar.bandaIds.includes(b.id));
   return (
-    <div className="flex flex-col rounded-xl p-3" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
-      <div className="truncate text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+    <div className="flex flex-col rounded-xl p-3" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
+      <div className="truncate text-sm font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
         {lugar.nombre}
       </div>
 
@@ -43,14 +43,14 @@ function TarjetaLugar({ lugar, bandas }: { lugar: Lugar; bandas: BandaSimple[] }
           aria-label="Abrir en Maps"
           title="Abrir en Maps"
           className="flex h-7 w-7 items-center justify-center rounded-full"
-          style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+          style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
         >
           <IconoMaps />
         </a>
         <Link
           href={`/gestion/lugares/${lugar.id}/editar`}
           className="rounded-lg px-2.5 py-1.5 text-xs font-bold no-underline"
-          style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+          style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
         >
           Editar
         </Link>
@@ -69,7 +69,7 @@ function BotonCrearLugar() {
       href="/gestion/lugares/nuevo"
       aria-label="Crear lugar nuevo"
       className="fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full text-2xl font-bold no-underline"
-      style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)", boxShadow: "0 14px 26px -12px rgba(0,0,0,0.5)" }}
+      style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)", boxShadow: "0 14px 26px -12px rgba(0,0,0,0.5)" }}
     >
       +
     </Link>
@@ -79,13 +79,13 @@ function BotonCrearLugar() {
 export function LugaresPanel({ bandas, lugares }: { bandas: BandaSimple[]; lugares: Lugar[] }) {
   return (
     <div className="flex flex-col gap-3 pb-20">
-      <section className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
-        <h3 className="mb-3 text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+      <section className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
+        <h3 className="mb-3 text-sm font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
           Lugares
         </h3>
 
         {lugares.length === 0 ? (
-          <p className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+          <p className="text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
             Todavía no hay lugares.
           </p>
         ) : (

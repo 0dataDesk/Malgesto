@@ -321,7 +321,7 @@ function bordeDeItem(item: StagePlotItem): string {
 // drag/click de los ítems reales; viewBox 0-100 porque los ítems ya se
 // posicionan en ese mismo sistema de porcentaje.
 function GuiasLienzo() {
-  const colorGuia = "oklch(0.5 0.02 55)";
+  const colorGuia = "oklch(0.5 0.044 262)";
   return (
     <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
       <line x1="50" y1="0" x2="50" y2="100" stroke={colorGuia} strokeOpacity="0.16" strokeWidth="1" vectorEffect="non-scaling-stroke" />
@@ -376,7 +376,7 @@ export function StagePlotLienzo({
     <div className="flex flex-col gap-1.5">
       <div
         className="relative w-full select-none overflow-hidden rounded-2xl"
-        style={{ aspectRatio: "16 / 9", background: "oklch(0.99 0.008 82)", border: "2px solid oklch(0.82 0.016 78)" }}
+        style={{ aspectRatio: "16 / 9", background: "oklch(0.99 0.005 85)", border: "2px solid oklch(0.82 0.010 85)" }}
         onDragOver={interactivo ? (e) => e.preventDefault() : undefined}
         onDrop={
           interactivo
@@ -439,7 +439,7 @@ export function StagePlotLienzo({
               <div
                 style={{
                   borderRadius: formaEsCircular ? "9999px" : "10px",
-                  boxShadow: activo ? "0 0 0 3px oklch(0.99 0.01 82), 0 0 0 5px oklch(0.24 0.02 55)" : "0 4px 10px -4px rgba(0,0,0,0.4)",
+                  boxShadow: activo ? "0 0 0 3px oklch(0.99 0.006 85), 0 0 0 5px oklch(0.24 0.044 262)" : "0 4px 10px -4px rgba(0,0,0,0.4)",
                 }}
                 title={ETIQUETA_TIPO[item.tipo]}
               >
@@ -461,7 +461,7 @@ export function StagePlotLienzo({
       {/* Brief "Stage Plot — Entrega 2" §6: fuera del recuadro con las
           guías, no pegado al borde interior (antes era un overlay
           absoluto dentro del mismo div con la cruz/cuadrícula). */}
-      <div className="text-center font-mono text-[10px] uppercase tracking-[0.2em]" style={{ color: "oklch(0.7 0.02 55)" }}>
+      <div className="text-center font-mono text-[10px] uppercase tracking-[0.2em]" style={{ color: "oklch(0.7 0.044 262)" }}>
         Frente del escenario (público)
       </div>
     </div>

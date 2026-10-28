@@ -19,11 +19,11 @@ import { GenericoPdfDocument } from "./generico-pdf";
 // con el diseño de otra banda por accidente. Cuando esa banda reciba su
 // propio handoff, sumar components/presskit-publico/disenos/<slug>.tsx (ver
 // registro.ts) -- no editar este archivo para dársela acá.
-const FONDO = "oklch(0.965 0.012 82)";
-const TARJETA = "oklch(0.99 0.008 82)";
-const BORDE = "oklch(0.89 0.013 78)";
-const TEXTO = "oklch(0.24 0.02 55)";
-const TEXTO_GRIS = "oklch(0.5 0.02 55)";
+const FONDO = "oklch(0.965 0.007 85)";
+const TARJETA = "oklch(0.99 0.005 85)";
+const BORDE = "oklch(0.89 0.008 85)";
+const TEXTO = "oklch(0.24 0.044 262)";
+const TEXTO_GRIS = "oklch(0.5 0.044 262)";
 
 function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
@@ -37,14 +37,14 @@ function Seccion({ titulo, children }: { titulo: string; children: React.ReactNo
 }
 
 export function DisenoGenerico({ datos }: { datos: PresskitPublico }) {
-  const acento = colorSeguro(datos.bandaColor, "oklch(0.64 0.15 34)");
+  const acento = colorSeguro(datos.bandaColor, "oklch(0.64 0.170 28)");
   const bio = datos.presskit.bioLarga?.trim() || null;
   const { titular, columnas } = bio ? dividirSemblanza(bio) : { titular: "", columnas: ["", ""] as [string, string] };
   const origenLinea = [datos.presskit.pais, datos.presskit.ciudad].filter(Boolean).join(" · ");
   const hayContacto = Boolean(datos.presskit.contactoTelefono || datos.presskit.contactoEmail);
 
   return (
-    <div style={{ background: FONDO, color: TEXTO, fontFamily: "var(--font-manrope), sans-serif", minHeight: "100vh" }}>
+    <div style={{ background: FONDO, color: TEXTO, fontFamily: "var(--font-dm-sans), sans-serif", minHeight: "100vh" }}>
       <div style={{ maxWidth: 860, margin: "0 auto", padding: "56px 24px 80px" }}>
         <div style={{ position: "fixed", top: 16, left: 16, zIndex: 50 }}>
           <BotonPdfDescarga
@@ -73,7 +73,7 @@ export function DisenoGenerico({ datos }: { datos: PresskitPublico }) {
           <div className="font-mono" style={{ fontSize: 11, letterSpacing: ".2em", textTransform: "uppercase", color: TEXTO_GRIS }}>
             Presskit{origenLinea ? ` · ${origenLinea}` : ""}
           </div>
-          <h1 style={{ margin: "8px 0 0", fontSize: "clamp(36px,6vw,64px)", lineHeight: 1.02, fontFamily: "var(--font-bricolage), sans-serif", fontWeight: 800 }}>
+          <h1 style={{ margin: "8px 0 0", fontSize: "clamp(36px,6vw,64px)", lineHeight: 1.02, fontFamily: "var(--font-fraunces), sans-serif", fontWeight: 800 }}>
             {datos.bandaNombre}
           </h1>
           {datos.bandaGenero && <p style={{ margin: "8px 0 0", color: TEXTO_GRIS }}>{datos.bandaGenero}</p>}
@@ -170,7 +170,7 @@ export function DisenoGenerico({ datos }: { datos: PresskitPublico }) {
                     href={r.url}
                     target="_blank"
                     rel="noreferrer"
-                    style={{ padding: "8px 14px", borderRadius: 999, background: acento, color: "oklch(0.99 0.01 82)", fontWeight: 700, fontSize: 14 }}
+                    style={{ padding: "8px 14px", borderRadius: 999, background: acento, color: "oklch(0.99 0.006 85)", fontWeight: 700, fontSize: 14 }}
                   >
                     {r.plataforma}
                   </a>

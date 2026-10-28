@@ -4,11 +4,11 @@ import { useState, useTransition } from "react";
 import type { CanalManual } from "@/lib/riderData";
 import { agregarCanalManualAction, actualizarCanalManualAction, eliminarCanalManualAction } from "@/app/stage-plot/actions";
 
-const TEXTO_OSCURO = "oklch(0.24 0.02 55)";
-const TEXTO_GRIS = "oklch(0.5 0.02 55)";
+const TEXTO_OSCURO = "oklch(0.24 0.044 262)";
+const TEXTO_GRIS = "oklch(0.5 0.044 262)";
 const ROJO = "oklch(0.55 0.15 25)";
 const inputCls = "rounded-lg border px-3 py-2 text-sm outline-none";
-const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: TEXTO_OSCURO };
+const inputStyle = { background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: TEXTO_OSCURO };
 
 function FilaManualEditable({
   canal,
@@ -74,7 +74,7 @@ function FilaManualEditable({
           onClick={guardar}
           disabled={pending}
           className="shrink-0 rounded-lg px-2.5 py-2 text-xs font-bold disabled:opacity-50"
-          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+          style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
         >
           Guardar
         </button>
@@ -85,7 +85,7 @@ function FilaManualEditable({
         disabled={pending}
         aria-label="Quitar canal"
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold disabled:opacity-50"
-        style={{ background: "oklch(0.93 0.016 78)", color: TEXTO_GRIS }}
+        style={{ background: "oklch(0.93 0.010 85)", color: TEXTO_GRIS }}
       >
         ×
       </button>
@@ -153,7 +153,7 @@ function AgregarCanalManual({
         onClick={agregar}
         disabled={pending}
         className="shrink-0 rounded-lg px-3 py-2 text-xs font-bold disabled:opacity-50"
-        style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+        style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
       >
         {pending ? "…" : "+ Agregar"}
       </button>
@@ -233,11 +233,11 @@ export function InputListManualVista({
               {canales
                 .sort((a, b) => a.numeroCanal - b.numeroCanal)
                 .map((c) => (
-                  <tr key={c.id} className="border-b" style={{ borderColor: "oklch(0.91 0.013 78)" }}>
+                  <tr key={c.id} className="border-b" style={{ borderColor: "oklch(0.91 0.008 85)" }}>
                     <td className="w-10 py-1.5 font-mono font-bold" style={{ color: TEXTO_OSCURO }}>
                       {c.numeroCanal}
                     </td>
-                    <td className="py-1.5" style={{ color: "oklch(0.3 0.02 55)" }}>
+                    <td className="py-1.5" style={{ color: "oklch(0.3 0.044 262)" }}>
                       {c.descripcion}
                     </td>
                   </tr>

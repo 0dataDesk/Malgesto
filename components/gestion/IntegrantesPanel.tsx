@@ -48,12 +48,12 @@ function bloqueVisible(banda: BandaDeIntegrante, bloque: NombreBloque): boolean 
 }
 
 const inputCls = "rounded-xl border px-3.5 py-2.5 text-sm outline-none";
-const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
+const inputStyle = { background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: "oklch(0.24 0.044 262)" };
 
 // Mismo patrón de par de botones ya usado en otros lados de la app (ej.
 // mayor/menor en CancionForm) para una elección excluyente entre 2 opciones.
-const ROL_ACTIVO = { background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" };
-const ROL_INACTIVO = { background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" };
+const ROL_ACTIVO = { background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" };
+const ROL_INACTIVO = { background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" };
 
 // Brief "Voz — nuevo botón cíclico en la fila de Rol, fuera de
 // Instrumentos" §2: un solo botón que cicla Sin voz → Voz Principal → Coro
@@ -65,13 +65,13 @@ const SIGUIENTE_VOZ: Record<Voz, Voz> = { sin_voz: "principal", principal: "coro
 
 // Brief "Rediseño visual de Gestión" §2: jerarquía de tonos reusando lo que
 // ya existe en la app — BG_SUNKEN es el mismo gris de fondo de página
-// (oklch(0.965 0.012 82)) que ya se usa en todos lados, acá sirve para que
+// (oklch(0.965 0.007 85)) que ya se usa en todos lados, acá sirve para que
 // el acordeón y sus sub-secciones se vean "hundidos" respecto a la tarjeta
 // blanca de cada integrante, que a su vez lleva una sombra sutil para
 // despegarse de ambos.
-const BG_SUNKEN = "oklch(0.965 0.012 82)";
-const BORDE_SUNKEN = "oklch(0.9 0.012 78)";
-const BG_CARD = "oklch(0.99 0.008 82)";
+const BG_SUNKEN = "oklch(0.965 0.007 85)";
+const BORDE_SUNKEN = "oklch(0.9 0.007 85)";
+const BG_CARD = "oklch(0.99 0.005 85)";
 const SOMBRA_CARD = "0 2px 8px -4px rgba(0,0,0,0.18)";
 
 // Sub-acordeón genérico cerrado por defecto (Brief "Rediseño visual de
@@ -83,12 +83,12 @@ function SubAcordeon({ titulo, children }: { titulo: string; children: React.Rea
   return (
     <div className="rounded-lg" style={{ background: BG_SUNKEN, border: `1px solid ${BORDE_SUNKEN}` }}>
       <button type="button" onClick={() => setAbierto((v) => !v)} className="flex w-full items-center justify-between px-2.5 py-2 text-left">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.02 55)" }}>
+        <span className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.044 262)" }}>
           {titulo}
         </span>
         <span
           className="text-[10px]"
-          style={{ color: "oklch(0.5 0.02 55)", transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+          style={{ color: "oklch(0.5 0.044 262)", transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
         >
           ▾
         </span>
@@ -118,13 +118,13 @@ function AcordeonGrupo({
   return (
     <div className="rounded-xl" style={{ background: BG_SUNKEN, border: `1px solid ${BORDE_SUNKEN}` }}>
       <button type="button" onClick={onToggle} className="flex w-full items-center justify-between px-3.5 py-3 text-left">
-        <span className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+        <span className="text-sm font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
           {titulo}
           {count !== undefined && ` (${count})`}
         </span>
         <span
           className="text-xs"
-          style={{ color: "oklch(0.5 0.02 55)", transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+          style={{ color: "oklch(0.5 0.044 262)", transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
         >
           ▾
         </span>
@@ -164,7 +164,7 @@ function SeccionDispositivos({
 }) {
   return (
     <div className="mt-2">
-      <span className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+      <span className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.044 262)" }}>
         {ETIQUETA_CATEGORIA[categoria]}
       </span>
 
@@ -174,18 +174,18 @@ function SeccionDispositivos({
             <div
               key={d.id}
               className="flex items-center justify-between gap-2 rounded-lg py-1.5 pl-2.5 pr-1.5"
-              style={{ background: "oklch(0.93 0.016 78)" }}
+              style={{ background: "oklch(0.93 0.010 85)" }}
             >
-              <span className="text-xs font-semibold" style={{ color: "oklch(0.4 0.02 55)" }}>
+              <span className="text-xs font-semibold" style={{ color: "oklch(0.4 0.044 262)" }}>
                 {d.disenoMarca} {d.disenoModelo}
-                {d.apodo && <span style={{ color: "oklch(0.55 0.02 55)" }}> · {d.apodo}</span>}
+                {d.apodo && <span style={{ color: "oklch(0.55 0.044 262)" }}> · {d.apodo}</span>}
               </span>
               <button
                 type="button"
                 onClick={() => onQuitar(d.id)}
                 disabled={pendingQuitarId === d.id}
                 className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] disabled:opacity-50"
-                style={{ background: "oklch(0.85 0.016 78)" }}
+                style={{ background: "oklch(0.85 0.010 85)" }}
                 aria-label={`Quitar ${ETIQUETA_CATEGORIA[categoria].toLowerCase()}`}
               >
                 ×
@@ -196,7 +196,7 @@ function SeccionDispositivos({
       )}
 
       {disponibles.length === 0 ? (
-        <p className="text-xs italic" style={{ color: "oklch(0.55 0.02 55)" }}>
+        <p className="text-xs italic" style={{ color: "oklch(0.55 0.044 262)" }}>
           Todavía no hay {categoria === "amplificador" ? "amplis" : "pedales"} en el catálogo — pídele a Jorge que lo cargue.
         </p>
       ) : (
@@ -207,7 +207,7 @@ function SeccionDispositivos({
           }}
           disabled={pendingAsignar}
           className="w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none disabled:opacity-60"
-          style={{ background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" }}
+          style={{ background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: "oklch(0.24 0.044 262)" }}
         >
           <option value="">+ Asignar {categoria === "amplificador" ? "amplificador" : "pedal"} del catálogo…</option>
           {disponibles.map((d) => (
@@ -280,7 +280,7 @@ function SeccionInstrumentosPropios({
       </datalist>
 
       {instrumentos.length === 0 ? (
-        <p className="text-xs italic" style={{ color: "oklch(0.55 0.02 55)" }}>
+        <p className="text-xs italic" style={{ color: "oklch(0.55 0.044 262)" }}>
           Todavía no tiene instrumentos propios cargados.
         </p>
       ) : (
@@ -319,7 +319,7 @@ function SeccionInstrumentosPropios({
                       onClick={guardarEdicion}
                       disabled={pendingId === i.id || !edicion.instrumento.trim()}
                       className="rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
-                      style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+                      style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
                     >
                       Guardar
                     </button>
@@ -327,7 +327,7 @@ function SeccionInstrumentosPropios({
                       type="button"
                       onClick={() => setEditandoId(null)}
                       className="rounded-lg px-2.5 py-1 text-xs font-semibold"
-                      style={{ color: "oklch(0.55 0.02 55)" }}
+                      style={{ color: "oklch(0.55 0.044 262)" }}
                     >
                       Cancelar
                     </button>
@@ -338,13 +338,13 @@ function SeccionInstrumentosPropios({
               <div
                 key={i.id}
                 className="flex items-center justify-between gap-2 rounded-lg py-1.5 pl-2.5 pr-1.5"
-                style={{ background: "oklch(0.93 0.016 78)" }}
+                style={{ background: "oklch(0.93 0.010 85)" }}
               >
                 <button type="button" onClick={() => iniciarEdicion(i)} className="min-w-0 flex-1 text-left">
-                  <span className="text-xs font-semibold" style={{ color: "oklch(0.4 0.02 55)" }}>
+                  <span className="text-xs font-semibold" style={{ color: "oklch(0.4 0.044 262)" }}>
                     {i.instrumento}
                     {(i.marca || i.modelo) && (
-                      <span style={{ color: "oklch(0.55 0.02 55)" }}>
+                      <span style={{ color: "oklch(0.55 0.044 262)" }}>
                         {" "}
                         · {[i.marca, i.modelo].filter(Boolean).join(" ")}
                       </span>
@@ -356,7 +356,7 @@ function SeccionInstrumentosPropios({
                   onClick={() => onEliminar(i.id)}
                   disabled={pendingId === i.id}
                   className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] disabled:opacity-50"
-                  style={{ background: "oklch(0.85 0.016 78)" }}
+                  style={{ background: "oklch(0.85 0.010 85)" }}
                   aria-label="Eliminar instrumento propio"
                 >
                   ×
@@ -398,7 +398,7 @@ function SeccionInstrumentosPropios({
             onClick={agregar}
             disabled={pendingCrear || !nuevo.instrumento.trim()}
             className="rounded-lg border border-dashed px-2.5 py-1 text-xs font-semibold disabled:opacity-50"
-            style={{ borderColor: "oklch(0.8 0.02 60)", color: "oklch(0.5 0.02 55)" }}
+            style={{ borderColor: "oklch(0.8 0.044 262)", color: "oklch(0.5 0.044 262)" }}
           >
             + Agregar instrumento propio
           </button>
@@ -417,7 +417,7 @@ const ETIQUETA_ESTADO: Record<Integrante["estado"], string> = { invitado: "Invit
 const COLOR_ESTADO: Record<Integrante["estado"], string> = {
   invitado: "oklch(0.6 0.1 70)",
   activo: "oklch(0.5 0.13 148)",
-  inactivo: "oklch(0.55 0.02 55)",
+  inactivo: "oklch(0.55 0.044 262)",
 };
 
 // Íconos circulares de Brief "Rediseño de Gestión > Integrantes" §6 — mismo
@@ -765,15 +765,15 @@ function FilaIntegrante({
   };
 
   return (
-    <div className="rounded-2xl p-3.5" style={{ background: BG_CARD, border: "1px solid oklch(0.89 0.013 78)", boxShadow: SOMBRA_CARD }}>
+    <div className="rounded-2xl p-3.5" style={{ background: BG_CARD, border: "1px solid oklch(0.89 0.008 85)", boxShadow: SOMBRA_CARD }}>
       <div className="flex w-full items-center justify-between gap-3">
         <button type="button" onClick={() => setExpandido((v) => !v)} className="min-w-0 flex-1 text-left">
           <div className="flex items-center gap-1.5">
-            <div className="truncate text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+            <div className="truncate text-sm font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
               {integrante.nombreMostrar || integrante.email}
             </div>
             {integrante.esSuperadmin && (
-              <span className="shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase" style={{ background: "oklch(0.64 0.15 34 / 0.15)", color: "oklch(0.64 0.15 34)" }}>
+              <span className="shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase" style={{ background: "oklch(0.64 0.170 28 / 0.15)", color: "oklch(0.64 0.170 28)" }}>
                 Superadmin
               </span>
             )}
@@ -795,7 +795,7 @@ function FilaIntegrante({
           nombre -- solo visibles con la tarjeta expandida, igual que antes. */}
       <div className="flex w-full items-center justify-between gap-3">
         <button type="button" onClick={() => setExpandido((v) => !v)} className="min-w-0 flex-1 text-left">
-          <div className="truncate font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <div className="truncate font-mono text-xs" style={{ color: "oklch(0.5 0.044 262)" }}>
             {integrante.email}
           </div>
         </button>
@@ -809,7 +809,7 @@ function FilaIntegrante({
                 aria-label="Inactivar"
                 title="Oculta al integrante sin borrar su historial"
                 className="flex h-6 w-6 items-center justify-center rounded-full disabled:opacity-50"
-                style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+                style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
               >
                 <IconoOjoTachado />
               </button>
@@ -844,7 +844,7 @@ function FilaIntegrante({
             );
           })
         ) : (
-          <span className="font-mono text-[9px] font-bold uppercase" style={{ color: "oklch(0.6 0.02 55)" }}>
+          <span className="font-mono text-[9px] font-bold uppercase" style={{ color: "oklch(0.6 0.044 262)" }}>
             Sin banda asignada
           </span>
         )}
@@ -856,13 +856,13 @@ function FilaIntegrante({
       )}
 
       {expandido && integrante.usuarioId && (
-        <div className="mt-3 flex flex-col gap-2.5 border-t pt-3" style={{ borderColor: "oklch(0.9 0.012 78)" }}>
+        <div className="mt-3 flex flex-col gap-2.5 border-t pt-3" style={{ borderColor: "oklch(0.9 0.007 85)" }}>
           <div>
             {/* Brief §4: Nombre para mostrar (2/3) y Fecha de nacimiento
                 (1/3) comparten una sola fila en vez de apilarse. */}
             <div className="flex gap-2">
               <div className="flex-[2]">
-                <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.044 262)" }}>
                   Nombre para mostrar
                 </label>
                 <input
@@ -873,7 +873,7 @@ function FilaIntegrante({
                 />
               </div>
               <div className="flex-1">
-                <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.044 262)" }}>
                   Nacimiento
                 </label>
                 <input
@@ -892,7 +892,7 @@ function FilaIntegrante({
                 del nombre del integrante en el presskit (ver
                 construirDocumentoPresskit en lib/presskitData.ts). */}
             <div className="mt-2">
-              <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+              <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.044 262)" }}>
                 Red social (para Presskit)
               </label>
               <input
@@ -911,7 +911,7 @@ function FilaIntegrante({
                 onClick={guardarDatos}
                 disabled={pendingDatos}
                 className="mt-2.5 w-full rounded-lg py-2 text-sm font-bold disabled:opacity-60"
-                style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+                style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
               >
                 {pendingDatos ? "Guardando…" : "Guardar"}
               </button>
@@ -970,7 +970,7 @@ function FilaIntegrante({
                       aria-label="Quitar de esta banda"
                       title="Quitar de esta banda"
                       className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full disabled:opacity-50"
-                      style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.5 0.02 55)" }}
+                      style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.5 0.044 262)" }}
                     >
                       <IconoEliminar />
                     </button>
@@ -985,7 +985,7 @@ function FilaIntegrante({
                           o no. */}
                       <div className="flex items-center justify-between gap-1.5">
                         {asignada.rol === "superadmin" ? (
-                          <span className="text-xs italic" style={{ color: "oklch(0.55 0.02 55)" }}>
+                          <span className="text-xs italic" style={{ color: "oklch(0.55 0.044 262)" }}>
                             Superadmin en esta banda — no editable acá
                           </span>
                         ) : (
@@ -1028,7 +1028,7 @@ function FilaIntegrante({
                           igual); para un miembro simple es el toggle real. */}
                       {b.cancionesHabilitado && (
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.02 55)" }}>
+                          <span className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.5 0.044 262)" }}>
                             Ver borradores
                           </span>
                           {asignada.rol === "miembro" ? (
@@ -1053,7 +1053,7 @@ function FilaIntegrante({
                           Seteo, Bloques visibles, en ese orden. */}
                       <SubAcordeon titulo="Instrumentos">
                         {plazasDeLaBanda.length === 0 ? (
-                          <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+                          <p className="text-xs" style={{ color: "oklch(0.55 0.044 262)" }}>
                             Esta banda todavía no tiene instrumentos definidos.
                           </p>
                         ) : (
@@ -1064,7 +1064,7 @@ function FilaIntegrante({
                                   <span
                                     key={p.plazaId}
                                     className="flex items-center gap-2 rounded-full py-1 pl-3 pr-1.5 text-xs font-semibold"
-                                    style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+                                    style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
                                   >
                                     {etiquetaPlaza(p.instrumento, p.etiqueta)}
                                     <button
@@ -1072,7 +1072,7 @@ function FilaIntegrante({
                                       onClick={() => togglePlaza(b.id, p.plazaId)}
                                       disabled={pendingPlaza === p.plazaId}
                                       className="flex h-4 w-4 items-center justify-center rounded-full text-[10px] disabled:opacity-50"
-                                      style={{ background: "oklch(0.85 0.016 78)" }}
+                                      style={{ background: "oklch(0.85 0.010 85)" }}
                                       aria-label="Quitar instrumento"
                                     >
                                       ×
@@ -1085,7 +1085,7 @@ function FilaIntegrante({
                             {plazaPickerBandaId === b.id ? (
                               <div className="rounded-lg p-2" style={{ background: BG_SUNKEN, border: `1px solid ${BORDE_SUNKEN}` }}>
                                 {plazasParaAgregar.length === 0 ? (
-                                  <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+                                  <p className="text-xs" style={{ color: "oklch(0.55 0.044 262)" }}>
                                     No hay más instrumentos disponibles en esta banda.
                                   </p>
                                 ) : (
@@ -1097,7 +1097,7 @@ function FilaIntegrante({
                                         <span
                                           key={p.id}
                                           className="rounded-[20px] px-2.5 py-[5px] text-xs font-semibold"
-                                          style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.6 0.02 55)" }}
+                                          style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.6 0.044 262)" }}
                                         >
                                           {etiquetaPlaza(p.instrumento, p.etiqueta)} — ocupada por {ocupante.nombre}
                                         </span>
@@ -1117,7 +1117,7 @@ function FilaIntegrante({
                                   type="button"
                                   onClick={() => setPlazaPickerBandaId(null)}
                                   className="mt-1.5 text-xs font-semibold"
-                                  style={{ color: "oklch(0.55 0.02 55)" }}
+                                  style={{ color: "oklch(0.55 0.044 262)" }}
                                 >
                                   Cancelar
                                 </button>
@@ -1127,7 +1127,7 @@ function FilaIntegrante({
                                 type="button"
                                 onClick={() => setPlazaPickerBandaId(b.id)}
                                 className="rounded-lg border border-dashed px-2.5 py-1 text-xs font-semibold"
-                                style={{ borderColor: "oklch(0.8 0.02 60)", color: "oklch(0.5 0.02 55)" }}
+                                style={{ borderColor: "oklch(0.8 0.044 262)", color: "oklch(0.5 0.044 262)" }}
                               >
                                 + Agregar otra plaza
                               </button>
@@ -1165,7 +1165,7 @@ function FilaIntegrante({
                             (sincronizarConsola en asignarDiseno/quitarDispositivo
                             arriba: sin amplificadores asignados = encendido). */}
                         <div className="mt-2">
-                          <span className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                          <span className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.044 262)" }}>
                             Consola
                           </span>
                           <span
@@ -1243,13 +1243,13 @@ function FilaPendiente({
   return (
     <div
       className="flex items-center justify-between gap-3 rounded-xl p-3"
-      style={{ background: BG_CARD, border: "1px solid oklch(0.89 0.013 78)" }}
+      style={{ background: BG_CARD, border: "1px solid oklch(0.89 0.008 85)" }}
     >
       <div className="min-w-0">
-        <div className="truncate text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+        <div className="truncate text-sm font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
           {persona.email}
         </div>
-        <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.5 0.02 55)" }}>
+        <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.5 0.044 262)" }}>
           Primer acceso: {formatearFecha(persona.primerAcceso)}
         </div>
       </div>
@@ -1258,7 +1258,7 @@ function FilaPendiente({
           type="button"
           onClick={() => onAsignar(persona)}
           className="rounded-lg px-2.5 py-1.5 text-xs font-bold"
-          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+          style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
         >
           Asignar
         </button>
@@ -1267,7 +1267,7 @@ function FilaPendiente({
           onClick={() => onIgnorar(persona.usuarioId)}
           disabled={pendingIgnorar}
           className="rounded-lg px-2.5 py-1.5 text-xs font-bold disabled:opacity-60"
-          style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+          style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
         >
           Ignorar
         </button>
@@ -1518,18 +1518,18 @@ export function IntegrantesPanel({
     <div className="flex flex-col gap-3">
       {/* Brief "Rediseño de Gestión > Integrantes" §1: acordeón colapsado por
           defecto, mismo patrón que el resto de la pantalla. */}
-      <section ref={formInvitarRef} className="rounded-2xl" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+      <section ref={formInvitarRef} className="rounded-2xl" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
         <button
           type="button"
           onClick={() => setInvitarAbierto((v) => !v)}
           className="flex w-full items-center justify-between px-4 py-3.5 text-left"
         >
-          <h3 className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+          <h3 className="text-sm font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
             Invitar / asignar persona
           </h3>
           <span
             className="text-xs"
-            style={{ color: "oklch(0.5 0.02 55)", transform: invitarAbierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+            style={{ color: "oklch(0.5 0.044 262)", transform: invitarAbierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
           >
             ▾
           </span>
@@ -1539,7 +1539,7 @@ export function IntegrantesPanel({
           <div className="px-4 pb-4">
             <div className="flex flex-col gap-2.5">
               <div>
-                <label className="mb-1.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                <label className="mb-1.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.044 262)" }}>
                   Correo
                 </label>
                 <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@gmail.com" className={`${inputCls} w-full`} style={inputStyle} />
@@ -1548,7 +1548,7 @@ export function IntegrantesPanel({
               <div>
                 {/* Brief §2: opcional, se propone como nombre_mostrar recién
                     si la persona todavía no tiene uno guardado al aceptar. */}
-                <label className="mb-1.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                <label className="mb-1.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.044 262)" }}>
                   Nombre a mostrar (opcional)
                 </label>
                 <input
@@ -1561,7 +1561,7 @@ export function IntegrantesPanel({
               </div>
 
               <div>
-                <label className="mb-1.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                <label className="mb-1.5 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.044 262)" }}>
                   Bandas
                 </label>
                 <div className="flex flex-wrap gap-1.5">
@@ -1587,7 +1587,7 @@ export function IntegrantesPanel({
                     </span>
 
                     <div className="mt-2">
-                      <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                      <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.044 262)" }}>
                         Rol en esta banda
                       </label>
                       <div className="flex gap-1.5">
@@ -1611,11 +1611,11 @@ export function IntegrantesPanel({
                     </div>
 
                     <div className="mt-2">
-                      <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                      <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.044 262)" }}>
                         Plaza / instrumento
                       </label>
                       {disponibles.length === 0 ? (
-                        <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+                        <p className="text-xs" style={{ color: "oklch(0.55 0.044 262)" }}>
                           No hay plazas disponibles en esta banda.
                         </p>
                       ) : (
@@ -1637,7 +1637,7 @@ export function IntegrantesPanel({
 
                     {activos.length > 0 && (
                       <div className="mt-2">
-                        <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.02 55)" }}>
+                        <label className="mb-1 block font-mono text-[10px] uppercase" style={{ color: "oklch(0.55 0.044 262)" }}>
                           Bloques visibles
                         </label>
                         <div className="flex flex-wrap gap-1.5">
@@ -1659,7 +1659,7 @@ export function IntegrantesPanel({
                 onClick={invitar}
                 disabled={pendingInvitar}
                 className="rounded-xl px-4 py-2.5 text-sm font-bold disabled:opacity-60"
-                style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+                style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
               >
                 {pendingInvitar ? "Invitando..." : "Invitar"}
               </button>
@@ -1673,12 +1673,12 @@ export function IntegrantesPanel({
         )}
       </section>
 
-      <section className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
-        <h3 className="mb-3 text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+      <section className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
+        <h3 className="mb-3 text-sm font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
           Integrantes
         </h3>
         {grupos.length === 0 ? (
-          <p className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+          <p className="text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
             Todavía no hay nadie: ni integrantes, invitados, ni personas esperando acceso.
           </p>
         ) : (

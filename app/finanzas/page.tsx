@@ -63,18 +63,18 @@ export default async function FinanzasPage({
     }
 
     return (
-      <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
+      <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.007 85)" }}>
         <EspacioSuperior>
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
             Finanzas
           </div>
           <h2
             className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
-            style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+            style={{ fontFamily: "var(--font-fraunces), sans-serif", color: "oklch(0.24 0.044 262)" }}
           >
             ¿Qué banda?
           </h2>
-          <p className="mt-2 text-sm" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <p className="mt-2 text-sm" style={{ color: "oklch(0.5 0.044 262)" }}>
             Elegí la banda antes de ver sus movimientos.
           </p>
 
@@ -88,7 +88,7 @@ export default async function FinanzasPage({
                 nuevo. */}
             {bandasConBloque.map((m) => (
               <TarjetaSeleccionarBanda key={m.bandaId} membresia={m} href={`/finanzas?banda=${m.bandaId}`}>
-                <span className="font-mono text-xs font-bold" style={{ color: "oklch(0.4 0.02 55)" }}>
+                <span className="font-mono text-xs font-bold" style={{ color: "oklch(0.4 0.044 262)" }}>
                   {formatoMoneda(balancePorBanda.get(m.bandaId) ?? 0)}
                 </span>
               </TarjetaSeleccionarBanda>
@@ -126,10 +126,10 @@ export default async function FinanzasPage({
   const balance = totalEntradas - totalSalidas;
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.012 82)" }}>
+    <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.007 85)" }}>
       <EspacioSuperior>
         <div className="flex items-center gap-2.5">
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.02 55)" }}>
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
             {nombreBandaActiva}
           </div>
           {bandasConBloque.length > 1 && (
@@ -140,7 +140,7 @@ export default async function FinanzasPage({
             <Link
               href="/finanzas"
               className="font-mono text-[10px] font-bold tracking-wide no-underline"
-              style={{ color: "oklch(0.5 0.02 55)" }}
+              style={{ color: "oklch(0.5 0.044 262)" }}
             >
               · ‹ Cambiar de banda
             </Link>
@@ -148,23 +148,23 @@ export default async function FinanzasPage({
         </div>
         <h2
           className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]"
-          style={{ fontFamily: "var(--font-bricolage), sans-serif", color: "oklch(0.24 0.02 55)" }}
+          style={{ fontFamily: "var(--font-fraunces), sans-serif", color: "oklch(0.24 0.044 262)" }}
         >
           Finanzas
         </h2>
 
-        <div className="mt-4 rounded-2xl p-4" style={{ background: "oklch(0.24 0.02 55)" }}>
+        <div className="mt-4 rounded-2xl p-4" style={{ background: "oklch(0.24 0.044 262)" }}>
           <div className="font-mono text-[10px] tracking-wide uppercase" style={{ color: "oklch(0.74 0.12 78)" }}>
             Balance
           </div>
-          <div className="mt-1 font-mono text-2xl font-bold" style={{ color: "oklch(0.96 0.012 82)" }}>
+          <div className="mt-1 font-mono text-2xl font-bold" style={{ color: "oklch(0.96 0.007 85)" }}>
             {formatoMoneda(balance)}
           </div>
         </div>
 
         <div className="mt-4 flex flex-col gap-2.5">
           {movimientos.length === 0 && (
-            <p className="mt-6 text-center text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+            <p className="mt-6 text-center text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
               Todavía no hay movimientos para {nombreBandaActiva}.
             </p>
           )}

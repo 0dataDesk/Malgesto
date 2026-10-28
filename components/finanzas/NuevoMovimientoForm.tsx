@@ -67,7 +67,7 @@ export function NuevoMovimientoForm({ bandaId, eventos }: { bandaId: string; eve
         type="button"
         onClick={() => setAbierto(true)}
         className="mt-5 w-full rounded-xl px-4 py-2.5 text-sm font-bold"
-        style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+        style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
       >
         + Nuevo movimiento
       </button>
@@ -75,8 +75,8 @@ export function NuevoMovimientoForm({ bandaId, eventos }: { bandaId: string; eve
   }
 
   return (
-    <div className="mt-5 rounded-2xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
-      <div className="mb-3 text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+    <div className="mt-5 rounded-2xl p-4" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
+      <div className="mb-3 text-sm font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
         Nuevo movimiento
       </div>
 
@@ -86,8 +86,8 @@ export function NuevoMovimientoForm({ bandaId, eventos }: { bandaId: string; eve
           onClick={() => setTipo("entrada")}
           className="flex-1 rounded-xl px-3 py-2 text-sm font-bold"
           style={{
-            background: tipo === "entrada" ? "oklch(0.5 0.13 148)" : "oklch(0.93 0.016 78)",
-            color: tipo === "entrada" ? "oklch(0.98 0.01 148)" : "oklch(0.4 0.02 55)",
+            background: tipo === "entrada" ? "oklch(0.5 0.13 148)" : "oklch(0.93 0.010 85)",
+            color: tipo === "entrada" ? "oklch(0.98 0.01 148)" : "oklch(0.4 0.044 262)",
           }}
         >
           Entrada
@@ -97,8 +97,8 @@ export function NuevoMovimientoForm({ bandaId, eventos }: { bandaId: string; eve
           onClick={() => setTipo("salida")}
           className="flex-1 rounded-xl px-3 py-2 text-sm font-bold"
           style={{
-            background: tipo === "salida" ? "oklch(0.55 0.15 25)" : "oklch(0.93 0.016 78)",
-            color: tipo === "salida" ? "oklch(0.98 0.01 25)" : "oklch(0.4 0.02 55)",
+            background: tipo === "salida" ? "oklch(0.55 0.15 25)" : "oklch(0.93 0.010 85)",
+            color: tipo === "salida" ? "oklch(0.98 0.01 25)" : "oklch(0.4 0.044 262)",
           }}
         >
           Salida
@@ -110,7 +110,7 @@ export function NuevoMovimientoForm({ bandaId, eventos }: { bandaId: string; eve
         onChange={(e) => setConcepto(e.target.value)}
         placeholder="Concepto"
         className="mt-2.5 w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none"
-        style={{ background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" }}
+        style={{ background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: "oklch(0.24 0.044 262)" }}
       />
 
       <div className="mt-2.5 flex gap-2">
@@ -121,14 +121,14 @@ export function NuevoMovimientoForm({ bandaId, eventos }: { bandaId: string; eve
           onChange={(e) => setMonto(e.target.value)}
           placeholder="Monto"
           className="flex-1 rounded-xl border px-3.5 py-2.5 text-sm outline-none"
-          style={{ background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" }}
+          style={{ background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: "oklch(0.24 0.044 262)" }}
         />
         <input
           type="date"
           value={fecha}
           onChange={(e) => setFecha(e.target.value)}
           className="flex-1 rounded-xl border px-3.5 py-2.5 text-sm outline-none"
-          style={{ background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" }}
+          style={{ background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: "oklch(0.24 0.044 262)" }}
         />
       </div>
 
@@ -137,7 +137,7 @@ export function NuevoMovimientoForm({ bandaId, eventos }: { bandaId: string; eve
           value={eventoId}
           onChange={(e) => setEventoId(e.target.value)}
           className="mt-2.5 w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none"
-          style={{ background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" }}
+          style={{ background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: "oklch(0.24 0.044 262)" }}
         >
           <option value="">Sin evento vinculado</option>
           {eventos.map((e) => (
@@ -160,7 +160,7 @@ export function NuevoMovimientoForm({ bandaId, eventos }: { bandaId: string; eve
           onClick={() => setAbierto(false)}
           disabled={pending}
           className="rounded-xl px-4 py-2.5 text-sm font-bold"
-          style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+          style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
         >
           Cancelar
         </button>
@@ -169,7 +169,7 @@ export function NuevoMovimientoForm({ bandaId, eventos }: { bandaId: string; eve
           onClick={guardar}
           disabled={pending}
           className="flex-1 rounded-xl px-4 py-2.5 text-sm font-bold disabled:opacity-60"
-          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+          style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
         >
           {pending ? "Guardando..." : "Guardar movimiento"}
         </button>

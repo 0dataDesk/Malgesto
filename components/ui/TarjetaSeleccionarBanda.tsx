@@ -27,19 +27,19 @@ export function TarjetaSeleccionarBanda({
       href={href}
       className="flex flex-col items-center gap-2 rounded-2xl p-4 text-center no-underline"
       style={{
-        background: "oklch(0.99 0.008 82)",
-        border: "1px solid oklch(0.89 0.013 78)",
+        background: "oklch(0.99 0.005 85)",
+        border: "1px solid oklch(0.89 0.008 85)",
         borderTop: `4px solid ${membresia.color}`,
       }}
     >
       <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full" style={{ background: membresia.color }}>
         <EmojiOPunto emoji={membresia.emoji} color={membresia.color} size={56} fontSize={28} />
       </div>
-      <div className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+      <div className="text-sm font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
         {membresia.bandaNombre}
       </div>
       {membresia.genero && (
-        <div className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+        <div className="text-xs" style={{ color: "oklch(0.55 0.044 262)" }}>
           {membresia.genero}
         </div>
       )}

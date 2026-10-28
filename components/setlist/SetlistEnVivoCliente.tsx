@@ -119,13 +119,13 @@ export function SetlistEnVivoCliente({
   return (
     <div className="min-h-screen" style={{ background: "oklch(0.22 0.02 52)" }}>
       <div className="mx-auto max-w-2xl px-5 pb-16 pt-6">
-        <Link href={`/set-list/${setlistId}`} className="mb-4 inline-block text-sm no-underline" style={{ color: "oklch(0.7 0.03 60)" }}>
+        <Link href={`/set-list/${setlistId}`} className="mb-4 inline-block text-sm no-underline" style={{ color: "oklch(0.7 0.060 262)" }}>
           ‹ {nombre}
         </Link>
-        <h1 className="mb-1 text-[28px] font-extrabold" style={{ color: "oklch(0.97 0.012 82)", fontFamily: "var(--font-bricolage), sans-serif" }}>
+        <h1 className="mb-1 text-[28px] font-extrabold" style={{ color: "oklch(0.97 0.007 85)", fontFamily: "var(--font-fraunces), sans-serif" }}>
           En vivo
         </h1>
-        <div className="mb-4 font-mono text-xs" style={{ color: "oklch(0.7 0.03 60)" }}>
+        <div className="mb-4 font-mono text-xs" style={{ color: "oklch(0.7 0.060 262)" }}>
           {items.length} {items.length === 1 ? "item" : "items"} · Total: {formatoMMSS(total.segundos)}
           {total.faltanTiempos && (
             <span className="ml-1" style={{ color: COLOR_ADVERTENCIA }} title="Faltan tiempos por capturar">
@@ -139,17 +139,17 @@ export function SetlistEnVivoCliente({
             entre dispositivos vía poll, nunca un contador local propio. */}
         <div
           className="mb-6 flex items-center justify-between gap-3 rounded-2xl p-4"
-          style={{ background: "oklch(0.28 0.025 55)", border: "1px solid oklch(0.34 0.03 55)" }}
+          style={{ background: "oklch(0.28 0.055 262)", border: "1px solid oklch(0.34 0.060 262)" }}
         >
           <div>
             <div className="font-mono text-[28px] font-bold tracking-tight" style={{ color: COLOR_ACENTO }}>
               {formatoMMSS(elapsedSegundos)}
-              <span className="text-sm font-normal" style={{ color: "oklch(0.6 0.03 60)" }}>
+              <span className="text-sm font-normal" style={{ color: "oklch(0.6 0.060 262)" }}>
                 {" "}
                 / {formatoMMSS(total.segundos)}
               </span>
             </div>
-            <div className="mt-0.5 font-mono text-[10px] uppercase tracking-wide" style={{ color: "oklch(0.6 0.03 60)" }}>
+            <div className="mt-0.5 font-mono text-[10px] uppercase tracking-wide" style={{ color: "oklch(0.6 0.060 262)" }}>
               {iniciadoEn ? "Corriendo" : "Detenido"}
             </div>
           </div>
@@ -161,7 +161,7 @@ export function SetlistEnVivoCliente({
             style={
               iniciadoEn
                 ? { background: "oklch(0.6 0.15 25 / 0.16)", color: "oklch(0.72 0.15 30)" }
-                : { background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }
+                : { background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }
             }
           >
             {pending ? "…" : iniciadoEn ? "Detener" : "Iniciar"}
@@ -178,10 +178,10 @@ export function SetlistEnVivoCliente({
             if (item.tipo === "marcador") {
               return (
                 <div key={item.id} className="flex items-center gap-2.5 py-1">
-                  <div className="h-px flex-1" style={{ background: "oklch(0.4 0.03 60)" }} />
+                  <div className="h-px flex-1" style={{ background: "oklch(0.4 0.060 262)" }} />
                   <span
                     className="shrink-0 rounded-full px-3.5 py-1.5 font-mono text-xs font-bold uppercase tracking-wide"
-                    style={{ background: "oklch(0.34 0.03 55)", color: "oklch(0.85 0.08 80)" }}
+                    style={{ background: "oklch(0.34 0.060 262)", color: "oklch(0.85 0.08 80)" }}
                   >
                     {item.etiqueta}
                     {porMarcador[i] && (
@@ -191,13 +191,13 @@ export function SetlistEnVivoCliente({
                       </span>
                     )}
                   </span>
-                  <div className="h-px flex-1" style={{ background: "oklch(0.4 0.03 60)" }} />
+                  <div className="h-px flex-1" style={{ background: "oklch(0.4 0.060 262)" }} />
                 </div>
               );
             }
 
             const resaltado = i === indiceActual;
-            const anilloResaltado = resaltado ? { boxShadow: "0 0 0 2px oklch(0.64 0.15 34)" } : {};
+            const anilloResaltado = resaltado ? { boxShadow: "0 0 0 2px oklch(0.64 0.170 28)" } : {};
 
             return (
               <div key={item.id} className="flex items-stretch gap-2">
@@ -205,16 +205,16 @@ export function SetlistEnVivoCliente({
                   <Link
                     href={`/canciones/${item.cancion.id}?setlist=${setlistId}`}
                     className="flex flex-1 items-center gap-3 rounded-2xl p-3.5 no-underline"
-                    style={{ background: "oklch(0.28 0.025 55)", border: "1px solid oklch(0.34 0.03 55)", ...anilloResaltado }}
+                    style={{ background: "oklch(0.28 0.055 262)", border: "1px solid oklch(0.34 0.060 262)", ...anilloResaltado }}
                   >
-                    <span className="font-mono text-sm font-bold" style={{ color: resaltado ? "oklch(0.64 0.15 34)" : COLOR_ACENTO }}>
+                    <span className="font-mono text-sm font-bold" style={{ color: resaltado ? "oklch(0.64 0.170 28)" : COLOR_ACENTO }}>
                       {resaltado ? "▶" : numeros[i]}
                     </span>
                     <div className="flex-1">
-                      <div className="text-[16px] font-bold" style={{ color: "oklch(0.97 0.012 82)", fontFamily: "var(--font-bricolage), sans-serif" }}>
+                      <div className="text-[16px] font-bold" style={{ color: "oklch(0.97 0.007 85)", fontFamily: "var(--font-fraunces), sans-serif" }}>
                         {item.cancion.titulo}
                       </div>
-                      <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.72 0.03 60)" }}>
+                      <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.72 0.060 262)" }}>
                         {item.cancion.tonalidadNota}
                         {item.cancion.tonalidadModo === "menor" ? "m" : ""}
                         {item.cancion.bpm ? ` · ${item.cancion.bpm} BPM` : ""}
@@ -235,22 +235,22 @@ export function SetlistEnVivoCliente({
                 ) : (
                   <div
                     className="flex flex-1 items-center gap-3 rounded-2xl p-3.5"
-                    style={{ background: "oklch(0.24 0.02 55)", border: "1px dashed oklch(0.5 0.05 60)", ...anilloResaltado }}
+                    style={{ background: "oklch(0.24 0.044 262)", border: "1px dashed oklch(0.5 0.060 262)", ...anilloResaltado }}
                   >
-                    <span className="font-mono text-sm font-bold" style={{ color: resaltado ? "oklch(0.64 0.15 34)" : "oklch(0.6 0.05 60)" }}>
+                    <span className="font-mono text-sm font-bold" style={{ color: resaltado ? "oklch(0.64 0.170 28)" : "oklch(0.6 0.060 262)" }}>
                       {resaltado ? "▶" : numeros[i]}
                     </span>
                     <div className="flex-1">
                       <span
                         className="rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide"
-                        style={{ background: "oklch(0.34 0.03 55)", color: "oklch(0.8 0.03 60)" }}
+                        style={{ background: "oklch(0.34 0.060 262)", color: "oklch(0.8 0.060 262)" }}
                       >
                         {ETIQUETA_BLOQUE[item.tipo as "secuencia" | "interludio"]}
                       </span>
-                      <div className="mt-1 text-[16px] font-bold italic" style={{ color: "oklch(0.9 0.02 60)" }}>
+                      <div className="mt-1 text-[16px] font-bold italic" style={{ color: "oklch(0.9 0.044 262)" }}>
                         {item.etiqueta}
                       </div>
-                      <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.72 0.03 60)" }}>
+                      <div className="mt-0.5 font-mono text-xs" style={{ color: "oklch(0.72 0.060 262)" }}>
                         {item.duracionSegundos !== null ? (
                           formatoMMSS(item.duracionSegundos)
                         ) : (
@@ -273,7 +273,7 @@ export function SetlistEnVivoCliente({
                   disabled={pending}
                   title="Estamos acá"
                   className="shrink-0 rounded-xl px-3 text-sm font-bold disabled:opacity-40"
-                  style={{ background: "oklch(0.34 0.03 55)", color: "oklch(0.8 0.03 60)" }}
+                  style={{ background: "oklch(0.34 0.060 262)", color: "oklch(0.8 0.060 262)" }}
                 >
                   ▶
                 </button>

@@ -102,15 +102,15 @@ export function HoraRangoSlider({
       >
         <div
           className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-l-full"
-          style={{ background: "oklch(0.9 0.012 78)", left: 0, width: `${pctFinComodo}%` }}
+          style={{ background: "oklch(0.9 0.007 85)", left: 0, width: `${pctFinComodo}%` }}
         />
         <div
           className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-r-full"
-          style={{ background: "oklch(0.94 0.008 78)", left: `${pctFinComodo}%`, width: `${100 - pctFinComodo}%` }}
+          style={{ background: "oklch(0.94 0.005 85)", left: `${pctFinComodo}%`, width: `${100 - pctFinComodo}%` }}
         />
         <div
           className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full"
-          style={{ background: "oklch(0.64 0.15 34)", left: `${pctInicio}%`, width: `${Math.max(0, pctFin - pctInicio)}%` }}
+          style={{ background: "oklch(0.64 0.170 28)", left: `${pctInicio}%`, width: `${Math.max(0, pctFin - pctInicio)}%` }}
         />
         {(["inicio", "fin"] as const).map((pin) => (
           <div
@@ -119,14 +119,14 @@ export function HoraRangoSlider({
             className="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize rounded-full"
             style={{
               left: `${pin === "inicio" ? pctInicio : pctFin}%`,
-              background: "oklch(0.99 0.01 82)",
-              border: "2px solid oklch(0.64 0.15 34)",
+              background: "oklch(0.99 0.006 85)",
+              border: "2px solid oklch(0.64 0.170 28)",
               boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
             }}
           />
         ))}
       </div>
-      <div className="mt-1 flex justify-between font-mono text-xs" style={{ color: "oklch(0.4 0.02 55)" }}>
+      <div className="mt-1 flex justify-between font-mono text-xs" style={{ color: "oklch(0.4 0.044 262)" }}>
         <span>{inicio}</span>
         <span>{fin}</span>
       </div>

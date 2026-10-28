@@ -17,7 +17,7 @@ import { crearItemAction, moverItemAction, actualizarEtiquetaItemAction, actuali
 import { StagePlotLienzo, IconoConVoz, tamanoForma, type PayloadNuevoItem } from "./StagePlotLienzo";
 
 const inputCls = "w-full rounded-lg border px-3 py-2 text-sm outline-none";
-const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
+const inputStyle = { background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: "oklch(0.24 0.044 262)" };
 
 const PLACEHOLDER_ETIQUETA: Record<TipoEscenario, string> = {
   mix: 'Ej. "Mix 1", "Mix 3 stereo"',
@@ -93,8 +93,8 @@ function ChipArrastrable({
       }
       className="flex items-center gap-2 rounded-full py-1.5 pl-2 pr-3"
       style={{
-        background: "oklch(0.99 0.008 82)",
-        border: "1px solid oklch(0.86 0.016 78)",
+        background: "oklch(0.99 0.005 85)",
+        border: "1px solid oklch(0.86 0.010 85)",
         opacity: disabled ? 0.42 : 1,
         cursor: disabled ? "default" : "grab",
         filter: disabled ? "grayscale(0.4)" : undefined,
@@ -109,11 +109,11 @@ function ChipArrastrable({
         {/* Brief §1: instrumento como dato principal, más visible que el
             nombre -- por eso va primero y en negrita, el nombre queda
             secundario debajo. */}
-        <div className="text-xs font-bold" style={{ color: "oklch(0.28 0.02 55)" }}>
+        <div className="text-xs font-bold" style={{ color: "oklch(0.28 0.044 262)" }}>
           {titulo}
         </div>
         {subtitulo && (
-          <div className="text-[10px]" style={{ color: "oklch(0.55 0.02 55)" }}>
+          <div className="text-[10px]" style={{ color: "oklch(0.55 0.044 262)" }}>
             {subtitulo}
           </div>
         )}
@@ -128,8 +128,8 @@ function ChipArrastrable({
 // pantalla que lo necesita, no extraído a un componente compartido, mismo
 // criterio acá. Cerrado por defecto: la motivación explícita del brief es
 // no obligar a scrollear tanta paleta antes de llegar al lienzo.
-const BG_SUNKEN = "oklch(0.965 0.012 82)";
-const BORDE_SUNKEN = "oklch(0.9 0.012 78)";
+const BG_SUNKEN = "oklch(0.965 0.007 85)";
+const BORDE_SUNKEN = "oklch(0.9 0.007 85)";
 
 function SeccionAcordeon({
   titulo,
@@ -147,13 +147,13 @@ function SeccionAcordeon({
   return (
     <div className="rounded-xl" style={{ background: BG_SUNKEN, border: `1px solid ${BORDE_SUNKEN}` }}>
       <button type="button" onClick={onToggle} className="flex w-full items-center justify-between px-3.5 py-3 text-left">
-        <span className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+        <span className="text-sm font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
           {titulo}
           {count !== undefined && ` (${count})`}
         </span>
         <span
           className="text-xs"
-          style={{ color: "oklch(0.5 0.02 55)", transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+          style={{ color: "oklch(0.5 0.044 262)", transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
         >
           ▾
         </span>
@@ -219,7 +219,7 @@ function PaletaIconos({
     <div className="flex flex-col gap-2.5">
       <SeccionAcordeon titulo="Integrantes" count={plazas.length} abierto={!!abiertos.Integrantes} onToggle={() => toggle("Integrantes")}>
         {plazas.length === 0 ? (
-          <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+          <p className="text-xs" style={{ color: "oklch(0.55 0.044 262)" }}>
             Esta banda todavía no tiene integrantes con instrumento asignado.
           </p>
         ) : (
@@ -244,7 +244,7 @@ function PaletaIconos({
 
       <SeccionAcordeon titulo="Seteo" count={amplificadores.length + pedaleras.length} abierto={!!abiertos.Seteo} onToggle={() => toggle("Seteo")}>
         {amplificadores.length === 0 && pedaleras.length === 0 ? (
-          <p className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+          <p className="text-xs" style={{ color: "oklch(0.55 0.044 262)" }}>
             Todavía no hay amplificadores ni pedaleras asignados en Seteos.
           </p>
         ) : (
@@ -439,7 +439,7 @@ export function StagePlotEditor({
             "Rider Técnico" (RiderTecnicoModulo ya rotula la pestaña), así
             que un <h1> propio repitiendo "Stage Plot" quedaba redundante e
             incorrecto (el bloque se renombró en 668c9e1, este texto no). */}
-        <p className="mb-3 text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+        <p className="mb-3 text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
           Arrastra un ícono de la paleta al lienzo para colocarlo. Ya puesto, se puede volver a arrastrar para reposicionarlo, o tocarlo para
           editarle la etiqueta o eliminarlo.
         </p>
@@ -457,7 +457,7 @@ export function StagePlotEditor({
       />
 
       {seleccionado && (
-        <div className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
+        <div className="rounded-2xl p-4" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
           <div className="mb-2 flex items-center justify-between">
             {/* Fix "Correcciones urgentes: Rider Técnico" §1: sin color
                 explícito, este texto heredaba el --foreground casi blanco
@@ -466,17 +466,17 @@ export function StagePlotEditor({
                 oscuro del body detrás, por eso nunca se notó; al quedar
                 embebida en la tarjeta clara del módulo, el blanco heredado
                 pasó a ser blanco sobre blanco. */}
-            <span className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+            <span className="text-sm font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
               {ETIQUETA_TIPO[seleccionado.tipo]} seleccionado
             </span>
-            <button type="button" onClick={() => setSeleccionadoId(null)} className="text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+            <button type="button" onClick={() => setSeleccionadoId(null)} className="text-xs" style={{ color: "oklch(0.55 0.044 262)" }}>
               Cerrar
             </button>
           </div>
 
           {etiquetaEditable ? (
             <>
-              <label className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.02 55)" }}>
+              <label className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.044 262)" }}>
                 Etiqueta (opcional)
               </label>
               <div className="flex gap-2">
@@ -493,7 +493,7 @@ export function StagePlotEditor({
                   onClick={guardarEtiqueta}
                   disabled={pending}
                   className="shrink-0 rounded-lg px-4 text-sm font-bold disabled:opacity-60"
-                  style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+                  style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
                 >
                   Guardar
                 </button>
@@ -503,7 +503,7 @@ export function StagePlotEditor({
             // Brief §3 (Entrega 1): nombre + instrumento/diseño leídos de la
             // plaza o dispositivo, no editables como texto libre acá -- si
             // hace falta cambiarlos, se edita en Gestión/Seteos, no acá.
-            <p className="text-sm" style={{ color: "oklch(0.35 0.02 55)" }}>
+            <p className="text-sm" style={{ color: "oklch(0.35 0.044 262)" }}>
               {etiquetaSeleccionado(seleccionado)}
             </p>
           )}
@@ -513,7 +513,7 @@ export function StagePlotEditor({
               el resto de las formas no gana nada rotando. */}
           {(seleccionado.tipo === "mix" || seleccionado.tipo === "side_fill") && (
             <div className="mt-3 flex items-center gap-2">
-              <span className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.02 55)" }}>
+              <span className="font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.044 262)" }}>
                 Orientación
               </span>
               <button
@@ -521,7 +521,7 @@ export function StagePlotEditor({
                 onClick={() => rotarSeleccionado(-45)}
                 disabled={pending}
                 className="rounded-lg px-2.5 py-1 text-sm font-bold disabled:opacity-60"
-                style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+                style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
               >
                 ↺ 45°
               </button>
@@ -530,7 +530,7 @@ export function StagePlotEditor({
                 onClick={() => rotarSeleccionado(45)}
                 disabled={pending}
                 className="rounded-lg px-2.5 py-1 text-sm font-bold disabled:opacity-60"
-                style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+                style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
               >
                 45° ↻
               </button>

@@ -26,7 +26,7 @@ export function estadoPresskit(p: Pick<Presskit, "enviadoEn" | "actualizadoEn" |
 }
 
 const ESTILOS: Record<EstadoPresskit, { background: string; color: string; texto: string }> = {
-  sin_enviar: { background: "oklch(0.93 0.016 78)", color: "oklch(0.45 0.02 55)", texto: "Sin enviar" },
+  sin_enviar: { background: "oklch(0.93 0.010 85)", color: "oklch(0.45 0.044 262)", texto: "Sin enviar" },
   en_revision: { background: "oklch(0.92 0.1 75)", color: "oklch(0.45 0.13 60)", texto: "En revisión" },
   publicado_pendiente: { background: "oklch(0.9 0.12 40)", color: "oklch(0.4 0.16 30)", texto: "Cambios pendientes" },
   actualizado: { background: "oklch(0.9 0.1 150)", color: "oklch(0.35 0.12 150)", texto: "Actualizado" },
@@ -81,8 +81,8 @@ export function VisitarCompartirPresskit({ liga }: { liga: string | null }) {
         className="flex-1 rounded-lg px-3 py-2 text-center text-sm font-bold no-underline"
         style={
           liga
-            ? { background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }
-            : { background: "oklch(0.93 0.016 78)", color: "oklch(0.65 0.02 55)", cursor: "not-allowed" }
+            ? { background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }
+            : { background: "oklch(0.93 0.010 85)", color: "oklch(0.65 0.044 262)", cursor: "not-allowed" }
         }
       >
         Visitar Presskit
@@ -92,7 +92,7 @@ export function VisitarCompartirPresskit({ liga }: { liga: string | null }) {
         onClick={compartir}
         disabled={!liga}
         className="shrink-0 rounded-lg px-3 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
-        style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+        style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
       >
         {copiado ? "Copiado ✓" : "Compartir"}
       </button>
@@ -101,11 +101,11 @@ export function VisitarCompartirPresskit({ liga }: { liga: string | null }) {
 }
 
 const inputCls = "w-full rounded-lg border px-3 py-2 text-sm outline-none";
-const inputStyle = { background: "oklch(0.99 0.008 82)", borderColor: "oklch(0.88 0.013 78)", color: "oklch(0.24 0.02 55)" };
+const inputStyle = { background: "oklch(0.99 0.005 85)", borderColor: "oklch(0.88 0.008 85)", color: "oklch(0.24 0.044 262)" };
 
 function Etiqueta({ children }: { children: string }) {
   return (
-    <label className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.02 55)" }}>
+    <label className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-wide" style={{ color: "oklch(0.55 0.044 262)" }}>
       {children}
     </label>
   );
@@ -157,7 +157,7 @@ export function LigaPublicadaSeccion({
   return (
     <div>
       <Etiqueta>Liga publicada</Etiqueta>
-      <p className="mb-2.5 text-xs" style={{ color: "oklch(0.55 0.02 55)" }}>
+      <p className="mb-2.5 text-xs" style={{ color: "oklch(0.55 0.044 262)" }}>
         Pegá acá la URL una vez que Design entregue la página pública.
       </p>
       <div className="flex gap-1.5">
@@ -167,7 +167,7 @@ export function LigaPublicadaSeccion({
           onClick={guardar}
           disabled={pending}
           className="shrink-0 rounded-lg px-3 text-sm font-bold disabled:opacity-60"
-          style={{ background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+          style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
         >
           Guardar
         </button>
@@ -248,7 +248,7 @@ export function EnviarPresskitSeccion({
         onClick={enviar}
         disabled={enviando}
         className="w-full rounded-lg px-4 py-2.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
-        style={{ background: "oklch(0.24 0.02 55)", color: "oklch(0.96 0.012 82)" }}
+        style={{ background: "oklch(0.24 0.044 262)", color: "oklch(0.96 0.007 85)" }}
       >
         {enviando ? "Enviando…" : "Enviar a Presskit"}
       </button>
@@ -267,13 +267,13 @@ export function EnviarPresskitSeccion({
           <div
             onClick={(e) => e.stopPropagation()}
             className="flex max-h-[85vh] w-full max-w-2xl flex-col gap-3 rounded-2xl p-5"
-            style={{ background: "oklch(0.99 0.008 82)", boxShadow: "0 24px 48px -16px rgba(0,0,0,0.4)" }}
+            style={{ background: "oklch(0.99 0.005 85)", boxShadow: "0 24px 48px -16px rgba(0,0,0,0.4)" }}
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+              <h3 className="text-sm font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
                 Documento para Design
               </h3>
-              <button type="button" onClick={() => setDocumento(null)} aria-label="Cerrar" className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+              <button type="button" onClick={() => setDocumento(null)} aria-label="Cerrar" className="text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
                 ✕
               </button>
             </div>
@@ -288,7 +288,7 @@ export function EnviarPresskitSeccion({
               type="button"
               onClick={copiarDocumento}
               className="rounded-lg px-4 py-2.5 text-sm font-bold"
-              style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+              style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
             >
               {copiado ? "Copiado ✓" : "Copiar al portapapeles"}
             </button>

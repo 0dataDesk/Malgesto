@@ -15,7 +15,7 @@ import { BotonCopiarLink } from "./StagePlotAcciones";
 
 type Pestana = "rider" | "stage" | "input";
 
-const TEXTO_GRIS = "oklch(0.5 0.02 55)";
+const TEXTO_GRIS = "oklch(0.5 0.044 262)";
 
 function slugBanda(nombre: string): string {
   return nombre.toLowerCase().replace(/[^a-z0-9]+/g, "-");
@@ -27,7 +27,7 @@ function PestanaBoton({ activo, onClick, children }: { activo: boolean; onClick:
       type="button"
       onClick={onClick}
       className="shrink-0 rounded-full px-4 py-1.5 text-xs font-bold"
-      style={activo ? { background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" } : { background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" }}
+      style={activo ? { background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" } : { background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
     >
       {children}
     </button>
@@ -116,8 +116,8 @@ export function RiderTecnicoModulo({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="rounded-2xl p-5" style={{ background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)" }}>
-        <div className="mb-4 flex items-center justify-between gap-3 border-b pb-3" style={{ borderColor: "oklch(0.89 0.013 78)" }}>
+      <div className="rounded-2xl p-5" style={{ background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)" }}>
+        <div className="mb-4 flex items-center justify-between gap-3 border-b pb-3" style={{ borderColor: "oklch(0.89 0.008 85)" }}>
           <div className="flex gap-1.5 overflow-x-auto">
             <PestanaBoton activo={pestana === "rider"} onClick={() => setPestana("rider")}>
               Rider
@@ -199,7 +199,7 @@ export function RiderTecnicoModulo({
           onClick={descargarPdf}
           disabled={generandoPdf}
           className="rounded-lg px-3.5 py-2 text-xs font-bold disabled:opacity-60"
-          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
+          style={{ background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" }}
         >
           {generandoPdf ? "Generando PDF…" : "Descargar PDF"}
         </button>

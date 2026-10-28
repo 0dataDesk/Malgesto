@@ -8,7 +8,7 @@ import type { CanalRider } from "@/lib/riderData";
 export function InputListVista({ canales }: { canales: CanalRider[] }) {
   if (canales.length === 0) {
     return (
-      <p className="text-sm" style={{ color: "oklch(0.55 0.02 55)" }}>
+      <p className="text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
         Todavía no hay canales -- se arman solos al colocar músicos/teclados en la pestaña Stage.
       </p>
     );
@@ -17,7 +17,7 @@ export function InputListVista({ canales }: { canales: CanalRider[] }) {
   return (
     <table className="w-full text-left text-sm">
       <thead>
-        <tr className="border-b text-[10px] uppercase tracking-wide" style={{ borderColor: "oklch(0.24 0.02 55)", color: "oklch(0.55 0.02 55)" }}>
+        <tr className="border-b text-[10px] uppercase tracking-wide" style={{ borderColor: "oklch(0.24 0.044 262)", color: "oklch(0.55 0.044 262)" }}>
           <th className="w-10 py-1 font-mono font-bold">Ch</th>
           <th className="py-1 font-mono font-bold">Fuente</th>
           <th className="py-1 font-mono font-bold">Mic / DI</th>
@@ -25,14 +25,14 @@ export function InputListVista({ canales }: { canales: CanalRider[] }) {
       </thead>
       <tbody>
         {canales.map((c) => (
-          <tr key={c.numero} className="border-b" style={{ borderColor: "oklch(0.91 0.013 78)" }}>
-            <td className="py-1.5 font-mono font-bold" style={{ color: "oklch(0.24 0.02 55)" }}>
+          <tr key={c.numero} className="border-b" style={{ borderColor: "oklch(0.91 0.008 85)" }}>
+            <td className="py-1.5 font-mono font-bold" style={{ color: "oklch(0.24 0.044 262)" }}>
               {c.numero}
             </td>
-            <td className="py-1.5" style={{ color: "oklch(0.3 0.02 55)" }}>
+            <td className="py-1.5" style={{ color: "oklch(0.3 0.044 262)" }}>
               {c.fuente}
             </td>
-            <td className="py-1.5" style={{ color: "oklch(0.55 0.02 55)" }}>
+            <td className="py-1.5" style={{ color: "oklch(0.55 0.044 262)" }}>
               {c.mic ?? ""}
             </td>
           </tr>

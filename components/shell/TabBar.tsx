@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { cerrarSesion } from "@/app/auth/actions";
 import { useOcultarAlScrollear } from "@/lib/useOcultarAlScrollear";
@@ -54,9 +54,9 @@ function GestionBoton() {
       title="Gestión"
       className="flex h-8 w-8 items-center justify-center rounded-full no-underline"
       style={{
-        background: "oklch(0.93 0.016 78 / 0.9)",
-        color: "oklch(0.45 0.02 55)",
-        border: "1px solid oklch(0.85 0.016 78)",
+        background: "oklch(0.93 0.010 85 / 0.9)",
+        color: "oklch(0.45 0.044 262)",
+        border: "1px solid oklch(0.85 0.010 85)",
       }}
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -154,15 +154,15 @@ function NavBoton({ href, activo, label, children }: { href: string; activo: boo
       href={href}
       aria-label={label}
       aria-current={activo ? "page" : undefined}
-      title={label}
-      className="flex h-9 w-9 items-center justify-center rounded-full no-underline"
+      className="flex min-w-[64px] flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 text-[10px] font-bold no-underline"
       style={
         activo
-          ? { background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }
-          : { background: "oklch(0.93 0.016 78 / 0.9)", color: "oklch(0.45 0.02 55)", border: "1px solid oklch(0.85 0.016 78)" }
+          ? { background: "oklch(0.27 0.05 262)", color: "oklch(0.99 0.006 85)" }
+          : { background: "transparent", color: "oklch(0.5 0.044 262)" }
       }
     >
       {children}
+      <span>{label}</span>
     </Link>
   );
 }
@@ -193,17 +193,14 @@ export function TabBar({
   // página monta TabBar de nuevo (server component padre pasa `activa` por
   // prop) así que este estado arranca en false otra vez después de navegar
   // -- no hace falta cerrarlo a mano al elegir una vista.
-  const [menuAbierto, setMenuAbierto] = useState(false);
 
-  const iconoVistaActiva: Record<typeof activa, React.ReactNode> = {
-    calendario: <IconoCalendario />,
-    canciones: <IconoCanciones />,
-    setlist: <IconoSetlist />,
-    seteos: <IconoSeteos />,
-    finanzas: <IconoFinanzas />,
-    stage_plot: <IconoStagePlot />,
-    presskit: <IconoPresskit />,
-  };
+  // Barra inferior fija: deja espacio al final de la página para que no tape contenido.
+  useEffect(() => {
+    document.body.style.paddingBottom = "76px";
+    return () => {
+      document.body.style.paddingBottom = "";
+    };
+  }, []);
 
   return (
     <>
@@ -219,8 +216,8 @@ export function TabBar({
           opacity: oculto ? 0 : 1,
           transform: oculto ? "translateY(-10px)" : "translateY(0)",
           pointerEvents: oculto ? "none" : "auto",
-          background: "oklch(0.99 0.008 82 / 0.95)",
-          border: "1px solid oklch(0.89 0.013 78)",
+          background: "oklch(0.99 0.005 85 / 0.95)",
+          border: "1px solid oklch(0.89 0.008 85)",
           boxShadow: "0 10px 26px -10px rgba(0,0,0,0.28)",
         }}
       >
@@ -228,91 +225,35 @@ export function TabBar({
         <CerrarSesionBoton userEmail={userEmail} />
       </div>
 
-      {/* Brief §4: el menú de vistas se muda de abajo-derecha a
-          arriba-centrado — mismo comportamiento flotante, misma posición.
-          Brief "TabBar — el menú de vistas también se oculta al
-          scrollear": revierte la decisión de §4 de no ocultarlo -- mismo
-          `oculto` de arriba, mismas 3 propiedades que ya usa el cluster de
-          Gestión/Cerrar sesión, solo que el translateY se combina con el
-          translateX(-50%) que ya centraba el menú (un solo `transform`, no
-          se puede tener los dos por separado).
-          Brief "Menú de vistas: acordeón flotante": colapsado por default --
-          el trigger (ícono + nombre de la vista activa + chevron, mismo
-          criterio que "Instrumento: Guitarra ▾" en SeteosLista/"Bloques
-          visibles ▾" en IntegrantesPanel) siempre está, el resto de las
-          vistas solo se monta cuando `menuAbierto`. */}
-      <div
-        className="fixed z-20 flex items-center gap-1.5 rounded-full p-1.5 transition-all duration-200"
-        style={{
-          top: 14,
-          left: "50%",
-          opacity: oculto ? 0 : 1,
-          transform: oculto ? "translate(-50%, -10px)" : "translate(-50%, 0)",
-          pointerEvents: oculto ? "none" : "auto",
-          background: "oklch(0.99 0.008 82 / 0.95)",
-          border: "1px solid oklch(0.89 0.013 78)",
-          boxShadow: "0 10px 26px -10px rgba(0,0,0,0.28)",
-        }}
+      {/* Rediseño "Taller" (28/10/26): con solo 4 vistas el menú flotante pasa a
+          una barra fija abajo, siempre visible. */}
+      <nav
+        aria-label="Vistas"
+        className="fixed bottom-0 left-0 right-0 z-20 flex items-center justify-around px-2 pb-3 pt-2"
+        style={{ background: "oklch(0.99 0.006 85)", borderTop: "1px solid oklch(0.89 0.008 85)" }}
       >
-        <button
-          type="button"
-          onClick={() => setMenuAbierto((v) => !v)}
-          aria-expanded={menuAbierto}
-          aria-label="Vistas"
-          className="flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3"
-          style={{ background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" }}
-        >
-          {iconoVistaActiva[activa]}
-          <span className="text-xs font-bold">{ETIQUETA_VISTA[activa]}</span>
-          <span className="text-[10px]" style={{ transform: menuAbierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
-            ▾
-          </span>
-        </button>
-
-        {menuAbierto && (
-          <>
-            <NavBoton href="/inicio" activo={activa === "calendario"} label="Calendario">
-              <IconoCalendario />
-            </NavBoton>
-            {mostrarCanciones && (
-              <NavBoton href="/canciones" activo={activa === "canciones"} label="Canciones">
-                <IconoCanciones />
-              </NavBoton>
-            )}
-            {mostrarSetlist && (
-              <NavBoton href="/set-list" activo={activa === "setlist"} label="Set List">
-                <IconoSetlist />
-              </NavBoton>
-            )}
-            {mostrarSeteos && (
-              <NavBoton href="/seteos" activo={activa === "seteos"} label="Seteos">
-                <IconoSeteos />
-              </NavBoton>
-            )}
-            {mostrarFinanzas && (
-              <NavBoton href="/finanzas" activo={activa === "finanzas"} label="Finanzas">
-                <IconoFinanzas />
-              </NavBoton>
-            )}
-            {mostrarStagePlot && (
-              <NavBoton href="/stage-plot" activo={activa === "stage_plot"} label="Rider Técnico">
-                <IconoStagePlot />
-              </NavBoton>
-            )}
-            {/* Brief "Presskit — vista propia, estatus, liga publicada" §1,
-                revisado por Brief "Presskit como bloque...": ya no se entra
-                por el botón "Presskit" de Gestión > Bandas -- es un módulo
-                de nivel superior más, gateado igual que los demás
-                (`presskit_habilitado` por banda + bloques_visibles, ver
-                mostrarPresskit en cada página). */}
-            {mostrarPresskit && (
-              <NavBoton href="/presskit" activo={activa === "presskit"} label="Presskit">
-                <IconoPresskit />
-              </NavBoton>
-            )}
-          </>
+        <NavBoton href="/inicio" activo={activa === "calendario"} label="Calendario">
+          <IconoCalendario />
+        </NavBoton>
+        {mostrarCanciones && (
+          <NavBoton href="/canciones" activo={activa === "canciones"} label="Canciones">
+            <IconoCanciones />
+          </NavBoton>
         )}
-      </div>
+        {mostrarSetlist && (
+          <NavBoton href="/set-list" activo={activa === "setlist"} label="Set List">
+            <IconoSetlist />
+          </NavBoton>
+        )}
+        {mostrarPresskit && (
+          <NavBoton href="/presskit" activo={activa === "presskit"} label="Presskit">
+            <IconoPresskit />
+          </NavBoton>
+        )}
+        {/* Vistas apagadas (ver VISTAS_APAGADAS en lib/bloques.ts): Seteos,
+            Finanzas y Rider Técnico siguen en el código; para volver a
+            mostrarlas se agregan aquí con su NavBoton. */}
+      </nav>
     </>
   );
 }

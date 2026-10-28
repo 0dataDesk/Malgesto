@@ -17,10 +17,10 @@ const ETIQUETA_CALIDAD: Record<Calidad, string> = {
   "7": "7", maj7: "maj7", m7: "m7", dim7: "dim7", m7b5: "m7b5", sus2: "sus2", sus4: "sus4",
 };
 
-const panelStyle = { background: "oklch(0.99 0.008 82)", border: "1px solid oklch(0.89 0.013 78)", boxShadow: "0 16px 32px -16px rgba(0,0,0,0.25)" };
-const etiquetaStyle = { color: "oklch(0.55 0.02 55)" };
-const inactivoStyle = { background: "oklch(0.93 0.016 78)", color: "oklch(0.4 0.02 55)" };
-const activoStyle = { background: "oklch(0.64 0.15 34)", color: "oklch(0.99 0.01 82)" };
+const panelStyle = { background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)", boxShadow: "0 16px 32px -16px rgba(0,0,0,0.25)" };
+const etiquetaStyle = { color: "oklch(0.55 0.044 262)" };
+const inactivoStyle = { background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" };
+const activoStyle = { background: "oklch(0.64 0.170 28)", color: "oklch(0.99 0.006 85)" };
 
 // Selector de acordes por botones (Brief 4 §6, tema claro desde Brief 12
 // §6): arriba los 7 diatónicos de la tonalidad, abajo construcción manual
@@ -56,7 +56,7 @@ export function AcordeSelector({
         type="button"
         onClick={() => setAbierto((v) => !v)}
         className="rounded-lg px-3 py-2 text-sm font-bold"
-        style={{ background: colorRaizAcorde(notaRaiz, calidad), color: "oklch(0.99 0.01 82)", minWidth: 76 }}
+        style={{ background: colorRaizAcorde(notaRaiz, calidad), color: "oklch(0.99 0.006 85)", minWidth: 76 }}
       >
         {simboloAcorde(notaRaiz, calidad)}
       </button>
@@ -74,7 +74,7 @@ export function AcordeSelector({
                 title={d.romano}
                 onClick={() => elegir(d.raiz, d.calidad)}
                 className="rounded-lg px-2.5 py-1.5 text-xs font-bold"
-                style={{ background: colorRaizAcorde(d.raiz, d.calidad), color: "oklch(0.99 0.01 82)" }}
+                style={{ background: colorRaizAcorde(d.raiz, d.calidad), color: "oklch(0.99 0.006 85)" }}
               >
                 {d.simbolo}
               </button>

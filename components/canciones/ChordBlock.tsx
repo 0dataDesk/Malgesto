@@ -28,8 +28,8 @@ const OVERLAY_FONDO = "rgba(0, 0, 0, 0.18)";
 // del texto de una nota acompañante (choque medido: card tenue/E con texto
 // D#, contraste ~1:1, prácticamente invisible) -- un fondo fijo evita ese
 // choque sin importar qué nota sea la tarjeta.
-const COLOR_FONDO_PILL = "oklch(0.97 0.01 82)";
-const COLOR_NOTA_PILL = "oklch(0.3 0.02 55)";
+const COLOR_FONDO_PILL = "oklch(0.97 0.006 85)";
+const COLOR_NOTA_PILL = "oklch(0.3 0.044 262)";
 
 // Bloque de acorde de la vista final: tónica (1ª) + 3ª + 5ª + 7ª + 9ª —
 // SIEMPRE en ese orden y siempre las cinco (brief "Ajustes ChordBlock/
@@ -67,12 +67,12 @@ export function ChordBlock({
   return (
     <div
       className={`rounded-xl ${tamano.padding}`}
-      style={{ background: `linear-gradient(${OVERLAY_FONDO}, ${OVERLAY_FONDO}), ${colorRaiz}`, border: "1px solid oklch(0.89 0.013 78)" }}
+      style={{ background: `linear-gradient(${OVERLAY_FONDO}, ${OVERLAY_FONDO}), ${colorRaiz}`, border: "1px solid oklch(0.89 0.008 85)" }}
     >
       <div className="flex items-start justify-between gap-1.5">
         <div
           className={`${tamano.simbolo} font-extrabold leading-tight break-words`}
-          style={{ color: COLOR_SIMBOLO, fontFamily: "var(--font-bricolage), sans-serif" }}
+          style={{ color: COLOR_SIMBOLO, fontFamily: "var(--font-fraunces), sans-serif" }}
         >
           {simboloAcorde(acorde.notaRaiz, acorde.calidad)}
         </div>
