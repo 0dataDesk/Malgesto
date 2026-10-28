@@ -33,6 +33,11 @@ const INTERVALOS_POR_CALIDAD: Record<Calidad, Intervalo[]> = {
   sus4: [{ semitonos: 5, etiqueta: "4ª" }, { semitonos: 7, etiqueta: "5ª" }],
 };
 
+// Semitonos de cada nota del acorde sobre la raíz (la raíz es 0), sin la 9ª.
+export function semitonosDeCalidad(calidad: Calidad): number[] {
+  return [0, ...INTERVALOS_POR_CALIDAD[calidad].map((i) => i.semitonos)];
+}
+
 const SUFIJO_POR_CALIDAD: Record<Calidad, string> = {
   mayor: "", menor: "m", disminuido: "dim", aumentado: "aum",
   "7": "7", maj7: "maj7", m7: "m7", dim7: "dim7", m7b5: "m7b5", sus2: "sus2", sus4: "sus4",
