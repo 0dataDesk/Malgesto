@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import type { BandaSimple, PersonaPendiente, Integrante, Plaza, BandaDeIntegrante, RolInvitable, InvitacionPorBanda, Voz, InstrumentoPropio } from "@/lib/gestionData";
 import type { NombreBloque } from "@/lib/bloques";
-import { contarBloquesActivos } from "@/lib/bloques";
+import { contarBloquesActivos, VISTAS_APAGADAS } from "@/lib/bloques";
 import type { DisenoDispositivo, CategoriaCatalogo, DispositivoAsignado } from "@/lib/dispositivosData";
 import { etiquetaPlaza, ETIQUETA_INSTRUMENTO } from "@/lib/instrumentoCatalogo";
 import { colorConAlpha } from "@/lib/eventoUI";
@@ -39,7 +39,7 @@ const BLOQUES: { key: NombreBloque; label: string; activo: (b: BandaSimple) => b
 ];
 
 function bloquesActivosDeBanda(banda: BandaSimple): NombreBloque[] {
-  return BLOQUES.filter((bl) => bl.activo(banda)).map((bl) => bl.key);
+  return BLOQUES.filter((bl) => !VISTAS_APAGADAS.includes(bl.key) && bl.activo(banda)).map((bl) => bl.key);
 }
 
 function bloqueVisible(banda: BandaDeIntegrante, bloque: NombreBloque): boolean {

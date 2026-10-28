@@ -36,6 +36,12 @@ export type Membresia = {
 // porque así se persiste en miembros_banda.bloques_visibles.
 export type NombreBloque = "canciones" | "set_list" | "seteos" | "finanzas" | "stage_plot" | "presskit";
 
+// Estante de vistas apagadas (refresh 28/10/26): estas vistas siguen en el
+// código, con sus datos y su ruta intactos, pero ya no aparecen en la
+// navegación ni dejan entrar a nadie. Para volver a prenderlas basta con
+// quitarlas de esta lista. Rider Técnico es el bloque "stage_plot".
+export const VISTAS_APAGADAS: readonly NombreBloque[] = ["seteos", "finanzas", "stage_plot"];
+
 function bandaTieneBloque(m: Membresia, bloque: NombreBloque): boolean {
   switch (bloque) {
     case "canciones":
@@ -59,6 +65,7 @@ function bandaTieneBloque(m: Membresia, bloque: NombreBloque): boolean {
 // irrelevante para superadmin), bloquesVisibles null/vacío = sin
 // restricción (ve todo lo que la banda activa).
 export function bloqueVisible(m: Membresia, bloque: NombreBloque, superadmin: boolean): boolean {
+  if (VISTAS_APAGADAS.includes(bloque)) return false;
   if (!bandaTieneBloque(m, bloque)) return false;
   if (superadmin) return true;
   if (!m.bloquesVisibles || m.bloquesVisibles.length === 0) return true;
@@ -104,9 +111,13 @@ export function contarBloquesActivos(b: {
   stagePlotHabilitado: boolean;
   presskitHabilitado: boolean;
 }): number {
-  return (
-    1 +
-    [b.cancionesHabilitado, b.setlistHabilitado, b.seteosHabilitado, b.finanzasHabilitado, b.stagePlotHabilitado, b.presskitHabilitado].filter(Boolean)
-      .length
-  );
+  const activos: [NombreBloque, boolean][] = [
+    ["canciones", b.cancionesHabilitado],
+    ["set_list", b.setlistHabilitado],
+    ["seteos", b.seteosHabilitado],
+    ["finanzas", b.finanzasHabilitado],
+    ["stage_plot", b.stagePlotHabilitado],
+    ["presskit", b.presskitHabilitado],
+  ];
+  return 1 + activos.filter(([k, v]) => v && !VISTAS_APAGADAS.includes(k)).length;
 }
