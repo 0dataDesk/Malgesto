@@ -257,10 +257,7 @@ function Titulo({ children }: { children: React.ReactNode }) {
 
 const PREF = "malgesto-estudio";
 const PREF_VAR = "malgesto-estudio-variantes";
-const PREF_LISTA = "malgesto-estudio-lista";
 const PREF_REPRO = "malgesto-estudio-reproductor";
-// Lista de Spotify para estudiar (la de Jorge); se puede cambiar desde el reproductor.
-const LISTA_POR_DEFECTO = "https://open.spotify.com/playlist/1TAu56wH8UZi7861k2jU9k";
 
 function leer<T>(clave: string, defecto: T): T {
   try {
@@ -276,12 +273,6 @@ function guardar(clave: string, valor: unknown) {
   } catch {
     /* sin almacenamiento */
   }
-}
-
-// 'spotify:playlist:ID' (o álbum/canción) a partir de una liga de Spotify.
-function uriDeLiga(liga: string): string | null {
-  const m = /open\.spotify\.com\/(?:intl-[a-z]+\/)?(playlist|album|track)\/([A-Za-z0-9]+)/.exec(liga);
-  return m ? `spotify:${m[1]}:${m[2]}` : null;
 }
 
 // Controlador del reproductor incrustado de Spotify (API de iFrame).
@@ -310,9 +301,7 @@ export function VistaEstudio({
   const [variantes, setVariantes] = useState<Record<string, number>>({});
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
   const [filtro, setFiltro] = useState<string[]>([]);
-  const [lista, setLista] = useState(LISTA_POR_DEFECTO);
   const [reproductor, setReproductor] = useState(true);
-  const [fuente, setFuente] = useState<"cancion" | "lista">(cancion.spotifyUri ? "cancion" : "lista");
   const [reproduciendo, setReproduciendo] = useState(false);
   const [anclas, setAnclas] = useState<Ancla[]>(cancion.tiemposMs ?? []);
   const [aviso, setAviso] = useState("");
@@ -332,7 +321,6 @@ export function VistaEstudio({
         if (INSTRUMENTOS_ESTUDIO[g.instrumento].afinaciones.some((a) => a.id === g.afinId)) setAfinId(g.afinId as string);
       }
       setVariantes(leer(PREF_VAR, {}));
-      setLista(leer<string>(PREF_LISTA, LISTA_POR_DEFECTO));
       setReproductor(leer<boolean>(PREF_REPRO, true));
       prefsLeidas.current = true;
     }, 0);
@@ -381,8 +369,7 @@ export function VistaEstudio({
 
   const total = eventos.length;
   const ocurr = useMemo(() => ocurrencias(indicesPorSeccion, cancion.secciones.map((x) => x.repiteVeces)), [indicesPorSeccion, cancion.secciones]);
-  const uriActual = fuente === "cancion" && cancion.spotifyUri ? cancion.spotifyUri : uriDeLiga(lista);
-  const uriInicialRef = useRef(uriActual);
+  const uriInicialRef = useRef(cancion.spotifyUri);
   const actualIdx = Math.min(idx, Math.max(total - 1, 0));
   const actual = eventos[actualIdx] ?? null;
   const siguiente = eventos[actualIdx + 1] ?? null;
@@ -463,16 +450,6 @@ export function VistaEstudio({
     };
   }, []);
 
-  // Al cambiar entre "esta canción" y "mi lista" se carga la otra fuente en el mismo reproductor.
-  const primeraCarga = useRef(true);
-  useEffect(() => {
-    if (primeraCarga.current) {
-      primeraCarga.current = false;
-      return;
-    }
-    if (uriActual) ctrlRef.current?.loadUri(uriActual);
-  }, [uriActual]);
-
   const posicionAhora = () => {
     const u = ultimoRef.current;
     return posicionEstimada(u.ms, u.rec, performance.now(), u.pausado);
@@ -480,7 +457,7 @@ export function VistaEstudio({
   // ¿Lo que suena es esta canción? Si Spotify no dice cuál suena, se asume que sí cuando se cargó "esta canción".
   const suenaEsta = () => {
     const u = ultimoRef.current;
-    return u.uri ? u.uri === cancion.spotifyUri : fuente === "cancion" && !!cancion.spotifyUri;
+    return u.uri ? u.uri === cancion.spotifyUri : !!cancion.spotifyUri;
   };
 
   // Seguir la canción: arranca solo cuando le das play en Spotify. Sin ajustes, el
@@ -502,7 +479,7 @@ export function VistaEstudio({
     }, 120);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anclas, ocurr, eventos, fuente]);
+  }, [anclas, ocurr, eventos]);
 
   // Al tocar un acorde mientras suena la canción: "este es el que oigo ahora".
   const afinar = (evento: number) => {
@@ -673,7 +650,7 @@ export function VistaEstudio({
                           <span style={{ fontFamily: MONO, fontSize: 11, color: INK }}>{notasDelAcorde(d.nota, d.calidad).map((p) => NOTAS[p]).join(" ")}</span>
                         )}
                       </div>
-                      <div className="flex items-baseline gap-1.5">
+                      <div className="flex items-baseline gap-1.5" style={{ alignSelf: "flex-start", paddingLeft: 3, minHeight: 20 }}>
                         <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: 18, lineHeight: 1 }}>{simboloAcorde(d.nota, d.calidad)}</span>
                         <span style={{ fontSize: 10, opacity: 0.9 }}>{g.romano} · {d.veces}×</span>
                       </div>
@@ -683,7 +660,7 @@ export function VistaEstudio({
                         onClick={() => setAbiertos((a) => ({ ...a, [`${instrumento}|${k}`]: !abierto }))}
                         aria-label="Ver otras formas de tocarlo"
                         title="Otras formas de tocarlo"
-                        style={{ position: "absolute", top: 3, right: 3, background: "rgba(255,255,255,0.85)", border: "none", color: INK, borderRadius: 7, padding: "1px 5px", cursor: "pointer", fontSize: 10, fontWeight: 700 }}
+                        style={{ position: "absolute", bottom: 2, right: 2, background: "rgba(255,255,255,0.3)", border: "none", color: ink, borderRadius: 7, padding: "1px 6px", cursor: "pointer", fontSize: 10, fontWeight: 700 }}
                       >
                         {abierto ? "▴" : `▾${vs.length}`}
                       </button>
@@ -710,69 +687,6 @@ export function VistaEstudio({
           </div>
          </div>
 
-          {/* Spotify incrustado: esta canción o mi lista; se minimiza si estorba */}
-          <div className="flex-none" style={{ borderTop: `1px solid ${LINE}`, padding: "6px 8px 8px" }}>
-            <div className="flex items-center justify-between" style={{ marginBottom: reproductor ? 4 : 0 }}>
-              <span className="flex items-center gap-1">
-                {cancion.spotifyUri && (
-                  <>
-                    <button onClick={() => setFuente("cancion")} style={{ ...boton, padding: "1px 7px", fontSize: 10, background: fuente === "cancion" ? INK : CARD, color: fuente === "cancion" ? "white" : INK, borderRadius: 99 }}>
-                      Esta canción
-                    </button>
-                    <button onClick={() => setFuente("lista")} style={{ ...boton, padding: "1px 7px", fontSize: 10, background: fuente === "lista" ? INK : CARD, color: fuente === "lista" ? "white" : INK, borderRadius: 99 }}>
-                      Mi lista
-                    </button>
-                  </>
-                )}
-                {!cancion.spotifyUri && <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: MUTED }}>♪ Mi lista</span>}
-              </span>
-              <span className="flex items-center gap-2">
-                {reproductor && fuente === "lista" && (
-                  <button
-                    onClick={() => {
-                      const nueva = window.prompt("Liga de la lista, álbum o canción de Spotify", lista);
-                      if (nueva && uriDeLiga(nueva)) {
-                        setLista(nueva);
-                        guardar(PREF_LISTA, nueva);
-                      }
-                    }}
-                    style={{ fontSize: 10, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
-                  >
-                    cambiar
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    setReproductor((v) => {
-                      guardar(PREF_REPRO, !v);
-                      return !v;
-                    });
-                  }}
-                  aria-label={reproductor ? "Minimizar" : "Mostrar"}
-                  title={reproductor ? "Minimizar (la música sigue)" : "Mostrar"}
-                  style={{ ...boton, padding: "0 7px", fontSize: 12, lineHeight: "18px" }}
-                >
-                  {reproductor ? "—" : "▢"}
-                </button>
-              </span>
-            </div>
-            <div ref={contRef} style={{ display: reproductor ? "block" : "none", minHeight: reproductor ? 152 : 0 }} />
-            {cancion.spotifyUri && (
-              <div style={{ marginTop: 6, fontSize: 10, color: MUTED, lineHeight: 1.35 }}>
-                {reproduciendo ? "● Siguiendo la canción. " : "Dale play y te sigue. "}
-                Si se adelanta o se atrasa, toca el acorde que estás oyendo y se ajusta.
-                {anclas.length > 0 && (
-                  <>
-                    {" "}({anclas.length} {anclas.length === 1 ? "ajuste" : "ajustes"}){" "}
-                    <button onClick={borrarAjustes} style={{ fontSize: 10, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0 }}>
-                      borrar
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-            {aviso && <div style={{ marginTop: 4, fontSize: 10, color: MUTED }}>{aviso}</div>}
-          </div>
         </aside>
 
         {/* Centro: letra con la palabra subrayada del color del acorde */}
@@ -863,6 +777,51 @@ export function VistaEstudio({
 
         {/* Derecha: mástil, todos los acordes y círculo */}
         <aside className="order-3 flex flex-col gap-3 overflow-y-auto px-4 py-3" style={{ borderLeft: `1px solid ${LINE}`, background: BG }}>
+          {/* Spotify de esta canción; se minimiza si estorba y la música sigue */}
+          <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "8px 10px" }}>
+            <div className="flex items-center justify-between" style={{ marginBottom: reproductor ? 6 : 0 }}>
+              <Titulo>♪ Spotify</Titulo>
+              <button
+                onClick={() => {
+                  setReproductor((v) => {
+                    guardar(PREF_REPRO, !v);
+                    return !v;
+                  });
+                }}
+                aria-label={reproductor ? "Minimizar" : "Mostrar"}
+                title={reproductor ? "Minimizar (la música sigue)" : "Mostrar"}
+                style={{ ...boton, padding: "0 7px", fontSize: 12, lineHeight: "18px", marginBottom: 6 }}
+              >
+                {reproductor ? "—" : "▢"}
+              </button>
+            </div>
+            <div ref={contRef} style={{ display: reproductor && cancion.spotifyUri ? "block" : "none", minHeight: 152 }} />
+            {cancion.spotifyUri ? (
+              <div style={{ marginTop: 6, fontSize: 11, color: MUTED, lineHeight: 1.35 }}>
+                {reproduciendo ? "● Siguiendo la canción. " : "Dale play y te sigue. "}
+                Si se adelanta o se atrasa, toca el acorde que estás oyendo y se ajusta.
+                {anclas.length > 0 && (
+                  <>
+                    {" "}({anclas.length} {anclas.length === 1 ? "ajuste" : "ajustes"}){" "}
+                    <button onClick={borrarAjustes} style={{ fontSize: 11, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0 }}>
+                      borrar
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <p style={{ fontSize: 12, color: MUTED }}>
+                Esta canción aún no tiene liga de Spotify.{" "}
+                {puedeEditar && (
+                  <Link href={`/canciones/${cancion.id}/editar`} style={{ color: CORAL, fontWeight: 700 }}>
+                    Pégala en Editar
+                  </Link>
+                )}
+              </p>
+            )}
+            {aviso && <div style={{ marginTop: 4, fontSize: 11, color: MUTED }}>{aviso}</div>}
+          </section>
+
           <div className="flex flex-wrap items-center gap-1.5">
             {(Object.keys(INSTRUMENTOS_ESTUDIO) as NombreInstrumento[]).map((k) => (
               <button
