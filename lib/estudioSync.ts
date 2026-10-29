@@ -58,6 +58,11 @@ export function pesosDeSeccion(lineas: { largo: number; posiciones: number[] }[]
   return coords.map((c, j) => Math.max(PESO_MINIMO, (j + 1 < coords.length ? coords[j + 1] : desplazamiento) - c));
 }
 
+// Mueve TODAS las anclas la misma cantidad de milisegundos (nunca bajo cero).
+export function desplazarAnclas(anclas: Ancla[], deltaMs: number): Ancla[] {
+  return anclas.map(([k, ms]) => [k, Math.max(0, Math.round(ms + deltaMs))] as Ancla);
+}
+
 // Ocurrencia que suena en `posicionMs`; -1 si aún no empieza. `pesos` (uno por
 // ocurrencia) reparte el tiempo en proporción; sin pesos, parejo.
 export function ocurrenciaPorAnclas(anclas: Ancla[], posicionMs: number, total: number, duracionMs: number, pesos?: number[]): number {
