@@ -75,7 +75,7 @@ function SeccionNombreSelector({ valor, onCambio }: { valor: NombreSeccion; onCa
   );
 }
 
-// Chip de acorde proporcional al número de compases (diseño Fase 2).
+// Chip de acorde compacto: el acorde (toca para cambiarlo), sus compases y quitar.
 function AcordeChip({
   acorde,
   tonalidad,
@@ -91,43 +91,37 @@ function AcordeChip({
 }) {
   const color = colorRaizAcorde(acorde.notaRaiz, acorde.calidad);
   const ink = colorContrasteTexto(color);
-  const tonos = tonosDelAcorde(acorde.notaRaiz, acorde.calidad);
   return (
-    <div style={{ flex: Math.max(1, acorde.duracionCompases), minWidth: 92, borderRadius: 10, padding: "8px 7px", background: color, border: "1px solid rgba(0,0,0,.14)" }}>
-      <div className="flex items-start justify-between gap-1">
-        <AcordeSelector
-          tonalidad={tonalidad}
-          notaRaiz={acorde.notaRaiz}
-          calidad={acorde.calidad}
-          onSeleccionar={onSeleccionar}
-        />
-        <span style={{ borderRadius: 5, padding: "1px 4px", background: "rgba(0,0,0,.2)", color: ink, fontFamily: MONO, fontSize: 9 }}>{acorde.duracionCompases}c</span>
-      </div>
-      <div className="mt-1.5 flex flex-wrap gap-1">
-        {tonos.acompanantes.map((t, i) => (
-          <span key={i} style={{ display: "inline-flex", gap: 3, borderRadius: 999, padding: "1px 5px", background: "oklch(0.97 0.006 85)", fontFamily: MONO, fontWeight: 700, fontSize: 9, color: "oklch(0.3 0.044 262)" }}>
-            <span style={{ color: colorExtension(t.nota) }}>{t.intervalo.replace("ª", "")}</span>
-            {t.nota}
-          </span>
-        ))}
-      </div>
-      <div className="mt-1.5 flex items-center gap-1">
-        <input
-          inputMode="numeric"
-          value={acorde.duracionCompases}
-          onChange={(e) => {
-            const limpio = e.target.value.replace(/[^0-9.]/g, "");
-            onDuracion(limpio === "" ? 0 : Number(limpio));
-          }}
-          style={{ width: "2.4em", textAlign: "center", borderRadius: 6, padding: "3px 2px", background: "rgba(255,255,255,.85)", border: "1px solid rgba(0,0,0,.1)", fontFamily: MONO, fontSize: 11, color: INK }}
-        />
-        <span style={{ fontFamily: MONO, fontSize: 9, color: ink }}>comp.</span>
-        <button type="button" onClick={onQuitar} className="ml-auto" style={{ color: ink, fontFamily: MONO, fontSize: 10 }}>
-          ×
-        </button>
-      </div>
+    <div className="flex items-center gap-1" style={{ borderRadius: 9, padding: "2px 5px 2px 2px", background: color, border: "1px solid rgba(0,0,0,.14)" }}>
+      <AcordeSelector compacto tonalidad={tonalidad} notaRaiz={acorde.notaRaiz} calidad={acorde.calidad} onSeleccionar={onSeleccionar} />
+      <input
+        inputMode="numeric"
+        value={acorde.duracionCompases}
+        title="Compases que dura"
+        onChange={(e) => {
+          const limpio = e.target.value.replace(/[^0-9.]/g, "");
+          onDuracion(limpio === "" ? 0 : Number(limpio));
+        }}
+        style={{ width: "2em", textAlign: "center", borderRadius: 5, padding: "1px 0", background: "rgba(255,255,255,.85)", border: "1px solid rgba(0,0,0,.1)", fontFamily: MONO, fontSize: 10, color: INK }}
+      />
+      <span style={{ fontFamily: MONO, fontSize: 9, color: ink }}>c</span>
+      <button type="button" onClick={onQuitar} aria-label="Quitar acorde" style={{ color: ink, fontFamily: MONO, fontSize: 11, lineHeight: 1 }}>
+        ×
+      </button>
     </div>
   );
+}
+
+// Si la lista de acordes es un ciclo que se toca varias veces seguidas (A B C D A B C D), devuelve el ciclo y cuántas veces.
+function cicloRepetido(acordes: { notaRaiz: Nota; calidad: Calidad }[]): { largo: number; veces: number } | null {
+  const n = acordes.length;
+  for (let largo = 1; largo <= n / 2; largo++) {
+    if (n % largo !== 0) continue;
+    let igual = true;
+    for (let i = largo; i < n && igual; i++) igual = acordes[i].notaRaiz === acordes[i % largo].notaRaiz && acordes[i].calidad === acordes[i % largo].calidad;
+    if (igual) return { largo, veces: n / largo };
+  }
+  return null;
 }
 
 function LetraEditor({
@@ -145,45 +139,25 @@ function LetraEditor({
   const setLinea = (i: number, patch: Partial<LetraFS>) => onCambio(letra.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
 
   return (
-    <div className="mt-2.5 border-t pt-2.5" style={{ borderColor: LINE }}>
+    <div>
       <div className="flex items-center gap-2">
         <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT }}>Letra + acordes</span>
-        <div className="flex-1" />
-        <span style={{ fontFamily: MONO, fontSize: 9, color: FAINT }}>pon el acorde donde está el cursor</span>
+        <span style={{ fontFamily: MONO, fontSize: 9, color: FAINT }}>· el acorde se pone donde dejaste el cursor en la línea</span>
       </div>
-      <div className="mt-2 flex flex-col gap-2.5">
+      <div className="mt-1.5 grid gap-1.5 2xl:grid-cols-2">
         {letra.map((l, li) => (
-          <div key={li} className="rounded-lg p-2" style={{ background: CARD2, border: `1px solid ${LINE}` }}>
-            {l.acordes.length > 0 && (
-              <div className="mb-1 flex flex-wrap gap-1.5">
-                {[...l.acordes].sort((a, b) => a.posicion - b.posicion).map((ac, idx) => (
-                  <span key={idx} style={{ display: "flex", alignItems: "center", gap: 3, borderRadius: 6, padding: "1px 5px", background: CHIP, fontFamily: MONO, fontWeight: 700, fontSize: 11, color: colorRaizAcorde(ac.notaRaiz, ac.calidad) }}>
-                    {simboloAcorde(ac.notaRaiz, ac.calidad)}
-                    <span style={{ color: FAINT }}>@{ac.posicion}</span>
-                    <button type="button" onClick={() => setLinea(li, { acordes: l.acordes.filter((x) => x !== ac) })} style={{ color: "oklch(0.6 0.15 25)" }}>
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <input
-                value={l.texto}
-                placeholder="Línea de letra…"
-                onChange={(e) => setLinea(li, { texto: e.target.value })}
-                onFocus={(e) => setFoco({ linea: li, pos: e.target.selectionStart ?? 0 })}
-                onSelect={(e) => setFoco({ linea: li, pos: (e.target as HTMLInputElement).selectionStart ?? 0 })}
-                className="flex-1 rounded-lg border px-2.5 py-1.5 text-sm outline-none"
-                style={{ ...inputStyle, fontFamily: MONO }}
-              />
-              <button type="button" onClick={() => onCambio(letra.filter((_, i) => i !== li))} className="text-xs" style={{ color: "oklch(0.6 0.15 25)" }}>
-                Quitar
-              </button>
-            </div>
-            <div className="mt-1.5 flex items-center gap-2">
-              <span style={{ fontFamily: MONO, fontSize: 9, textTransform: "uppercase", color: MUTED }}>Acorde en el cursor</span>
+          <div key={li} className="rounded-lg px-2 py-1" style={{ background: CARD2, border: `1px solid ${LINE}` }}>
+            <div className="flex flex-wrap items-center gap-1">
+              {[...l.acordes].sort((a, b) => a.posicion - b.posicion).map((ac, idx) => (
+                <span key={idx} style={{ display: "flex", alignItems: "center", gap: 3, borderRadius: 5, padding: "0 4px", background: colorRaizAcorde(ac.notaRaiz, ac.calidad), fontFamily: MONO, fontWeight: 700, fontSize: 10, color: colorContrasteTexto(colorRaizAcorde(ac.notaRaiz, ac.calidad)) }}>
+                  {simboloAcorde(ac.notaRaiz, ac.calidad)}
+                  <span style={{ opacity: 0.7, fontWeight: 500 }}>@{ac.posicion}</span>
+                  <button type="button" aria-label="Quitar acorde" onClick={() => setLinea(li, { acordes: l.acordes.filter((x) => x !== ac) })}>×</button>
+                </span>
+              ))}
               <AcordeSelector
+                compacto
+                etiqueta="+ acorde"
                 tonalidad={tonalidad}
                 notaRaiz={raizDefault}
                 calidad="mayor"
@@ -193,12 +167,26 @@ function LetraEditor({
                 }}
               />
             </div>
+            <div className="mt-1 flex items-center gap-1.5">
+              <input
+                value={l.texto}
+                placeholder="Línea de letra…"
+                onChange={(e) => setLinea(li, { texto: e.target.value })}
+                onFocus={(e) => setFoco({ linea: li, pos: e.target.selectionStart ?? 0 })}
+                onSelect={(e) => setFoco({ linea: li, pos: (e.target as HTMLInputElement).selectionStart ?? 0 })}
+                className="min-w-0 flex-1 rounded-md border px-2 py-0.5 text-[13px] outline-none"
+                style={{ ...inputStyle, fontFamily: MONO }}
+              />
+              <button type="button" onClick={() => onCambio(letra.filter((_, i) => i !== li))} className="text-[11px]" style={{ color: "oklch(0.6 0.15 25)" }} aria-label="Quitar línea">
+                ×
+              </button>
+            </div>
           </div>
         ))}
-        <button type="button" onClick={() => onCambio([...letra, { texto: "", acordes: [] }])} className="w-fit rounded-lg px-3 py-1.5 text-xs font-bold" style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}>
-          + Línea
-        </button>
       </div>
+      <button type="button" onClick={() => onCambio([...letra, { texto: "", acordes: [] }])} className="mt-1.5 w-fit rounded-md px-2.5 py-1 text-[11px] font-bold" style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}>
+        + Línea
+      </button>
     </div>
   );
 }
@@ -461,7 +449,8 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
   const boton = { border: `1px solid ${LINE}`, background: CARD, color: INK, borderRadius: 9, padding: "4px 10px", fontFamily: MONO, fontWeight: 700, fontSize: 11 } as const;
 
   return (
-    <div className="flex flex-col gap-4" style={{ fontFamily: "var(--font-dm-sans), sans-serif", color: INK }}>
+    <div className="flex items-start gap-4" style={{ fontFamily: "var(--font-dm-sans), sans-serif", color: INK }}>
+    <div className="flex min-w-0 flex-1 flex-col gap-3">
       {/* Ficha */}
       <section className="rounded-2xl p-4" style={{ background: CARD, border: `1px solid ${LINE}` }}>
         <div className="flex flex-wrap items-center gap-2">
@@ -488,99 +477,103 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
         )}
       </section>
 
-      {/* Recorrido */}
+      {/* Recorrido: una sola pieza, de izquierda a derecha, en el orden en que suena */}
       <section>
         <div className="flex items-baseline gap-2">
           <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: INK }}>El recorrido</span>
           <div className="h-px flex-1" style={{ background: LINE }} />
           <span style={{ fontFamily: MONO, fontSize: 10, color: MUTED }}>{secciones.length} partes · {totalVueltas} vueltas</span>
         </div>
-        <div className="mt-2 overflow-x-auto pb-3">
-          <div className="flex min-w-max items-stretch px-1 pt-1">
-            {secciones.map((s, i) => {
-              const color = colorPorTipoSeccion(s.nombre);
-              const activa = i === si;
-              const compases = compasesSeccionTotal(s);
-              const ancho = Math.min(280, 150 + compasesDe(s) * 6);
-              return (
-                <Fragment key={i}>
-                  <button
-                    type="button"
-                    onClick={() => setSeccionAbierta(i)}
-                    className="flex flex-col overflow-hidden text-left"
-                    style={{ width: ancho, borderRadius: 16, background: CARD, border: `2px solid ${activa ? ACCENT : LINE}`, boxShadow: activa ? "0 14px 24px -14px rgba(0,0,0,0.45)" : "none", transform: activa ? "translateY(-3px)" : "none", transition: "transform .15s, box-shadow .15s" }}
-                  >
-                    <span className="flex items-center gap-1.5 px-2.5 py-1.5" style={{ background: color, color: "oklch(0.99 0.006 85)" }}>
-                      <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: 10, opacity: 0.85 }}>{i + 1}</span>
-                      <span style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 14 }}>{s.nombre}</span>
-                      {s.repiteVeces > 1 && <span className="ml-auto" style={{ fontFamily: MONO, fontWeight: 800, fontSize: 11 }}>↻ ×{s.repiteVeces}</span>}
-                    </span>
-                    <span className="flex gap-0.5 px-2 pt-2" style={{ minHeight: 34 }}>
-                      {acordesDeParada(s).length === 0 && <span style={{ fontFamily: MONO, fontSize: 10, color: FAINT }}>sin acordes</span>}
-                      {acordesDeParada(s).map((a, k) => {
-                        const c = colorRaizAcorde(a.notaRaiz, a.calidad);
-                        return (
-                          <span key={k} style={{ flex: Math.max(1, a.duracionCompases), minWidth: 0, background: c, color: colorContrasteTexto(c), borderRadius: 6, padding: "4px 0", textAlign: "center", fontFamily: MONO, fontWeight: 800, fontSize: 10, overflow: "hidden" }}>
-                            {simboloAcorde(a.notaRaiz, a.calidad)}
-                          </span>
-                        );
-                      })}
-                    </span>
-                    <span className="flex items-center gap-2 px-2.5 pb-2 pt-1.5" style={{ fontFamily: MONO, fontSize: 10, color: MUTED }}>
-                      <span>{compases}c</span>
-                      {bpm > 0 && <span>{mmssLocal(compases * segundosPorCompas(Number(s.bpm) || bpm))}</span>}
-                      {s.letra.length > 0 && <span className="ml-auto">♪ {s.letra.length}</span>}
-                    </span>
-                  </button>
-                  <svg width="34" height="20" viewBox="0 0 34 20" aria-hidden style={{ alignSelf: "center", flex: "none" }}>
-                    <path d="M2 10h26M22 4l7 6-7 6" fill="none" stroke={FAINT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <div className="mt-2 flex items-stretch overflow-x-auto rounded-2xl" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+          {secciones.map((s, i) => {
+            const color = colorPorTipoSeccion(s.nombre);
+            const activa = i === si;
+            const compases = compasesSeccionTotal(s);
+            const lista = acordesDeParada(s);
+            const ciclo = cicloRepetido(lista);
+            const visibles = ciclo ? lista.slice(0, ciclo.largo) : lista;
+            const veces = s.repiteVeces * (ciclo?.veces ?? 1);
+            return (
+              <Fragment key={i}>
+                {i > 0 && (
+                  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden style={{ alignSelf: "center", flex: "none", margin: "0 -3px", zIndex: 1 }}>
+                    <path d="M4 2l5 5-5 5" fill="none" stroke={FAINT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                </Fragment>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => {
-                setSecciones((p) => [...p, nuevaSeccion()]);
-                setSeccionAbierta(secciones.length);
-              }}
-              className="flex flex-col items-center justify-center gap-1"
-              style={{ width: 120, borderRadius: 16, border: `2px dashed ${LINE}`, color: MUTED, fontFamily: MONO, fontWeight: 700, fontSize: 11 }}
-            >
-              <span style={{ fontSize: 20, lineHeight: 1 }}>+</span>
-              Otra parte
-            </button>
-          </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSeccionAbierta(i)}
+                  className="flex min-w-[104px] flex-col text-left"
+                  style={{ flex: `${Math.max(1, Math.min(compases, 20))} 1 0`, background: activa ? "oklch(0.96 0.03 28)" : "transparent", borderTop: `4px solid ${color}`, padding: "6px 8px 6px", borderRight: i < secciones.length - 1 ? `1px solid ${LINE}` : "none" }}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: 9, color: FAINT }}>{i + 1}</span>
+                    <span className="truncate" style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 13, color: INK }}>{s.nombre}</span>
+                    {veces > 1 && <span className="ml-auto flex-none" style={{ fontFamily: MONO, fontWeight: 800, fontSize: 10, color: ACCENT }}>↻×{veces}</span>}
+                  </span>
+                  <span className="mt-1 flex gap-px" style={{ minHeight: 18 }}>
+                    {visibles.length === 0 && <span style={{ fontFamily: MONO, fontSize: 9, color: FAINT }}>sin acordes</span>}
+                    {visibles.map((a, k) => {
+                      const c = colorRaizAcorde(a.notaRaiz, a.calidad);
+                      return (
+                        <span key={k} style={{ flex: 1, minWidth: 0, background: c, color: colorContrasteTexto(c), borderRadius: 3, padding: "2px 0", textAlign: "center", fontFamily: MONO, fontWeight: 800, fontSize: 8.5, overflow: "hidden" }}>
+                          {simboloAcorde(a.notaRaiz, a.calidad)}
+                        </span>
+                      );
+                    })}
+                  </span>
+                  <span className="mt-1 flex items-center gap-1.5" style={{ fontFamily: MONO, fontSize: 9, color: MUTED }}>
+                    <span>{compases}c</span>
+                    {bpm > 0 && <span>{mmssLocal(compases * segundosPorCompas(Number(s.bpm) || bpm))}</span>}
+                    {s.letra.length > 0 && <span className="ml-auto">♪{s.letra.length}</span>}
+                  </span>
+                </button>
+              </Fragment>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => {
+              setSecciones((p) => [...p, nuevaSeccion()]);
+              setSeccionAbierta(secciones.length);
+            }}
+            title="Agregar otra parte"
+            className="flex w-14 flex-none flex-col items-center justify-center"
+            style={{ borderLeft: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO, fontWeight: 700, fontSize: 18 }}
+          >
+            +
+          </button>
         </div>
       </section>
 
       {/* Detalle de la parada elegida */}
       {sec && cuerpoSel && (
-        <section className="rounded-2xl p-4" style={{ background: CARD, border: `2px solid ${ACCENT}` }}>
-          <div className="flex flex-wrap items-center gap-3">
+        <section className="rounded-2xl px-3 py-2.5" style={{ background: CARD, border: `2px solid ${ACCENT}` }}>
+          <div className="flex flex-wrap items-center gap-2.5">
             <SeccionNombreSelector valor={sec.nombre} onCambio={(nombre) => patchSeccion(si, { nombre })} />
             <div className="flex items-center" style={{ fontFamily: MONO }}>
-              <span style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT, marginRight: 6 }}>Se repite</span>
-              <div className="flex items-center overflow-hidden rounded-lg border" style={{ borderColor: LINE }}>
-                <button type="button" onClick={() => patchSeccion(si, { repiteVeces: Math.max(1, sec.repiteVeces - 1), repeticiones: sec.repeticiones.filter((r) => r.repeticionIndice <= sec.repiteVeces - 1) })} style={{ width: 24, height: 24, background: CHIP, color: MUTED, fontFamily: MONO }}>−</button>
-                <span style={{ width: 36, textAlign: "center", fontFamily: MONO, fontWeight: 700, fontSize: 12 }}>×{sec.repiteVeces}</span>
-                <button type="button" onClick={() => patchSeccion(si, { repiteVeces: sec.repiteVeces + 1 })} style={{ width: 24, height: 24, background: CHIP, color: MUTED, fontFamily: MONO }}>+</button>
+              <span style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT, marginRight: 5 }}>Se repite</span>
+              <div className="flex items-center overflow-hidden rounded-md border" style={{ borderColor: LINE }}>
+                <button type="button" onClick={() => patchSeccion(si, { repiteVeces: Math.max(1, sec.repiteVeces - 1), repeticiones: sec.repeticiones.filter((r) => r.repeticionIndice <= sec.repiteVeces - 1) })} style={{ width: 20, height: 20, background: CHIP, color: MUTED, fontFamily: MONO }}>−</button>
+                <span style={{ width: 30, textAlign: "center", fontFamily: MONO, fontWeight: 700, fontSize: 11 }}>×{sec.repiteVeces}</span>
+                <button type="button" onClick={() => patchSeccion(si, { repiteVeces: sec.repiteVeces + 1 })} style={{ width: 20, height: 20, background: CHIP, color: MUTED, fontFamily: MONO }}>+</button>
               </div>
             </div>
+            <AjustesCuerpo cuerpo={cuerpoSel} onCambio={aplicar} />
             <span style={{ fontFamily: MONO, fontSize: 10, color: FAINT }}>
               {compasesSeccionTotal(sec)} compases{bpm > 0 ? ` · ${mmssLocal(compasesSeccionTotal(sec) * segundosPorCompas(Number(cuerpoSel.bpm) || bpm))}` : ""}
             </span>
-            <div className="ml-auto flex items-center gap-1.5">
-              <button type="button" onClick={() => moverSeccion(si, -1)} disabled={si === 0} title="Mover antes" style={{ ...boton, opacity: si === 0 ? 0.3 : 1 }}>← Antes</button>
-              <button type="button" onClick={() => moverSeccion(si, 1)} disabled={si === secciones.length - 1} title="Mover después" style={{ ...boton, opacity: si === secciones.length - 1 ? 0.3 : 1 }}>Después →</button>
+            <div className="ml-auto flex items-center gap-1">
+              <button type="button" onClick={() => moverSeccion(si, -1)} disabled={si === 0} title="Mover antes" style={{ ...boton, padding: "2px 8px", opacity: si === 0 ? 0.3 : 1 }}>←</button>
+              <button type="button" onClick={() => moverSeccion(si, 1)} disabled={si === secciones.length - 1} title="Mover después" style={{ ...boton, padding: "2px 8px", opacity: si === secciones.length - 1 ? 0.3 : 1 }}>→</button>
               {secciones.length > 1 && (
-                <button type="button" onClick={() => quitarSeccion(si)} style={{ ...boton, color: "oklch(0.5 0.18 25)", borderColor: "oklch(0.6 0.15 25 / 0.45)" }}>Quitar parte</button>
+                <button type="button" onClick={() => quitarSeccion(si)} style={{ ...boton, padding: "2px 8px", color: "oklch(0.5 0.18 25)", borderColor: "oklch(0.6 0.15 25 / 0.45)" }}>Quitar parte</button>
               )}
             </div>
           </div>
 
           {sec.repiteVeces > 1 && (
-            <div className="mt-3 flex gap-1">
+            <div className="mt-2 flex items-center gap-1">
               {Array.from({ length: sec.repiteVeces }).map((_, idx) => {
                 const n = idx + 1;
                 const variante = sec.repeticiones.some((r) => r.repeticionIndice === n);
@@ -590,97 +583,103 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                     key={n}
                     type="button"
                     onClick={() => setVueltaSel((p) => ({ ...p, [si]: n }))}
+                    title={variante ? "Vuelta desprendida" : "Igual que la plantilla"}
                     style={{
-                      flex: 1,
-                      maxWidth: 140,
                       border: `1px solid ${variante ? ACCENT : LINE}`,
                       background: activo ? (variante ? ACCENT : CHIP) : "transparent",
                       color: activo ? (variante ? "oklch(0.99 0.006 85)" : INK) : MUTED,
-                      borderRadius: 9,
-                      padding: "6px 4px",
+                      borderRadius: 7,
+                      padding: "2px 9px",
                       fontFamily: MONO,
                       fontWeight: 700,
                       fontSize: 10,
-                      textAlign: "center",
                     }}
                   >
-                    <div>Vuelta {n}</div>
-                    <div style={{ marginTop: 3, fontSize: 8, letterSpacing: "0.06em", textTransform: "uppercase", opacity: 0.85 }}>{variante ? "desprendida" : "igual"}</div>
+                    Vuelta {n}{variante ? " · aparte" : ""}
                   </button>
                 );
               })}
-            </div>
-          )}
-
-          <div className="mt-3 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <div className="flex flex-col gap-2.5">
-              <AjustesCuerpo cuerpo={cuerpoSel} onCambio={aplicar} />
-              <div className="flex flex-wrap gap-1.5">
-                {cuerpoSel.acordes.map((a, ai) => (
-                  <AcordeChip
-                    key={ai}
-                    acorde={a}
-                    tonalidad={tonDe(cuerpoSel)}
-                    onSeleccionar={(notaRaiz, calidad) => aplicar({ acordes: cuerpoSel.acordes.map((x, i) => (i === ai ? { ...x, notaRaiz, calidad } : x)) })}
-                    onDuracion={(n) => aplicar({ acordes: cuerpoSel.acordes.map((x, i) => (i === ai ? { ...x, duracionCompases: n } : x)) })}
-                    onQuitar={() => aplicar({ acordes: cuerpoSel.acordes.filter((_, i) => i !== ai) })}
-                  />
-                ))}
-                <button
-                  type="button"
-                  onClick={() => aplicar({ acordes: [...cuerpoSel.acordes, { notaRaiz: tonDe(cuerpoSel).raiz, calidad: "mayor" as Calidad, duracionCompases: 1 }] })}
-                  className="rounded-lg px-3 py-2 text-sm font-bold"
-                  style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}
-                >
-                  + Acorde
-                </button>
-              </div>
-              {sec.repiteVeces > 1 && !esVariante && (
-                <button type="button" onClick={() => toggleDesprender(si, sel)} className="w-full rounded-lg border border-dashed py-2 text-[10px] font-bold uppercase tracking-[0.06em]" style={{ borderColor: LINE, color: MUTED, fontFamily: MONO }}>
-                  Desprender vuelta {sel} y editarla aparte
+              {!esVariante && (
+                <button type="button" onClick={() => toggleDesprender(si, sel)} className="rounded-md border border-dashed px-2 py-0.5 text-[10px] font-bold" style={{ borderColor: LINE, color: MUTED, fontFamily: MONO }}>
+                  Editar vuelta {sel} aparte
                 </button>
               )}
               {esVariante && (
-                <div className="flex items-center gap-2 rounded-lg px-2.5 py-2" style={{ background: CHIP }}>
-                  <span className="flex-1 text-[10px] leading-snug" style={{ color: MUTED }}>
-                    Vuelta {sel} desprendida: cambia solo esta vez, las otras vueltas siguen igual.
-                  </span>
-                  <button type="button" onClick={() => toggleDesprender(si, sel)} className="text-[10px] font-bold uppercase" style={{ color: ACCENT, fontFamily: MONO }}>
-                    Reunir
-                  </button>
-                </div>
+                <button type="button" onClick={() => toggleDesprender(si, sel)} className="rounded-md px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: CHIP, color: ACCENT, fontFamily: MONO }}>
+                  Reunir con las demás
+                </button>
               )}
             </div>
-            <div>
-              <LetraEditor letra={cuerpoSel.letra} tonalidad={tonDe(cuerpoSel)} raizDefault={tonDe(cuerpoSel).raiz} onCambio={(letra) => aplicar({ letra })} />
-            </div>
+          )}
+
+          {/* Acordes de la parte (cuentan los compases); si un ciclo se toca varias veces seguidas, una raya los separa */}
+          {(() => {
+            const ac = cuerpoSel.acordes;
+            const ciclo = cicloRepetido(ac);
+            return (
+              <div className="mt-2 flex flex-wrap items-center gap-1">
+                <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT, marginRight: 4 }}>Acordes</span>
+                {ac.map((a, ai) => (
+                  <Fragment key={ai}>
+                    {ciclo && ai > 0 && ai % ciclo.largo === 0 && <span aria-hidden style={{ width: 2, alignSelf: "stretch", background: ACCENT, borderRadius: 1, margin: "0 3px" }} />}
+                    <AcordeChip
+                      acorde={a}
+                      tonalidad={tonDe(cuerpoSel)}
+                      onSeleccionar={(notaRaiz, calidad) => aplicar({ acordes: ac.map((x, i) => (i === ai ? { ...x, notaRaiz, calidad } : x)) })}
+                      onDuracion={(n) => aplicar({ acordes: ac.map((x, i) => (i === ai ? { ...x, duracionCompases: n } : x)) })}
+                      onQuitar={() => aplicar({ acordes: ac.filter((_, i) => i !== ai) })}
+                    />
+                  </Fragment>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => aplicar({ acordes: [...ac, { notaRaiz: tonDe(cuerpoSel).raiz, calidad: "mayor" as Calidad, duracionCompases: 1 }] })}
+                  className="rounded-md px-2 py-0.5 text-[11px] font-bold"
+                  style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}
+                >
+                  + acorde
+                </button>
+                {ciclo && (
+                  <span style={{ fontFamily: MONO, fontSize: 10, color: ACCENT, marginLeft: 4 }}>
+                    ↻ un ciclo de {ciclo.largo} acordes se toca {ciclo.veces} veces
+                  </span>
+                )}
+              </div>
+            );
+          })()}
+
+          <div className="mt-3 border-t pt-2.5" style={{ borderColor: LINE }}>
+            <LetraEditor letra={cuerpoSel.letra} tonalidad={tonDe(cuerpoSel)} raizDefault={tonDe(cuerpoSel).raiz} onCambio={(letra) => aplicar({ letra })} />
           </div>
         </section>
       )}
 
-      <PaletaColor />
-
       {cancionExistente && (
-        <section className="grid gap-3 md:grid-cols-2">
-          <AudioCampo
-            cancionId={cancionExistente.id}
-            bandaId={bandaId}
-            tipo="referencia"
-            titulo="Audio de referencia"
-            chip="Ensayo"
-            descripcion="Se reemplaza: solo vive la última versión. Sirve para sacar la línea encima."
-            urlInicial={cancionExistente.audioReferenciaUrl}
-          />
-          <AudioCampo
-            cancionId={cancionExistente.id}
-            bandaId={bandaId}
-            tipo="secuencia"
-            titulo="Secuencia final"
-            chip="En vivo"
-            descripcion="Es la que suena en show. Manda el conteo del modo lista."
-            urlInicial={cancionExistente.audioSecuenciaUrl}
-          />
-        </section>
+        <details className="rounded-2xl" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+          <summary className="cursor-pointer select-none px-4 py-2.5" style={{ fontFamily: MONO, fontWeight: 700, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: MUTED }}>
+            Audios · referencia y secuencia
+          </summary>
+          <div className="grid gap-3 p-3 pt-0 md:grid-cols-2">
+            <AudioCampo
+              cancionId={cancionExistente.id}
+              bandaId={bandaId}
+              tipo="referencia"
+              titulo="Audio de referencia"
+              chip="Ensayo"
+              descripcion="Se reemplaza: solo vive la última versión. Sirve para sacar la línea encima."
+              urlInicial={cancionExistente.audioReferenciaUrl}
+            />
+            <AudioCampo
+              cancionId={cancionExistente.id}
+              bandaId={bandaId}
+              tipo="secuencia"
+              titulo="Secuencia final"
+              chip="En vivo"
+              descripcion="Es la que suena en show. Manda el conteo del modo lista."
+              urlInicial={cancionExistente.audioSecuenciaUrl}
+            />
+          </div>
+        </details>
       )}
 
       {error && <div className="text-sm" style={{ color: "oklch(0.55 0.18 25)" }}>{error}</div>}
@@ -713,6 +712,8 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
         )}
       </div>
     </div>
+    <PaletaColor />
+    </div>
   );
 }
 
@@ -727,25 +728,21 @@ function mmssLocal(seg: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-// Tira de referencia de color por nota (diseño Fase 2): 12 notas, arriba
-// mayor, abajo menor — la misma que aparece en la app para que el color se
-// vuelva memoria.
+// Referencia de color por nota (solo para mirar), en vertical a un lado: 12 notas;
+// cada fila trae el color mayor (ancho) y el menor (franja).
 function PaletaColor() {
   return (
-    <div style={{ background: CARD2, border: `1px solid ${LINE}`, borderRadius: 12, padding: "9px 10px" }}>
-      <div className="flex items-center gap-2">
-        <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT }}>Color por nota</span>
-        <div className="flex-1" />
-        <span style={{ fontFamily: MONO, fontSize: 9, color: FAINT }}>arriba mayor · abajo menor</span>
-      </div>
-      <div className="mt-1.5 grid gap-0.5" style={{ gridTemplateColumns: "repeat(12,1fr)" }}>
+    <aside className="sticky top-4 hidden w-[58px] flex-none rounded-xl p-1.5 md:block" style={{ background: CARD2, border: `1px solid ${LINE}` }} aria-label="Color por nota">
+      <div className="mb-1 text-center" style={{ fontFamily: MONO, fontWeight: 700, fontSize: 7, letterSpacing: "0.08em", textTransform: "uppercase", color: FAINT }}>Color</div>
+      <div className="flex flex-col gap-0.5">
         {NOTAS.map((n) => (
-          <div key={n} style={{ borderRadius: 5, overflow: "hidden" }}>
-            <div style={{ height: 16, background: colorRaizAcorde(n, "mayor"), display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontWeight: 700, fontSize: 8, color: colorContrasteTexto(colorRaizAcorde(n, "mayor")) }}>{n}</div>
-            <div style={{ height: 9, background: colorRaizAcorde(n, "menor") }} />
+          <div key={n} className="flex overflow-hidden rounded" title={`${n}: mayor (ancho) y menor (franja)`} style={{ height: 22 }}>
+            <div className="flex flex-1 items-center justify-center" style={{ background: colorRaizAcorde(n, "mayor"), fontFamily: MONO, fontWeight: 700, fontSize: 9, color: colorContrasteTexto(colorRaizAcorde(n, "mayor")) }}>{n}</div>
+            <div style={{ width: 9, background: colorRaizAcorde(n, "menor") }} />
           </div>
         ))}
       </div>
-    </div>
+      <div className="mt-1 text-center" style={{ fontFamily: MONO, fontSize: 7, color: FAINT }}>mayor · menor</div>
+    </aside>
   );
 }

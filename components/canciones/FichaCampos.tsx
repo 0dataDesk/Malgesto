@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { NOTAS, colorRaizAcorde, colorContrasteTexto, type Nota, type Modo } from "@/lib/cancionTeoria";
 import { formatoMMSS, parseMMSS } from "@/lib/duracion";
 import { uriDeSpotify } from "@/lib/estudioSync";
@@ -111,6 +112,7 @@ export function FichaCampos({
 }) {
   const colorTono = colorRaizAcorde(ficha.raiz, ficha.modo === "menor" ? "menor" : "mayor");
   const conCapo = ficha.capo > 0;
+  const [tonoAbierto, setTonoAbierto] = useState(false);
   return (
     <div className="flex flex-col gap-3" style={{ color: INK }}>
       {/* Nombre y artista */}
@@ -177,19 +179,43 @@ export function FichaCampos({
 
       {/* Donde empieza la canción: tono y compases */}
       <div className="rounded-xl p-3" style={{ border: `1px solid ${LINE}`, background: "oklch(0.975 0.006 85)" }}>
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2.5">
           <div className="flex items-center gap-2">
             <Etiqueta>Tono</Etiqueta>
-            <span style={{ background: colorTono, color: colorContrasteTexto(colorTono), borderRadius: 8, padding: "2px 10px", fontFamily: MONO, fontWeight: 800, fontSize: 15 }}>
-              {ficha.raiz}{ficha.modo === "menor" ? "m" : ""}
-            </span>
+            <button
+              type="button"
+              onClick={() => setTonoAbierto((v) => !v)}
+              aria-expanded={tonoAbierto}
+              title="Cambiar el tono"
+              style={{ background: colorTono, color: colorContrasteTexto(colorTono), borderRadius: 8, padding: "3px 12px", fontFamily: MONO, fontWeight: 800, fontSize: 15, cursor: "pointer" }}
+            >
+              {ficha.raiz}{ficha.modo === "menor" ? "m" : ""} <span style={{ fontSize: 9, opacity: 0.8 }}>{tonoAbierto ? "▴" : "▾"}</span>
+            </button>
           </div>
-          <div className="flex flex-wrap items-center gap-1">
+          <label className="flex items-center gap-2">
+            <Etiqueta>Compases</Etiqueta>
+            <input
+              inputMode="numeric"
+              value={ficha.compases === "" && compasesCalculados > 0 ? String(compasesCalculados) : ficha.compases}
+              placeholder="—"
+              onChange={(e) => onCambio({ compases: e.target.value.replace(/[^0-9]/g, "") })}
+              onBlur={() => {
+                // Si queda igual a lo calculado, vuelve a "automático" para seguir a la estructura.
+                if (ficha.compases !== "" && Number(ficha.compases) === compasesCalculados) onCambio({ compases: "" });
+              }}
+              title="Se calcula de la estructura; escribe otro número si quieres fijarlo"
+              className="rounded-lg border px-2 py-1.5 text-center text-sm outline-none"
+              style={{ ...inputStyle, width: "5em", fontFamily: MONO }}
+            />
+          </label>
+        </div>
+        {tonoAbierto && (
+          <div className="mt-3 flex flex-wrap items-center gap-1 border-t pt-3" style={{ borderColor: LINE }}>
             {NATURALES.map((n) => (
               <button
                 key={n}
                 type="button"
-                onClick={() => onCambio({ raiz: conSostenido(n, ficha.raiz.includes("#") && NOTAS.includes((n + "#") as Nota)) })}
+                onClick={() => onCambio({ raiz: conSostenido(n, ficha.raiz.includes("#") && (NOTAS as readonly string[]).includes(`${n}#`)) })}
                 className="rounded-lg px-2 py-1 text-xs font-bold"
                 style={{ ...(sinSostenido(ficha.raiz) === n ? activoStyle : inactivoStyle), fontFamily: MONO, minWidth: 28 }}
               >
@@ -210,19 +236,7 @@ export function FichaCampos({
               m
             </button>
           </div>
-          <label className="ml-auto flex items-center gap-2">
-            <Etiqueta>Compases</Etiqueta>
-            <input
-              inputMode="numeric"
-              value={ficha.compases}
-              placeholder={compasesCalculados > 0 ? String(compasesCalculados) : "—"}
-              onChange={(e) => onCambio({ compases: e.target.value.replace(/[^0-9]/g, "") })}
-              title="Si lo dejas vacío se calcula de la estructura"
-              className="rounded-lg border px-2 py-1.5 text-center text-sm outline-none"
-              style={{ ...inputStyle, width: "5em", fontFamily: MONO }}
-            />
-          </label>
-        </div>
+        )}
       </div>
     </div>
   );

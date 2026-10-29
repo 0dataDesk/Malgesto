@@ -32,6 +32,8 @@ export type Cancion = {
   totalCompases: number;
   // Compases escritos a mano (null = se calculan de la estructura).
   numeroCompases: number | null;
+  // Compases que salen de la estructura (sin importar lo escrito a mano).
+  compasesCalculados: number;
   totalSecciones: number;
   esCover: boolean;
   esBorrador: boolean;
@@ -178,6 +180,7 @@ export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
       duracionSegundos: c.duracion_segundos,
       totalCompases: c.numero_compases ?? totalCompases,
       numeroCompases: c.numero_compases ?? null,
+      compasesCalculados: totalCompases,
       totalSecciones: secciones.length,
       esCover: c.es_cover,
       esBorrador: c.es_borrador,
@@ -335,6 +338,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
     duracionSegundos: cancion.duracion_segundos,
     totalCompases: cancion.numero_compases ?? totalCompases,
     numeroCompases: cancion.numero_compases ?? null,
+    compasesCalculados: totalCompases,
     totalSecciones: seccionesArmadas.length,
     esCover: cancion.es_cover,
     esBorrador: cancion.es_borrador,

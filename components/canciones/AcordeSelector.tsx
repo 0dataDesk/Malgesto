@@ -30,11 +30,16 @@ export function AcordeSelector({
   notaRaiz,
   calidad,
   onSeleccionar,
+  compacto = false,
+  etiqueta,
 }: {
   tonalidad: Tonalidad;
   notaRaiz: Nota;
   calidad: Calidad;
   onSeleccionar: (notaRaiz: Nota, calidad: Calidad) => void;
+  // Botón chico (para filas apretadas); `etiqueta` reemplaza el nombre del acorde, p. ej. "+ acorde".
+  compacto?: boolean;
+  etiqueta?: string;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [notaManual, setNotaManual] = useState<Nota | null>(null);
@@ -55,10 +60,10 @@ export function AcordeSelector({
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}
-        className="rounded-lg px-3 py-2 text-sm font-bold"
-        style={{ background: colorRaizAcorde(notaRaiz, calidad), color: "oklch(0.99 0.006 85)", minWidth: 76 }}
+        className={compacto ? "rounded-md px-2 py-0.5 text-[11px] font-bold" : "rounded-lg px-3 py-2 text-sm font-bold"}
+        style={etiqueta ? { background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)", border: "1px dashed oklch(0.8 0.01 85)" } : { background: colorRaizAcorde(notaRaiz, calidad), color: "oklch(0.99 0.006 85)", minWidth: compacto ? 0 : 76 }}
       >
-        {simboloAcorde(notaRaiz, calidad)}
+        {etiqueta ?? simboloAcorde(notaRaiz, calidad)}
       </button>
 
       {abierto && (

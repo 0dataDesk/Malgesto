@@ -69,7 +69,7 @@ export function FichaEditor({ cancion, bandaNombre, onCerrar }: { cancion: Canci
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
-          <FichaCampos ficha={ficha} onCambio={(patch) => setFicha((f) => ({ ...f, ...patch }))} compasesCalculados={cancion.totalCompases} />
+          <FichaCampos ficha={ficha} onCambio={(patch) => setFicha((f) => ({ ...f, ...patch }))} compasesCalculados={cancion.compasesCalculados} />
 
           <button
             type="button"

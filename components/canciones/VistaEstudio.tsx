@@ -783,17 +783,37 @@ export function VistaEstudio({
             <div style={{ ...etiquetaCaja, color: MUTED }}>BPM</div>
             <div style={{ fontFamily: MONO, fontSize: 15, fontWeight: 800 }}>{cancion.bpm ? cancion.bpm : "—"}</div>
           </div>
-          {/* Foco del capo: se prende solo cuando la canción lo usa */}
+          {/* Foco del capo: chico, se prende solo cuando la canción lo usa */}
           <div
+            className="flex items-center gap-1.5"
             title={cancion.capo > 0 ? `Capo en el traste ${cancion.capo}: suena en ${transponerNota(tonalidad.raiz, cancion.capo)}` : "Esta canción no usa capo"}
-            style={{ ...caja, minWidth: 96, background: cancion.capo > 0 ? CORAL : BG, borderColor: cancion.capo > 0 ? CORAL : LINE, color: cancion.capo > 0 ? "white" : MUTED, boxShadow: cancion.capo > 0 ? `0 0 14px 2px color-mix(in srgb, ${CORAL} 55%, transparent)` : "none", opacity: cancion.capo > 0 ? 1 : 0.55 }}
           >
-            <div style={{ ...etiquetaCaja, opacity: 0.9 }}>Capo</div>
-            <div style={{ fontFamily: MONO, fontSize: 15, fontWeight: 800 }}>{cancion.capo > 0 ? cancion.capo : "—"}</div>
+            <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED }}>Capo</span>
+            <span
+              style={{ width: 24, height: 24, borderRadius: 99, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontWeight: 800, fontSize: 12, background: cancion.capo > 0 ? CORAL : "transparent", color: cancion.capo > 0 ? "white" : MUTED, border: `1.5px solid ${cancion.capo > 0 ? CORAL : LINE}`, boxShadow: cancion.capo > 0 ? `0 0 10px 2px color-mix(in srgb, ${CORAL} 55%, transparent)` : "none" }}
+            >
+              {cancion.capo > 0 ? cancion.capo : ""}
+            </span>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
+          <select
+            value={`${instrumento}|${afinacion.id}`}
+            onChange={(e) => {
+              const [k, a] = e.target.value.split("|");
+              setInstrumento(k as NombreInstrumento);
+              setAfinId(a);
+            }}
+            aria-label="Instrumento y afinación"
+            style={{ ...boton, fontWeight: 600, padding: "5px 8px", marginRight: 8 }}
+          >
+            {(Object.keys(INSTRUMENTOS_ESTUDIO) as NombreInstrumento[]).flatMap((k) =>
+              INSTRUMENTOS_ESTUDIO[k].afinaciones.map((a) => (
+                <option key={`${k}|${a.id}`} value={`${k}|${a.id}`}>{INSTRUMENTOS_ESTUDIO[k].etiqueta} · {a.etiqueta}</option>
+              ))
+            )}
+          </select>
           <span title="Sube o baja TODA la canción de tono, de medio en medio tono" style={{ fontSize: 11, color: MUTED }}>Cambiar tono</span>
           <button style={boton} onClick={() => setSemi((v) => v - 1)} aria-label="Bajar medio tono" title="Bajar medio tono">−</button>
           <span style={{ fontFamily: MONO, fontSize: 12, minWidth: 22, textAlign: "center" }}>{semi > 0 ? `+${semi}` : semi}</span>
@@ -1010,26 +1030,6 @@ export function VistaEstudio({
         {/* Derecha: mástil, todos los acordes y círculo */}
         <aside className="order-3 flex min-h-0 flex-col" style={{ borderLeft: `1px solid ${LINE}`, background: BG }}>
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: MUTED }}>Instrumento</span>
-            <select
-              value={`${instrumento}|${afinacion.id}`}
-              onChange={(e) => {
-                const [k, a] = e.target.value.split("|");
-                setInstrumento(k as NombreInstrumento);
-                setAfinId(a);
-              }}
-              aria-label="Instrumento y afinación"
-              style={{ ...boton, flex: 1, fontWeight: 600, padding: "6px 10px" }}
-            >
-              {(Object.keys(INSTRUMENTOS_ESTUDIO) as NombreInstrumento[]).flatMap((k) =>
-                INSTRUMENTOS_ESTUDIO[k].afinaciones.map((a) => (
-                  <option key={`${k}|${a.id}`} value={`${k}|${a.id}`}>{INSTRUMENTOS_ESTUDIO[k].etiqueta} · {a.etiqueta}</option>
-                ))
-              )}
-            </select>
-          </div>
-
           {actual && grado ? (
             <>
               <div style={{ fontSize: 13, lineHeight: 1.35 }}>
