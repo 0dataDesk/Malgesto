@@ -308,6 +308,7 @@ export function VistaEstudio({
   const [grabando, setGrabando] = useState(false);
   // Adelanto (ms): el acorde se marca un poco antes de lo grabado, para compensar lo que tardas en tocar.
   const [adelanto, setAdelanto] = useState(400);
+  const [adelantoTxt, setAdelantoTxt] = useState<string | null>(null);
   const [tomas, setTomas] = useState<Ancla[]>([]);
   const tomasRef = useRef<Ancla[]>([]);
   const grabandoRef = useRef(false);
@@ -1069,29 +1070,56 @@ export function VistaEstudio({
                 Si va atrás o adelantada, toca el acorde que estás oyendo en ese momento: se mueve toda la grabación de una vez.
                 <span className="flex items-center gap-2" style={{ marginTop: 6 }}>
                   <span>Sincronía: si la letra va <b>atrás</b> de la canción, sube el adelanto.</span>
-                  <button
-                    onClick={() => {
-                      const n = Math.max(-2000, adelanto - 100);
-                      setAdelanto(n);
-                      guardar(PREF_ADELANTO + cancion.id, n);
+                  {[-1000, -100].map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => {
+                        const n = Math.min(15000, Math.max(-15000, adelanto + d));
+                        setAdelanto(n);
+                        guardar(PREF_ADELANTO + cancion.id, n);
+                      }}
+                      style={{ ...boton, padding: "0 8px" }}
+                      aria-label={`Quitar ${Math.abs(d) / 1000} segundos de adelanto`}
+                    >
+                      {d === -1000 ? "−1 s" : "−0.1"}
+                    </button>
+                  ))}
+                  <input
+                    inputMode="decimal"
+                    aria-label="Adelanto en segundos"
+                    value={adelantoTxt ?? (adelanto / 1000).toFixed(1)}
+                    onFocus={(e) => {
+                      setAdelantoTxt((adelanto / 1000).toFixed(1));
+                      e.currentTarget.select();
                     }}
-                    style={{ ...boton, padding: "0 8px" }}
-                    aria-label="Menos adelanto"
-                  >
-                    −
-                  </button>
-                  <b style={{ fontFamily: MONO, minWidth: 44, textAlign: "center" }}>{(adelanto / 1000).toFixed(1)} s</b>
-                  <button
-                    onClick={() => {
-                      const n = Math.min(3000, adelanto + 100);
-                      setAdelanto(n);
-                      guardar(PREF_ADELANTO + cancion.id, n);
+                    onChange={(e) => {
+                      const txt = e.target.value;
+                      setAdelantoTxt(txt);
+                      const n = parseFloat(txt.replace(",", "."));
+                      if (Number.isFinite(n)) {
+                        const ms = Math.min(15000, Math.max(-15000, Math.round(n * 1000)));
+                        setAdelanto(ms);
+                        guardar(PREF_ADELANTO + cancion.id, ms);
+                      }
                     }}
-                    style={{ ...boton, padding: "0 8px" }}
-                    aria-label="Más adelanto"
-                  >
-                    +
-                  </button>
+                    onBlur={() => setAdelantoTxt(null)}
+                    style={{ ...boton, width: 58, textAlign: "center", fontFamily: MONO, cursor: "text", padding: "2px 4px" }}
+                  />
+                  <span>s</span>
+                  {[100, 1000].map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => {
+                        const n = Math.min(15000, Math.max(-15000, adelanto + d));
+                        setAdelanto(n);
+                        guardar(PREF_ADELANTO + cancion.id, n);
+                      }}
+                      style={{ ...boton, padding: "0 8px" }}
+                      aria-label={`Agregar ${d / 1000} segundos de adelanto`}
+                    >
+                      {d === 1000 ? "+1 s" : "+0.1"}
+                    </button>
+                  ))}
                 </span>
                 {anclas.length > 0 && (
                   <>
