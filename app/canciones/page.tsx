@@ -202,15 +202,13 @@ export default async function CancionesPage({
           >
             Canciones
           </h2>
-          <span className="font-mono text-sm" style={{ color: "oklch(0.5 0.044 262)" }}>
-            {visibles.length}
+          <span className="flex items-center gap-2.5">
+            {puedeEscribir && <CopiarInstruccion />}
+            <span className="font-mono text-sm" style={{ color: "oklch(0.5 0.044 262)" }}>
+              {visibles.length}
+            </span>
           </span>
         </div>
-        {puedeEscribir && (
-          <div className="mt-2">
-            <CopiarInstruccion />
-          </div>
-        )}
 
         {visibles.length === 0 ? (
           <p className="mt-6 text-center text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
@@ -220,10 +218,6 @@ export default async function CancionesPage({
           <>
             <SeccionCanciones titulo="Propias" canciones={propias} puedeEscribir={puedeEscribir} />
             <SeccionCanciones titulo="Covers" canciones={covers} puedeEscribir={puedeEscribir} />
-            <div className="mt-5 flex items-start gap-2 text-[11px] leading-snug" style={{ color: "oklch(0.6 0.044 262)" }}>
-              <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ border: "1px dashed oklch(0.64 0.170 28)" }} />
-              <span>Los borradores solo los ven administradores de la banda y quien tenga el permiso &ldquo;Ver borradores&rdquo;.</span>
-            </div>
           </>
         )}
       </EspacioSuperior>

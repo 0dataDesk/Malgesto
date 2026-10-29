@@ -30,6 +30,8 @@ export type Cancion = {
   bpm: number | null;
   duracionSegundos: number | null;
   totalCompases: number;
+  // Compases escritos a mano (null = se calculan de la estructura).
+  numeroCompases: number | null;
   totalSecciones: number;
   esCover: boolean;
   esBorrador: boolean;
@@ -149,7 +151,7 @@ export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
   const { data } = await admin
     .from("canciones")
     .select(
-      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, capo, spotify_uri, tiempos_ms, secciones(plantilla_id, repite_veces, numero_compases, acordes(duracion_compases))"
+      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, capo, spotify_uri, tiempos_ms, numero_compases, secciones(plantilla_id, repite_veces, numero_compases, acordes(duracion_compases))"
     )
     .in("banda_id", bandaIds)
     .order("titulo", { ascending: true });
@@ -174,7 +176,8 @@ export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
       tonalidadModo: c.tonalidad_modo as Modo,
       bpm: c.bpm,
       duracionSegundos: c.duracion_segundos,
-      totalCompases,
+      totalCompases: c.numero_compases ?? totalCompases,
+      numeroCompases: c.numero_compases ?? null,
       totalSecciones: secciones.length,
       esCover: c.es_cover,
       esBorrador: c.es_borrador,
@@ -264,7 +267,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
   const { data: cancion } = await admin
     .from("canciones")
     .select(
-      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, capo, spotify_uri, tiempos_ms, audio_referencia_path, audio_secuencia_path"
+      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, capo, spotify_uri, tiempos_ms, numero_compases, audio_referencia_path, audio_secuencia_path"
     )
     .eq("id", cancionId)
     .single();
@@ -330,7 +333,8 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
     tonalidadModo: cancion.tonalidad_modo as Modo,
     bpm: cancion.bpm,
     duracionSegundos: cancion.duracion_segundos,
-    totalCompases,
+    totalCompases: cancion.numero_compases ?? totalCompases,
+    numeroCompases: cancion.numero_compases ?? null,
     totalSecciones: seccionesArmadas.length,
     esCover: cancion.es_cover,
     esBorrador: cancion.es_borrador,
@@ -394,6 +398,7 @@ export type CancionInput = {
   autor: string | null;
   capo: number;
   spotifyUri: string | null;
+  numeroCompases: number | null;
   secciones: SeccionInput[];
 };
 
@@ -504,9 +509,10 @@ export async function crearCancion(input: CancionInput): Promise<string> {
       duracion_segundos: input.duracionSegundos,
       es_cover: input.esCover,
       es_borrador: input.esBorrador,
-      autor: input.esCover ? input.autor : null,
+      autor: input.autor,
       capo: input.capo,
       spotify_uri: input.spotifyUri,
+      numero_compases: input.numeroCompases,
     })
     .select("id")
     .single();
@@ -534,9 +540,10 @@ export async function actualizarCancion(cancionId: string, input: CancionInput) 
       duracion_segundos: input.duracionSegundos,
       es_cover: input.esCover,
       es_borrador: input.esBorrador,
-      autor: input.esCover ? input.autor : null,
+      autor: input.autor,
       capo: input.capo,
       spotify_uri: input.spotifyUri,
+      numero_compases: input.numeroCompases,
     })
     .eq("id", cancionId);
   if (errUpdate) throw new Error(errUpdate.message);
@@ -545,6 +552,29 @@ export async function actualizarCancion(cancionId: string, input: CancionInput) 
   if (errDelete) throw new Error(errDelete.message);
 
   await insertarSecciones(admin, cancionId, input.secciones);
+}
+
+// Ficha de la canción sin tocar su estructura (ventana "Editar" del modo Estudio).
+export type FichaInput = Omit<CancionInput, "bandaId" | "secciones">;
+export async function actualizarFicha(cancionId: string, f: FichaInput) {
+  const admin = supabaseMalgesto();
+  const { error } = await admin
+    .from("canciones")
+    .update({
+      titulo: f.titulo,
+      tonalidad_nota: f.tonalidadNota,
+      tonalidad_modo: f.tonalidadModo,
+      bpm: f.bpm,
+      duracion_segundos: f.duracionSegundos,
+      es_cover: f.esCover,
+      es_borrador: f.esBorrador,
+      autor: f.autor,
+      capo: f.capo,
+      spotify_uri: f.spotifyUri,
+      numero_compases: f.numeroCompases,
+    })
+    .eq("id", cancionId);
+  if (error) throw new Error(error.message);
 }
 
 // Tiempos marcados en el modo Estudio (null = borrar las marcas).
