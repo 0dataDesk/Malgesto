@@ -30,7 +30,7 @@ export default async function NuevaCancionPage({
 
   return (
     <div
-      className="flex h-screen flex-col box-border px-6 py-8 md:px-16 md:py-11"
+      className="min-h-screen box-border px-6 py-8 md:px-16 md:py-8"
       style={{ background: "oklch(0.965 0.007 85)", color: "oklch(0.24 0.044 262)" }}
     >
       <Link href={`/canciones?banda=${banda.bandaId}`} className="mb-1.5 flex w-fit items-center gap-3.5 no-underline">
@@ -38,12 +38,10 @@ export default async function NuevaCancionPage({
           ‹ {banda.bandaNombre}
         </span>
       </Link>
-      <div className="mb-8 text-[32px] font-extrabold" style={{ fontFamily: "var(--font-fraunces), sans-serif" }}>
+      <div className="mb-5 text-[32px] font-extrabold" style={{ fontFamily: "var(--font-fraunces), sans-serif" }}>
         Agregar canción
       </div>
-      <div className="min-h-0 flex-1">
-        <CancionForm bandaId={banda.bandaId} />
-      </div>
+      <CancionForm bandaId={banda.bandaId} />
     </div>
   );
 }

@@ -26,11 +26,12 @@ export function CopiarInstruccion() {
           window.prompt("Copia esta instrucción:", TEXTO);
         }
       }}
-      title="Copia la instrucción para cargar una canción nueva desde Cosmos"
-      className="rounded-full px-3 py-1 text-[11px] font-bold"
-      style={{ border: "1px solid oklch(0.89 0.008 85)", background: "oklch(0.99 0.006 85)", color: copiado ? "oklch(0.5 0.13 148)" : "oklch(0.24 0.044 262)", cursor: "pointer" }}
+      title={copiado ? "Instrucción copiada" : "Copiar la instrucción para cargar una canción desde Cosmos"}
+      aria-label="Copiar instrucción para cargar una canción"
+      className="flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-bold"
+      style={{ border: "1px solid oklch(0.89 0.008 85)", background: "oklch(0.99 0.006 85)", color: copiado ? "oklch(0.5 0.13 148)" : "oklch(0.5 0.044 262)", cursor: "pointer", opacity: copiado ? 1 : 0.7 }}
     >
-      {copiado ? "Copiado ✓" : "⧉ Copiar instrucción para cargar una canción"}
+      {copiado ? "✓" : "⧉"}
     </button>
   );
 }

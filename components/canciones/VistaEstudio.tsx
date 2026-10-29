@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { CancionCompleta } from "@/lib/cancionesData";
-import { eliminarCancionAction } from "@/app/canciones/actions";
 import { NOTAS, simboloAcorde, colorRaizAcorde, colorContrasteTexto, tonosDelAcorde, type Calidad, type Nota } from "@/lib/cancionTeoria";
 import { formatoMMSS } from "@/lib/duracion";
 import { guardarTiemposAction } from "@/app/canciones/actions";
+import { FichaEditor } from "./FichaEditor";
 import { ocurrencias, ocurrenciaPorAnclas, agregarAncla, desplazarAnclas, posicionEstimada, pesosDeSeccion, type Ancla } from "@/lib/estudioSync";
 import {
   INSTRUMENTOS_ESTUDIO,
@@ -50,12 +50,29 @@ function tono(base: string, nivel: number): string {
 }
 
 // ---- Diagrama de acorde (con dedos y cejilla) --------------------------------
-function Diagrama({ forma, afinacion, mini = false, capo = 0 }: { forma: Forma; afinacion: Afinacion; mini?: boolean; capo?: number }) {
+function Diagrama({
+  forma,
+  afinacion,
+  mini = false,
+  capo = 0,
+  tam,
+  acorde,
+}: {
+  forma: Forma;
+  afinacion: Afinacion;
+  mini?: boolean;
+  capo?: number;
+  tam?: number;
+  // Con acorde, cada dedo se pinta con el color de su nota (como el mástil) y lleva su nombre.
+  acorde?: { nota: Nota; calidad: Calidad };
+}) {
   const n = afinacion.cuerdas.length;
   const ancho = mini ? 78 : 150;
-  const alto = (mini ? 84 : 160) + (capo > 0 ? (mini ? 4 : 6) : 0);
+  const alto = (mini ? 84 : 160) + (capo > 0 ? (mini ? 7 : 14) : 0);
   const izq = mini ? 15 : 24;
-  const arriba = (mini ? 15 : 26) + (capo > 0 ? (mini ? 4 : 6) : 0);
+  const arriba = (mini ? 15 : 26) + (capo > 0 ? (mini ? 7 : 14) : 0);
+  // Marcas de cuerda al aire / apagada: sobre la barra del capo si la hay.
+  const yMarca = capo > 0 ? arriba - (mini ? 10 : 15) : arriba - (mini ? 5 : 8);
   const filas = 5;
   const sx = (ancho - izq * 2) / (n - 1);
   const sy = (alto - arriba - 5) / filas;
@@ -63,8 +80,10 @@ function Diagrama({ forma, afinacion, mini = false, capo = 0 }: { forma: Forma; 
   const inicio = pisados.length && Math.max(...pisados) > 4 ? Math.min(...pisados) : 1;
   const yFila = (t: number) => arriba + (t - inicio + 0.5) * sy;
   const r = mini ? 4.7 : 9;
+  const colorBase = acorde ? colorDe(acorde.nota, acorde.calidad) : null;
+  const clase = acorde ? notasDelAcorde(acorde.nota, acorde.calidad) : null;
   return (
-    <svg width={ancho} height={alto} viewBox={`0 0 ${ancho} ${alto}`} aria-hidden style={{ display: "block" }}>
+    <svg width={tam ?? ancho} height={tam ? (tam * alto) / ancho : alto} viewBox={`0 0 ${ancho} ${alto}`} aria-hidden style={{ display: "block", transition: "width .25s, height .25s" }}>
       <g stroke={INK} strokeWidth={mini ? 0.8 : 1.3}>
         {Array.from({ length: filas + 1 }, (_, i) => (
           <line key={i} x1={izq} x2={ancho - izq} y1={arriba + i * sy} y2={arriba + i * sy} strokeWidth={i === 0 && inicio === 1 ? (mini ? 2.5 : 4) : undefined} />
@@ -87,21 +106,41 @@ function Diagrama({ forma, afinacion, mini = false, capo = 0 }: { forma: Forma; 
           width={(forma.barre.hasta - forma.barre.desde) * sx + r * 2}
           height={r * 2}
           rx={r}
-          fill={INK}
+          fill={colorBase ?? INK}
         />
       )}
       {forma.trastes.map((t, i) => {
         const x = izq + i * sx;
-        if (t === null) return <text key={i} x={x} y={arriba - 5} textAnchor="middle" fontSize={mini ? 9 : 12} fill={MUTED}>×</text>;
-        if (t === 0) return <circle key={i} cx={x} cy={arriba - 7} r={mini ? 2.8 : 4.5} fill="none" stroke={INK} strokeWidth={1.2} />;
+        if (t === null) return <text key={i} x={x} y={yMarca + 4} textAnchor="middle" fontSize={mini ? 9 : 12} fill={MUTED}>×</text>;
+        const pc = (afinacion.cuerdas[i] + t) % 12;
+        const nivel = clase ? Math.max(clase.indexOf(pc), 0) : 0;
+        const colorDedo = colorBase ? tono(colorBase, nivel) : INK;
+        const tintaDedo = colorBase ? colorContrasteTexto(colorDedo) : "white";
+        if (t === 0)
+          return colorBase ? (
+            <g key={i}>
+              <circle cx={x} cy={yMarca} r={mini ? 3.4 : 7} fill={colorDedo} stroke={INK} strokeWidth={1} />
+              {!mini && <text x={x} y={yMarca + 3} textAnchor="middle" fontSize={8.5} fontWeight={800} fill={tintaDedo} fontFamily={MONO}>{NOTAS[pc]}</text>}
+            </g>
+          ) : (
+            <circle key={i} cx={x} cy={yMarca} r={mini ? 2.8 : 4.5} fill="none" stroke={INK} strokeWidth={1.2} />
+          );
         const enBarre = forma.barre && t === forma.barre.traste && i >= forma.barre.desde && i <= forma.barre.hasta;
+        const conNota = !!colorBase && !mini;
         return (
           <g key={i}>
-            {!enBarre && <circle cx={x} cy={yFila(t)} r={r} fill={INK} />}
-            {forma.dedos[i] !== null && !(enBarre && i !== forma.barre!.desde) && (
-              <text x={x} y={yFila(t) + (mini ? 2.6 : 4)} textAnchor="middle" fontSize={mini ? 7 : 11} fontWeight={700} fill="white" fontFamily={MONO}>
-                {forma.dedos[i]}
-              </text>
+            {(!enBarre || colorBase) && <circle cx={x} cy={yFila(t)} r={r} fill={colorDedo} stroke={colorBase ? INK : "none"} strokeWidth={colorBase ? 1.2 : 0} />}
+            {conNota && (
+              <text x={x} y={yFila(t) + 3.6} textAnchor="middle" fontSize={11} fontWeight={800} fill={tintaDedo} fontFamily={MONO}>{NOTAS[pc]}</text>
+            )}
+            {forma.dedos[i] !== null && !(enBarre && i !== forma.barre!.desde && !colorBase) && (
+              conNota ? (
+                <text x={x + r * 0.85} y={yFila(t) + r + 3} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={INK} fontFamily={MONO}>{forma.dedos[i]}</text>
+              ) : (
+                <text x={x} y={yFila(t) + (mini ? 2.6 : 4)} textAnchor="middle" fontSize={mini ? 7 : 11} fontWeight={700} fill={tintaDedo} fontFamily={MONO}>
+                  {forma.dedos[i]}
+                </text>
+              )
             )}
           </g>
         );
@@ -257,7 +296,6 @@ function Titulo({ children }: { children: React.ReactNode }) {
 
 const PREF = "malgesto-estudio";
 const PREF_VAR = "malgesto-estudio-variantes";
-const PREF_REPRO = "malgesto-estudio-reproductor";
 const PREF_ADELANTO = "malgesto-estudio-adelanto-";
 
 function leer<T>(clave: string, defecto: T): T {
@@ -288,12 +326,12 @@ export function VistaEstudio({
   cancion,
   volverHref,
   puedeEditar,
-  escenarioHref,
+  bandaNombre,
 }: {
   cancion: CancionCompleta;
   volverHref: string;
   puedeEditar: boolean;
-  escenarioHref: string;
+  bandaNombre: string;
 }) {
   const [semi, setSemi] = useState(0);
   const [instrumento, setInstrumento] = useState<NombreInstrumento>("guitarra");
@@ -302,7 +340,6 @@ export function VistaEstudio({
   const [variantes, setVariantes] = useState<Record<string, number>>({});
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
   const [filtro, setFiltro] = useState<string[]>([]);
-  const [reproductor, setReproductor] = useState(true);
   const [reproduciendo, setReproduciendo] = useState(false);
   const [anclas, setAnclas] = useState<Ancla[]>(cancion.tiemposMs ?? []);
   const [grabando, setGrabando] = useState(false);
@@ -318,7 +355,9 @@ export function VistaEstudio({
   const ctrlRef = useRef<ControladorSpotify | null>(null);
   const ultimoRef = useRef<{ ms: number; rec: number; pausado: boolean; uri: string | null; dur: number }>({ ms: 0, rec: 0, pausado: true, uri: null, dur: 0 });
   const ocurrRef = useRef(-1);
-  const [eliminando, iniciarEliminar] = useTransition();
+  const [editando, setEditando] = useState(false);
+  const [progresoMs, setProgresoMs] = useState(0);
+  const [durSpotifyMs, setDurSpotifyMs] = useState(0);
   const prefsLeidas = useRef(false);
 
   useEffect(() => {
@@ -330,7 +369,6 @@ export function VistaEstudio({
         if (INSTRUMENTOS_ESTUDIO[g.instrumento].afinaciones.some((a) => a.id === g.afinId)) setAfinId(g.afinId as string);
       }
       setVariantes(leer(PREF_VAR, {}));
-      setReproductor(leer<boolean>(PREF_REPRO, true));
       setAdelanto(leer<number>(PREF_ADELANTO + cancion.id, 400));
       prefsLeidas.current = true;
     }, 0);
@@ -443,6 +481,7 @@ export function VistaEstudio({
           const d = e.data ?? {};
           ultimoRef.current = { ms: d.position ?? 0, rec: performance.now(), pausado: d.isPaused ?? true, uri: d.playingURI ?? null, dur: d.duration ?? 0 };
           setReproduciendo(!(d.isPaused ?? true));
+          if ((d.duration ?? 0) > 0) setDurSpotifyMs(d.duration ?? 0);
           if (grabandoRef.current && (d.duration ?? 0) > 0 && (d.position ?? 0) >= (d.duration ?? 0) - 1000) finRef.current();
         });
       });
@@ -474,6 +513,15 @@ export function VistaEstudio({
       ctrlRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (!reproduciendo) return;
+    const id = setInterval(() => {
+      const u = ultimoRef.current;
+      setProgresoMs(posicionEstimada(u.ms, u.rec, performance.now(), u.pausado));
+    }, 400);
+    return () => clearInterval(id);
+  }, [reproduciendo]);
 
   const posicionAhora = () => {
     const u = ultimoRef.current;
@@ -630,6 +678,12 @@ export function VistaEstudio({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grabando, ocurr, eventos]);
 
+  const cambiarAdelanto = (ms: number) => {
+    const n = Math.min(15000, Math.max(-15000, ms));
+    setAdelanto(n);
+    guardar(PREF_ADELANTO + cancion.id, n);
+  };
+
   const borrarAjustes = () => {
     setAnclas([]);
     ocurrRef.current = -1;
@@ -663,61 +717,95 @@ export function VistaEstudio({
     guardar(PREF_VAR, nuevo);
   };
 
+  // Cola: el acorde seleccionado arriba y los que siguen, cada vez más chicos (máx. 5, sin repetir seguidos).
+  const cola = useMemo(() => {
+    const out: number[] = [];
+    for (let i = actualIdx; i < eventos.length && out.length < 5; i++) {
+      if (out.length > 0 && eventos[i].clave === eventos[out[out.length - 1]].clave) continue;
+      out.push(i);
+    }
+    return out;
+  }, [eventos, actualIdx]);
+  const FRACCION_COLA = [0.74, 0.5, 0.4, 0.33, 0.27];
+  const [anchoCola, setAnchoCola] = useState(270);
+  const colaRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = colaRef.current;
+    if (!el) return;
+    const medir = () => setAnchoCola(Math.max(160, el.clientWidth));
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const duracionMs = (cancion.duracionSegundos ?? 0) * 1000 || durSpotifyMs;
+
   const grado = actual ? gradoEnTonalidad(actual.nota, actual.calidad, tonalidad) : null;
   const rutaActual = actual ? indicesPorSeccion[actual.sec] ?? [] : [];
   const patron = patronEnSecuencia(rutaActual.map((i) => gradoEnTonalidad(eventos[i].nota, eventos[i].calidad, tonalidad).romano));
-
-  const eliminar = () => {
-    if (!window.confirm(`¿Eliminar «${cancion.titulo}»? No se puede deshacer.`)) return;
-    iniciarEliminar(() => {
-      void eliminarCancionAction(cancion.id, cancion.bandaId);
-    });
-  };
 
   const boton: React.CSSProperties = {
     border: `1px solid ${LINE}`, background: CARD, color: INK, borderRadius: 10, padding: "5px 10px",
     fontSize: 12, fontWeight: 700, cursor: "pointer", textDecoration: "none", whiteSpace: "nowrap",
   };
 
+  const tonCalidad = tonalidad.modo === "menor" ? "menor" : "mayor";
+  const colorTon = colorDe(tonalidad.raiz, tonCalidad);
+  const caja: React.CSSProperties = { border: `1px solid ${LINE}`, borderRadius: 11, padding: "3px 16px", background: BG, lineHeight: 1.1, textAlign: "center", minWidth: 96 };
+  const etiquetaCaja: React.CSSProperties = { fontFamily: MONO, fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase" };
+
   return (
     <div className="flex min-h-screen flex-col xl:h-screen" style={{ background: BG, color: INK }}>
-      {/* Cabecera */}
-      <header className="flex flex-wrap items-center gap-3 px-5 py-2.5" style={{ borderBottom: `1px solid ${LINE}`, background: CARD }}>
-        <Link href={volverHref} className="text-sm no-underline" style={{ color: MUTED }}>‹ Canciones</Link>
-        <h1 style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 22, lineHeight: 1 }}>{cancion.titulo}</h1>
-        {cancion.autor && <span style={{ fontSize: 12, color: MUTED }}>{cancion.autor}</span>}
-        <span style={{ fontFamily: MONO, fontSize: 11, color: MUTED }}>
-          {tonalidad.raiz} {tonalidad.modo}{cancion.capo > 0 ? ` · suena ${transponerNota(tonalidad.raiz, cancion.capo)}` : ""}
-        </span>
-        {[
-          { etiqueta: "Capo", valor: cancion.capo > 0 ? String(cancion.capo) : "—" },
-          { etiqueta: "BPM", valor: cancion.bpm ? String(cancion.bpm) : "—" },
-          { etiqueta: "Duración", valor: cancion.duracionSegundos ? formatoMMSS(cancion.duracionSegundos) : "—" },
-        ].map((c) => (
-          <div key={c.etiqueta} title={c.valor === "—" ? "Sin dato todavía: se llena en Editar" : c.etiqueta} style={{ border: `1px solid ${LINE}`, borderRadius: 9, padding: "2px 10px", background: BG, lineHeight: 1.1 }}>
-            <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED }}>{c.etiqueta}</div>
-            <div style={{ fontFamily: MONO, fontSize: 14, fontWeight: 800 }}>{c.valor}</div>
+      {/* Cabecera: volver y nombre | datos de la canción (centrados) | cambiar tono y editar */}
+      <header className="grid items-center gap-x-4 gap-y-2 px-5 py-2.5 xl:grid-cols-[1fr_auto_1fr]" style={{ borderBottom: `1px solid ${LINE}`, background: CARD }}>
+        <div className="flex min-w-0 items-center gap-3">
+          <Link
+            href={volverHref}
+            className="flex-none no-underline"
+            style={{ background: "oklch(0.92 0.03 262)", color: "oklch(0.33 0.09 262)", border: "1px solid oklch(0.82 0.05 262)", borderRadius: 99, padding: "5px 13px 5px 10px", fontSize: 13, fontWeight: 700 }}
+          >
+            ‹ Canciones
+          </Link>
+          <div className="min-w-0">
+            <h1 className="truncate" style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 22, lineHeight: 1.05 }}>{cancion.titulo}</h1>
+            {cancion.autor && <div className="truncate" style={{ fontSize: 12, color: MUTED }}>{cancion.autor}</div>}
           </div>
-        ))}
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+        </div>
+
+        <div className="flex items-center justify-center gap-2.5">
+          <div title="Tonalidad de la canción (se edita en Editar)" style={{ ...caja, background: colorTon, borderColor: "transparent", color: colorContrasteTexto(colorTon) }}>
+            <div style={{ ...etiquetaCaja, opacity: 0.85 }}>Tonalidad</div>
+            <div style={{ fontFamily: MONO, fontSize: 15, fontWeight: 800 }}>
+              {tonalidad.raiz}{tonalidad.modo === "menor" ? "m" : ""}
+            </div>
+          </div>
+          <div title="Tempo de la canción (se edita en Editar)" style={caja}>
+            <div style={{ ...etiquetaCaja, color: MUTED }}>BPM</div>
+            <div style={{ fontFamily: MONO, fontSize: 15, fontWeight: 800 }}>{cancion.bpm ? cancion.bpm : "—"}</div>
+          </div>
+          {/* Foco del capo: se prende solo cuando la canción lo usa */}
+          <div
+            title={cancion.capo > 0 ? `Capo en el traste ${cancion.capo}: suena en ${transponerNota(tonalidad.raiz, cancion.capo)}` : "Esta canción no usa capo"}
+            style={{ ...caja, minWidth: 96, background: cancion.capo > 0 ? CORAL : BG, borderColor: cancion.capo > 0 ? CORAL : LINE, color: cancion.capo > 0 ? "white" : MUTED, boxShadow: cancion.capo > 0 ? `0 0 14px 2px color-mix(in srgb, ${CORAL} 55%, transparent)` : "none", opacity: cancion.capo > 0 ? 1 : 0.55 }}
+          >
+            <div style={{ ...etiquetaCaja, opacity: 0.9 }}>Capo</div>
+            <div style={{ fontFamily: MONO, fontSize: 15, fontWeight: 800 }}>{cancion.capo > 0 ? cancion.capo : "—"}</div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <span title="Sube o baja TODA la canción de tono, de medio en medio tono" style={{ fontSize: 11, color: MUTED }}>Cambiar tono</span>
-          <button style={boton} onClick={() => setSemi((s) => s - 1)} aria-label="Bajar medio tono" title="Bajar medio tono">−</button>
+          <button style={boton} onClick={() => setSemi((v) => v - 1)} aria-label="Bajar medio tono" title="Bajar medio tono">−</button>
           <span style={{ fontFamily: MONO, fontSize: 12, minWidth: 22, textAlign: "center" }}>{semi > 0 ? `+${semi}` : semi}</span>
-          <button style={boton} onClick={() => setSemi((s) => s + 1)} aria-label="Subir medio tono" title="Subir medio tono">+</button>
-          <Link href={escenarioHref} style={boton}>Vista escenario</Link>
+          <button style={boton} onClick={() => setSemi((v) => v + 1)} aria-label="Subir medio tono" title="Subir medio tono">+</button>
           {puedeEditar && (
-            <>
-              <Link href={`/canciones/${cancion.id}/editar`} style={boton}>Editar</Link>
-              <button style={{ ...boton, color: "oklch(0.5 0.18 25)", borderColor: "oklch(0.6 0.15 25 / 0.45)" }} onClick={eliminar} disabled={eliminando}>
-                {eliminando ? "Eliminando…" : "Eliminar"}
-              </button>
-            </>
+            <button style={{ ...boton, marginLeft: 6 }} onClick={() => setEditando(true)}>Editar</button>
           )}
         </div>
       </header>
 
       {/* Línea de tiempo de la canción: franja oscura para distinguirla de la página */}
-      <div className="px-5 pb-2.5 pt-3" style={{ background: INK }}>
+      <div className="px-5 pb-1.5 pt-3" style={{ background: INK }}>
         <div className="relative flex" style={{ height: 38 }}>
           {cancion.secciones.map((s, si) => {
             const ids = indicesPorSeccion[si] ?? [];
@@ -743,54 +831,64 @@ export function VistaEstudio({
             );
           })}
         </div>
+        {/* Tiempo: 0:00 al inicio, la duración al final y una barrita que avanza mientras suena */}
+        <div className="mt-1.5 flex items-center gap-2" style={{ fontFamily: MONO, fontSize: 9, color: "oklch(0.8 0.02 262)" }}>
+          <span>0:00</span>
+          <div style={{ flex: 1, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.18)" }}>
+            <div style={{ height: 3, borderRadius: 2, background: CORAL, width: `${duracionMs > 0 ? Math.min(100, (progresoMs / duracionMs) * 100) : 0}%`, transition: "width .4s linear" }} />
+          </div>
+          <span>{duracionMs > 0 ? formatoMMSS(Math.round(duracionMs / 1000)) : "—"}</span>
+        </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[250px_minmax(0,1fr)_560px]">
-        {/* Izquierda: acordes con color y formas */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[290px_minmax(0,1fr)_560px]">
+        {/* Izquierda: el acorde que toca, grande, y los que siguen cada vez más chicos */}
         <aside className="order-2 flex min-h-0 flex-col xl:order-1" style={{ borderRight: `1px solid ${LINE}`, background: CARD }}>
-         <div className="min-h-0 flex-1 overflow-y-auto px-2.5 py-3">
-          <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
-            <Titulo>Acordes · {distintos.length}</Titulo>
-            {filtro.length > 0 && (
-              <button onClick={() => setFiltro([])} style={{ fontSize: 10, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", marginBottom: 6 }}>
-                quitar selección
-              </button>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {distintos.map((d) => {
-              const k = claveDe(d.nota, d.calidad);
-              const activo = filtro.includes(k);
-              const vs = variantesDeAcorde(instrumento, afinacion, d.nota, d.calidad);
-              const elegida = Math.min(variantes[claveVar(d.nota, d.calidad)] ?? 0, Math.max(vs.length - 1, 0));
-              const g = gradoEnTonalidad(d.nota, d.calidad, tonalidad);
-              const fondo = colorDe(d.nota, d.calidad);
-              const ink = tinta(d.nota, d.calidad);
-              const abierto = !!abiertos[`${instrumento}|${k}`];
+         <div ref={colaRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+          <Titulo>Ahora y lo que sigue</Titulo>
+          <div className="flex flex-col items-center gap-2.5">
+            {cola.map((ei, pos) => {
+              const e = eventos[ei];
+              const k = e.clave;
+              const activo = pos === 0 && filtro.includes(k);
+              const vs = variantesDeAcorde(instrumento, afinacion, e.nota, e.calidad);
+              const elegida = Math.min(variantes[claveVar(e.nota, e.calidad)] ?? 0, Math.max(vs.length - 1, 0));
+              const g = gradoEnTonalidad(e.nota, e.calidad, tonalidad);
+              const fondo = colorDe(e.nota, e.calidad);
+              const ink = tinta(e.nota, e.calidad);
+              const abierto = pos === 0 && !!abiertos[`${instrumento}|${k}`];
+              const ancho = Math.round((anchoCola - 24) * FRACCION_COLA[pos]);
+              const veces = distintos.find((d) => d.nota === e.nota && d.calidad === e.calidad)?.veces ?? 1;
               return (
-                <div key={k} style={{ gridColumn: abierto ? "1 / -1" : undefined, background: fondo, color: ink, borderRadius: 13, padding: 5, outline: activo ? `3px solid ${CORAL}` : "none", outlineOffset: 1, opacity: filtro.length && !activo ? 0.6 : 1 }}>
+                <div
+                  key={pos}
+                  style={{ width: abierto ? "100%" : ancho + 14, background: fondo, color: ink, borderRadius: 14, padding: 7, outline: activo ? `3px solid ${CORAL}` : "none", outlineOffset: 1, transition: "width .25s", opacity: pos === 0 ? 1 : 1 - pos * 0.08 }}
+                >
                   <div className="relative">
                     <button
                       onClick={() => {
-                        setFiltro((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
-                        if (!activo) setIdx(d.primero);
+                        if (pos === 0) {
+                          // Seleccionar y deseleccionar: sin selección el mástil dibuja todas las notas.
+                          setFiltro((f) => (f.includes(k) ? [] : [k]));
+                        } else elegir(ei);
                       }}
                       className="flex w-full flex-col items-center gap-1"
                       style={{ background: "transparent", border: "none", cursor: "pointer", color: ink, padding: 0 }}
+                      title={pos === 0 ? (activo ? "Quitar la selección (el mástil muestra todo)" : "Ver solo este acorde en el mástil") : "Pasar a este acorde"}
                     >
-                      <div style={{ background: "white", borderRadius: 9, padding: 2, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 50, width: "100%" }}>
+                      <div style={{ background: "white", borderRadius: 10, padding: 3, display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
                         {vs[elegida] ? (
-                          <Diagrama forma={vs[elegida]} afinacion={afinacion} mini capo={cancion.capo} />
+                          <Diagrama forma={vs[elegida]} afinacion={afinacion} capo={cancion.capo} tam={abierto ? 150 : ancho - 6} acorde={{ nota: e.nota, calidad: e.calidad }} />
                         ) : (
-                          <span style={{ fontFamily: MONO, fontSize: 11, color: INK }}>{notasDelAcorde(d.nota, d.calidad).map((p) => NOTAS[p]).join(" ")}</span>
+                          <span style={{ fontFamily: MONO, fontSize: 11, color: INK }}>{notasDelAcorde(e.nota, e.calidad).map((p) => NOTAS[p]).join(" ")}</span>
                         )}
                       </div>
-                      <div className="flex items-baseline gap-1.5" style={{ alignSelf: "flex-start", paddingLeft: 3, minHeight: 20 }}>
-                        <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: 18, lineHeight: 1 }}>{simboloAcorde(d.nota, d.calidad)}</span>
-                        <span style={{ fontSize: 10, opacity: 0.9 }}>{g.romano} · {d.veces}×</span>
+                      <div className="flex items-baseline gap-1.5" style={{ alignSelf: "flex-start", paddingLeft: 3 }}>
+                        <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: pos === 0 ? 24 : pos === 1 ? 18 : 14, lineHeight: 1 }}>{simboloAcorde(e.nota, e.calidad)}</span>
+                        <span style={{ fontSize: pos === 0 ? 11 : 10, opacity: 0.9 }}>{g.romano}{pos === 0 ? ` · ${veces}×` : ""}</span>
                       </div>
                     </button>
-                    {vs.length > 1 && (
+                    {pos === 0 && vs.length > 1 && (
                       <button
                         onClick={() => setAbiertos((a) => ({ ...a, [`${instrumento}|${k}`]: !abierto }))}
                         aria-label="Ver otras formas de tocarlo"
@@ -806,7 +904,7 @@ export function VistaEstudio({
                       {vs.map((f, i) => (
                         <button
                           key={i}
-                          onClick={() => elegirVariante(d.nota, d.calidad, i)}
+                          onClick={() => elegirVariante(e.nota, e.calidad, i)}
                           title={f.origen === "catalogo" ? "Forma común" : "Forma sugerida"}
                           style={{ background: "white", borderRadius: 8, border: i === elegida ? `3px solid ${INK}` : "3px solid transparent", padding: 1, cursor: "pointer", display: "flex", justifyContent: "center" }}
                         >
@@ -818,10 +916,9 @@ export function VistaEstudio({
                 </div>
               );
             })}
-            {distintos.length === 0 && <p style={{ fontSize: 12, color: MUTED }}>Esta canción aún no tiene acordes.</p>}
+            {cola.length === 0 && <p style={{ fontSize: 12, color: MUTED }}>Esta canción aún no tiene acordes.</p>}
           </div>
          </div>
-
         </aside>
 
         {/* Centro: letra con la palabra subrayada del color del acorde */}
@@ -913,20 +1010,23 @@ export function VistaEstudio({
         {/* Derecha: mástil, todos los acordes y círculo */}
         <aside className="order-3 flex min-h-0 flex-col" style={{ borderLeft: `1px solid ${LINE}`, background: BG }}>
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {(Object.keys(INSTRUMENTOS_ESTUDIO) as NombreInstrumento[]).map((k) => (
-              <button
-                key={k}
-                onClick={() => { setInstrumento(k); setAfinId("estandar"); }}
-                style={{ ...boton, background: instrumento === k ? INK : CARD, color: instrumento === k ? "white" : INK, borderRadius: 99 }}
-              >
-                {INSTRUMENTOS_ESTUDIO[k].etiqueta}
-              </button>
-            ))}
-            <select value={afinacion.id} onChange={(e) => setAfinId(e.target.value)} aria-label="Afinación" style={{ ...boton, marginLeft: "auto", fontWeight: 500 }}>
-              {afinaciones.map((a) => (
-                <option key={a.id} value={a.id}>{a.etiqueta}</option>
-              ))}
+          <div className="flex items-center gap-2">
+            <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: MUTED }}>Instrumento</span>
+            <select
+              value={`${instrumento}|${afinacion.id}`}
+              onChange={(e) => {
+                const [k, a] = e.target.value.split("|");
+                setInstrumento(k as NombreInstrumento);
+                setAfinId(a);
+              }}
+              aria-label="Instrumento y afinación"
+              style={{ ...boton, flex: 1, fontWeight: 600, padding: "6px 10px" }}
+            >
+              {(Object.keys(INSTRUMENTOS_ESTUDIO) as NombreInstrumento[]).flatMap((k) =>
+                INSTRUMENTOS_ESTUDIO[k].afinaciones.map((a) => (
+                  <option key={`${k}|${a.id}`} value={`${k}|${a.id}`}>{INSTRUMENTOS_ESTUDIO[k].etiqueta} · {a.etiqueta}</option>
+                ))
+              )}
             </select>
           </div>
 
@@ -964,7 +1064,7 @@ export function VistaEstudio({
                       return (
                         <button
                           key={claveDe(d.nota, d.calidad)}
-                          onClick={() => setIdx(d.primero)}
+                          onClick={() => elegir(d.primero)}
                           className="flex items-center gap-2 text-left"
                           style={{ border: `2px solid ${activo ? CORAL : "transparent"}`, background: BG, borderRadius: 11, padding: "4px 6px", cursor: "pointer" }}
                         >
@@ -1038,55 +1138,27 @@ export function VistaEstudio({
             </div>
           )}
 
-          {/* Spotify de esta canción; se minimiza si estorba y la música sigue */}
+          {/* Spotify de esta canción */}
           <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "8px 10px" }}>
-            <div className="flex items-center justify-between" style={{ marginBottom: reproductor ? 6 : 0 }}>
-              <Titulo>♪ Spotify</Titulo>
-              <span className="flex items-center gap-2">
-              {puedeEditar && cancion.spotifyUri && !grabando && (
-                <button onClick={empezarGrabado} style={{ ...boton, padding: "1px 9px", fontSize: 11, color: CORAL, borderColor: CORAL, marginBottom: 6 }}>
-                  ● {anclas.length > 0 ? "Volver a grabar" : "Grabar tiempos"}
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  setReproductor((v) => {
-                    guardar(PREF_REPRO, !v);
-                    return !v;
-                  });
-                }}
-                aria-label={reproductor ? "Minimizar" : "Mostrar"}
-                title={reproductor ? "Minimizar (la música sigue)" : "Mostrar"}
-                style={{ ...boton, padding: "0 7px", fontSize: 12, lineHeight: "18px", marginBottom: 6 }}
-              >
-                {reproductor ? "—" : "▢"}
-              </button>
-              </span>
-            </div>
-            <div ref={contRef} style={{ display: reproductor && cancion.spotifyUri ? "block" : "none", minHeight: 152 }} />
+            <div ref={contRef} style={{ display: cancion.spotifyUri ? "block" : "none", minHeight: 152 }} />
             {cancion.spotifyUri ? (
-              <div style={{ marginTop: 6, fontSize: 11, color: MUTED, lineHeight: 1.35 }}>
-                {reproduciendo ? "● Siguiendo la canción. " : "Dale play y te sigue. "}
-                Si va atrás o adelantada, toca el acorde que estás oyendo en ese momento: se mueve toda la grabación de una vez.
-                <span className="flex items-center gap-2" style={{ marginTop: 6 }}>
-                  <span>Sincronía: si la letra va <b>atrás</b> de la canción, sube el adelanto.</span>
-                  {[-1000, -100].map((d) => (
-                    <button
-                      key={d}
-                      onClick={() => {
-                        const n = Math.min(15000, Math.max(-15000, adelanto + d));
-                        setAdelanto(n);
-                        guardar(PREF_ADELANTO + cancion.id, n);
-                      }}
-                      style={{ ...boton, padding: "0 8px" }}
-                      aria-label={`Quitar ${Math.abs(d) / 1000} segundos de adelanto`}
-                    >
-                      {d === -1000 ? "−1 s" : "−0.1"}
-                    </button>
-                  ))}
+              <div className="flex flex-wrap items-center gap-2" style={{ marginTop: 8, fontSize: 11, color: MUTED }}>
+                {puedeEditar && !grabando && (
+                  <button onClick={empezarGrabado} style={{ ...boton, padding: "3px 10px", fontSize: 11, color: CORAL, borderColor: CORAL }}>
+                    ● {anclas.length > 0 ? "Volver a grabar" : "Grabar tiempos"}
+                  </button>
+                )}
+                {anclas.length > 0 && puedeEditar && (
+                  <button onClick={borrarAjustes} title="Borrar la grabación y los ajustes de esta canción" style={{ fontSize: 10, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0 }}>
+                    borrar grabación
+                  </button>
+                )}
+                <span className="ml-auto flex items-center gap-1.5">
+                  <span title="Si la letra va atrás de la canción, sube el adelanto">Sincronía</span>
+                  <button onClick={() => cambiarAdelanto(adelanto - 1000)} style={{ ...boton, padding: "2px 9px" }} aria-label="Bajar 1 segundo">−</button>
                   <input
                     inputMode="decimal"
-                    aria-label="Adelanto en segundos"
+                    aria-label="Sincronía en segundos"
                     value={adelantoTxt ?? (adelanto / 1000).toFixed(1)}
                     onFocus={(e) => {
                       setAdelantoTxt((adelanto / 1000).toFixed(1));
@@ -1096,47 +1168,21 @@ export function VistaEstudio({
                       const txt = e.target.value;
                       setAdelantoTxt(txt);
                       const n = parseFloat(txt.replace(",", "."));
-                      if (Number.isFinite(n)) {
-                        const ms = Math.min(15000, Math.max(-15000, Math.round(n * 1000)));
-                        setAdelanto(ms);
-                        guardar(PREF_ADELANTO + cancion.id, ms);
-                      }
+                      if (Number.isFinite(n)) cambiarAdelanto(Math.round(n * 1000));
                     }}
                     onBlur={() => setAdelantoTxt(null)}
-                    style={{ ...boton, width: 58, textAlign: "center", fontFamily: MONO, cursor: "text", padding: "2px 4px" }}
+                    style={{ ...boton, width: 60, textAlign: "center", fontFamily: MONO, cursor: "text", padding: "3px 4px" }}
                   />
-                  <span>s</span>
-                  {[100, 1000].map((d) => (
-                    <button
-                      key={d}
-                      onClick={() => {
-                        const n = Math.min(15000, Math.max(-15000, adelanto + d));
-                        setAdelanto(n);
-                        guardar(PREF_ADELANTO + cancion.id, n);
-                      }}
-                      style={{ ...boton, padding: "0 8px" }}
-                      aria-label={`Agregar ${d / 1000} segundos de adelanto`}
-                    >
-                      {d === 1000 ? "+1 s" : "+0.1"}
-                    </button>
-                  ))}
+                  <button onClick={() => cambiarAdelanto(adelanto + 1000)} style={{ ...boton, padding: "2px 9px" }} aria-label="Subir 1 segundo">+</button>
                 </span>
-                {anclas.length > 0 && (
-                  <>
-                    {" "}({anclas.length} {anclas.length === 1 ? "ajuste" : "ajustes"}){" "}
-                    <button onClick={borrarAjustes} style={{ fontSize: 11, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0 }}>
-                      borrar
-                    </button>
-                  </>
-                )}
               </div>
             ) : (
               <p style={{ fontSize: 12, color: MUTED }}>
                 Esta canción aún no tiene liga de Spotify.{" "}
                 {puedeEditar && (
-                  <Link href={`/canciones/${cancion.id}/editar`} style={{ color: CORAL, fontWeight: 700 }}>
+                  <button onClick={() => setEditando(true)} style={{ color: CORAL, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                     Pégala en Editar
-                  </Link>
+                  </button>
                 )}
               </p>
             )}
@@ -1146,6 +1192,7 @@ export function VistaEstudio({
           </div>
         </aside>
       </div>
+      {editando && <FichaEditor cancion={cancion} bandaNombre={bandaNombre} onCerrar={() => setEditando(false)} />}
     </div>
   );
 }

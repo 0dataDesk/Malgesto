@@ -9,6 +9,8 @@ import {
   actualizarCancion,
   eliminarCancion,
   actualizarEstadoBorrador,
+  actualizarFicha,
+  type FichaInput,
   guardarTiempos,
   reemplazarAudio,
   quitarAudio,
@@ -32,6 +34,14 @@ export async function actualizarCancionAction(cancionId: string, input: CancionI
   revalidatePath("/canciones");
   revalidatePath(`/canciones/${cancionId}`);
   redirect(`/canciones?banda=${input.bandaId}`);
+}
+
+// Ventana "Editar" del modo Estudio: guarda solo la ficha y se queda en la canción.
+export async function actualizarFichaAction(cancionId: string, bandaId: string, ficha: FichaInput) {
+  await requerirAccesoBloque(bandaId, "canciones");
+  await actualizarFicha(cancionId, ficha);
+  revalidatePath("/canciones");
+  revalidatePath(`/canciones/${cancionId}`);
 }
 
 export async function eliminarCancionAction(cancionId: string, bandaId: string) {

@@ -47,15 +47,16 @@ export default async function CancionPage({
 
   // Modo Estudio (aprender tocando): por defecto en la banda personal
   // "Malgesto"; en las demás bandas se entra con ?vista=estudio. Con
-  // ?vista=escenario se fuerza la vista de siempre.
-  const usarEstudio = vista === "estudio" || (vista !== "escenario" && membresia.bandaNombre === "Malgesto");
+  // ?vista=escenario se fuerza la vista de siempre, y desde un Set List
+  // (?setlist=) siempre se abre la vista de escenario.
+  const usarEstudio = vista === "estudio" || (vista !== "escenario" && !setlistId && membresia.bandaNombre === "Malgesto");
   if (usarEstudio) {
     return (
       <VistaEstudio
         cancion={cancion}
         volverHref={`/canciones?banda=${cancion.bandaId}`}
         puedeEditar={puedeEscribir}
-        escenarioHref={`/canciones/${cancionId}?vista=escenario`}
+        bandaNombre={membresia.bandaNombre}
       />
     );
   }

@@ -16,21 +16,16 @@ export type Afinacion = {
 export const INSTRUMENTOS_ESTUDIO: Record<NombreInstrumento, { etiqueta: string; afinaciones: Afinacion[] }> = {
   guitarra: {
     etiqueta: "Guitarra",
-    afinaciones: [
-      { id: "estandar", etiqueta: "Estándar (EADGBE)", cuerdas: [40, 45, 50, 55, 59, 64], nombres: ["E", "A", "D", "G", "B", "E"] },
-      { id: "dropd", etiqueta: "Drop D (DADGBE)", cuerdas: [38, 45, 50, 55, 59, 64], nombres: ["D", "A", "D", "G", "B", "E"] },
-    ],
+    // Por ahora solo Drop D (la estándar se vuelve a ofrecer agregándola aquí).
+    afinaciones: [{ id: "dropd", etiqueta: "Drop D (DADGBE)", cuerdas: [38, 45, 50, 55, 59, 64], nombres: ["D", "A", "D", "G", "B", "E"] }],
   },
   bajo: {
     etiqueta: "Bajo 4",
-    afinaciones: [
-      { id: "estandar", etiqueta: "Estándar (EADG)", cuerdas: [28, 33, 38, 43], nombres: ["E", "A", "D", "G"] },
-      { id: "dropd", etiqueta: "Drop D (DADG)", cuerdas: [26, 33, 38, 43], nombres: ["D", "A", "D", "G"] },
-    ],
+    afinaciones: [{ id: "dropd", etiqueta: "Drop D (DADG)", cuerdas: [26, 33, 38, 43], nombres: ["D", "A", "D", "G"] }],
   },
   ukulele: {
-    etiqueta: "Ukulele",
-    afinaciones: [{ id: "estandar", etiqueta: "Estándar (GCEA)", cuerdas: [67, 60, 64, 69], nombres: ["G", "C", "E", "A"] }],
+    etiqueta: "Ukulele soprano",
+    afinaciones: [{ id: "estandar", etiqueta: "Soprano (GCEA)", cuerdas: [67, 60, 64, 69], nombres: ["G", "C", "E", "A"] }],
   },
 };
 
@@ -105,9 +100,8 @@ export function notasDelAcorde(raiz: Nota, calidad: Calidad): number[] {
 }
 
 // Varias formas de tocar el mismo acorde, de la más cómoda/abierta a las más
-// agudas. Bajo: sin formas (se toca nota por nota; para eso está el mástil).
+// agudas. Bajo: raíz, quinta y octava (lo que se toca de un acorde en el bajo).
 export function variantesDeAcorde(instrumento: NombreInstrumento, afinacion: Afinacion, raiz: Nota, calidad: Calidad): Forma[] {
-  if (instrumento === "bajo") return [];
   const clave = `${instrumento}|${afinacion.id}|${raiz}|${calidad}`;
   const guardada = cacheVariantes.get(clave);
   if (guardada) return guardada;
@@ -117,13 +111,50 @@ export function variantesDeAcorde(instrumento: NombreInstrumento, afinacion: Afi
   const agregar = (f: Forma) => {
     if (!lista.some((x) => x.trastes.join(",") === f.trastes.join(","))) lista.push(f);
   };
-  const esEstandarGuitarra = instrumento === "guitarra" && afinacion.id === "estandar";
-  if (esEstandarGuitarra && CATALOGO_GUITARRA[simbolo]) agregar(conDedos(desdeTexto(CATALOGO_GUITARRA[simbolo]), "catalogo"));
+  if (instrumento === "bajo") {
+    formasBajo(afinacion, raiz, calidad).forEach(agregar);
+    cacheVariantes.set(clave, lista);
+    return lista;
+  }
+  // Las formas comunes están en afinación estándar; en Drop D la sexta cuerda baja
+  // dos trastes, así que esa cuerda sube 2 trastes para sonar igual.
+  if (instrumento === "guitarra" && CATALOGO_GUITARRA[simbolo]) {
+    const base = desdeTexto(CATALOGO_GUITARRA[simbolo]);
+    const dropD = afinacion.cuerdas[0] === 38;
+    const adaptada = dropD && base[0] !== null ? [base[0] + 2, ...base.slice(1)] : base;
+    if (!dropD || (adaptada[0] ?? 0) <= 5) {
+      const f = conDedos(adaptada, "catalogo");
+      if (asignarDedos(adaptada).valido) agregar(f);
+    }
+  }
   if (instrumento === "ukulele" && CATALOGO_UKULELE[simbolo]) agregar(conDedos(desdeTexto(CATALOGO_UKULELE[simbolo]), "catalogo"));
   calcularFormas(afinacion, raiz, calidad).forEach(agregar);
   const res = lista.slice(0, 6);
   cacheVariantes.set(clave, res);
   return res;
+}
+
+// Bajo: la raíz en las tres cuerdas graves, con su quinta una cuerda arriba y su octava dos cuerdas arriba.
+function formasBajo(afinacion: Afinacion, raiz: Nota, calidad: Calidad): Forma[] {
+  const cuerdas = afinacion.cuerdas;
+  const r = NOTAS.indexOf(raiz);
+  const quinta = semitonosDeCalidad(calidad).includes(6) && !semitonosDeCalidad(calidad).includes(7) ? 6 : semitonosDeCalidad(calidad).includes(8) && !semitonosDeCalidad(calidad).includes(7) ? 8 : 7;
+  const formas: Forma[] = [];
+  for (let c = 0; c + 2 < cuerdas.length; c++) {
+    const f = (((r - cuerdas[c]) % 12) + 12) % 12;
+    const trastes: (number | null)[] = cuerdas.map(() => null);
+    const midiRaiz = cuerdas[c] + f;
+    trastes[c] = f;
+    trastes[c + 1] = midiRaiz + quinta - cuerdas[c + 1];
+    trastes[c + 2] = midiRaiz + 12 - cuerdas[c + 2];
+    const puestas = trastes.filter((t): t is number => t !== null);
+    if (Math.max(...puestas) > 12 || Math.min(...puestas) < 0) continue;
+    const pisados = trastes.filter((t): t is number => t !== null && t > 0);
+    const min = pisados.length ? Math.min(...pisados) : 0;
+    const dedos = trastes.map((t) => (t === null || t === 0 ? null : Math.min(4, 1 + (t - min))));
+    formas.push({ trastes, dedos, barre: null, origen: "calculada" });
+  }
+  return formas.sort((a, b) => Math.max(...(a.trastes.filter((t) => t !== null) as number[])) - Math.max(...(b.trastes.filter((t) => t !== null) as number[])));
 }
 
 export function formaDeAcorde(instrumento: NombreInstrumento, afinacion: Afinacion, raiz: Nota, calidad: Calidad, variante = 0): Forma | null {

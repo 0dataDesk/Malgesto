@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { cerrarSesion } from "@/app/auth/actions";
 import { useOcultarAlScrollear } from "@/lib/useOcultarAlScrollear";
@@ -18,52 +18,63 @@ import { useOcultarAlScrollear } from "@/lib/useOcultarAlScrollear";
 // useOcultarAlScrollear se mudó a lib/ para que EspacioSuperior lo reuse sin
 // duplicar el listener -- misma lógica, sin cambios.
 
-function CerrarSesionBoton({ userEmail }: { userEmail?: string }) {
+// Configuración (solo en Calendario, la vista principal): un botón de engrane
+// que abre un menú corto con Gestión (superadmin) y Cerrar sesión.
+function ConfiguracionMenu({ userEmail, esSuperadmin }: { userEmail?: string; esSuperadmin: boolean }) {
+  const [abierto, setAbierto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!abierto) return;
+    const fuera = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setAbierto(false);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAbierto(false);
+    };
+    document.addEventListener("mousedown", fuera);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", fuera);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [abierto]);
+  const item = { display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "9px 12px", fontSize: 13, fontWeight: 600, textAlign: "left", textDecoration: "none", borderRadius: 10 } as const;
   return (
-    <form action={cerrarSesion}>
+    <div ref={ref} className="relative">
       <button
-        type="submit"
-        aria-label="Cerrar sesión"
-        title={userEmail ? `Cerrar sesión (${userEmail})` : "Cerrar sesión"}
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        aria-label="Configuración"
+        aria-expanded={abierto}
+        title="Configuración"
         className="flex h-8 w-8 items-center justify-center rounded-full"
-        style={{
-          background: "oklch(0.6 0.15 25 / 0.12)",
-          color: "oklch(0.5 0.18 25)",
-          border: "1px solid oklch(0.6 0.15 25 / 0.35)",
-        }}
+        style={{ background: abierto ? "oklch(0.27 0.05 262)" : "oklch(0.93 0.010 85 / 0.9)", color: abierto ? "oklch(0.99 0.006 85)" : "oklch(0.45 0.044 262)", border: "1px solid oklch(0.85 0.010 85)" }}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-          <path d="M18 6 6 18M6 6l12 12" />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h.02a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h.02a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v.02a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" />
         </svg>
       </button>
-    </form>
-  );
-}
-
-// Botón flotante discreto a Gestión (Brief 8 §1) — vive acá porque TabBar es
-// el único componente compartido por las 4 vistas principales (Calendario,
-// Canciones, Set List, Seteos) y nunca se monta en vistas de edición o
-// inmersivas (editor de canción, vista final, armar/vivo de set list,
-// detalle de dispositivo), así que ponerlo acá alcanza para cumplir "en
-// todas las principales, en ninguna inmersiva" sin lógica extra por página.
-function GestionBoton() {
-  return (
-    <Link
-      href="/gestion"
-      aria-label="Gestión"
-      title="Gestión"
-      className="flex h-8 w-8 items-center justify-center rounded-full no-underline"
-      style={{
-        background: "oklch(0.93 0.010 85 / 0.9)",
-        color: "oklch(0.45 0.044 262)",
-        border: "1px solid oklch(0.85 0.010 85)",
-      }}
-    >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
-        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h.02a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h.02a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v.02a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" />
-      </svg>
-    </Link>
+      {abierto && (
+        <div
+          role="menu"
+          className="absolute right-0 mt-2 w-52 p-1.5"
+          style={{ top: "100%", background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)", borderRadius: 14, boxShadow: "0 16px 32px -14px rgba(0,0,0,0.35)" }}
+        >
+          {userEmail && <div className="truncate px-3 pb-1 pt-1.5 text-[10px]" style={{ color: "oklch(0.55 0.044 262)", fontFamily: "var(--font-space-mono), monospace" }}>{userEmail}</div>}
+          {esSuperadmin && (
+            <Link href="/gestion" role="menuitem" style={{ ...item, color: "oklch(0.3 0.044 262)" }}>
+              Gestión
+            </Link>
+          )}
+          <form action={cerrarSesion}>
+            <button type="submit" role="menuitem" style={{ ...item, color: "oklch(0.5 0.18 25)", background: "transparent" }}>
+              Cerrar sesión
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -204,26 +215,21 @@ export function TabBar({
 
   return (
     <>
-      {/* Brief §6: mismo lenguaje visual del menú de vistas de abajo (pill
-          agrupada, no 2 círculos sueltos) — ya no hace falta que Gestión y
-          Cerrar sesión sean círculos independientes, solo que queden
-          agrupados de forma reconocible y sigan accesibles. */}
-      <div
-        className="fixed z-20 flex items-center gap-1.5 rounded-full p-1.5 transition-all duration-200"
-        style={{
-          top: 14,
-          right: 14,
-          opacity: oculto ? 0 : 1,
-          transform: oculto ? "translateY(-10px)" : "translateY(0)",
-          pointerEvents: oculto ? "none" : "auto",
-          background: "oklch(0.99 0.005 85 / 0.95)",
-          border: "1px solid oklch(0.89 0.008 85)",
-          boxShadow: "0 10px 26px -10px rgba(0,0,0,0.28)",
-        }}
-      >
-        {esSuperadmin && <GestionBoton />}
-        <CerrarSesionBoton userEmail={userEmail} />
-      </div>
+      {/* Configuración: solo en Calendario (la vista principal). En las demás vistas no hay nada arriba a la derecha. */}
+      {activa === "calendario" && (
+        <div
+          className="fixed z-20 transition-all duration-200"
+          style={{
+            top: 14,
+            right: 14,
+            opacity: oculto ? 0 : 1,
+            transform: oculto ? "translateY(-10px)" : "translateY(0)",
+            pointerEvents: oculto ? "none" : "auto",
+          }}
+        >
+          <ConfiguracionMenu userEmail={userEmail} esSuperadmin={esSuperadmin} />
+        </div>
+      )}
 
       {/* Rediseño "Taller" (28/10/26): con solo 4 vistas el menú flotante pasa a
           una barra fija abajo, siempre visible. */}

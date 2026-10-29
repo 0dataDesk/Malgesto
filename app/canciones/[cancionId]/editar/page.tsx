@@ -34,17 +34,15 @@ export default async function EditarCancionPage({
 
   return (
     <div
-      className="flex h-screen flex-col box-border px-6 py-8 md:px-16 md:py-11"
+      className="min-h-screen box-border px-6 py-8 md:px-16 md:py-8"
       style={{ background: "oklch(0.965 0.007 85)", color: "oklch(0.24 0.044 262)" }}
     >
-      <Link href={`/canciones/${cancionId}`} className="mb-6 flex w-fit items-center gap-3.5 no-underline">
+      <Link href={`/canciones/${cancionId}`} className="mb-4 flex w-fit items-center gap-3.5 no-underline">
         <span className="text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
           ‹ {banda.bandaNombre} · {cancion.titulo}
         </span>
       </Link>
-      <div className="min-h-0 flex-1">
-        <CancionForm bandaId={banda.bandaId} cancionExistente={cancion} />
-      </div>
+      <CancionForm bandaId={banda.bandaId} cancionExistente={cancion} />
     </div>
   );
 }
