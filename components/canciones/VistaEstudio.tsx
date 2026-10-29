@@ -7,7 +7,7 @@ import { eliminarCancionAction } from "@/app/canciones/actions";
 import { NOTAS, simboloAcorde, colorRaizAcorde, colorContrasteTexto, tonosDelAcorde, type Calidad, type Nota } from "@/lib/cancionTeoria";
 import { formatoMMSS } from "@/lib/duracion";
 import { guardarTiemposAction } from "@/app/canciones/actions";
-import { ocurrencias, ocurrenciaPorAnclas, agregarAncla, posicionEstimada, pesosDeSeccion, type Ancla } from "@/lib/estudioSync";
+import { ocurrencias, ocurrenciaPorAnclas, agregarAncla, desplazarAnclas, posicionEstimada, pesosDeSeccion, type Ancla } from "@/lib/estudioSync";
 import {
   INSTRUMENTOS_ESTUDIO,
   variantesDeAcorde,
@@ -513,7 +513,11 @@ export function VistaEstudio({
     if (candidatas.length === 0) return;
     const ref = ocurrRef.current >= 0 ? ocurrRef.current : 0;
     const k = candidatas.reduce((m, x) => (Math.abs(x.k - ref) < Math.abs(m.k - ref) ? x : m)).k;
-    const nuevas = agregarAncla(anclas, [k, Math.max(0, Math.round(posicionAhora()))]);
+    const ahora = Math.max(0, Math.round(posicionAhora()));
+    const propia = anclas.find((a) => a[0] === k);
+    // Con una grabación (casi) completa, el desfase es parejo: un clic mueve TODA la grabación.
+    const grabacionCompleta = anclas.length >= 2 && anclas.length >= ocurr.length * 0.5;
+    const nuevas = grabacionCompleta && propia ? desplazarAnclas(anclas, ahora - propia[1]) : agregarAncla(anclas, [k, ahora]);
     ocurrRef.current = k;
     setAnclas(nuevas);
     if (puedeEditar) void guardarTiemposAction(cancion.id, cancion.bandaId, nuevas).catch(() => setAviso("No se pudo guardar el ajuste."));
@@ -1062,7 +1066,7 @@ export function VistaEstudio({
             {cancion.spotifyUri ? (
               <div style={{ marginTop: 6, fontSize: 11, color: MUTED, lineHeight: 1.35 }}>
                 {reproduciendo ? "● Siguiendo la canción. " : "Dale play y te sigue. "}
-                Si se adelanta o se atrasa, toca el acorde que estás oyendo y se ajusta.
+                Si va atrás o adelantada, toca el acorde que estás oyendo en ese momento: se mueve toda la grabación de una vez.
                 <span className="flex items-center gap-2" style={{ marginTop: 6 }}>
                   <span>Sincronía: si la letra va <b>atrás</b> de la canción, sube el adelanto.</span>
                   <button
