@@ -7,6 +7,7 @@ import { obtenerCanciones, type Cancion } from "@/lib/cancionesData";
 import { colorRaizAcorde } from "@/lib/cancionTeoria";
 import { formatoMMSS } from "@/lib/duracion";
 import { TabBar } from "@/components/shell/TabBar";
+import { CopiarInstruccion } from "@/components/canciones/CopiarInstruccion";
 import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
 import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda";
 
@@ -205,6 +206,11 @@ export default async function CancionesPage({
             {visibles.length}
           </span>
         </div>
+        {puedeEscribir && (
+          <div className="mt-2">
+            <CopiarInstruccion />
+          </div>
+        )}
 
         {visibles.length === 0 ? (
           <p className="mt-6 text-center text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
