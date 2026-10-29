@@ -21,7 +21,10 @@ export const INSTRUMENTOS_ESTUDIO: Record<NombreInstrumento, { etiqueta: string;
   },
   bajo: {
     etiqueta: "Bajo 4",
-    afinaciones: [{ id: "dropd", etiqueta: "Drop D (DADG)", cuerdas: [26, 33, 38, 43], nombres: ["D", "A", "D", "G"] }],
+    afinaciones: [
+      { id: "estandar", etiqueta: "Estándar (EADG)", cuerdas: [28, 33, 38, 43], nombres: ["E", "A", "D", "G"] },
+      { id: "dropd", etiqueta: "Drop D (DADG)", cuerdas: [26, 33, 38, 43], nombres: ["D", "A", "D", "G"] },
+    ],
   },
   ukulele: {
     etiqueta: "Ukulele soprano",
