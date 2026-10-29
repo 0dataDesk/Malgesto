@@ -1069,29 +1069,35 @@ export function VistaEstudio({
                 Si va atrás o adelantada, toca el acorde que estás oyendo en ese momento: se mueve toda la grabación de una vez.
                 <span className="flex items-center gap-2" style={{ marginTop: 6 }}>
                   <span>Sincronía: si la letra va <b>atrás</b> de la canción, sube el adelanto.</span>
-                  <button
-                    onClick={() => {
-                      const n = Math.max(-2000, adelanto - 100);
-                      setAdelanto(n);
-                      guardar(PREF_ADELANTO + cancion.id, n);
-                    }}
-                    style={{ ...boton, padding: "0 8px" }}
-                    aria-label="Menos adelanto"
-                  >
-                    −
-                  </button>
-                  <b style={{ fontFamily: MONO, minWidth: 44, textAlign: "center" }}>{(adelanto / 1000).toFixed(1)} s</b>
-                  <button
-                    onClick={() => {
-                      const n = Math.min(3000, adelanto + 100);
-                      setAdelanto(n);
-                      guardar(PREF_ADELANTO + cancion.id, n);
-                    }}
-                    style={{ ...boton, padding: "0 8px" }}
-                    aria-label="Más adelanto"
-                  >
-                    +
-                  </button>
+                  {[-1000, -100].map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => {
+                        const n = Math.min(15000, Math.max(-15000, adelanto + d));
+                        setAdelanto(n);
+                        guardar(PREF_ADELANTO + cancion.id, n);
+                      }}
+                      style={{ ...boton, padding: "0 8px" }}
+                      aria-label={`Quitar ${Math.abs(d) / 1000} segundos de adelanto`}
+                    >
+                      {d === -1000 ? "−1 s" : "−0.1"}
+                    </button>
+                  ))}
+                  <b style={{ fontFamily: MONO, minWidth: 54, textAlign: "center" }}>{(adelanto / 1000).toFixed(1)} s</b>
+                  {[100, 1000].map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => {
+                        const n = Math.min(15000, Math.max(-15000, adelanto + d));
+                        setAdelanto(n);
+                        guardar(PREF_ADELANTO + cancion.id, n);
+                      }}
+                      style={{ ...boton, padding: "0 8px" }}
+                      aria-label={`Agregar ${d / 1000} segundos de adelanto`}
+                    >
+                      {d === 1000 ? "+1 s" : "+0.1"}
+                    </button>
+                  ))}
                 </span>
                 {anclas.length > 0 && (
                   <>
