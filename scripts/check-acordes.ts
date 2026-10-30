@@ -33,7 +33,9 @@ function revisa(nombre: string, trastes: (number | null)[], af: Afinacion, raiz:
   const permitidas = bajo ? [...clase, bajoPc] : clase;
   // En acordes de cuatro notas o más se acepta omitir la quinta (voicing normal); ninguna otra nota puede faltar.
   const quintaPc = (NOTAS.indexOf(raiz) + 7) % 12;
-  for (const c of clase) if (!pcs.includes(c) && !(clase.length >= 4 && c === quintaPc)) return falla(`${nombre} [${descr(trastes)}]: falta la nota ${NOTAS[c]}`);
+  // El add9 se toca normalmente sin la tercera (Cadd9 = x35533 de la hoja de Disarm).
+  const terceraPc = (NOTAS.indexOf(raiz) + 4) % 12;
+  for (const c of clase) if (!pcs.includes(c) && !(clase.length >= 4 && c === quintaPc) && !(calidad === "add9" && c === terceraPc)) return falla(`${nombre} [${descr(trastes)}]: falta la nota ${NOTAS[c]}`);
   for (const p of pcs) if (!permitidas.includes(p)) return falla(`${nombre} [${descr(trastes)}]: trae la nota ajena ${NOTAS[p]}`);
   if (!reentrante && masGrave(trastes, af) !== bajoPc) return falla(`${nombre} [${descr(trastes)}]: la nota más grave es ${NOTAS[masGrave(trastes, af)]} y debía ser ${NOTAS[bajoPc]}`);
   const pisados = trastes.filter((t): t is number => t !== null && t > 0);

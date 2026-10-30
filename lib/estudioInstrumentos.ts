@@ -49,6 +49,7 @@ export const CATALOGO_GUITARRA: Record<string, string> = {
   Cmaj7: "x32000", Dmaj7: "xx0222", Fmaj7: "xx3210", Gmaj7: "320002", Amaj7: "x02120",
   Am7: "x02010", Dm7: "xx0211", Em7: "022030", Bm7: "x20202",
   Asus2: "x02200", Asus4: "x02230", Dsus2: "xx0230", Dsus4: "xx0233", Esus4: "022200",
+  Cadd9: "x35533",
 };
 
 // Acordes con bajo distinto (guitarra estándar). Cada entrada la valida scripts/check-acordes.ts:

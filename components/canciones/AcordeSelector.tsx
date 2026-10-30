@@ -14,7 +14,7 @@ import {
 
 const ETIQUETA_CALIDAD: Record<Calidad, string> = {
   mayor: "mayor", menor: "menor", disminuido: "dim", aumentado: "aum",
-  "7": "7", maj7: "maj7", m7: "m7", dim7: "dim7", m7b5: "m7b5", sus2: "sus2", sus4: "sus4",
+  "7": "7", maj7: "maj7", m7: "m7", dim7: "dim7", m7b5: "m7b5", sus2: "sus2", sus4: "sus4", add9: "add9",
 };
 
 const panelStyle = { background: "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)", boxShadow: "0 16px 32px -16px rgba(0,0,0,0.25)" };
