@@ -86,6 +86,16 @@ function SeccionCanciones({
                 {c.bpm && <span>{c.bpm} BPM</span>}
                 {c.duracionSegundos !== null && <span>{formatoMMSS(c.duracionSegundos)}</span>}
                 {c.totalCompases > 0 && <span>{c.totalCompases} compases</span>}
+                {!c.esBorrador && (
+                  <span
+                    className="ml-auto flex items-center gap-1 text-[10px]"
+                    title={c.tiemposMs && c.tiemposMs.length > 0 ? "Tiempos marcados" : "Faltan los tiempos: abre la canción y toca Grabar tiempos"}
+                    style={{ color: c.tiemposMs && c.tiemposMs.length > 0 ? "oklch(0.55 0.10 150)" : "oklch(0.64 0.170 28)" }}
+                  >
+                    <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: "currentColor", opacity: c.tiemposMs && c.tiemposMs.length > 0 ? 1 : 0.55 }} />
+                    {c.tiemposMs && c.tiemposMs.length > 0 ? "tiempos" : "sin tiempos"}
+                  </span>
+                )}
               </div>
             </Link>
             {puedeEscribir && (
