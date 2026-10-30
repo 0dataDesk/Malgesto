@@ -28,6 +28,29 @@ export function ocurrencias(indicesPorSeccion: number[][], repeticiones: number[
 // reparte parejo de 0 a su duración. Cada ancla que se agrega afina el reparto.
 export type Ancla = [number, number];
 
+// Calcula TODAS las anclas desde el tempo: la canción arranca en `inicioMs` y cada sección
+// dura (compases × segundos por compás) en cada vuelta; dentro de la sección, cada acorde
+// recibe su parte según su peso (duración en compases, o texto cubierto en la letra).
+// `ocurrencias` va en el mismo orden que `ocurrencias()`: sección, vuelta, acorde.
+export function anclasPorTempo(inicioMs: number, secciones: { vueltas: number; compases: number; segundosPorCompas: number; pesos: number[] }[]): Ancla[] {
+  const out: Ancla[] = [];
+  let t = inicioMs;
+  let k = 0;
+  for (const s of secciones) {
+    const total = s.pesos.reduce((a, b) => a + b, 0);
+    for (let v = 0; v < Math.max(1, s.vueltas); v++) {
+      const durMs = s.compases * s.segundosPorCompas * 1000;
+      let acum = 0;
+      for (const w of s.pesos) {
+        out.push([k++, Math.round(t + (total > 0 ? (acum / total) * durMs : 0))]);
+        acum += w;
+      }
+      t += durMs;
+    }
+  }
+  return out;
+}
+
 export function anclasValidas(x: unknown): Ancla[] {
   if (!Array.isArray(x)) return [];
   return x.filter((a): a is Ancla => Array.isArray(a) && a.length === 2 && Number.isFinite(a[0]) && Number.isFinite(a[1]) && a[0] >= 0 && a[1] >= 0).sort((a, b) => a[0] - b[0]);

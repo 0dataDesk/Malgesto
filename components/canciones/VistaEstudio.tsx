@@ -7,7 +7,8 @@ import { NOTAS, simboloAcorde, colorRaizAcorde, colorContrasteTexto, tonosDelAco
 import { formatoMMSS } from "@/lib/duracion";
 import { guardarTiemposAction } from "@/app/canciones/actions";
 import { FichaEditor } from "./FichaEditor";
-import { ocurrencias, ocurrenciaPorAnclas, agregarAncla, desplazarAnclas, posicionEstimada, pesosDeSeccion, type Ancla } from "@/lib/estudioSync";
+import { compasesDeSeccion, segundosPorCompas } from "@/lib/cancionTiempo";
+import { ocurrencias, anclasPorTempo, ocurrenciaPorAnclas, agregarAncla, desplazarAnclas, posicionEstimada, pesosDeSeccion, type Ancla } from "@/lib/estudioSync";
 import {
   INSTRUMENTOS_ESTUDIO,
   variantesDeAcorde,
@@ -584,6 +585,37 @@ export function VistaEstudio({
     setIdx(ev);
     setFiltro([eventos[ev].clave]);
     document.querySelector(`[data-ev="${ev}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  };
+
+  // Calcula todos los tiempos desde BPM + compases + el segundo en que empieza el primer acorde.
+  const [inicioTxt, setInicioTxt] = useState("");
+  const calcularPorTempo = () => {
+    const ini = parseFloat(inicioTxt.replace(",", "."));
+    if (!Number.isFinite(ini) || ini < 0) {
+      setAviso("Escribe en qué segundo empieza el primer acorde (ej. 4.9).");
+      return;
+    }
+    const secs = cancion.secciones.map((s) => {
+      const bpm = s.bpm ?? cancion.bpm ?? 0;
+      const conLetra = s.letra.some((l) => l.acordes.length > 0);
+      const pesosSec = conLetra
+        ? pesosDeSeccion(s.letra.map((l) => ({ largo: l.tipo === "tab" ? 0 : l.texto.length, posiciones: l.acordes.map((a) => a.posicion) })), 0)
+        : [...s.acordes].sort((a, b) => a.orden - b.orden).map((a) => Math.max(Number(a.duracionCompases) || 1, 0.0001));
+      return { vueltas: s.repiteVeces, compases: compasesDeSeccion(s), segundosPorCompas: segundosPorCompas(bpm), pesos: pesosSec };
+    });
+    if (secs.some((s) => s.pesos.length > 0 && (s.compases <= 0 || s.segundosPorCompas <= 0))) {
+      setAviso("Faltan el BPM o los compases de alguna sección: complétalos en Editar.");
+      return;
+    }
+    const nuevas = anclasPorTempo(Math.round(ini * 1000), secs);
+    setAnclas(nuevas);
+    ocurrRef.current = -1;
+    if (puedeEditar) {
+      setAviso("Calculando…");
+      void guardarTiemposAction(cancion.id, cancion.bandaId, nuevas)
+        .then(() => setAviso(`Listo: ${nuevas.length} acordes calculados por tempo. Si adelanta o atrasa todo igual, mueve la Sincronía.`))
+        .catch(() => setAviso("No se pudo guardar el cálculo."));
+    }
   };
 
   const empezarGrabado = () => {
@@ -1173,6 +1205,21 @@ export function VistaEstudio({
                     ● {anclas.length > 0 ? "Volver a grabar" : "Grabar tiempos"}
                   </button>
                 )}
+                {puedeEditar && !grabando && cancion.bpm ? (
+                  <span className="flex items-center gap-1">
+                    <input
+                      inputMode="decimal"
+                      aria-label="Segundo en que empieza el primer acorde"
+                      placeholder="empieza (s)"
+                      value={inicioTxt}
+                      onChange={(e) => setInicioTxt(e.target.value)}
+                      style={{ ...boton, width: 84, textAlign: "center", fontFamily: MONO, cursor: "text", padding: "3px 4px", fontSize: 11 }}
+                    />
+                    <button onClick={calcularPorTempo} title="Calcula todos los tiempos con el BPM y los compases" style={{ ...boton, padding: "3px 10px", fontSize: 11 }}>
+                      ⚙ Calcular por tempo
+                    </button>
+                  </span>
+                ) : null}
                 {anclas.length > 0 && puedeEditar && (
                   <button onClick={borrarAjustes} title="Borrar la grabación y los ajustes de esta canción" style={{ fontSize: 10, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0 }}>
                     borrar grabación
