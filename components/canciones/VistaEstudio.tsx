@@ -720,6 +720,16 @@ export function VistaEstudio({
     guardar(PREF_ADELANTO + cancion.id, n);
   };
 
+  // Si toda la grabación quedó corrida un acorde (el primer toque era del segundo acorde, o se saltó uno), se corre completa.
+  const correrAcordes = (d: number) => {
+    const nuevas = anclas.map(([k, ms]) => [k + d, ms] as Ancla).filter(([k]) => k >= 0 && k < ocurr.length);
+    if (nuevas.length === 0) return;
+    setAnclas(nuevas);
+    ocurrRef.current = -1;
+    if (puedeEditar) void guardarTiemposAction(cancion.id, cancion.bandaId, nuevas).catch(() => setAviso("No se pudo guardar el cambio."));
+    setAviso(d > 0 ? "Grabación corrida un acorde hacia adelante." : "Grabación corrida un acorde hacia atrás.");
+  };
+
   const borrarAjustes = () => {
     setAnclas([]);
     ocurrRef.current = -1;
@@ -1042,6 +1052,9 @@ export function VistaEstudio({
                                     {simboloAcorde(e.nota, e.calidad, e.bajo)}
                                   </span>
                                 )}
+                                {!heredado && (
+                                  <span aria-hidden title="Aquí cambia el acorde" style={{ display: "inline-block", width: 3, height: "1.15em", marginRight: 2, verticalAlign: "text-bottom", borderRadius: 2, background: color, textDecoration: "none" }} />
+                                )}
                                 {trozo.length ? trozo : "\u00A0\u00A0\u00A0"}
                               </span>
                             );
@@ -1220,6 +1233,12 @@ export function VistaEstudio({
                     </button>
                   </span>
                 ) : null}
+                {anclas.length > 0 && puedeEditar && !grabando && (
+                  <span className="flex items-center gap-1" title="Si la app marca un acorde antes del que suena, usa +1; si marca uno después, usa −1">
+                    <button onClick={() => correrAcordes(-1)} style={{ ...boton, padding: "2px 8px", fontSize: 11 }}>◂ −1 acorde</button>
+                    <button onClick={() => correrAcordes(1)} style={{ ...boton, padding: "2px 8px", fontSize: 11 }}>+1 acorde ▸</button>
+                  </span>
+                )}
                 {anclas.length > 0 && puedeEditar && (
                   <button onClick={borrarAjustes} title="Borrar la grabación y los ajustes de esta canción" style={{ fontSize: 10, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0 }}>
                     borrar grabación
