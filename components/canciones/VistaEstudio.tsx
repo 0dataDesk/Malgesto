@@ -299,7 +299,7 @@ function Titulo({ children }: { children: React.ReactNode }) {
 
 const PREF = "malgesto-estudio";
 const PREF_VAR = "malgesto-estudio-variantes";
-const PREF_ADELANTO = "malgesto-estudio-adelanto-";
+const PREF_ADELANTO = "malgesto-estudio-adelanto2-"; // v2 (30/10/26): se descartan los ajustes viejos, hechos contra tiempos que ya se recalcularon
 
 function leer<T>(clave: string, defecto: T): T {
   try {
