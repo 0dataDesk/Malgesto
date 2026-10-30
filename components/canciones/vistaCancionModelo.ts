@@ -47,7 +47,8 @@ export function expandirCancion(cancion: CancionCompleta): VueltaExpandida[] {
         bpmEfectivo,
         compases,
         acordes: cuerpo.acordes,
-        letra: cuerpo.letra,
+        // La vista de escenario sigue la letra por líneas: los arreglos (tab) se quedan fuera.
+        letra: cuerpo.letra.filter((l) => l.tipo !== "tab"),
         inicioCompas: compas,
         inicioSegundos: segundos,
         duracionSegundos,

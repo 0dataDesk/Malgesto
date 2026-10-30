@@ -67,6 +67,8 @@ export type LetraLineaGuardada = {
   id: string;
   orden: number;
   texto: string;
+  // 'tab' = arreglo o solo (tablatura u otro bloque en monoespaciado, sin acordes anclados).
+  tipo: "letra" | "tab";
   acordes: LetraAcordeGuardado[];
 };
 
@@ -217,6 +219,7 @@ type LetraLineaRow = {
   seccion_id: string;
   orden: number;
   texto: string;
+  tipo: string | null;
   letra_acordes: { id: string; posicion: number; orden: number; nota_raiz: string; calidad: string }[];
 };
 
@@ -239,6 +242,7 @@ function armarSeccionBase(row: SeccionRow, lineasPorSeccion: Map<string, LetraLi
       id: l.id,
       orden: l.orden,
       texto: l.texto,
+      tipo: (l.tipo === "tab" ? "tab" : "letra") as "letra" | "tab",
       acordes: (l.letra_acordes ?? [])
         .slice()
         .sort((a, b) => a.orden - b.orden || a.posicion - b.posicion)
@@ -291,7 +295,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
   const { data: lineasRaw } = idsSeccion.length
     ? await admin
         .from("letra_lineas")
-        .select("id, seccion_id, orden, texto, letra_acordes(id, posicion, orden, nota_raiz, calidad)")
+        .select("id, seccion_id, orden, texto, tipo, letra_acordes(id, posicion, orden, nota_raiz, calidad)")
         .in("seccion_id", idsSeccion)
         .order("orden", { ascending: true })
     : { data: [] as LetraLineaRow[] };
@@ -370,6 +374,7 @@ export type LetraAcordeInput = {
 
 export type LetraLineaInput = {
   texto: string;
+  tipo?: "letra" | "tab";
   acordes: LetraAcordeInput[];
 };
 
@@ -415,7 +420,7 @@ async function insertarLetra(
     const linea = letra[i];
     const { data: lineaRow, error: errLinea } = await admin
       .from("letra_lineas")
-      .insert({ seccion_id: seccionId, orden: i, texto: linea.texto })
+      .insert({ seccion_id: seccionId, orden: i, texto: linea.texto, tipo: linea.tipo === "tab" ? "tab" : "letra" })
       .select("id")
       .single();
     if (errLinea || !lineaRow) throw new Error(errLinea?.message ?? "No se pudo guardar una línea de letra.");
