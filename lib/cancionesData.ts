@@ -45,6 +45,8 @@ export type Cancion = {
   capo: number;
   spotifyUri: string | null;
   tiemposMs: [number, number][] | null;
+  // Formas de acorde tomadas de la hoja de cada canción: { "guitarra|Dsus4/F#": [2,null,0,2,3,3] } (traste por cuerda, de la más grave a la más aguda).
+  formas: Record<string, (number | null)[]> | null;
 };
 
 export type AcordeGuardado = {
@@ -52,6 +54,8 @@ export type AcordeGuardado = {
   orden: number;
   notaRaiz: Nota;
   calidad: Calidad;
+  // Nota del bajo cuando no es la raíz (acorde con barra: Dsus4/F#); null = el bajo es la raíz.
+  notaBajo: Nota | null;
   duracionCompases: number;
 };
 
@@ -61,6 +65,7 @@ export type LetraAcordeGuardado = {
   orden: number;
   notaRaiz: Nota;
   calidad: Calidad;
+  notaBajo: Nota | null;
 };
 
 export type LetraLineaGuardada = {
@@ -149,13 +154,23 @@ type SeccionListaRow = {
   acordes: { duracion_compases: number }[];
 };
 
+// Lee `canciones.formas` descartando lo que no sea una forma válida (traste 0-24 o null por cuerda).
+function formasValidas(v: unknown): Record<string, (number | null)[]> | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const out: Record<string, (number | null)[]> = {};
+  for (const [k, f] of Object.entries(v as Record<string, unknown>)) {
+    if (Array.isArray(f) && f.length >= 4 && f.length <= 8 && f.every((t) => t === null || (Number.isInteger(t) && (t as number) >= 0 && (t as number) <= 24))) out[k] = f as (number | null)[];
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
   if (bandaIds.length === 0) return [];
   const admin = supabaseMalgesto();
   const { data } = await admin
     .from("canciones")
     .select(
-      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, capo, spotify_uri, tiempos_ms, numero_compases, secciones(plantilla_id, repite_veces, numero_compases, acordes(duracion_compases))"
+      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, capo, spotify_uri, tiempos_ms, formas, numero_compases, secciones(plantilla_id, repite_veces, numero_compases, acordes(duracion_compases))"
     )
     .in("banda_id", bandaIds)
     .order("titulo", { ascending: true });
@@ -190,6 +205,7 @@ export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
       capo: Number(c.capo) || 0,
       spotifyUri: c.spotify_uri ?? null,
       tiemposMs: Array.isArray(c.tiempos_ms) ? anclasValidas(c.tiempos_ms) : null,
+      formas: formasValidas(c.formas),
     };
   });
 }
@@ -210,6 +226,7 @@ type SeccionRow = {
     orden: number;
     nota_raiz: string;
     calidad: string;
+    nota_bajo: string | null;
     duracion_compases: number;
   }[];
 };
@@ -220,7 +237,7 @@ type LetraLineaRow = {
   orden: number;
   texto: string;
   tipo: string | null;
-  letra_acordes: { id: string; posicion: number; orden: number; nota_raiz: string; calidad: string }[];
+  letra_acordes: { id: string; posicion: number; orden: number; nota_raiz: string; calidad: string; nota_bajo: string | null }[];
 };
 
 function armarSeccionBase(row: SeccionRow, lineasPorSeccion: Map<string, LetraLineaRow[]>): SeccionBase {
@@ -232,6 +249,7 @@ function armarSeccionBase(row: SeccionRow, lineasPorSeccion: Map<string, LetraLi
       orden: a.orden,
       notaRaiz: a.nota_raiz as Nota,
       calidad: a.calidad as Calidad,
+      notaBajo: (a.nota_bajo as Nota | null) ?? null,
       duracionCompases: Number(a.duracion_compases),
     }));
 
@@ -252,6 +270,7 @@ function armarSeccionBase(row: SeccionRow, lineasPorSeccion: Map<string, LetraLi
           orden: la.orden,
           notaRaiz: la.nota_raiz as Nota,
           calidad: la.calidad as Calidad,
+          notaBajo: (la.nota_bajo as Nota | null) ?? null,
         })),
     }));
 
@@ -274,7 +293,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
   const { data: cancion } = await admin
     .from("canciones")
     .select(
-      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, capo, spotify_uri, tiempos_ms, numero_compases, audio_referencia_path, audio_secuencia_path"
+      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, capo, spotify_uri, tiempos_ms, formas, numero_compases, audio_referencia_path, audio_secuencia_path"
     )
     .eq("id", cancionId)
     .single();
@@ -284,7 +303,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
   const { data: seccionesRaw } = await admin
     .from("secciones")
     .select(
-      "id, orden, nombre, tonalidad_nota, tonalidad_modo, numero_compases, repite_veces, bpm, plantilla_id, repeticion_indice, acordes(id, orden, nota_raiz, calidad, duracion_compases)"
+      "id, orden, nombre, tonalidad_nota, tonalidad_modo, numero_compases, repite_veces, bpm, plantilla_id, repeticion_indice, acordes(id, orden, nota_raiz, calidad, nota_bajo, duracion_compases)"
     )
     .eq("cancion_id", cancionId)
     .order("orden", { ascending: true });
@@ -295,7 +314,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
   const { data: lineasRaw } = idsSeccion.length
     ? await admin
         .from("letra_lineas")
-        .select("id, seccion_id, orden, texto, tipo, letra_acordes(id, posicion, orden, nota_raiz, calidad)")
+        .select("id, seccion_id, orden, texto, tipo, letra_acordes(id, posicion, orden, nota_raiz, calidad, nota_bajo)")
         .in("seccion_id", idsSeccion)
         .order("orden", { ascending: true })
     : { data: [] as LetraLineaRow[] };
@@ -350,6 +369,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
     capo: Number(cancion.capo) || 0,
     spotifyUri: cancion.spotify_uri ?? null,
     tiemposMs: Array.isArray(cancion.tiempos_ms) ? anclasValidas(cancion.tiempos_ms) : null,
+    formas: formasValidas(cancion.formas),
     audioReferenciaPath: cancion.audio_referencia_path,
     audioSecuenciaPath: cancion.audio_secuencia_path,
     audioReferenciaUrl: urlPublicaAudio(admin, cancion.audio_referencia_path),
@@ -363,6 +383,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
 export type AcordeInput = {
   notaRaiz: Nota;
   calidad: Calidad;
+  notaBajo?: Nota | null;
   duracionCompases: number;
 };
 
@@ -370,6 +391,7 @@ export type LetraAcordeInput = {
   posicion: number;
   notaRaiz: Nota;
   calidad: Calidad;
+  notaBajo?: Nota | null;
 };
 
 export type LetraLineaInput = {
@@ -433,6 +455,7 @@ async function insertarLetra(
           orden: j,
           nota_raiz: a.notaRaiz,
           calidad: a.calidad,
+          nota_bajo: a.notaBajo ?? null,
         }))
       );
       if (errAc) throw new Error(errAc.message);
@@ -473,6 +496,7 @@ async function insertarUnaSeccion(
         orden: j,
         nota_raiz: a.notaRaiz,
         calidad: a.calidad,
+        nota_bajo: a.notaBajo ?? null,
         duracion_compases: a.duracionCompases,
       }))
     );

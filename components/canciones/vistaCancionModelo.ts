@@ -69,7 +69,7 @@ export function duracionTotal(vueltas: VueltaExpandida[]): number {
   return u ? u.inicioSegundos + u.duracionSegundos : 0;
 }
 
-export type AcordeSimple = { notaRaiz: Nota; calidad: Calidad; duracionCompases: number };
+export type AcordeSimple = { notaRaiz: Nota; calidad: Calidad; notaBajo?: Nota | null; duracionCompases: number };
 
 export type PosicionReproduccion = {
   idx: number;

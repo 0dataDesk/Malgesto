@@ -29,6 +29,7 @@ export function AcordeSelector({
   tonalidad,
   notaRaiz,
   calidad,
+  notaBajo = null,
   onSeleccionar,
   compacto = false,
   etiqueta,
@@ -36,22 +37,26 @@ export function AcordeSelector({
   tonalidad: Tonalidad;
   notaRaiz: Nota;
   calidad: Calidad;
-  onSeleccionar: (notaRaiz: Nota, calidad: Calidad) => void;
+  notaBajo?: Nota | null;
+  onSeleccionar: (notaRaiz: Nota, calidad: Calidad, notaBajo: Nota | null) => void;
   // Botón chico (para filas apretadas); `etiqueta` reemplaza el nombre del acorde, p. ej. "+ acorde".
   compacto?: boolean;
   etiqueta?: string;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [notaManual, setNotaManual] = useState<Nota | null>(null);
+  // Bajo opcional (acorde con barra: Dsus4/F#): se elige antes de tocar el acorde.
+  const [bajoSel, setBajoSel] = useState<Nota | null>(notaBajo);
   const diatonicos = acordesDiatonicos(tonalidad);
 
   const cerrar = () => {
     setAbierto(false);
     setNotaManual(null);
+    setBajoSel(notaBajo);
   };
 
   const elegir = (n: Nota, c: Calidad) => {
-    onSeleccionar(n, c);
+    onSeleccionar(n, c, bajoSel && bajoSel !== n ? bajoSel : null);
     cerrar();
   };
 
@@ -63,7 +68,7 @@ export function AcordeSelector({
         className={compacto ? "rounded-md px-2 py-0.5 text-[11px] font-bold" : "rounded-lg px-3 py-2 text-sm font-bold"}
         style={etiqueta ? { background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)", border: "1px dashed oklch(0.8 0.01 85)" } : { background: colorRaizAcorde(notaRaiz, calidad), color: "oklch(0.99 0.006 85)", minWidth: compacto ? 0 : 76 }}
       >
-        {etiqueta ?? simboloAcorde(notaRaiz, calidad)}
+        {etiqueta ?? simboloAcorde(notaRaiz, calidad, notaBajo)}
       </button>
 
       {abierto && (
@@ -98,6 +103,20 @@ export function AcordeSelector({
                 className="rounded-lg px-2.5 py-1.5 text-xs font-bold"
                 style={notaManual === n ? activoStyle : inactivoStyle}
               >
+                {n}
+              </button>
+            ))}
+          </div>
+
+          <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider" style={etiquetaStyle}>
+            Bajo (solo si no es la raíz)
+          </div>
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            <button type="button" onClick={() => setBajoSel(null)} className="rounded-lg px-2.5 py-1.5 text-xs font-bold" style={bajoSel === null ? activoStyle : inactivoStyle}>
+              raíz
+            </button>
+            {NOTAS.map((n) => (
+              <button key={n} type="button" onClick={() => setBajoSel(n)} className="rounded-lg px-2.5 py-1.5 text-xs font-bold" style={bajoSel === n ? activoStyle : inactivoStyle}>
                 {n}
               </button>
             ))}

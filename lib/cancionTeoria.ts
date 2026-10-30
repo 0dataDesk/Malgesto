@@ -59,8 +59,9 @@ export function tonosDelAcorde(raiz: Nota, calidad: Calidad): TonoAcorde {
   };
 }
 
-export function simboloAcorde(raiz: Nota, calidad: Calidad): string {
-  return `${raiz}${SUFIJO_POR_CALIDAD[calidad]}`;
+// `bajo` solo se pone cuando es distinto de la raíz (acorde con barra: Dsus4/F#).
+export function simboloAcorde(raiz: Nota, calidad: Calidad, bajo?: Nota | null): string {
+  return `${raiz}${SUFIJO_POR_CALIDAD[calidad]}${bajo && bajo !== raiz ? `/${bajo}` : ""}`;
 }
 
 export type Modo = "mayor" | "menor";

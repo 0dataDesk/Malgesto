@@ -38,11 +38,11 @@ export type Forma = {
   // Dedo (1 índice … 4 meñique) que pisa cada cuerda; null si está al aire o apagada.
   dedos: (number | null)[];
   barre: Barre | null;
-  origen: "catalogo" | "calculada";
+  origen: "catalogo" | "calculada" | "hoja";
 };
 
 // Formas comunes (guitarra, afinación estándar), de la cuerda 6 a la 1. "x" = no tocar.
-const CATALOGO_GUITARRA: Record<string, string> = {
+export const CATALOGO_GUITARRA: Record<string, string> = {
   C: "x32010", D: "xx0232", E: "022100", F: "133211", G: "320003", A: "x02220", B: "x24442",
   Am: "x02210", Bm: "x24432", Cm: "x35543", Dm: "xx0231", Em: "022000", Fm: "133111", Gm: "355333",
   C7: "x32310", D7: "xx0212", E7: "020100", G7: "320001", A7: "x02020", B7: "x21202",
@@ -51,10 +51,17 @@ const CATALOGO_GUITARRA: Record<string, string> = {
   Asus2: "x02200", Asus4: "x02230", Dsus2: "xx0230", Dsus4: "xx0233", Esus4: "022200",
 };
 
+// Acordes con bajo distinto (guitarra estándar). Cada entrada la valida scripts/check-acordes.ts:
+// debe tener todas las notas del acorde y su nota más grave debe ser el bajo.
+export const CATALOGO_GUITARRA_BARRA: Record<string, string> = {
+  "D/F#": "200232", "G/B": "x20003", "C/G": "332010", "C/E": "032010", "A/C#": "x42220", "Am/G": "302210",
+  "G/F#": "2x0003", "D/A": "x00232", "Dsus4/F#": "200233", "Dsus2/F#": "200230", "Em/B": "x22000",
+};
+
 // Ukulele GCEA, de la cuerda G a la A.
-const CATALOGO_UKULELE: Record<string, string> = {
+export const CATALOGO_UKULELE: Record<string, string> = {
   C: "0003", Am: "2000", F: "2010", G: "0232", G7: "0212", Em: "0432", Dm: "2210", D: "2220",
-  A: "2100", E7: "1202", C7: "0001", D7: "2020", Bm: "4222", B7: "2322", Fmaj7: "2413", Cmaj7: "0002",
+  A: "2100", E7: "1202", C7: "0001", D7: "2223", Bm: "4222", B7: "2322", Fmaj7: "2413", Cmaj7: "0002",
 };
 
 function desdeTexto(txt: string): (number | null)[] {
@@ -102,36 +109,59 @@ export function notasDelAcorde(raiz: Nota, calidad: Calidad): number[] {
   return semitonosDeCalidad(calidad).map((s) => (r + s) % 12);
 }
 
-// Varias formas de tocar el mismo acorde, de la más cómoda/abierta a las más
-// agudas. Bajo: raíz, quinta y octava (lo que se toca de un acorde en el bajo).
-export function variantesDeAcorde(instrumento: NombreInstrumento, afinacion: Afinacion, raiz: Nota, calidad: Calidad): Forma[] {
-  const clave = `${instrumento}|${afinacion.id}|${raiz}|${calidad}`;
+// Primer traste que dibuja el diagrama (5 trastes de alto): empieza en la cejilla salvo que la forma pase del quinto
+// traste, y entonces se desplaza. Lo usa el diagrama y lo revisa scripts/check-acordes.ts.
+export function inicioDiagrama(trastes: (number | null)[]): number {
+  const pisados = trastes.filter((t): t is number => t !== null && t > 0);
+  return pisados.length && Math.max(...pisados) > 5 ? Math.min(...pisados) : 1;
+}
+
+// Convierte una forma de afinación estándar a Drop D (la sexta cuerda baja dos trastes, así que sube 2 para sonar igual).
+function aDropD(base: (number | null)[]): (number | null)[] | null {
+  if (base[0] === null) return base;
+  const t = base[0] + 2;
+  return t <= 5 ? [t, ...base.slice(1)] : null;
+}
+
+// Varias formas de tocar el mismo acorde, de la más fiel a la más aguda:
+// 1) la forma que trae la hoja de la canción (`personalizada`, traste por cuerda),
+// 2) el catálogo de formas comunes, 3) formas calculadas (todas las notas del acorde y la
+// nota más grave = el bajo, que es la raíz salvo en acordes con barra: Dsus4/F#).
+// Bajo (instrumento): raíz, quinta y octava (lo que se toca de un acorde en el bajo).
+export function variantesDeAcorde(
+  instrumento: NombreInstrumento,
+  afinacion: Afinacion,
+  raiz: Nota,
+  calidad: Calidad,
+  bajo: Nota | null = null,
+  personalizada: (number | null)[] | null = null
+): Forma[] {
+  const bajoReal = bajo && bajo !== raiz ? bajo : null;
+  const clave = `${instrumento}|${afinacion.id}|${raiz}|${calidad}|${bajoReal ?? ""}|${personalizada ? personalizada.join(",") : ""}`;
   const guardada = cacheVariantes.get(clave);
   if (guardada) return guardada;
 
-  const simbolo = simboloAcorde(raiz, calidad);
+  const simbolo = simboloAcorde(raiz, calidad, bajoReal);
   const lista: Forma[] = [];
   const agregar = (f: Forma) => {
     if (!lista.some((x) => x.trastes.join(",") === f.trastes.join(","))) lista.push(f);
   };
+  if (personalizada && personalizada.length === afinacion.cuerdas.length) agregar(conDedos(personalizada, "hoja"));
   if (instrumento === "bajo") {
-    formasBajo(afinacion, raiz, calidad).forEach(agregar);
+    formasBajo(afinacion, bajoReal ?? raiz, calidad).forEach(agregar);
     cacheVariantes.set(clave, lista);
     return lista;
   }
-  // Las formas comunes están en afinación estándar; en Drop D la sexta cuerda baja
-  // dos trastes, así que esa cuerda sube 2 trastes para sonar igual.
-  if (instrumento === "guitarra" && CATALOGO_GUITARRA[simbolo]) {
-    const base = desdeTexto(CATALOGO_GUITARRA[simbolo]);
-    const dropD = afinacion.cuerdas[0] === 38;
-    const adaptada = dropD && base[0] !== null ? [base[0] + 2, ...base.slice(1)] : base;
-    if (!dropD || (adaptada[0] ?? 0) <= 5) {
-      const f = conDedos(adaptada, "catalogo");
-      if (asignarDedos(adaptada).valido) agregar(f);
+  if (instrumento === "guitarra") {
+    const texto = bajoReal ? CATALOGO_GUITARRA_BARRA[simbolo] : CATALOGO_GUITARRA[simbolo];
+    if (texto) {
+      const base = desdeTexto(texto);
+      const adaptada = afinacion.cuerdas[0] === 38 ? aDropD(base) : base;
+      if (adaptada && asignarDedos(adaptada).valido) agregar(conDedos(adaptada, "catalogo"));
     }
   }
-  if (instrumento === "ukulele" && CATALOGO_UKULELE[simbolo]) agregar(conDedos(desdeTexto(CATALOGO_UKULELE[simbolo]), "catalogo"));
-  calcularFormas(afinacion, raiz, calidad).forEach(agregar);
+  if (instrumento === "ukulele" && !bajoReal && CATALOGO_UKULELE[simbolo]) agregar(conDedos(desdeTexto(CATALOGO_UKULELE[simbolo]), "catalogo"));
+  calcularFormas(afinacion, raiz, calidad, bajoReal).forEach(agregar);
   const res = lista.slice(0, 6);
   cacheVariantes.set(clave, res);
   return res;
@@ -160,27 +190,29 @@ function formasBajo(afinacion: Afinacion, raiz: Nota, calidad: Calidad): Forma[]
   return formas.sort((a, b) => Math.max(...(a.trastes.filter((t) => t !== null) as number[])) - Math.max(...(b.trastes.filter((t) => t !== null) as number[])));
 }
 
-export function formaDeAcorde(instrumento: NombreInstrumento, afinacion: Afinacion, raiz: Nota, calidad: Calidad, variante = 0): Forma | null {
-  const v = variantesDeAcorde(instrumento, afinacion, raiz, calidad);
+export function formaDeAcorde(instrumento: NombreInstrumento, afinacion: Afinacion, raiz: Nota, calidad: Calidad, variante = 0, bajo: Nota | null = null): Forma | null {
+  const v = variantesDeAcorde(instrumento, afinacion, raiz, calidad, bajo);
   return v[Math.min(variante, v.length - 1)] ?? null;
 }
 
 // Busca la mejor forma tocable en cada zona del mástil: todas las notas del
 // acorde, la raíz como nota más grave, pocas cuerdas apagadas, mano compacta y
 // una digitación posible con 4 dedos (cejilla incluida).
-function calcularFormas(afinacion: Afinacion, raiz: Nota, calidad: Calidad): Forma[] {
+function calcularFormas(afinacion: Afinacion, raiz: Nota, calidad: Calidad, bajo: Nota | null = null): Forma[] {
   const cuerdas = afinacion.cuerdas;
   const n = cuerdas.length;
   const clase = notasDelAcorde(raiz, calidad);
-  const idxRaiz = clase[0];
+  // Nota que debe sonar más grave: el bajo del acorde con barra o, si no hay, la raíz.
+  const idxRaiz = bajo ? NOTAS.indexOf(bajo) : clase[0];
+  const permitidas = bajo ? [...clase, idxRaiz] : clase;
   const minSonando = n > 4 ? 4 : 3;
   const porZona: { trastes: (number | null)[]; puntos: number }[] = [];
 
   for (let base = 0; base <= 10; base += 2) {
     const opciones: (number | null)[][] = cuerdas.map((abierta) => {
       const o: (number | null)[] = [null];
-      if (base === 0 && clase.includes(abierta % 12)) o.push(0);
-      for (let t = Math.max(base, 1); t <= base + 3; t++) if (clase.includes((abierta + t) % 12)) o.push(t);
+      if (base === 0 && permitidas.includes(abierta % 12)) o.push(0);
+      for (let t = Math.max(base, 1); t <= base + 3; t++) if (permitidas.includes((abierta + t) % 12)) o.push(t);
       return o;
     });
     let mejor: { trastes: (number | null)[]; puntos: number } | null = null;
