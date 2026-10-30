@@ -16,8 +16,10 @@ export type Afinacion = {
 export const INSTRUMENTOS_ESTUDIO: Record<NombreInstrumento, { etiqueta: string; afinaciones: Afinacion[] }> = {
   guitarra: {
     etiqueta: "Guitarra",
-    // Por ahora solo Drop D (la estándar se vuelve a ofrecer agregándola aquí).
-    afinaciones: [{ id: "dropd", etiqueta: "Drop D (DADGBE)", cuerdas: [38, 45, 50, 55, 59, 64], nombres: ["D", "A", "D", "G", "B", "E"] }],
+    afinaciones: [
+      { id: "estandar", etiqueta: "Estándar (EADGBE)", cuerdas: [40, 45, 50, 55, 59, 64], nombres: ["E", "A", "D", "G", "B", "E"] },
+      { id: "dropd", etiqueta: "Drop D (DADGBE)", cuerdas: [38, 45, 50, 55, 59, 64], nombres: ["D", "A", "D", "G", "B", "E"] },
+    ],
   },
   bajo: {
     etiqueta: "Bajo 4",
