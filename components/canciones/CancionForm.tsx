@@ -35,7 +35,7 @@ function puedeSostenido(natural: string): boolean {
 }
 
 type AcordeFS = { notaRaiz: Nota; calidad: Calidad; duracionCompases: number };
-type LetraFS = { texto: string; acordes: { posicion: number; notaRaiz: Nota; calidad: Calidad }[] };
+type LetraFS = { texto: string; tipo: "letra" | "tab"; acordes: { posicion: number; notaRaiz: Nota; calidad: Calidad }[] };
 type CuerpoFS = {
   acordes: AcordeFS[];
   letra: LetraFS[];
@@ -145,7 +145,23 @@ function LetraEditor({
         <span style={{ fontFamily: MONO, fontSize: 9, color: FAINT }}>· el acorde se pone donde dejaste el cursor en la línea</span>
       </div>
       <div className="mt-1.5 grid gap-1.5 2xl:grid-cols-2">
-        {letra.map((l, li) => (
+        {letra.map((l, li) => l.tipo === "tab" ? (
+          <div key={li} className="rounded-lg px-2 py-1 2xl:col-span-2" style={{ background: CARD2, border: `1px solid ${LINE}`, borderLeft: `4px solid ${ACCENT}` }}>
+            <div className="flex items-center gap-2">
+              <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: ACCENT }}>Arreglo / solo</span>
+              <span style={{ fontFamily: MONO, fontSize: 9, color: FAINT }}>pega la tablatura tal cual; se muestra en monoespaciado</span>
+              <button type="button" onClick={() => onCambio(letra.filter((_, i) => i !== li))} className="ml-auto text-[11px]" style={{ color: "oklch(0.6 0.15 25)" }} aria-label="Quitar arreglo">×</button>
+            </div>
+            <textarea
+              value={l.texto}
+              rows={Math.min(12, Math.max(4, l.texto.split("\n").length))}
+              spellCheck={false}
+              onChange={(e) => setLinea(li, { texto: e.target.value })}
+              className="mt-1 w-full rounded-md border px-2 py-1 text-[12px] outline-none"
+              style={{ ...inputStyle, fontFamily: MONO, whiteSpace: "pre", overflowX: "auto", lineHeight: 1.25 }}
+            />
+          </div>
+        ) : (
           <div key={li} className="rounded-lg px-2 py-1" style={{ background: CARD2, border: `1px solid ${LINE}` }}>
             <div className="flex flex-wrap items-center gap-1">
               {[...l.acordes].sort((a, b) => a.posicion - b.posicion).map((ac, idx) => (
@@ -184,9 +200,14 @@ function LetraEditor({
           </div>
         ))}
       </div>
-      <button type="button" onClick={() => onCambio([...letra, { texto: "", acordes: [] }])} className="mt-1.5 w-fit rounded-md px-2.5 py-1 text-[11px] font-bold" style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}>
-        + Línea
-      </button>
+      <div className="mt-1.5 flex gap-1.5">
+        <button type="button" onClick={() => onCambio([...letra, { texto: "", tipo: "letra", acordes: [] }])} className="w-fit rounded-md px-2.5 py-1 text-[11px] font-bold" style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}>
+          + Línea
+        </button>
+        <button type="button" onClick={() => onCambio([...letra, { texto: "", tipo: "tab", acordes: [] }])} className="w-fit rounded-md px-2.5 py-1 text-[11px] font-bold" style={{ border: `1px dashed ${ACCENT}`, color: ACCENT, fontFamily: MONO }}>
+          + Arreglo / solo
+        </button>
+      </div>
     </div>
   );
 }
@@ -313,7 +334,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
       nombre: s.nombre,
       repiteVeces: s.repiteVeces,
       acordes: s.acordes.map((a) => ({ notaRaiz: a.notaRaiz, calidad: a.calidad, duracionCompases: a.duracionCompases })),
-      letra: s.letra.map((l) => ({ texto: l.texto, acordes: l.acordes.map((a) => ({ posicion: a.posicion, notaRaiz: a.notaRaiz, calidad: a.calidad })) })),
+      letra: s.letra.map((l) => ({ texto: l.texto, tipo: l.tipo, acordes: l.acordes.map((a) => ({ posicion: a.posicion, notaRaiz: a.notaRaiz, calidad: a.calidad })) })),
       tonalidadPropia: s.tonalidadNota !== null,
       tonRaiz: s.tonalidadNota ?? "C",
       tonModo: s.tonalidadModo ?? "mayor",
@@ -322,7 +343,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
       repeticiones: s.repeticiones.map((r) => ({
         repeticionIndice: r.repeticionIndice,
         acordes: r.acordes.map((a) => ({ notaRaiz: a.notaRaiz, calidad: a.calidad, duracionCompases: a.duracionCompases })),
-        letra: r.letra.map((l) => ({ texto: l.texto, acordes: l.acordes.map((a) => ({ posicion: a.posicion, notaRaiz: a.notaRaiz, calidad: a.calidad })) })),
+        letra: r.letra.map((l) => ({ texto: l.texto, tipo: l.tipo, acordes: l.acordes.map((a) => ({ posicion: a.posicion, notaRaiz: a.notaRaiz, calidad: a.calidad })) })),
         tonalidadPropia: r.tonalidadNota !== null,
         tonRaiz: r.tonalidadNota ?? "C",
         tonModo: r.tonalidadModo ?? "mayor",
@@ -377,7 +398,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
         const clon: RepeticionFS = {
           repeticionIndice: vuelta,
           acordes: s.acordes.map((a) => ({ ...a })),
-          letra: s.letra.map((l) => ({ texto: l.texto, acordes: l.acordes.map((a) => ({ ...a })) })),
+          letra: s.letra.map((l) => ({ texto: l.texto, tipo: l.tipo, acordes: l.acordes.map((a) => ({ ...a })) })),
           tonalidadPropia: s.tonalidadPropia,
           tonRaiz: s.tonRaiz,
           tonModo: s.tonModo,
@@ -396,7 +417,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
     numeroCompases: c.numeroCompases ? Number(c.numeroCompases) : null,
     bpm: c.bpm ? Number(c.bpm) : null,
     acordes: c.acordes,
-    letra: c.letra.map((l): LetraLineaInput => ({ texto: l.texto, acordes: l.acordes })),
+    letra: c.letra.map((l): LetraLineaInput => ({ texto: l.texto, tipo: l.tipo, acordes: l.tipo === "tab" ? [] : l.acordes })),
   });
 
   const onSubmit = (marcarLista = false) => {

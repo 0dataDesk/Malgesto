@@ -423,7 +423,7 @@ export function VistaEstudio({
     const porSeccion = cancion.secciones.map((s) => {
       const conLetra = s.letra.some((l) => l.acordes.length > 0);
       return pesosDeSeccion(
-        conLetra ? s.letra.map((l) => ({ largo: l.texto.length, posiciones: l.acordes.map((a) => a.posicion) })) : [],
+        conLetra ? s.letra.map((l) => ({ largo: l.tipo === "tab" ? 0 : l.texto.length, posiciones: l.acordes.map((a) => a.posicion) })) : [],
         s.acordes.length
       );
     });
@@ -945,7 +945,8 @@ export function VistaEstudio({
         <main className="order-1 overflow-y-auto px-6 py-4 xl:order-2">
           <div style={{ columnWidth: 430, columnGap: 64, columnRule: "1px dotted oklch(0.5 0.044 262 / 0.35)" }}>
             {cancion.secciones.map((s, si) => {
-              const conLetra = s.letra.some((l) => l.acordes.length > 0 || l.texto.trim());
+              const conLetra = s.letra.some((l) => l.tipo !== "tab" && (l.acordes.length > 0 || l.texto.trim()));
+              const bloquesTab = s.letra.filter((l) => l.tipo === "tab");
               return (
                 <div key={s.id} style={{ breakInside: "avoid", marginBottom: 14 }}>
                   <div className="flex items-center gap-2" style={{ marginBottom: 2 }}>
@@ -956,6 +957,14 @@ export function VistaEstudio({
                   </div>
                   {conLetra ? (
                     s.letra.map((l, li) => {
+                      if (l.tipo === "tab") {
+                        return (
+                          <div key={l.id} style={{ margin: "6px 0 8px", borderLeft: `4px solid ${CORAL}`, background: CARD, borderRadius: 8, padding: "4px 10px 6px" }}>
+                            <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: "0.12em", textTransform: "uppercase", color: CORAL, fontWeight: 700 }}>Arreglo / solo</div>
+                            <pre style={{ margin: 0, fontFamily: MONO, fontSize: 12, lineHeight: 1.3, overflowX: "auto", color: INK }}>{l.texto}</pre>
+                          </div>
+                        );
+                      }
                       const ids = indicesPorLinea.get(`${si}-${li}`) ?? [];
                       const orden = [...l.acordes].sort((a, b) => a.posicion - b.posicion || a.orden - b.orden);
                       const texto = l.texto;
@@ -1018,6 +1027,16 @@ export function VistaEstudio({
                         );
                       })}
                       {(indicesPorSeccion[si] ?? []).length === 0 && <span style={{ fontSize: 12, color: MUTED }}>Sin acordes todavía.</span>}
+                    </div>
+                  )}
+                  {!conLetra && bloquesTab.length > 0 && (
+                    <div>
+                      {bloquesTab.map((l) => (
+                        <div key={l.id} style={{ margin: "6px 0 8px", borderLeft: `4px solid ${CORAL}`, background: CARD, borderRadius: 8, padding: "4px 10px 6px" }}>
+                          <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: "0.12em", textTransform: "uppercase", color: CORAL, fontWeight: 700 }}>Arreglo / solo</div>
+                          <pre style={{ margin: 0, fontFamily: MONO, fontSize: 12, lineHeight: 1.3, overflowX: "auto", color: INK }}>{l.texto}</pre>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
