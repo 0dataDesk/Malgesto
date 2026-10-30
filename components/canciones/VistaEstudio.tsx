@@ -77,7 +77,8 @@ function Diagrama({
   const sx = (ancho - izq * 2) / (n - 1);
   const sy = (alto - arriba - 5) / filas;
   const pisados = forma.trastes.filter((t): t is number => t !== null && t > 0);
-  const inicio = pisados.length && Math.max(...pisados) > 4 ? Math.min(...pisados) : 1;
+  // El diagrama tiene 5 trastes de alto: solo se desplaza si la forma pasa del quinto traste (con cuerdas al aire siempre empieza en la cejilla).
+  const inicio = pisados.length && Math.max(...pisados) > 5 ? Math.min(...pisados) : 1;
   const yFila = (t: number) => arriba + (t - inicio + 0.5) * sy;
   const r = mini ? 4.7 : 9;
   const colorBase = acorde ? colorDe(acorde.nota, acorde.calidad) : null;
