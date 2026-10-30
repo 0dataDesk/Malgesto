@@ -8,7 +8,7 @@ export type Nota = (typeof NOTAS)[number];
 
 export const CALIDADES = [
   "mayor", "menor", "disminuido", "aumentado",
-  "7", "maj7", "m7", "dim7", "m7b5", "sus2", "sus4",
+  "7", "maj7", "m7", "dim7", "m7b5", "sus2", "sus4", "add9",
 ] as const;
 export type Calidad = (typeof CALIDADES)[number];
 
@@ -31,16 +31,17 @@ const INTERVALOS_POR_CALIDAD: Record<Calidad, Intervalo[]> = {
   m7b5: [{ semitonos: 3, etiqueta: "3ª" }, { semitonos: 6, etiqueta: "5ª" }, { semitonos: 10, etiqueta: "7ª" }],
   sus2: [{ semitonos: 2, etiqueta: "2ª" }, { semitonos: 7, etiqueta: "5ª" }],
   sus4: [{ semitonos: 5, etiqueta: "4ª" }, { semitonos: 7, etiqueta: "5ª" }],
+  add9: [{ semitonos: 4, etiqueta: "3ª" }, { semitonos: 7, etiqueta: "5ª" }, { semitonos: 14, etiqueta: "9ª" }],
 };
 
-// Semitonos de cada nota del acorde sobre la raíz (la raíz es 0), sin la 9ª.
+// Semitonos de cada nota del acorde sobre la raíz (la raíz es 0), sin la 9ª (salvo add9, que la lleva).
 export function semitonosDeCalidad(calidad: Calidad): number[] {
   return [0, ...INTERVALOS_POR_CALIDAD[calidad].map((i) => i.semitonos)];
 }
 
 const SUFIJO_POR_CALIDAD: Record<Calidad, string> = {
   mayor: "", menor: "m", disminuido: "dim", aumentado: "aum",
-  "7": "7", maj7: "maj7", m7: "m7", dim7: "dim7", m7b5: "m7b5", sus2: "sus2", sus4: "sus4",
+  "7": "7", maj7: "maj7", m7: "m7", dim7: "dim7", m7b5: "m7b5", sus2: "sus2", sus4: "sus4", add9: "add9",
 };
 
 function notaEn(indice: number): Nota {
@@ -52,7 +53,8 @@ export type TonoAcorde = { raiz: Nota; acompanantes: { intervalo: string; nota: 
 // Brief 19 §6: la 9ª ya no es opcional — todo acorde la incluye siempre.
 export function tonosDelAcorde(raiz: Nota, calidad: Calidad): TonoAcorde {
   const idxRaiz = NOTAS.indexOf(raiz);
-  const intervalos = [...INTERVALOS_POR_CALIDAD[calidad], { semitonos: 14, etiqueta: "9ª" }];
+  const base = INTERVALOS_POR_CALIDAD[calidad];
+  const intervalos = base.some((i) => i.etiqueta === "9ª") ? base : [...base, { semitonos: 14, etiqueta: "9ª" }];
   return {
     raiz,
     acompanantes: intervalos.map((i) => ({ intervalo: i.etiqueta, nota: notaEn(idxRaiz + i.semitonos) })),
@@ -115,7 +117,7 @@ export function huePorNota(nota: Nota): number {
 type CategoriaColor = "mayor" | "dominante" | "menor" | "tenue";
 
 const CATEGORIA_COLOR_POR_CALIDAD: Record<Calidad, CategoriaColor> = {
-  mayor: "mayor", maj7: "mayor",
+  mayor: "mayor", maj7: "mayor", add9: "mayor",
   "7": "dominante",
   menor: "menor", m7: "menor",
   disminuido: "tenue", dim7: "tenue", m7b5: "tenue", aumentado: "tenue", sus2: "tenue", sus4: "tenue",

@@ -33,7 +33,7 @@ export async function actualizarCancionAction(cancionId: string, input: CancionI
   await actualizarCancion(cancionId, input);
   revalidatePath("/canciones");
   revalidatePath(`/canciones/${cancionId}`);
-  redirect(`/canciones?banda=${input.bandaId}`);
+  redirect(`/canciones/${cancionId}`);
 }
 
 // Ventana "Editar" del modo Estudio: guarda solo la ficha y se queda en la canción.
