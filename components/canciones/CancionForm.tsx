@@ -34,8 +34,8 @@ function puedeSostenido(natural: string): boolean {
   return (NOTAS as readonly string[]).includes(`${natural}#`);
 }
 
-type AcordeFS = { notaRaiz: Nota; calidad: Calidad; duracionCompases: number };
-type LetraFS = { texto: string; tipo: "letra" | "tab"; acordes: { posicion: number; notaRaiz: Nota; calidad: Calidad }[] };
+type AcordeFS = { notaRaiz: Nota; calidad: Calidad; notaBajo: Nota | null; duracionCompases: number };
+type LetraFS = { texto: string; tipo: "letra" | "tab"; acordes: { posicion: number; notaRaiz: Nota; calidad: Calidad; notaBajo: Nota | null }[] };
 type CuerpoFS = {
   acordes: AcordeFS[];
   letra: LetraFS[];
@@ -85,7 +85,7 @@ function AcordeChip({
 }: {
   acorde: AcordeFS;
   tonalidad: { raiz: Nota; modo: Modo };
-  onSeleccionar: (n: Nota, c: Calidad) => void;
+  onSeleccionar: (n: Nota, c: Calidad, b: Nota | null) => void;
   onDuracion: (n: number) => void;
   onQuitar: () => void;
 }) {
@@ -93,7 +93,7 @@ function AcordeChip({
   const ink = colorContrasteTexto(color);
   return (
     <div className="flex items-center gap-1" style={{ borderRadius: 9, padding: "2px 5px 2px 2px", background: color, border: "1px solid rgba(0,0,0,.14)" }}>
-      <AcordeSelector compacto tonalidad={tonalidad} notaRaiz={acorde.notaRaiz} calidad={acorde.calidad} onSeleccionar={onSeleccionar} />
+      <AcordeSelector compacto tonalidad={tonalidad} notaRaiz={acorde.notaRaiz} calidad={acorde.calidad} notaBajo={acorde.notaBajo} onSeleccionar={onSeleccionar} />
       <input
         inputMode="numeric"
         value={acorde.duracionCompases}
@@ -113,12 +113,12 @@ function AcordeChip({
 }
 
 // Si la lista de acordes es un ciclo que se toca varias veces seguidas (A B C D A B C D), devuelve el ciclo y cuántas veces.
-function cicloRepetido(acordes: { notaRaiz: Nota; calidad: Calidad }[]): { largo: number; veces: number } | null {
+function cicloRepetido(acordes: { notaRaiz: Nota; calidad: Calidad; notaBajo: Nota | null }[]): { largo: number; veces: number } | null {
   const n = acordes.length;
   for (let largo = 1; largo <= n / 2; largo++) {
     if (n % largo !== 0) continue;
     let igual = true;
-    for (let i = largo; i < n && igual; i++) igual = acordes[i].notaRaiz === acordes[i % largo].notaRaiz && acordes[i].calidad === acordes[i % largo].calidad;
+    for (let i = largo; i < n && igual; i++) igual = acordes[i].notaRaiz === acordes[i % largo].notaRaiz && acordes[i].calidad === acordes[i % largo].calidad && acordes[i].notaBajo === acordes[i % largo].notaBajo;
     if (igual) return { largo, veces: n / largo };
   }
   return null;
@@ -166,7 +166,7 @@ function LetraEditor({
             <div className="flex flex-wrap items-center gap-1">
               {[...l.acordes].sort((a, b) => a.posicion - b.posicion).map((ac, idx) => (
                 <span key={idx} style={{ display: "flex", alignItems: "center", gap: 3, borderRadius: 5, padding: "0 4px", background: colorRaizAcorde(ac.notaRaiz, ac.calidad), fontFamily: MONO, fontWeight: 700, fontSize: 10, color: colorContrasteTexto(colorRaizAcorde(ac.notaRaiz, ac.calidad)) }}>
-                  {simboloAcorde(ac.notaRaiz, ac.calidad)}
+                  {simboloAcorde(ac.notaRaiz, ac.calidad, ac.notaBajo)}
                   <span style={{ opacity: 0.7, fontWeight: 500 }}>@{ac.posicion}</span>
                   <button type="button" aria-label="Quitar acorde" onClick={() => setLinea(li, { acordes: l.acordes.filter((x) => x !== ac) })}>×</button>
                 </span>
@@ -177,9 +177,9 @@ function LetraEditor({
                 tonalidad={tonalidad}
                 notaRaiz={raizDefault}
                 calidad="mayor"
-                onSeleccionar={(notaRaiz, calidad) => {
+                onSeleccionar={(notaRaiz, calidad, notaBajo) => {
                   const pos = foco && foco.linea === li ? foco.pos : l.texto.length;
-                  setLinea(li, { acordes: [...l.acordes, { posicion: pos, notaRaiz, calidad }] });
+                  setLinea(li, { acordes: [...l.acordes, { posicion: pos, notaRaiz, calidad, notaBajo }] });
                 }}
               />
             </div>
@@ -333,8 +333,8 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
     cancionExistente?.secciones.map((s) => ({
       nombre: s.nombre,
       repiteVeces: s.repiteVeces,
-      acordes: s.acordes.map((a) => ({ notaRaiz: a.notaRaiz, calidad: a.calidad, duracionCompases: a.duracionCompases })),
-      letra: s.letra.map((l) => ({ texto: l.texto, tipo: l.tipo, acordes: l.acordes.map((a) => ({ posicion: a.posicion, notaRaiz: a.notaRaiz, calidad: a.calidad })) })),
+      acordes: s.acordes.map((a) => ({ notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo, duracionCompases: a.duracionCompases })),
+      letra: s.letra.map((l) => ({ texto: l.texto, tipo: l.tipo, acordes: l.acordes.map((a) => ({ posicion: a.posicion, notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo })) })),
       tonalidadPropia: s.tonalidadNota !== null,
       tonRaiz: s.tonalidadNota ?? "C",
       tonModo: s.tonalidadModo ?? "mayor",
@@ -342,8 +342,8 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
       bpm: s.bpm?.toString() ?? "",
       repeticiones: s.repeticiones.map((r) => ({
         repeticionIndice: r.repeticionIndice,
-        acordes: r.acordes.map((a) => ({ notaRaiz: a.notaRaiz, calidad: a.calidad, duracionCompases: a.duracionCompases })),
-        letra: r.letra.map((l) => ({ texto: l.texto, tipo: l.tipo, acordes: l.acordes.map((a) => ({ posicion: a.posicion, notaRaiz: a.notaRaiz, calidad: a.calidad })) })),
+        acordes: r.acordes.map((a) => ({ notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo, duracionCompases: a.duracionCompases })),
+        letra: r.letra.map((l) => ({ texto: l.texto, tipo: l.tipo, acordes: l.acordes.map((a) => ({ posicion: a.posicion, notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo })) })),
         tonalidadPropia: r.tonalidadNota !== null,
         tonRaiz: r.tonalidadNota ?? "C",
         tonModo: r.tonalidadModo ?? "mayor",
@@ -538,7 +538,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                       const c = colorRaizAcorde(a.notaRaiz, a.calidad);
                       return (
                         <span key={k} style={{ flex: 1, minWidth: 0, background: c, color: colorContrasteTexto(c), borderRadius: 3, padding: "2px 0", textAlign: "center", fontFamily: MONO, fontWeight: 800, fontSize: 8.5, overflow: "hidden" }}>
-                          {simboloAcorde(a.notaRaiz, a.calidad)}
+                          {simboloAcorde(a.notaRaiz, a.calidad, a.notaBajo)}
                         </span>
                       );
                     })}
@@ -646,7 +646,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                     <AcordeChip
                       acorde={a}
                       tonalidad={tonDe(cuerpoSel)}
-                      onSeleccionar={(notaRaiz, calidad) => aplicar({ acordes: ac.map((x, i) => (i === ai ? { ...x, notaRaiz, calidad } : x)) })}
+                      onSeleccionar={(notaRaiz, calidad, notaBajo) => aplicar({ acordes: ac.map((x, i) => (i === ai ? { ...x, notaRaiz, calidad, notaBajo } : x)) })}
                       onDuracion={(n) => aplicar({ acordes: ac.map((x, i) => (i === ai ? { ...x, duracionCompases: n } : x)) })}
                       onQuitar={() => aplicar({ acordes: ac.filter((_, i) => i !== ai) })}
                     />
@@ -654,7 +654,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                 ))}
                 <button
                   type="button"
-                  onClick={() => aplicar({ acordes: [...ac, { notaRaiz: tonDe(cuerpoSel).raiz, calidad: "mayor" as Calidad, duracionCompases: 1 }] })}
+                  onClick={() => aplicar({ acordes: [...ac, { notaRaiz: tonDe(cuerpoSel).raiz, calidad: "mayor" as Calidad, notaBajo: null, duracionCompases: 1 }] })}
                   className="rounded-md px-2 py-0.5 text-[11px] font-bold"
                   style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}
                 >
@@ -739,9 +739,9 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
 }
 
 // Acordes de una parada para dibujarla: los de la sección o, si solo están sobre la letra, esos en orden.
-function acordesDeParada(c: CuerpoFS): { notaRaiz: Nota; calidad: Calidad; duracionCompases: number }[] {
+function acordesDeParada(c: CuerpoFS): { notaRaiz: Nota; calidad: Calidad; notaBajo: Nota | null; duracionCompases: number }[] {
   if (c.acordes.length > 0) return c.acordes;
-  return c.letra.flatMap((l) => [...l.acordes].sort((a, b) => a.posicion - b.posicion).map((a) => ({ notaRaiz: a.notaRaiz, calidad: a.calidad, duracionCompases: 1 })));
+  return c.letra.flatMap((l) => [...l.acordes].sort((a, b) => a.posicion - b.posicion).map((a) => ({ notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo, duracionCompases: 1 })));
 }
 
 function mmssLocal(seg: number): string {

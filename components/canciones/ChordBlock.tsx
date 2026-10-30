@@ -74,7 +74,7 @@ export function ChordBlock({
           className={`${tamano.simbolo} font-extrabold leading-tight break-words`}
           style={{ color: COLOR_SIMBOLO, fontFamily: "var(--font-fraunces), sans-serif" }}
         >
-          {simboloAcorde(acorde.notaRaiz, acorde.calidad)}
+          {simboloAcorde(acorde.notaRaiz, acorde.calidad, acorde.notaBajo)}
         </div>
         <span
           className={`shrink-0 rounded-md px-1.5 py-0.5 font-mono ${tamano.badge}`}

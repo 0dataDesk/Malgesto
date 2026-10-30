@@ -94,7 +94,7 @@ function LetraAlineada({
             {segs.map((seg, i) => (
               <div key={i} className="flex flex-col" style={{ gap: 1 }}>
                 <span style={{ height: tamAcorde + 3, fontFamily: MONO, fontWeight: 700, fontSize: tamAcorde, color: seg.acorde ? colorRaizAcorde(seg.acorde.notaRaiz, seg.acorde.calidad) : "transparent" }}>
-                  {seg.acorde ? simboloAcorde(seg.acorde.notaRaiz, seg.acorde.calidad) : "·"}
+                  {seg.acorde ? simboloAcorde(seg.acorde.notaRaiz, seg.acorde.calidad, seg.acorde.notaBajo) : "·"}
                 </span>
                 <span style={{ fontFamily: MONO, fontWeight: 500, fontSize: tamTexto, lineHeight: 1.2, color: "var(--ink)", whiteSpace: "pre" }}>{seg.texto}</span>
               </div>
@@ -180,7 +180,7 @@ function Timeline({
                           overflow: "hidden",
                         }}
                       >
-                        {simboloAcorde(a.notaRaiz, a.calidad)}
+                        {simboloAcorde(a.notaRaiz, a.calidad, a.notaBajo)}
                       </span>
                     );
                   })}
@@ -406,7 +406,7 @@ function ModoLista({
                   {pos.vuelta.nombre} · vuelta {pos.vuelta.indice} · compás {pos.compasEnSeccion}
                 </div>
                 <div style={{ marginTop: 2, fontFamily: DISPLAY, fontWeight: 800, fontSize: 52, lineHeight: 1, color: acordeInkC }}>
-                  {simboloAcorde(pos.acorde.notaRaiz, pos.acorde.calidad)}
+                  {simboloAcorde(pos.acorde.notaRaiz, pos.acorde.calidad, pos.acorde.notaBajo)}
                 </div>
                 <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
                   {tonos.acompanantes.map((tn, i) => (
@@ -421,7 +421,7 @@ function ModoLista({
                 <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
                   <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--faint)" }}>Sigue</span>
                   <span style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 22, color: colorRaizAcorde(pos.acordeSiguiente.notaRaiz, pos.acordeSiguiente.calidad) }}>
-                    {simboloAcorde(pos.acordeSiguiente.notaRaiz, pos.acordeSiguiente.calidad)}
+                    {simboloAcorde(pos.acordeSiguiente.notaRaiz, pos.acordeSiguiente.calidad, pos.acordeSiguiente.notaBajo)}
                   </span>
                   <div style={{ flex: 1 }} />
                   <span style={{ fontFamily: MONO, fontSize: 9, color: "var(--muted)" }}>en {Math.max(1, Math.ceil(pos.restanteCompases))} c.</span>
@@ -478,7 +478,7 @@ function ModoLista({
                       </div>
                       <div style={{ marginTop: 4, fontFamily: MONO, fontSize: 9, opacity: 0.8 }}>{b.compases}c · {mmss(b.duracionSegundos)}</div>
                       <div style={{ marginTop: 5, fontFamily: MONO, fontWeight: 700, fontSize: 11, opacity: 0.9, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {b.acordes.map((a) => simboloAcorde(a.notaRaiz, a.calidad)).join(" ")}
+                        {b.acordes.map((a) => simboloAcorde(a.notaRaiz, a.calidad, a.notaBajo)).join(" ")}
                       </div>
                     </div>
                   ))}
@@ -488,7 +488,7 @@ function ModoLista({
                 <div style={{ flex: 1, borderRadius: 12, background: "var(--card2)", border: "1px solid var(--line)", padding: "8px 10px" }}>
                   <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--faint)" }}>Armonía (apoyo)</div>
                   <div style={{ marginTop: 4, fontFamily: MONO, fontWeight: 700, fontSize: 14, color: acordeColor }}>
-                    {simboloAcorde(pos.acorde.notaRaiz, pos.acorde.calidad)} → {simboloAcorde(pos.acordeSiguiente.notaRaiz, pos.acordeSiguiente.calidad)}
+                    {simboloAcorde(pos.acorde.notaRaiz, pos.acorde.calidad, pos.acorde.notaBajo)} → {simboloAcorde(pos.acordeSiguiente.notaRaiz, pos.acordeSiguiente.calidad, pos.acordeSiguiente.notaBajo)}
                   </div>
                 </div>
                 <div style={{ flex: 1.4, minWidth: 0, borderRadius: 12, background: "var(--card2)", border: "1px solid var(--line)", padding: "8px 10px" }}>
@@ -510,7 +510,7 @@ function ModoLista({
               </span>
               <div style={{ flex: 1 }} />
               <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 11, color: acordeColor }}>
-                {simboloAcorde(pos.acorde.notaRaiz, pos.acorde.calidad)} → {simboloAcorde(pos.acordeSiguiente.notaRaiz, pos.acordeSiguiente.calidad)}
+                {simboloAcorde(pos.acorde.notaRaiz, pos.acorde.calidad, pos.acorde.notaBajo)} → {simboloAcorde(pos.acordeSiguiente.notaRaiz, pos.acordeSiguiente.calidad, pos.acordeSiguiente.notaBajo)}
               </span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
