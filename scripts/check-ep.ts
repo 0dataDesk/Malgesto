@@ -1,5 +1,5 @@
 // Revisa la geometría, los cálculos y la validación del Mapa del EP. Corre con npm run check (antes de cada build).
-import { CUERPO, NUCLEO, PESO_CUERPO, TECHOS_INICIALES, conTecho, techoIntensidad, techoPeso, PESO_INTENSIDAD, capaEntre, clamp, colorAnimo, curvaSuave, duracionSeg, formatoMSS, intensidad, nuevaPieza, normalizarProyecto, palabraDe, peso, tramosDe, type Pieza, type Seccion } from "../lib/epModelo";
+import { CAMPOS, CUERPO, NUCLEO, PESO_CUERPO, PESO_INTENSIDAD, moverPromedio, promedioDe, promedioIntensidad, promedioPeso, capaEntre, clamp, colorAnimo, curvaSuave, duracionSeg, formatoMSS, intensidad, nuevaPieza, normalizarProyecto, palabraDe, peso, tramosDe, type Pieza, type Seccion } from "../lib/epModelo";
 
 const errores: string[] = [];
 const falla = (m: string) => errores.push(m);
@@ -20,13 +20,25 @@ if (peso(sec({ sub: 100, graves: 100, medios: 100, altos: 100 })) !== 100 || pes
 if (peso(sec({ sub: 100, graves: 100, medios: 0, altos: 0 })) !== 60) falla("sub y graves deben pesar 60 en total");
 if (peso(sec({ sub: 0, graves: 0, medios: 0, altos: 100 })) !== 15) falla("los altos deben pesar 15");
 
-// Techos: el 100 de una sección equivale al techo del EP; ninguna línea pasa de su techo.
-const t70 = { ...TECHOS_INICIALES, energia: 70, tension: 50, sub: 60 };
-if (conTecho(100, 70) !== 70 || conTecho(50, 70) !== 35 || conTecho(80, 100) !== 80) falla("conTecho debe escalar al techo");
-if (intensidad(sec({ energia: 100, tension: 100 }), t70) !== techoIntensidad(t70) || techoIntensidad(t70) !== 63) falla("el techo de la intensidad debe ser 0.65×70 + 0.35×50 = 63");
-if (peso(sec({ sub: 100, graves: 100, medios: 100, altos: 100 }), t70) !== techoPeso(t70) || techoPeso(t70) !== 88) falla("el techo del peso debe ser 15+25+30+18 = 88");
-if (intensidad(sec({ energia: 100, tension: 100 })) !== 100 || techoIntensidad(TECHOS_INICIALES) !== 100 || techoPeso(TECHOS_INICIALES) !== 100) falla("sin techos (100) todo queda igual");
-if (tramosDe([{ ...nuevaPieza(), secciones: [sec({ animo: 100 })] }], null, { ...TECHOS_INICIALES, animo: 60 })[0].animo !== 60) falla("tramosDe debe dar el ánimo efectivo con techo");
+// Promedio por canción: ponderado por compases; moverlo lleva el promedio al objetivo sin salirse de 0-100 y conservando el orden de las secciones.
+const cancion: Pieza = { ...nuevaPieza("C"), secciones: [sec({ compases: 8, energia: 10 }), sec({ compases: 16, energia: 40 }), sec({ compases: 8, energia: 90 })] };
+if (promedioDe(cancion, "energia") !== 45) falla("promedioDe debe ponderar por compases: (10×8 + 40×16 + 90×8) / 32 = 45");
+for (const campo of CAMPOS) {
+  for (const objetivo of [0, 10, 25, 45, 60, 80, 100]) {
+    const n = moverPromedio(cancion, campo, objetivo);
+    const prom = promedioDe(n, campo);
+    if (Math.abs(prom - objetivo) > 2) falla(`moverPromedio(${campo}, ${objetivo}) dejó el promedio en ${prom}`);
+    if (n.secciones.some((x) => x[campo] < 0 || x[campo] > 100)) falla(`moverPromedio(${campo}, ${objetivo}) se salió de 0-100`);
+  }
+}
+const sube = moverPromedio(cancion, "energia", 80).secciones.map((x) => x.energia);
+const baja = moverPromedio(cancion, "energia", 20).secciones.map((x) => x.energia);
+if (!(sube[0] < sube[1] && sube[1] < sube[2]) || !(baja[0] < baja[1] && baja[1] < baja[2])) falla("moverPromedio debe conservar el orden de las secciones (su forma)");
+if (sube.some((v, i) => v < cancion.secciones[i].energia) || baja.some((v, i) => v > cancion.secciones[i].energia)) falla("subir el promedio no debe bajar secciones, ni bajarlo subirlas");
+if (moverPromedio(cancion, "energia", 45) !== cancion) falla("sin cambio de promedio no debe tocar la canción");
+if (moverPromedio(cancion, "sub", 80).secciones.some((x, i) => x.energia !== cancion.secciones[i].energia)) falla("moverPromedio solo debe tocar el indicador pedido");
+if (promedioIntensidad(cancion) !== Math.round((intensidad(cancion.secciones[0]) * 8 + intensidad(cancion.secciones[1]) * 16 + intensidad(cancion.secciones[2]) * 8) / 32)) falla("promedioIntensidad debe ponderar por compases");
+if (promedioPeso({ ...cancion, secciones: [sec({ sub: 100, graves: 100, medios: 100, altos: 100 })] }) !== 100) falla("promedioPeso de todo al máximo debe ser 100");
 
 // Escalas: cada medidor dice qué es 0, qué es 100 y tiene cinco palabras distintas en el camino.
 [...NUCLEO, ...CUERPO].forEach((m) => {
@@ -71,8 +83,6 @@ const ok = normalizarProyecto({
 });
 const s0 = ok.piezas[0].secciones[0];
 if (ok.nombre !== "X" || ok.tipo !== "album") falla("normalizarProyecto: nombre/tipo");
-if (Object.values(ok.techos).some((v) => v !== 100)) falla("normalizarProyecto debe dar techo 100 a lo que falta");
-if (normalizarProyecto({ nombre: "x", piezas: [], techos: { sub: 40, energia: 500, animo: "x" } }).techos.sub !== 40 || normalizarProyecto({ nombre: "x", piezas: [], techos: { energia: 500 } }).techos.energia !== 100) falla("normalizarProyecto debe recortar techos");
 if (s0.compases !== 1 || s0.energia !== 0 || s0.sub !== 100 || s0.altos !== 50 || s0.animo !== 50) falla("normalizarProyecto debe recortar rangos y dar 50 a lo que falta");
 try {
   normalizarProyecto({ nombre: "x", piezas: [{ id: "no-es-uuid", secciones: [] }] });

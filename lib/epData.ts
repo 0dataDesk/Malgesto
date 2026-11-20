@@ -1,6 +1,6 @@
 import "server-only";
 import { supabaseMalgesto } from "@/lib/supabase/malgesto";
-import { CAMPOS, TECHOS_INICIALES, normalizarProyecto, type Proyecto, type Techos } from "@/lib/epModelo";
+import { normalizarProyecto, type Proyecto } from "@/lib/epModelo";
 
 // Mapa del EP (planeación de un proyecto musical). Vive aparte de canciones: ver supabase/migrations/20261120130000.
 
@@ -30,7 +30,7 @@ export async function listarProyectos(bandaId: string): Promise<{ id: string; no
 
 export async function obtenerProyecto(bandaId: string, proyectoId?: string): Promise<Proyecto | null> {
   const db = supabaseMalgesto();
-  let q = db.from("proyectos_musicales").select("id, banda_id, nombre, tipo, historia, techos, updated_at").eq("banda_id", bandaId);
+  let q = db.from("proyectos_musicales").select("id, banda_id, nombre, tipo, historia, updated_at").eq("banda_id", bandaId);
   q = proyectoId ? q.eq("id", proyectoId) : q.order("created_at").limit(1);
   const { data: proys, error } = await q;
   if (error) throw new Error(error.message);
@@ -62,7 +62,6 @@ export async function obtenerProyecto(bandaId: string, proyectoId?: string): Pro
     nombre: proy.nombre,
     tipo: proy.tipo === "album" ? "album" : "ep",
     historia: proy.historia,
-    techos: Object.fromEntries(CAMPOS.map((c) => [c, typeof proy.techos?.[c] === "number" ? Math.min(100, Math.max(0, Math.round(proy.techos[c]))) : TECHOS_INICIALES[c]])) as Techos,
     version: String(proy.updated_at),
     piezas: (piezas ?? []).map((p) => ({
       id: p.id,
@@ -128,7 +127,7 @@ export async function guardarProyecto(bandaId: string, proyectoId: string, entra
 
   const { data: nuevo, error: e1 } = await db
     .from("proyectos_musicales")
-    .update({ nombre: p.nombre, tipo: p.tipo, historia: p.historia, techos: p.techos, updated_at: new Date().toISOString() })
+    .update({ nombre: p.nombre, tipo: p.tipo, historia: p.historia, updated_at: new Date().toISOString() })
     .eq("id", proyectoId)
     .select("updated_at")
     .single();
