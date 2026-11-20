@@ -14,10 +14,7 @@ export type CampoNucleo = "energia" | "animo" | "tension";
 export type CampoCuerpo = "altos" | "medios" | "graves" | "sub";
 export type CampoValor = CampoNucleo | CampoCuerpo;
 
-// Techo de cada indicador para todo el EP (vista general): el 100 de una sección equivale al techo.
-export type Techos = Record<CampoValor, number>;
 export const CAMPOS: CampoValor[] = ["energia", "animo", "tension", "altos", "medios", "graves", "sub"];
-export const TECHOS_INICIALES: Techos = { energia: 100, animo: 100, tension: 100, altos: 100, medios: 100, graves: 100, sub: 100 };
 
 export const PESO_INTENSIDAD = { energia: 0.65, tension: 0.35 } as const;
 // De arriba a abajo, como se ven y se sienten las frecuencias.
@@ -35,7 +32,7 @@ export const NUCLEO: { campo: CampoNucleo; nombre: string; ayuda: string; escala
 export const CUERPO: { campo: CampoCuerpo; nombre: string; ayuda: string; hz: string; escala: Escala }[] = [
   { campo: "altos", nombre: "Altos", ayuda: "Arriba de 2 kHz: hi-hats, flauta, metales brillantes, aire.", hz: "2 kHz en adelante", escala: { cero: "sin brillo", cien: "aire total", pasos: ["apagado", "oscuro", "presente", "brillante", "aire total"] } },
   { campo: "medios", nombre: "Medios", ayuda: "250 Hz a 2 kHz: skank, órgano, caja, la armonía.", hz: "250 Hz-2 kHz", escala: { cero: "hueco", cien: "muy lleno", pasos: ["hueco", "escaso", "presente", "lleno", "muy lleno"] } },
-  { campo: "graves", nombre: "Graves", ayuda: "60 a 250 Hz: el bajo y el bombo, el cuerpo de la canción.", hz: "60-250 Hz", escala: { cero: "sin graves", cien: "contundentes", pasos: ["sin cuerpo", "ligeros", "firmes", "profundos", "contundentes"] } },
+  { campo: "graves", nombre: "Graves", ayuda: "60 a 250 Hz: el bajo y el bombo, el cuerpo de la canción.", hz: "60-250 Hz", escala: { cero: "sin graves", cien: "potentes", pasos: ["sin cuerpo", "ligeros", "firmes", "profundos", "potentes"] } },
   { campo: "sub", nombre: "Sub", ayuda: "30 a 60 Hz: lo que se siente en el pecho (tuba, sub).", hz: "30-60 Hz", escala: { cero: "sin sub", cien: "el piso vibra", pasos: ["sin sub", "apenas", "se nota", "en el pecho", "el piso vibra"] } },
 ];
 
@@ -73,8 +70,6 @@ export type Proyecto = {
   nombre: string;
   tipo: "ep" | "album";
   historia: string;
-  // Techo de cada indicador para todo el EP (100 = sin límite).
-  techos: Techos;
   // Marca de la última vez que se guardó (updated_at): impide que una pantalla vieja pise lo nuevo.
   version: string;
   piezas: Pieza[];
@@ -82,27 +77,52 @@ export type Proyecto = {
 
 export const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
-// Valor efectivo: el valor de la sección (0-100) escalado al techo del EP.
-export const conTecho = (valor: number, techo: number) => Math.round((valor * techo) / 100);
+export const intensidad = (s: Pick<Seccion, "energia" | "tension">) => clamp(Math.round(PESO_INTENSIDAD.energia * s.energia + PESO_INTENSIDAD.tension * s.tension), 0, 100);
 
-export const intensidad = (s: Pick<Seccion, "energia" | "tension">, t: Techos = TECHOS_INICIALES) =>
-  clamp(Math.round((PESO_INTENSIDAD.energia * s.energia * t.energia) / 100 + (PESO_INTENSIDAD.tension * s.tension * t.tension) / 100), 0, 100);
-
-export const contribuciones = (s: Pick<Seccion, CampoCuerpo>, t: Techos = TECHOS_INICIALES): Record<CampoCuerpo, number> => ({
-  altos: (PESO_CUERPO.altos * s.altos * t.altos) / 100,
-  medios: (PESO_CUERPO.medios * s.medios * t.medios) / 100,
-  graves: (PESO_CUERPO.graves * s.graves * t.graves) / 100,
-  sub: (PESO_CUERPO.sub * s.sub * t.sub) / 100,
+export const contribuciones = (s: Pick<Seccion, CampoCuerpo>): Record<CampoCuerpo, number> => ({
+  altos: PESO_CUERPO.altos * s.altos,
+  medios: PESO_CUERPO.medios * s.medios,
+  graves: PESO_CUERPO.graves * s.graves,
+  sub: PESO_CUERPO.sub * s.sub,
 });
 
-export const peso = (s: Pick<Seccion, CampoCuerpo>, t: Techos = TECHOS_INICIALES) => {
-  const c = contribuciones(s, t);
+export const peso = (s: Pick<Seccion, CampoCuerpo>) => {
+  const c = contribuciones(s);
   return clamp(Math.round(c.altos + c.medios + c.graves + c.sub), 0, 100);
 };
 
-// Lo más alto que pueden llegar las dos líneas con los techos puestos.
-export const techoIntensidad = (t: Techos) => clamp(Math.round(PESO_INTENSIDAD.energia * t.energia + PESO_INTENSIDAD.tension * t.tension), 0, 100);
-export const techoPeso = (t: Techos) => clamp(Math.round(PESO_CUERPO.altos * t.altos + PESO_CUERPO.medios * t.medios + PESO_CUERPO.graves * t.graves + PESO_CUERPO.sub * t.sub), 0, 100);
+// Promedio general de una canción: lo que se espera de ella en cada indicador. Sale de sus secciones (ponderado por compases)
+// y se puede mover desde la vista del EP completo: todas sus secciones suben o bajan juntas y conservan su forma.
+export const promedioDe = (pieza: Pieza, campo: CampoValor): number => {
+  const total = pieza.secciones.reduce((a, s) => a + Math.max(1, s.compases), 0);
+  if (total === 0) return 0;
+  return Math.round(pieza.secciones.reduce((a, s) => a + s[campo] * Math.max(1, s.compases), 0) / total);
+};
+
+// Mueve el promedio de una canción en un indicador hasta `objetivo` sin salirse de 0-100 y sin aplanar la forma:
+// subir acerca cada sección a 100 en la misma proporción; bajar la acerca a 0.
+export function moverPromedio(pieza: Pieza, campo: CampoValor, objetivo: number): Pieza {
+  const meta = clamp(Math.round(objetivo), 0, 100);
+  const actual = promedioDe(pieza, campo);
+  if (meta === actual) return pieza;
+  const f = meta > actual ? (meta - actual) / (100 - actual) : (actual - meta) / actual;
+  const secciones = pieza.secciones.map((s) => {
+    const v = s[campo];
+    const nuevo = meta > actual ? v + (100 - v) * f : v - v * f;
+    return { ...s, [campo]: clamp(Math.round(nuevo), 0, 100) };
+  });
+  return { ...pieza, secciones };
+}
+
+// Promedio (ponderado por compases) de las dos líneas calculadas de una canción.
+export const promedioIntensidad = (pieza: Pieza) => {
+  const total = pieza.secciones.reduce((a, s) => a + Math.max(1, s.compases), 0);
+  return total === 0 ? 0 : Math.round(pieza.secciones.reduce((a, s) => a + intensidad(s) * Math.max(1, s.compases), 0) / total);
+};
+export const promedioPeso = (pieza: Pieza) => {
+  const total = pieza.secciones.reduce((a, s) => a + Math.max(1, s.compases), 0);
+  return total === 0 ? 0 : Math.round(pieza.secciones.reduce((a, s) => a + peso(s) * Math.max(1, s.compases), 0) / total);
+};
 
 // Duración en segundos de N compases en 4/4 a un BPM (null si no hay BPM).
 export const duracionSeg = (compases: number, bpm: number | null) => (bpm && bpm > 0 ? Math.round((compases * 4 * 60) / bpm) : null);
@@ -150,7 +170,7 @@ export type Tramo = {
 };
 
 // Reparte el ancho según los compases de cada sección. Con `soloPieza` solo se dibuja esa pieza.
-export function tramosDe(piezas: Pieza[], soloPieza: number | null = null, t: Techos = TECHOS_INICIALES): Tramo[] {
+export function tramosDe(piezas: Pieza[], soloPieza: number | null = null): Tramo[] {
   const lista: { p: number; s: number; compases: number }[] = [];
   piezas.forEach((pz, p) => {
     if (soloPieza !== null && p !== soloPieza) return;
@@ -164,7 +184,7 @@ export function tramosDe(piezas: Pieza[], soloPieza: number | null = null, t: Te
     const x0 = acc / total;
     acc += compases;
     const x1 = acc / total;
-    return { pieza: p, seccion: s, x0, x1, xc: (x0 + x1) / 2, intensidad: intensidad(sc, t), peso: peso(sc, t), animo: conTecho(sc.animo, t.animo), tension: conTecho(sc.tension, t.tension), contrib: contribuciones(sc, t) };
+    return { pieza: p, seccion: s, x0, x1, xc: (x0 + x1) / 2, intensidad: intensidad(sc), peso: peso(sc), animo: sc.animo, tension: sc.tension, contrib: contribuciones(sc) };
   });
 }
 
@@ -251,10 +271,7 @@ export function normalizarProyecto(entrada: unknown): Omit<Proyecto, "id" | "ban
       }),
     };
   });
-  const tIn = (e.techos && typeof e.techos === "object" ? e.techos : {}) as Record<string, unknown>;
-  const techos = Object.fromEntries(CAMPOS.map((c) => [c, ent(tIn[c], 0, 100, 100)])) as Techos;
   return {
-    techos,
     nombre: txt(e.nombre, 120).trim() || "Sin nombre",
     tipo: e.tipo === "album" ? "album" : "ep",
     historia: txt(e.historia, 4000),

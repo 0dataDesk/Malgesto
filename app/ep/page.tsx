@@ -69,7 +69,7 @@ export default async function EpPage({ searchParams }: { searchParams: Promise<{
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.007 85)" }}>
-      <EspacioSuperior maxWidth="max-w-6xl">
+      <EspacioSuperior maxWidth="max-w-none">
         <div className="flex flex-wrap items-center gap-2.5">
           <Link href={`/canciones?banda=${bandaActiva}`} className="font-mono text-[10px] font-bold tracking-wide no-underline" style={{ color: MUTED }}>
             ‹ Canciones
