@@ -14,6 +14,7 @@ export type CampoNucleo = "energia" | "animo" | "tension";
 export type CampoCuerpo = "altos" | "medios" | "graves" | "sub";
 export type CampoValor = CampoNucleo | CampoCuerpo;
 
+const NIVEL_NADA: Referencia = { energia: 0, animo: 0, tension: 0, altos: 0, medios: 0, graves: 0, sub: 0 };
 export const CAMPOS: CampoValor[] = ["energia", "animo", "tension", "altos", "medios", "graves", "sub"];
 
 export const PESO_INTENSIDAD = { energia: 0.65, tension: 0.35 } as const;
@@ -57,9 +58,14 @@ export type Seccion = {
   transmite: string;
 };
 
+// Referencia de la canción: el nivel que se eligió para cada indicador en la vista del EP completo. En el detalle se muestra como
+// guía (una marca y la banda de su palabra); no limita nada y no cambia al afinar las escenas.
+export type Referencia = Record<CampoValor, number>;
+
 export type Pieza = {
   id: string;
   titulo: string;
+  referencia: Referencia;
   tonalidad: string;
   bpm: number | null;
   idea: string;
@@ -100,6 +106,9 @@ export const promedioDe = (pieza: Pieza, campo: CampoValor): number => {
   if (total === 0) return 0;
   return Math.round(pieza.secciones.reduce((a, s) => a + s[campo] * Math.max(1, s.compases), 0) / total);
 };
+
+// La referencia por defecto de una canción es su promedio actual.
+export const referenciaDe = (pieza: Pieza): Referencia => Object.fromEntries(CAMPOS.map((c) => [c, promedioDe(pieza, c)])) as Referencia;
 
 // Mueve el promedio de una canción en un indicador hasta `objetivo` sin salirse de 0-100 y sin aplanar la forma:
 // subir acerca cada sección a 100 en la misma proporción; bajar la acerca a 0.
@@ -221,7 +230,7 @@ export function nuevaSeccion(nombre = "Nueva escena", parte = "Verso"): Seccion 
 }
 
 export function nuevaPieza(titulo = "Nueva canción"): Pieza {
-  return { id: crypto.randomUUID(), titulo, tonalidad: "", bpm: null, idea: "", secciones: [nuevaSeccion("Primera escena", "Intro")] };
+  return { id: crypto.randomUUID(), titulo, referencia: { energia: 50, animo: 50, tension: 50, altos: 50, medios: 50, graves: 50, sub: 50 }, tonalidad: "", bpm: null, idea: "", secciones: [nuevaSeccion("Primera escena", "Intro")] };
 }
 
 export function totalCompases(p: Pieza): number {
@@ -248,7 +257,8 @@ export function normalizarProyecto(entrada: unknown): Omit<Proyecto, "id" | "ban
     const p = raw as Record<string, unknown>;
     const secIn = Array.isArray(p.secciones) ? p.secciones : [];
     if (secIn.length > 40) throw new Error("Demasiadas secciones en una canción (máx. 40).");
-    return {
+    const refIn = (p.referencia && typeof p.referencia === "object" ? p.referencia : {}) as Record<string, unknown>;
+    const pieza: Omit<Pieza, "referencia"> = {
       id: unico(p.id),
       titulo: txt(p.titulo, 120).trim() || "Sin título",
       tonalidad: txt(p.tonalidad, 40),
@@ -273,6 +283,8 @@ export function normalizarProyecto(entrada: unknown): Omit<Proyecto, "id" | "ban
         };
       }),
     };
+    const base = { ...pieza, referencia: referenciaDe({ ...pieza, referencia: NIVEL_NADA }) };
+    return { ...pieza, referencia: Object.fromEntries(CAMPOS.map((c) => [c, ent(refIn[c], 0, 100, base.referencia[c])])) as Referencia };
   });
   return {
     nombre: txt(e.nombre, 120).trim() || "Sin nombre",

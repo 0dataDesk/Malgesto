@@ -1,5 +1,5 @@
 // Revisa la geometría, los cálculos y la validación del Mapa del EP. Corre con npm run check (antes de cada build).
-import { CAMPOS, CUERPO, NUCLEO, PESO_CUERPO, PESO_INTENSIDAD, moverPromedio, promedioDe, promedioIntensidad, promedioPeso, capaEntre, clamp, colorAnimo, curvaSuave, duracionSeg, formatoMSS, intensidad, nuevaPieza, normalizarProyecto, palabraDe, peso, tramosDe, type Pieza, type Seccion } from "../lib/epModelo";
+import { CAMPOS, referenciaDe, CUERPO, NUCLEO, PESO_CUERPO, PESO_INTENSIDAD, moverPromedio, promedioDe, promedioIntensidad, promedioPeso, capaEntre, clamp, colorAnimo, curvaSuave, duracionSeg, formatoMSS, intensidad, nuevaPieza, normalizarProyecto, palabraDe, peso, tramosDe, type Pieza, type Seccion } from "../lib/epModelo";
 
 const errores: string[] = [];
 const falla = (m: string) => errores.push(m);
@@ -39,6 +39,13 @@ if (moverPromedio(cancion, "energia", 45) !== cancion) falla("sin cambio de prom
 if (moverPromedio(cancion, "sub", 80).secciones.some((x, i) => x.energia !== cancion.secciones[i].energia)) falla("moverPromedio solo debe tocar el indicador pedido");
 if (promedioIntensidad(cancion) !== Math.round((intensidad(cancion.secciones[0]) * 8 + intensidad(cancion.secciones[1]) * 16 + intensidad(cancion.secciones[2]) * 8) / 32)) falla("promedioIntensidad debe ponderar por compases");
 if (promedioPeso({ ...cancion, secciones: [sec({ sub: 100, graves: 100, medios: 100, altos: 100 })] }) !== 100) falla("promedioPeso de todo al máximo debe ser 100");
+
+// Referencia de la canción: el nivel elegido en la vista del EP; por defecto, su promedio.
+const conRef: Pieza = { ...cancion, secciones: [sec({ compases: 8, energia: 10 }), sec({ compases: 8, energia: 30 })] };
+if (referenciaDe(conRef).energia !== 20 || Object.keys(referenciaDe(conRef)).length !== 7) falla("referenciaDe debe dar el promedio de cada uno de los siete indicadores");
+const refNorm = normalizarProyecto({ nombre: "x", piezas: [{ id: crypto.randomUUID(), referencia: { energia: 500, sub: 33, animo: "x" }, secciones: [{ id: crypto.randomUUID(), energia: 10, sub: 90, compases: 8 }] }] }).piezas[0].referencia;
+if (refNorm.energia !== 100 || refNorm.sub !== 33) falla("normalizarProyecto debe recortar la referencia y conservarla");
+if (refNorm.animo !== 50 || refNorm.altos !== 50) falla("sin referencia guardada, normalizarProyecto parte del promedio de la canción (aquí 50 por defecto)");
 
 // Escalas: cada medidor dice qué es 0, qué es 100 y tiene cinco palabras distintas en el camino.
 [...NUCLEO, ...CUERPO].forEach((m) => {

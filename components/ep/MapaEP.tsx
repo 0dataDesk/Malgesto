@@ -143,7 +143,7 @@ function CajaValor({ valor, onCambio, deshabilitado, nombre, ancho = 44, onInici
 // Medidor vertical: se arrastra (o con las flechas) y el valor llena la columna de abajo hacia arriba.
 //  - Completo (detalle de sección): a su lado dice qué es el 100 (arriba), qué es el 0 (abajo) y, a la altura del nivel, cómo se llama lo elegido.
 //  - Compacto (promedios por canción en la vista general): valor arriba, nombre y la palabra del nivel abajo.
-function Medidor({ nombre, ayuda, valor, onCambio, deshabilitado, relleno, textura, escala, compacto = false, onInicio, onFin }: { nombre: string; ayuda: string; valor: number; onCambio: (v: number) => void; deshabilitado: boolean; relleno: string; textura?: string; escala: Escala; compacto?: boolean; onInicio?: () => void; onFin?: () => void }) {
+function Medidor({ nombre, ayuda, valor, onCambio, deshabilitado, relleno, textura, escala, referencia, compacto = false, onInicio, onFin }: { nombre: string; ayuda: string; valor: number; onCambio: (v: number) => void; deshabilitado: boolean; relleno: string; textura?: string; escala: Escala; referencia?: number; compacto?: boolean; onInicio?: () => void; onFin?: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const poner = (clientY: number) => {
     const r = ref.current!.getBoundingClientRect();
@@ -151,6 +151,8 @@ function Medidor({ nombre, ayuda, valor, onCambio, deshabilitado, relleno, textu
   };
   const ALTO = compacto ? 120 : 150;
   const yPalabra = clamp(ALTO - (valor / 100) * ALTO, 9, ALTO - 9);
+  // Referencia: el nivel elegido para toda la canción (vista del EP). Banda = el rango de su palabra; raya = el valor exacto.
+  const pasoRef = referencia === undefined ? 0 : Math.min(4, Math.max(0, Math.ceil(referencia / 20) - 1));
   const pista = (
     <div
       ref={ref}
@@ -191,7 +193,13 @@ function Medidor({ nombre, ayuda, valor, onCambio, deshabilitado, relleno, textu
       {[25, 50, 75].map((m) => (
         <div key={m} className="absolute inset-x-0" style={{ bottom: `${m}%`, height: 1, background: INK, opacity: 0.18 }} />
       ))}
-          </div>
+      {referencia !== undefined && (
+        <>
+          <div className="absolute inset-x-0" style={{ bottom: `${pasoRef * 20}%`, height: "20%", background: INK, opacity: 0.1 }} title={`Rango elegido para la canción: ${palabraDe(escala, referencia)}`} />
+          <div className="absolute inset-x-0" style={{ bottom: `calc(${referencia}% - 1px)`, height: 2, background: INK, opacity: 0.85 }} title={`Elegiste ${referencia} para la canción`} />
+        </>
+      )}
+    </div>
   );
 
   if (compacto) {
@@ -220,6 +228,11 @@ function Medidor({ nombre, ayuda, valor, onCambio, deshabilitado, relleno, textu
           </div>
         </div>
       </div>
+      {referencia !== undefined && (
+        <div className="text-[9px] leading-tight" style={{ fontFamily: MONO, color: INK, opacity: 0.8 }} title="Lo que elegiste para toda la canción en la vista del EP completo">
+          ▬ EP {referencia} · {palabraDe(escala, referencia)}
+        </div>
+      )}
     </div>
   );
 }
@@ -320,7 +333,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
     const nuevo = moverPromedio(fuente, campo, v);
     setProy((pr) => ({
       ...pr,
-      piezas: pr.piezas.map((pz, i) => (i !== p || pz.secciones.length !== nuevo.secciones.length ? pz : { ...pz, secciones: pz.secciones.map((sc, j) => ({ ...sc, [campo]: nuevo.secciones[j][campo] })) })),
+      piezas: pr.piezas.map((pz, i) => (i !== p || pz.secciones.length !== nuevo.secciones.length ? pz : { ...pz, referencia: { ...pz.referencia, [campo]: clamp(Math.round(v), 0, 100) }, secciones: pz.secciones.map((sc, j) => ({ ...sc, [campo]: nuevo.secciones[j][campo] })) })),
     }));
   };
 
@@ -470,7 +483,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
           <div className="mt-2 flex flex-wrap gap-3">
             {NUCLEO.map((n) => {
               const e = estiloMedidor(n.campo, secSel[n.campo]);
-              return <Medidor key={n.campo} nombre={n.nombre} ayuda={`${n.ayuda} (0 ${n.escala.cero}, 100 ${n.escala.cien})`} escala={n.escala} valor={secSel[n.campo]} onCambio={(v) => ponerValor(n.campo, v)} deshabilitado={!puedeEscribir} relleno={e.relleno} textura={e.textura} />;
+              return <Medidor key={n.campo} nombre={n.nombre} ayuda={`${n.ayuda} (0 ${n.escala.cero}, 100 ${n.escala.cien})`} escala={n.escala} valor={secSel[n.campo]} referencia={pzSel.referencia[n.campo]} onCambio={(v) => ponerValor(n.campo, v)} deshabilitado={!puedeEscribir} relleno={e.relleno} textura={e.textura} />;
             })}
           </div>
           <div className="mt-1.5 max-w-[22rem] text-[10px] leading-snug" style={{ color: MUTED }}>
@@ -487,7 +500,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
           <div className="mt-2 flex flex-wrap gap-3">
             {CUERPO.map((c) => {
               const e = estiloMedidor(c.campo, secSel[c.campo]);
-              return <Medidor key={c.campo} nombre={c.nombre} ayuda={`${c.ayuda} (${c.hz}; 0 ${c.escala.cero}, 100 ${c.escala.cien})`} escala={c.escala} valor={secSel[c.campo]} onCambio={(v) => ponerValor(c.campo, v)} deshabilitado={!puedeEscribir} relleno={e.relleno} />;
+              return <Medidor key={c.campo} nombre={c.nombre} ayuda={`${c.ayuda} (${c.hz}; 0 ${c.escala.cero}, 100 ${c.escala.cien})`} escala={c.escala} valor={secSel[c.campo]} referencia={pzSel.referencia[c.campo]} onCambio={(v) => ponerValor(c.campo, v)} deshabilitado={!puedeEscribir} relleno={e.relleno} />;
             })}
           </div>
           <div className="mt-1.5 max-w-[30rem] text-[10px] leading-snug" style={{ color: MUTED }}>
@@ -769,7 +782,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
             <div>
               {gruposSeccion()}
               <p className="mt-2 max-w-[48rem] text-[10px] leading-snug" style={{ color: MUTED }}>
-                El promedio de la canción (vista del EP completo) se modela con los valores de sus escenas; no hay tope: puedes pasarte a propósito.
+                La raya y la banda gris de cada barra son lo que elegiste para esta canción en la vista del EP completo (el valor exacto y el rango de su palabra). Es solo una referencia: no hay tope, puedes pasarte a propósito.
               </p>
             </div>
 

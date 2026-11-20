@@ -1,6 +1,6 @@
 import "server-only";
 import { supabaseMalgesto } from "@/lib/supabase/malgesto";
-import { normalizarProyecto, type Proyecto } from "@/lib/epModelo";
+import { CAMPOS, normalizarProyecto, referenciaDe, type Pieza, type Proyecto, type Referencia } from "@/lib/epModelo";
 
 // Mapa del EP (planeación de un proyecto musical). Vive aparte de canciones: ver supabase/migrations/20261120130000.
 
@@ -40,7 +40,7 @@ export async function obtenerProyecto(bandaId: string, proyectoId?: string): Pro
 
   const { data: piezas, error: e2 } = await db
     .from("proyecto_piezas")
-    .select("id, orden, titulo, tonalidad, bpm, idea")
+    .select("id, orden, titulo, niveles, tonalidad, bpm, idea")
     .eq("proyecto_id", proy.id)
     .order("orden");
   if (e2) throw new Error(e2.message);
@@ -64,9 +64,11 @@ export async function obtenerProyecto(bandaId: string, proyectoId?: string): Pro
     tipo: proy.tipo === "album" ? "album" : "ep",
     historia: proy.historia,
     version: String(proy.updated_at),
-    piezas: (piezas ?? []).map((p) => ({
+    piezas: (piezas ?? []).map((p): Pieza => {
+      const sinReferencia: Pieza = {
       id: p.id,
       titulo: p.titulo,
+      referencia: {} as Referencia,
       tonalidad: p.tonalidad,
       bpm: p.bpm,
       idea: p.idea,
@@ -87,7 +89,15 @@ export async function obtenerProyecto(bandaId: string, proyectoId?: string): Pro
           armonia: s.armonia,
           transmite: s.transmite,
         })),
-    })),
+      };
+      // La referencia es el nivel que se eligió en la vista del EP; si no hay, se parte del promedio actual de la canción.
+      const porDefecto = referenciaDe(sinReferencia);
+      const guardada = (p.niveles ?? {}) as Record<string, unknown>;
+      return {
+        ...sinReferencia,
+        referencia: Object.fromEntries(CAMPOS.map((c) => [c, typeof guardada[c] === "number" ? Math.min(100, Math.max(0, Math.round(guardada[c] as number))) : porDefecto[c]])) as Referencia,
+      };
+    }),
   };
 }
 
@@ -137,7 +147,7 @@ export async function guardarProyecto(bandaId: string, proyectoId: string, entra
 
   if (p.piezas.length > 0) {
     const { error: e2 } = await db.from("proyecto_piezas").upsert(
-      p.piezas.map((x, i) => ({ id: x.id, proyecto_id: proyectoId, orden: i, titulo: x.titulo, tonalidad: x.tonalidad, bpm: x.bpm, idea: x.idea })),
+      p.piezas.map((x, i) => ({ id: x.id, proyecto_id: proyectoId, orden: i, titulo: x.titulo, niveles: x.referencia, tonalidad: x.tonalidad, bpm: x.bpm, idea: x.idea })),
     );
     if (e2) throw new Error(e2.message);
   }
