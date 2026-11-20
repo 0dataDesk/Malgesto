@@ -89,6 +89,55 @@ function estiloMedidor(campo: CampoValor, valor: number): { relleno: string; tex
   return { relleno: COLOR_CAPA[campo] };
 }
 
+// Caja para escribir el valor (0-100). Se puede borrar y escribir de nuevo; ↑/↓ suman o restan 1 (con Mayús, 10); al salir vuelve al valor real.
+function CajaValor({ valor, onCambio, deshabilitado, nombre, ancho = 44 }: { valor: number; onCambio: (v: number) => void; deshabilitado: boolean; nombre: string; ancho?: number }) {
+  const [texto, setTexto] = useState(String(valor));
+  const enfocada = useRef(false);
+  useEffect(() => {
+    if (!enfocada.current) setTexto(String(valor));
+  }, [valor]);
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={texto}
+      disabled={deshabilitado}
+      aria-label={`${nombre}: valor de 0 a 100`}
+      title="Escribe un valor de 0 a 100"
+      maxLength={3}
+      className="rounded-md px-1 py-0.5 text-center text-[12px] font-bold"
+      style={{ width: ancho, fontFamily: MONO, color: INK, border: `1px solid ${LINE}`, background: CARD }}
+      onFocus={(e) => {
+        enfocada.current = true;
+        e.currentTarget.select();
+      }}
+      onChange={(e) => {
+        const limpio = e.target.value.replace(/\D/g, "").slice(0, 3);
+        if (limpio === "") {
+          setTexto("");
+          return;
+        }
+        const n = clamp(parseInt(limpio, 10), 0, 100);
+        setTexto(String(n));
+        onCambio(n);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+          e.preventDefault();
+          const n = clamp((parseInt(texto, 10) || 0) + (e.key === "ArrowUp" ? 1 : -1) * (e.shiftKey ? 10 : 1), 0, 100);
+          setTexto(String(n));
+          onCambio(n);
+        }
+      }}
+      onBlur={() => {
+        enfocada.current = false;
+        setTexto(String(valor));
+      }}
+    />
+  );
+}
+
 // Medidor vertical: se arrastra (o con las flechas) y el valor llena la columna de abajo hacia arriba.
 //  - Completo (detalle de sección): a su lado dice qué es el 100 (arriba), qué es el 0 (abajo) y, a la altura del nivel, cómo se llama lo elegido.
 //  - Compacto (promedios por canción en la vista general): valor arriba, nombre y la palabra del nivel abajo.
@@ -144,8 +193,8 @@ function Medidor({ nombre, ayuda, valor, onCambio, deshabilitado, relleno, textu
 
   if (compacto) {
     return (
-      <div className="flex w-[52px] flex-col items-center gap-1" title={`${ayuda} (0 ${escala.cero}, 100 ${escala.cien})`}>
-        <b className="text-[12px]" style={{ fontFamily: MONO, color: INK }}>{valor}</b>
+      <div className="flex w-[50px] flex-col items-center gap-1" title={`${ayuda} (0 ${escala.cero}, 100 ${escala.cien})`}>
+        <CajaValor valor={valor} onCambio={onCambio} deshabilitado={deshabilitado} nombre={nombre} ancho={40} />
         {pista}
         <span className="text-[10px] font-bold" style={{ fontFamily: MONO, color: MUTED }}>{nombre}</span>
         <span className="text-center text-[9.5px] leading-tight" style={{ fontFamily: MONO, color: INK, minHeight: 24 }}>{palabraDe(escala, valor)}</span>
@@ -156,7 +205,7 @@ function Medidor({ nombre, ayuda, valor, onCambio, deshabilitado, relleno, textu
     <div className="flex w-[118px] flex-col gap-1" title={ayuda}>
       <div className="flex items-baseline justify-between">
         <span className="text-[10px] font-bold" style={{ fontFamily: MONO, color: MUTED }}>{nombre}</span>
-        <b className="text-[12px]" style={{ fontFamily: MONO, color: INK }}>{valor}</b>
+        <CajaValor valor={valor} onCambio={onCambio} deshabilitado={deshabilitado} nombre={nombre} />
       </div>
       <div className="flex gap-1.5">
         {pista}
@@ -361,7 +410,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
   const gruposPieza = (p: number) => {
     const pz = proy.piezas[p];
     return (
-      <div className="flex flex-wrap gap-x-5 gap-y-3">
+      <div className="flex flex-wrap gap-x-3 gap-y-3">
         <div>
           <div className="text-[9.5px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: INK }}>Núcleo</div>
           <div className="mt-1.5 flex gap-1">
