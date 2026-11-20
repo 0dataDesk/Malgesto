@@ -3,73 +3,151 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { guardarMapaAction } from "@/app/ep/actions";
 import {
-  INDICADORES,
-  INDICADOR_EMOCION,
+  CUERPO,
+  NUCLEO,
+  PESO_CUERPO,
+  PESO_INTENSIDAD,
+  capaEntre,
+  CAMPOS,
   clamp,
+  colorAnimo,
+  conTecho,
   curvaSuave,
-  nivelEfectivo,
+  duracionSeg,
+  formatoMSS,
+  intensidad,
   nuevaPieza,
   nuevaSeccion,
+  palabraDe,
+  peso,
+  techoIntensidad,
+  techoPeso,
   totalCompases,
   tramosDe,
-  BANDAS_FRECUENCIA,
+  type CampoCuerpo,
   type CampoValor,
+  type Escala,
   type Pieza,
   type Proyecto,
   type Seccion,
 } from "@/lib/epModelo";
 
-// Mapa del EP: una curva de emoción para todo el proyecto y, debajo, ocho valores por sección que Jorge mueve
-// (cuatro bandas de frecuencia y cuatro de carácter). La sección elegida se afina en la mesa pegada a la gráfica.
-// Cosmo lee estos valores para proponer estructura, tempo, tono y MIDI de cada canción.
+// Mapa del EP. Jorge mueve siete medidores por sección (núcleo: Energía, Ánimo, Tensión; cuerpo: Altos, Medios, Graves, Sub)
+// y la gráfica se dibuja sola con dos indicadores calculados: Intensidad (núcleo) y Peso (cuerpo). Ver lib/epModelo.ts.
+//  - Altura de la línea de Intensidad = 65 % Energía + 35 % Tensión; su color = Ánimo; su textura rayada = Tensión.
+//  - Altura total del cuerpo = Peso; cada capa (Sub abajo, Altos arriba) es lo que aporta esa banda, en proporción a su peso.
+//  - El ancho de cada sección es proporcional a sus compases.
+// Cosmo lee los siete valores, los compases y la intención para proponer estructura, tempo, tono y MIDI de cada escena.
 
 const MONO = "var(--font-space-mono), ui-monospace, monospace";
 const INK = "oklch(0.24 0.044 262)";
 const MUTED = "oklch(0.5 0.044 262)";
 const LINE = "oklch(0.89 0.008 85)";
 const ACCENT = "oklch(0.64 0.170 28)";
-const AZUL = "oklch(0.45 0.07 262)";
 const CARD = "oklch(0.99 0.005 85)";
 const CELDA = "oklch(0.94 0.010 262)";
+
+// Capas del cuerpo, de grave (oscuro y denso) a agudo (claro y aéreo).
+const COLOR_CAPA: Record<CampoCuerpo, string> = {
+  sub: "oklch(0.30 0.09 285)",
+  graves: "oklch(0.42 0.12 15)",
+  medios: "oklch(0.66 0.14 55)",
+  altos: "oklch(0.86 0.09 95)",
+};
+const ORDEN_APILADO: CampoCuerpo[] = ["sub", "graves", "medios", "altos"]; // de abajo hacia arriba
+const HACHURA_CSS = `repeating-linear-gradient(135deg, ${INK} 0 2px, transparent 2px 6px)`;
 
 const FORMAS = ["Intro", "Entrada", "Verso", "Pre-coro", "Coro", "Dub", "Puente", "Cima", "Break", "Final", "Salida"];
 
 const W = 1000;
-const L = 78;
-const R = 40;
-const T = 30;
-const PH = 190;
-const LANE_H = 18;
-const LANE_PASO = 21;
-const GRUPO_GAP = 12;
-const LANES_Y0 = T + PH + 14;
-const laneY = (i: number) => LANES_Y0 + i * LANE_PASO + (i >= 4 ? GRUPO_GAP : 0);
-const LANES_FIN = laneY(INDICADORES.length - 1) + LANE_H;
-const ETIQ_Y = LANES_FIN + 16;
-const H = ETIQ_Y + 78;
+const L = 74;
+const R = 30;
 const PW = W - L - R;
+const T1 = 56; // panel del núcleo
+const PH1 = 170;
+const T2 = T1 + PH1 + 46; // panel del cuerpo
+const PH2 = 110;
+const TIRA_Y = T2 + PH2 + 12; // tira de secciones
+const TIRA_H = 40;
+const H = TIRA_Y + TIRA_H + 10;
 
-const yDe = (v: number) => T + (1 - v / 100) * PH;
 const xDe = (f: number) => L + f * PW;
-const recorta = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
+const yN = (v: number) => T1 + (1 - v / 100) * PH1;
+const yC = (v: number) => T2 + (1 - v / 100) * PH2;
+const recorta = (s: string, n: number) => (n <= 0 ? "" : s.length > n ? (n <= 1 ? "" : s.slice(0, n - 1) + "…") : s);
 
-const rango = { accentColor: ACCENT } as const;
+const rangoStyle = { accentColor: ACCENT } as const;
 const inputStyle = { border: `1px solid ${LINE}`, background: CARD, color: INK, borderRadius: 12 } as const;
 const miniBoton = { background: "oklch(0.93 0.010 85)", color: MUTED, borderRadius: 8 } as const;
 
 type Sel = { p: number; s: number } | null;
 type Estado = "guardado" | "pendiente" | "guardando" | "error";
-type Arrastre = { tipo: "curva"; p: number; s: number } | { tipo: "fila"; p: number; s: number; campo: CampoValor; fila: number } | null;
 
-function Control({ campo, nombre, ayuda, valor, onCambio, deshabilitado, color }: { campo: string; nombre: string; ayuda: string; valor: number; onCambio: (v: number) => void; deshabilitado: boolean; color: string }) {
+// Medidor vertical: se arrastra (o con las flechas) y el valor llena la columna de abajo hacia arriba.
+// A su lado dice qué es el 100 (arriba), qué es el 0 (abajo) y, a la altura del nivel, cómo se llama lo que se eligió.
+function Medidor({ nombre, ayuda, valor, onCambio, deshabilitado, relleno, textura, escala, techo = 100 }: { nombre: string; ayuda: string; valor: number; onCambio: (v: number) => void; deshabilitado: boolean; relleno: string; textura?: string; escala: Escala; techo?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const poner = (clientY: number) => {
+    const r = ref.current!.getBoundingClientRect();
+    onCambio(clamp(Math.round((1 - (clientY - r.top) / r.height) * 100), 0, 100));
+  };
+  const ALTO = 150;
+  // Con techo, lo que suena es el valor escalado al techo (el 100 de la sección equivale al techo).
+  const efectivo = conTecho(valor, techo);
+  // La palabra actual flota a la altura del nivel (sin salirse del medidor).
+  const yPalabra = clamp(ALTO - (valor / 100) * ALTO, 9, ALTO - 9);
   return (
-    <div key={campo}>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[11px] font-bold" style={{ fontFamily: MONO, color }}>{nombre}</span>
-        <b className="text-[11px]" style={{ fontFamily: MONO, color: INK }}>{valor}</b>
+    <div className="flex w-[118px] flex-col gap-1" title={ayuda}>
+      <div className="flex items-baseline justify-between">
+        <span className="text-[10px] font-bold" style={{ fontFamily: MONO, color: MUTED }}>{nombre}</span>
+        <b className="text-[12px]" style={{ fontFamily: MONO, color: INK }}>{valor}{techo < 100 && <span style={{ color: MUTED, fontWeight: 400 }}> → {efectivo}</span>}</b>
       </div>
-      <input type="range" min={0} max={100} value={valor} onChange={(e) => onCambio(Number(e.target.value))} disabled={deshabilitado} aria-label={nombre} title={ayuda} className="w-full" style={rango} />
-      <div className="text-[10px] leading-snug" style={{ color: MUTED }}>{ayuda}</div>
+      <div className="flex gap-1.5">
+        <div
+          ref={ref}
+          role="slider"
+          tabIndex={deshabilitado ? -1 : 0}
+          aria-label={nombre}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={valor}
+          aria-valuetext={`${valor}: ${palabraDe(escala, efectivo)}`}
+          className="relative shrink-0 overflow-hidden"
+          style={{ width: 34, height: ALTO, borderRadius: 10, background: CELDA, border: `1px solid ${LINE}`, touchAction: "none", cursor: deshabilitado ? "default" : "ns-resize", outline: "none" }}
+          onPointerDown={(e) => {
+            if (deshabilitado) return;
+            e.currentTarget.setPointerCapture(e.pointerId);
+            poner(e.clientY);
+          }}
+          onPointerMove={(e) => {
+            if (deshabilitado || e.buttons !== 1) return;
+            poner(e.clientY);
+          }}
+          onKeyDown={(e) => {
+            if (deshabilitado) return;
+            if (e.key === "ArrowUp" || e.key === "ArrowRight") {
+              e.preventDefault();
+              onCambio(clamp(valor + 2, 0, 100));
+            } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
+              e.preventDefault();
+              onCambio(clamp(valor - 2, 0, 100));
+            }
+          }}
+        >
+          <div className="absolute inset-x-0 bottom-0" style={{ height: `${valor}%`, background: relleno }} />
+          {textura && <div className="absolute inset-x-0 bottom-0" style={{ height: `${valor}%`, backgroundImage: textura, opacity: 0.55 }} />}
+          {[25, 50, 75].map((m) => (
+            <div key={m} className="absolute inset-x-0" style={{ bottom: `${m}%`, height: 1, background: INK, opacity: 0.18 }} />
+          ))}
+        </div>
+        <div className="relative min-w-0 flex-1 text-[9.5px] leading-tight" style={{ fontFamily: MONO, color: MUTED, height: ALTO }}>
+          {valor < 70 && <div className="absolute left-0 top-0">{techo < 100 ? `100 = techo (${techo})` : `100 · ${escala.cien}`}</div>}
+          {valor > 30 && <div className="absolute bottom-0 left-0">0 · {escala.cero}</div>}
+          <div className="absolute left-0 right-0 font-bold" style={{ top: yPalabra, transform: "translateY(-50%)", color: INK, fontSize: 11 }}>
+            ◂ {palabraDe(escala, efectivo)}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -80,9 +158,46 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
   const [vista, setVista] = useState<number | null>(null); // null = EP completo; número = una sola canción
   const [estado, setEstado] = useState<Estado>("guardado");
   const [errorMsg, setErrorMsg] = useState("");
+  const [desactualizado, setDesactualizado] = useState(false);
   const primera = useRef(true);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const arrastrando = useRef<Arrastre>(null);
+  const ultimo = useRef(proy);
+  ultimo.current = proy;
+  const versionRef = useRef(inicial.version);
+  const enVuelo = useRef(false);
+  const sucio = useRef(false);
+
+  // Guardado en cola: una sola petición a la vez, con la versión de la última que salió bien.
+  const guardar = async () => {
+    if (enVuelo.current) {
+      sucio.current = true;
+      return;
+    }
+    enVuelo.current = true;
+    setEstado("guardando");
+    try {
+      const r = await guardarMapaAction(ultimo.current.bandaId, ultimo.current.id, ultimo.current, versionRef.current);
+      if (r.ok) {
+        versionRef.current = r.version;
+        setEstado("guardado");
+      } else if (r.desactualizado) {
+        sucio.current = false;
+        setDesactualizado(true);
+        setEstado("error");
+      } else {
+        setErrorMsg(r.mensaje);
+        setEstado("error");
+      }
+    } catch {
+      setErrorMsg("No se pudo guardar.");
+      setEstado("error");
+    } finally {
+      enVuelo.current = false;
+      if (sucio.current) {
+        sucio.current = false;
+        void guardar();
+      }
+    }
+  };
 
   // Autoguardado: 0.9 s después del último cambio.
   useEffect(() => {
@@ -90,36 +205,45 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
       primera.current = false;
       return;
     }
-    if (!puedeEscribir) return;
+    if (!puedeEscribir || desactualizado) return;
     setEstado("pendiente");
-    const t = setTimeout(async () => {
-      setEstado("guardando");
-      try {
-        await guardarMapaAction(proy.bandaId, proy.id, proy);
-        setEstado("guardado");
-      } catch (e) {
-        setErrorMsg(e instanceof Error ? e.message : "No se pudo guardar.");
-        setEstado("error");
-      }
-    }, 900);
+    const t = setTimeout(() => void guardar(), 900);
     return () => clearTimeout(t);
-  }, [proy, puedeEscribir]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proy, puedeEscribir, desactualizado]);
 
   const soloPieza = vista !== null && proy.piezas[vista] ? vista : null;
-  const tramos = useMemo(() => tramosDe(proy.piezas, soloPieza), [proy.piezas, soloPieza]);
+  const tramos = useMemo(() => tramosDe(proy.piezas, soloPieza, proy.techos), [proy.piezas, soloPieza, proy.techos]);
 
   const cambiarSeccion = (p: number, s: number, patch: Partial<Seccion>) =>
     setProy((pr) => ({ ...pr, piezas: pr.piezas.map((pz, i) => (i !== p ? pz : { ...pz, secciones: pz.secciones.map((sc, j) => (j !== s ? sc : { ...sc, ...patch })) })) }));
   const cambiarPieza = (p: number, patch: Partial<Pieza>) => setProy((pr) => ({ ...pr, piezas: pr.piezas.map((pz, i) => (i !== p ? pz : { ...pz, ...patch })) }));
 
-  const yDeSvg = (clientY: number) => {
-    const r = svgRef.current!.getBoundingClientRect();
-    return ((clientY - r.top) * H) / r.height;
-  };
+  // Geometría del núcleo (línea de Intensidad)
+  const ptsN = tramos.map((t) => ({ x: xDe(t.xc), y: yN(t.intensidad) }));
+  const lineaN = ptsN.length > 0 ? curvaSuave([{ x: xDe(0), y: ptsN[0].y }, ...ptsN, { x: xDe(1), y: ptsN[ptsN.length - 1].y }]) : "";
+  const areaN = lineaN ? `${lineaN} L${xDe(1)},${yN(0)} L${xDe(0)},${yN(0)} Z` : "";
 
-  const puntos = tramos.map((t) => ({ x: xDe(t.xc), y: yDe(t.nivel) }));
-  const linea = puntos.length > 0 ? curvaSuave([{ x: xDe(0), y: puntos[0].y }, ...puntos, { x: xDe(1), y: puntos[puntos.length - 1].y }]) : "";
-  const area = linea ? `${linea} L${xDe(1)},${yDe(0)} L${xDe(0)},${yDe(0)} Z` : "";
+  // Geometría del cuerpo (capas apiladas; el borde de arriba es el Peso)
+  const capas = useMemo(() => {
+    if (tramos.length === 0) return [] as { campo: CampoCuerpo; d: string; techo: { x: number; y: number }[] }[];
+    const acumulado = tramos.map((t) => {
+      let suma = 0;
+      const porCampo = {} as Record<CampoCuerpo, [number, number]>;
+      ORDEN_APILADO.forEach((c) => {
+        const base = suma;
+        suma += t.contrib[c];
+        porCampo[c] = [base, suma];
+      });
+      return porCampo;
+    });
+    const extiende = (puntos: { x: number; y: number }[]) => [{ x: xDe(0), y: puntos[0].y }, ...puntos, { x: xDe(1), y: puntos[puntos.length - 1].y }];
+    return ORDEN_APILADO.map((c) => {
+      const arriba = extiende(tramos.map((t, i) => ({ x: xDe(t.xc), y: yC(acumulado[i][c][1]) })));
+      const abajo = extiende(tramos.map((t, i) => ({ x: xDe(t.xc), y: yC(acumulado[i][c][0]) })));
+      return { campo: c, d: capaEntre(arriba, abajo), techo: arriba };
+    });
+  }, [tramos]);
 
   // Límites de cada canción en la vista actual.
   const limites: { pieza: number; x0: number; x1: number }[] = [];
@@ -133,6 +257,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
   const secSel = seleccionada ? proy.piezas[seleccionada.p].secciones[seleccionada.s] : null;
   const pzSel = seleccionada ? proy.piezas[seleccionada.p] : null;
   const numeroSel = seleccionada ? tramos.findIndex((t) => t.pieza === seleccionada.p && t.seccion === seleccionada.s) + 1 : 0;
+  const totalEP = proy.piezas.reduce((a, pz) => a + totalCompases(pz), 0);
 
   const agregarPieza = () => {
     setProy((pr) => ({ ...pr, piezas: [...pr.piezas, nuevaPieza(`Canción ${pr.piezas.length + 1}`)] }));
@@ -181,15 +306,92 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
   };
   const duplicarSeccion = (p: number, s: number) => {
     const orig = proy.piezas[p].secciones[s];
-    const copia: Seccion = { ...orig, id: crypto.randomUUID(), instrumentos: [...orig.instrumentos] };
+    const copia: Seccion = { ...orig, id: crypto.randomUUID() };
     setProy((pr) => ({ ...pr, piezas: pr.piezas.map((pz, i) => (i !== p ? pz : { ...pz, secciones: [...pz.secciones.slice(0, s + 1), copia, ...pz.secciones.slice(s + 1)] })) }));
     setSel({ p, s: s + 1 });
   };
 
-  const textoEstado = !puedeEscribir ? "Solo lectura" : estado === "guardado" ? "Guardado" : estado === "guardando" ? "Guardando…" : estado === "pendiente" ? "Cambios sin guardar…" : `No se pudo guardar: ${errorMsg}`;
+  const elegir = (p: number, s: number) => {
+    if (vista === null) setVista(p);
+    setSel({ p, s });
+  };
+  const enDetalle = vista !== null;
+  const cambiarTecho = (campo: CampoValor, v: number) => setProy((pr) => ({ ...pr, techos: { ...pr.techos, [campo]: v } }));
+  const tInt = techoIntensidad(proy.techos);
+  const tPeso = techoPeso(proy.techos);
+
+  const textoEstado = !puedeEscribir ? "Solo lectura" : estado === "guardado" ? "Guardado" : estado === "guardando" ? "Guardando…" : estado === "pendiente" ? "Cambios sin guardar…" : desactualizado ? "Pantalla desactualizada" : errorMsg || "No se pudo guardar";
+
+  const ponerValor = (campo: CampoValor, v: number) => seleccionada && cambiarSeccion(seleccionada.p, seleccionada.s, { [campo]: v } as Partial<Seccion>);
+  const estiloMedidor = (campo: CampoValor, valor: number): { relleno: string; textura?: string } => {
+    if (campo === "energia") return { relleno: ACCENT };
+    if (campo === "animo") return { relleno: colorAnimo(valor) };
+    if (campo === "tension") return { relleno: "oklch(0.80 0.03 262)", textura: HACHURA_CSS };
+    return { relleno: COLOR_CAPA[campo] };
+  };
+
+  const compasesPieza = pzSel ? totalCompases(pzSel) : 0;
+  const durSec = secSel && pzSel ? duracionSeg(secSel.compases, pzSel.bpm) : null;
+
+  // Los dos grupos de medidores: en la vista general son los techos del EP; en el detalle de una canción, los valores de la sección.
+  const grupos = (modo: "techos" | "seccion") => {
+    const valorDe = (c: CampoValor) => (modo === "techos" ? proy.techos[c] : secSel![c]);
+    const alCambiar = (c: CampoValor, v: number) => (modo === "techos" ? cambiarTecho(c, v) : ponerValor(c, v));
+    const techoDe = (c: CampoValor) => (modo === "techos" ? 100 : proy.techos[c]);
+    const intens = modo === "techos" ? tInt : intensidad(secSel!, proy.techos);
+    const pes = modo === "techos" ? tPeso : peso(secSel!, proy.techos);
+    const color = (c: CampoValor) => estiloMedidor(c, conTecho(valorDe(c), techoDe(c)) === 0 ? 0 : modo === "techos" ? valorDe(c) : conTecho(valorDe(c), techoDe(c)));
+    return (
+      <div className="flex flex-wrap gap-x-8 gap-y-5">
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: INK }}>Núcleo</span>
+            <span className="text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
+              {modo === "techos" ? "Techo de intensidad" : "Intensidad"} <b style={{ color: INK }}>{intens}</b>
+            </span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-3">
+            {NUCLEO.map((n) => {
+              const e = color(n.campo);
+              return <Medidor key={n.campo} nombre={n.nombre} ayuda={`${n.ayuda} (0 ${n.escala.cero}, 100 ${n.escala.cien})`} escala={n.escala} valor={valorDe(n.campo)} techo={techoDe(n.campo)} onCambio={(v) => alCambiar(n.campo, v)} deshabilitado={!puedeEscribir} relleno={e.relleno} textura={e.textura} />;
+            })}
+          </div>
+          <div className="mt-1.5 max-w-[22rem] text-[10px] leading-snug" style={{ color: MUTED }}>
+            Intensidad = {Math.round(PESO_INTENSIDAD.energia * 100)} % energía + {Math.round(PESO_INTENSIDAD.tension * 100)} % tensión. El ánimo la tiñe.
+          </div>
+        </div>
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: INK }}>Cuerpo</span>
+            <span className="text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
+              {modo === "techos" ? "Techo de peso" : "Peso"} <b style={{ color: INK }}>{pes}</b>
+            </span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-3">
+            {CUERPO.map((c) => {
+              const e = color(c.campo);
+              return <Medidor key={c.campo} nombre={c.nombre} ayuda={`${c.ayuda} (${c.hz}; 0 ${c.escala.cero}, 100 ${c.escala.cien})`} escala={c.escala} valor={valorDe(c.campo)} techo={techoDe(c.campo)} onCambio={(v) => alCambiar(c.campo, v)} deshabilitado={!puedeEscribir} relleno={e.relleno} />;
+            })}
+          </div>
+          <div className="mt-1.5 max-w-[30rem] text-[10px] leading-snug" style={{ color: MUTED }}>
+            Peso = {CUERPO.slice().reverse().map((c) => `${Math.round(PESO_CUERPO[c.campo] * 100)} % ${c.nombre.toLowerCase()}`).join(" + ")}. Lo grave pesa más.
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="mt-3">
+      {desactualizado && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl p-3 text-sm" style={{ background: "oklch(0.95 0.04 60)", border: "1px solid oklch(0.8 0.1 60)", color: INK }}>
+          <span>Esta pantalla quedó desactualizada (se guardó una versión más nueva) y no guardó tus últimos cambios para no pisarla.</span>
+          <button type="button" onClick={() => window.location.reload()} className="rounded-lg px-3 py-1.5 text-xs font-bold" style={{ background: ACCENT, color: "oklch(0.99 0.006 85)" }}>
+            Recargar
+          </button>
+        </div>
+      )}
+
       {/* Nombre, historia y estado de guardado */}
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex min-w-0 flex-1 items-center gap-2">
@@ -236,206 +438,195 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
         ))}
       </div>
 
-      {/* Gráfica y mesa de la sección, en una sola tarjeta */}
+      {/* Gráfica (calculada), leyenda y mesa de medidores, en una sola tarjeta */}
       <div className="mt-2.5 overflow-hidden rounded-2xl" style={{ background: CARD, border: `1px solid ${LINE}` }}>
         <div className="overflow-x-auto">
-          <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Curva de emoción y valores por sección" style={{ width: "100%", minWidth: 820, display: "block" }}>
+          <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Intensidad y peso de cada sección, calculados de los medidores" style={{ width: "100%", minWidth: 820, display: "block" }}>
             <defs>
-              <linearGradient id="ep-area" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={ACCENT} stopOpacity="0.34" />
-                <stop offset="100%" stopColor={ACCENT} stopOpacity="0.03" />
+              <linearGradient id="ep-animo" gradientUnits="userSpaceOnUse" x1={xDe(0)} x2={xDe(1)} y1="0" y2="0">
+                {tramos.length > 0 && <stop offset="0" stopColor={colorAnimo(tramos[0].animo)} />}
+                {tramos.map((t, i) => (
+                  <stop key={i} offset={t.xc} stopColor={colorAnimo(t.animo)} />
+                ))}
+                {tramos.length > 0 && <stop offset="1" stopColor={colorAnimo(tramos[tramos.length - 1].animo)} />}
               </linearGradient>
+              <linearGradient id="ep-fade" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="white" stopOpacity="0" />
+                <stop offset="1" stopColor="white" stopOpacity="0.6" />
+              </linearGradient>
+              <pattern id="ep-hachura" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <line x1="0" y1="0" x2="0" y2="7" stroke={INK} strokeWidth="1.7" />
+              </pattern>
+              <pattern id="ep-puntos" width="6" height="6" patternUnits="userSpaceOnUse">
+                <circle cx="3" cy="3" r="1" fill="white" />
+              </pattern>
+              <clipPath id="ep-recorte-area">
+                <path d={areaN} />
+              </clipPath>
             </defs>
 
             {/* Franja por canción (alterna tono) con su título arriba */}
             {limites.map((lim, i) => (
               <g key={lim.pieza}>
-                <rect x={xDe(lim.x0)} y={T - 4} width={(lim.x1 - lim.x0) * PW} height={LANES_FIN - T + 8} fill={i % 2 === 0 ? "oklch(0.975 0.006 85)" : "oklch(0.945 0.012 262)"} />
-                {i > 0 && <line x1={xDe(lim.x0)} x2={xDe(lim.x0)} y1={8} y2={H - 8} stroke={INK} strokeOpacity="0.3" strokeDasharray="2 4" />}
-                <text x={xDe((lim.x0 + lim.x1) / 2)} y={18} fontSize="12" fontWeight="700" textAnchor="middle" fill={INK} style={{ fontFamily: "var(--font-fraunces), sans-serif" }}>
+                <rect x={xDe(lim.x0)} y={T1 - 8} width={(lim.x1 - lim.x0) * PW} height={TIRA_Y + TIRA_H - T1 + 12} fill={i % 2 === 0 ? "oklch(0.975 0.006 85)" : "oklch(0.945 0.012 262)"} />
+                {i > 0 && <line x1={xDe(lim.x0)} x2={xDe(lim.x0)} y1={6} y2={H - 4} stroke={INK} strokeOpacity="0.3" strokeDasharray="2 4" />}
+                <text x={xDe((lim.x0 + lim.x1) / 2)} y={16} fontSize="12" fontWeight="700" textAnchor="middle" fill={INK} style={{ fontFamily: "var(--font-fraunces), sans-serif" }}>
                   {lim.pieza + 1}. {recorta(proy.piezas[lim.pieza].titulo, Math.max(8, Math.floor(((lim.x1 - lim.x0) * PW) / 8)))}
-                  {proy.piezas[lim.pieza].ajuste !== 0 ? `  (${proy.piezas[lim.pieza].ajuste > 0 ? "+" : ""}${proy.piezas[lim.pieza].ajuste})` : ""}
                 </text>
               </g>
             ))}
 
-            {/* Cuadrícula de la curva */}
+            {/* NÚCLEO · Intensidad */}
+            <text x={L - 8} y={T1 - 14} fontSize="10" fontWeight="700" textAnchor="end" fill={INK} style={{ fontFamily: MONO }}>NÚCLEO</text>
+            <text x={L + 4} y={T1 - 14} fontSize="10" fill={MUTED} style={{ fontFamily: MONO }}>Intensidad · altura = energía y tensión · color = ánimo · rayas = tensión</text>
             {[0, 25, 50, 75, 100].map((v) => (
               <g key={v}>
-                <line x1={L} x2={W - R} y1={yDe(v)} y2={yDe(v)} stroke="oklch(0.78 0.02 262)" strokeOpacity={v === 0 ? 0.7 : 0.35} strokeDasharray={v === 0 ? undefined : "3 5"} />
-                <text x={L - 8} y={yDe(v) + 3} fontSize="9" textAnchor="end" fill={MUTED} style={{ fontFamily: MONO }}>
-                  {v}
-                </text>
+                <line x1={L} x2={W - R} y1={yN(v)} y2={yN(v)} stroke="oklch(0.78 0.02 262)" strokeOpacity={v === 0 ? 0.7 : 0.35} strokeDasharray={v === 0 ? undefined : "3 5"} />
+                <text x={L - 8} y={yN(v) + 3} fontSize="9" textAnchor="end" fill={MUTED} style={{ fontFamily: MONO }}>{v}</text>
               </g>
             ))}
-            <text x={L - 8} y={T - 10} fontSize="10" fontWeight="700" textAnchor="end" fill={ACCENT} style={{ fontFamily: MONO }}>
-              {INDICADOR_EMOCION.nombre}
-            </text>
-
-            {area && <path d={area} fill="url(#ep-area)" />}
-            {linea && <path d={linea} fill="none" stroke={ACCENT} strokeWidth="3.2" strokeLinecap="round" />}
-
-            {/* Zonas clicables y filas de valores */}
-            {tramos.map((t) => {
-              const sc = proy.piezas[t.pieza].secciones[t.seccion];
-              const esSel = seleccionada?.p === t.pieza && seleccionada?.s === t.seccion;
-              const ancho = (t.x1 - t.x0) * PW;
-              return (
-                <g key={sc.id}>
-                  {esSel && <rect x={xDe(t.x0)} y={T - 4} width={ancho} height={LANES_FIN - T + 8} fill={INK} fillOpacity="0.07" pointerEvents="none" />}
-                  <rect x={xDe(t.x0)} y={T} width={ancho} height={PH} fill="transparent" style={{ cursor: "pointer" }} onClick={() => setSel({ p: t.pieza, s: t.seccion })} />
-                  {t.seccion > 0 && <line x1={xDe(t.x0)} x2={xDe(t.x0)} y1={T} y2={T + PH} stroke={INK} strokeOpacity="0.1" />}
-                  {INDICADORES.map((ind, f) => {
-                    const v = sc[ind.campo];
-                    const y0 = laneY(f);
-                    const color = ind.grupo === "Frecuencias" ? ACCENT : AZUL;
-                    return (
-                      <g key={ind.campo}>
-                        <rect x={xDe(t.x0) + 1} y={y0} width={Math.max(1, ancho - 2)} height={LANE_H} rx="2" fill={CELDA} />
-                        <rect x={xDe(t.x0) + 1} y={y0 + LANE_H * (1 - v / 100)} width={Math.max(1, ancho - 2)} height={(LANE_H * v) / 100} rx="2" fill={color} fillOpacity={0.35 + 0.5 * (v / 100)} pointerEvents="none" />
-                        {esSel && ancho > 26 && (
-                          <text x={xDe(t.xc)} y={y0 + LANE_H - 5} fontSize="9" fontWeight="700" textAnchor="middle" fill={INK} style={{ fontFamily: MONO }} pointerEvents="none">
-                            {v}
-                          </text>
-                        )}
-                        <rect
-                          x={xDe(t.x0) + 1}
-                          y={y0 - 1}
-                          width={Math.max(1, ancho - 2)}
-                          height={LANE_H + 2}
-                          fill="transparent"
-                          style={{ cursor: puedeEscribir ? "ns-resize" : "pointer", touchAction: "none" }}
-                          onPointerDown={(e) => {
-                            setSel({ p: t.pieza, s: t.seccion });
-                            if (!puedeEscribir) return;
-                            e.currentTarget.setPointerCapture(e.pointerId);
-                            arrastrando.current = { tipo: "fila", p: t.pieza, s: t.seccion, campo: ind.campo, fila: f };
-                            cambiarSeccion(t.pieza, t.seccion, { [ind.campo]: clamp(Math.round(((y0 + LANE_H - yDeSvg(e.clientY)) / LANE_H) * 100), 0, 100) } as Partial<Seccion>);
-                          }}
-                          onPointerMove={(e) => {
-                            const a = arrastrando.current;
-                            if (!a || a.tipo !== "fila" || a.p !== t.pieza || a.s !== t.seccion || a.campo !== ind.campo) return;
-                            cambiarSeccion(t.pieza, t.seccion, { [ind.campo]: clamp(Math.round(((y0 + LANE_H - yDeSvg(e.clientY)) / LANE_H) * 100), 0, 100) } as Partial<Seccion>);
-                          }}
-                          onPointerUp={() => {
-                            arrastrando.current = null;
-                          }}
-                        >
-                          <title>{`${ind.nombre}: ${v}`}</title>
-                        </rect>
-                      </g>
-                    );
-                  })}
-                </g>
-              );
-            })}
-            {INDICADORES.map((ind, f) => (
-              <text key={ind.campo} x={L - 8} y={laneY(f) + LANE_H - 5} fontSize="10" textAnchor="end" fill={ind.grupo === "Frecuencias" ? ACCENT : AZUL} fontWeight="700" style={{ fontFamily: MONO }}>
-                <title>{ind.ayuda}</title>
-                {ind.nombre}
-              </text>
+            <g pointerEvents="none">
+              <line x1={L} x2={W - R} y1={yN(tInt)} y2={yN(tInt)} stroke={ACCENT} strokeWidth="1.3" strokeDasharray="6 4" />
+              <text x={W - R - 4} y={yN(tInt) - 4} fontSize="9.5" fontWeight="700" textAnchor="end" fill={ACCENT} style={{ fontFamily: MONO }}>techo {tInt}</text>
+            </g>
+            {areaN && <path d={areaN} fill="url(#ep-animo)" fillOpacity="0.78" />}
+            {areaN && <path d={areaN} fill="url(#ep-fade)" />}
+            {tramos.map((t, i) => (
+              <rect key={i} x={xDe(t.x0)} y={T1} width={(t.x1 - t.x0) * PW} height={PH1} fill="url(#ep-hachura)" opacity={Math.max(0, (t.tension - 30) / 70) * 0.42} clipPath="url(#ep-recorte-area)" pointerEvents="none" />
             ))}
+            {lineaN && <path d={lineaN} fill="none" stroke={INK} strokeOpacity="0.28" strokeWidth="6" strokeLinecap="round" />}
+            {lineaN && <path d={lineaN} fill="none" stroke="url(#ep-animo)" strokeWidth="3.6" strokeLinecap="round" />}
 
-            {/* Nombres de sección (forma musical) */}
+            {/* CUERPO · Peso (capas apiladas: Sub abajo, Altos arriba) */}
+            <text x={L - 8} y={T2 - 14} fontSize="10" fontWeight="700" textAnchor="end" fill={INK} style={{ fontFamily: MONO }}>CUERPO</text>
+            <text x={L + 4} y={T2 - 14} fontSize="10" fill={MUTED} style={{ fontFamily: MONO }}>Peso · altura total = peso · cada capa = lo que aporta esa banda (sub abajo, altos arriba)</text>
+            {[0, 50, 100].map((v) => (
+              <g key={v}>
+                <line x1={L} x2={W - R} y1={yC(v)} y2={yC(v)} stroke="oklch(0.78 0.02 262)" strokeOpacity={v === 0 ? 0.7 : 0.35} strokeDasharray={v === 0 ? undefined : "3 5"} />
+                <text x={L - 8} y={yC(v) + 3} fontSize="9" textAnchor="end" fill={MUTED} style={{ fontFamily: MONO }}>{v}</text>
+              </g>
+            ))}
+            {capas.map((c) => (
+              <g key={c.campo}>
+                <path d={c.d} fill={COLOR_CAPA[c.campo]} />
+                {c.campo === "sub" && <path d={c.d} fill="url(#ep-puntos)" opacity="0.28" />}
+                <path d={curvaSuave(c.techo)} fill="none" stroke="white" strokeOpacity="0.55" strokeWidth="1" />
+              </g>
+            ))}
+            <g pointerEvents="none">
+              <line x1={L} x2={W - R} y1={yC(tPeso)} y2={yC(tPeso)} stroke={ACCENT} strokeWidth="1.3" strokeDasharray="6 4" />
+              <text x={W - R - 4} y={yC(tPeso) - 4} fontSize="9.5" fontWeight="700" textAnchor="end" fill={ACCENT} style={{ fontFamily: MONO }}>techo {tPeso}</text>
+            </g>
+            {capas.length > 0 && <path d={curvaSuave(capas[capas.length - 1].techo)} fill="none" stroke={INK} strokeOpacity="0.6" strokeWidth="1.6" />}
+
+            {/* Selección, zonas clicables y tira de secciones (el tamaño es proporcional a los compases) */}
             {tramos.map((t, k) => {
               const sc = proy.piezas[t.pieza].secciones[t.seccion];
-              const esSel = seleccionada?.p === t.pieza && seleccionada?.s === t.seccion;
-              return (
-                <text
-                  key={sc.id}
-                  x={xDe(t.xc)}
-                  y={ETIQ_Y}
-                  fontSize={soloPieza !== null ? 12 : 10.5}
-                  fontWeight={esSel ? 700 : 400}
-                  fill={esSel ? INK : MUTED}
-                  transform={`rotate(38 ${xDe(t.xc)} ${ETIQ_Y})`}
-                  style={{ fontFamily: MONO, cursor: "pointer" }}
-                  onClick={() => setSel({ p: t.pieza, s: t.seccion })}
-                >
-                  <title>{sc.transmite ? `${sc.nombre}: ${sc.transmite}` : sc.nombre}</title>
-                  {k + 1}. {recorta(sc.nombre, 16)}
-                </text>
-              );
-            })}
-
-            {/* Puntos de la curva (se arrastran arriba y abajo) */}
-            {tramos.map((t) => {
-              const sc = proy.piezas[t.pieza].secciones[t.seccion];
-              const esSel = seleccionada?.p === t.pieza && seleccionada?.s === t.seccion;
-              const cx = xDe(t.xc);
-              const cy = yDe(t.nivel);
+              const esSel = enDetalle && seleccionada?.p === t.pieza && seleccionada?.s === t.seccion;
+              const x0 = xDe(t.x0);
+              const ancho = (t.x1 - t.x0) * PW;
+              const caben = Math.floor((ancho - 6) / 6.4);
               return (
                 <g key={sc.id}>
-                  <circle
-                    cx={cx}
-                    cy={cy}
-                    r={esSel ? 9 : 7}
-                    fill={esSel ? INK : ACCENT}
-                    stroke={CARD}
-                    strokeWidth="2.5"
-                    tabIndex={0}
-                    role="slider"
-                    aria-label={`Emoción de ${sc.nombre}`}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={t.nivel}
-                    style={{ cursor: puedeEscribir ? "ns-resize" : "pointer", touchAction: "none", outline: "none" }}
-                    onPointerDown={(e) => {
-                      setSel({ p: t.pieza, s: t.seccion });
-                      if (!puedeEscribir) return;
-                      e.currentTarget.setPointerCapture(e.pointerId);
-                      arrastrando.current = { tipo: "curva", p: t.pieza, s: t.seccion };
-                    }}
-                    onPointerMove={(e) => {
-                      const a = arrastrando.current;
-                      if (!a || a.tipo !== "curva" || a.p !== t.pieza || a.s !== t.seccion) return;
-                      const v = (1 - (yDeSvg(e.clientY) - T) / PH) * 100;
-                      cambiarSeccion(t.pieza, t.seccion, { nivel: clamp(Math.round(v - proy.piezas[t.pieza].ajuste), 0, 100) });
-                    }}
-                    onPointerUp={() => {
-                      arrastrando.current = null;
-                    }}
-                    onKeyDown={(e) => {
-                      if (!puedeEscribir) return;
-                      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-                        e.preventDefault();
-                        cambiarSeccion(t.pieza, t.seccion, { nivel: clamp(sc.nivel + (e.key === "ArrowUp" ? 2 : -2), 0, 100) });
-                      }
-                    }}
-                  />
+                  {esSel && <rect x={x0} y={T1 - 8} width={ancho} height={TIRA_Y + TIRA_H - T1 + 12} fill={INK} fillOpacity="0.08" pointerEvents="none" />}
+                  <rect x={x0} y={T1} width={ancho} height={T2 + PH2 - T1} fill="transparent" style={{ cursor: "pointer" }} onClick={() => elegir(t.pieza, t.seccion)} />
+                  {t.seccion > 0 && <line x1={x0} x2={x0} y1={T1} y2={T1 + PH1} stroke={INK} strokeOpacity="0.1" pointerEvents="none" />}
+                  <circle cx={xDe(t.xc)} cy={yN(t.intensidad)} r={esSel ? 8 : 5.5} fill={colorAnimo(t.animo)} stroke={esSel ? INK : CARD} strokeWidth={esSel ? 3 : 2} pointerEvents="none" />
                   {esSel && (
-                    <text x={cx} y={cy - 14} fontSize="11" fontWeight="700" textAnchor="middle" fill={INK} style={{ fontFamily: MONO }}>
-                      {t.nivel}
-                    </text>
+                    <>
+                      <text x={xDe(t.xc)} y={yN(t.intensidad) - 14} fontSize="11" fontWeight="700" textAnchor="middle" fill={INK} style={{ fontFamily: MONO }} pointerEvents="none">{t.intensidad}</text>
+                      <text x={xDe(t.xc)} y={yC(t.peso) - 6} fontSize="11" fontWeight="700" textAnchor="middle" fill={INK} style={{ fontFamily: MONO }} pointerEvents="none">{t.peso}</text>
+                    </>
                   )}
+                  {/* tira */}
+                  <rect x={x0 + 1} y={TIRA_Y} width={Math.max(1, ancho - 2)} height={TIRA_H} rx="7" fill={colorAnimo(t.animo, esSel ? 0.9 : 0.34)} stroke={esSel ? INK : "none"} strokeWidth="2" style={{ cursor: "pointer" }} onClick={() => elegir(t.pieza, t.seccion)}>
+                    <title>{`${k + 1}. ${sc.nombre} · ${sc.compases} compases${sc.transmite ? ` · ${sc.transmite}` : ""}`}</title>
+                  </rect>
+                  <text x={xDe(t.xc)} y={TIRA_Y + 17} fontSize="11" fontWeight={esSel ? 700 : 500} textAnchor="middle" fill={esSel && t.animo > 55 ? INK : esSel ? "white" : INK} pointerEvents="none" style={{ fontFamily: MONO }}>
+                    {recorta(sc.nombre, caben)}
+                  </text>
+                  <text x={xDe(t.xc)} y={TIRA_Y + 31} fontSize="9.5" textAnchor="middle" fill={esSel && t.animo <= 55 ? "white" : MUTED} pointerEvents="none" style={{ fontFamily: MONO }}>
+                    {caben >= 5 ? `${sc.compases} c` : ancho >= 22 ? String(sc.compases) : ""}
+                  </text>
                 </g>
               );
             })}
+            {tramos.length > 0 && (
+              <text x={L - 8} y={TIRA_Y + 24} fontSize="10" fontWeight="700" textAnchor="end" fill={INK} style={{ fontFamily: MONO }}>SECCIONES</text>
+            )}
             {tramos.length === 0 && (
-              <text x={W / 2} y={T + PH / 2} textAnchor="middle" fontSize="13" fill={MUTED}>
-                Agrega una canción para empezar el mapa.
-              </text>
+              <text x={W / 2} y={T1 + PH1 / 2} textAnchor="middle" fontSize="13" fill={MUTED}>Agrega una canción para empezar el mapa.</text>
             )}
           </svg>
         </div>
 
-        {/* Mesa de la sección elegida (pegada a la gráfica) */}
-        {secSel && pzSel && seleccionada ? (
-          <div className="grid gap-5 p-4 md:grid-cols-[1fr_1.5fr]" style={{ borderTop: `1px solid ${LINE}` }}>
+        {/* Leyenda: qué significa cada color y cada textura */}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2.5 text-[10px]" style={{ fontFamily: MONO, color: MUTED, borderTop: `1px solid ${LINE}` }}>
+          <span className="flex items-center gap-2">
+            Ánimo
+            <span>oscuro</span>
+            <span aria-hidden style={{ width: 90, height: 10, borderRadius: 5, background: `linear-gradient(90deg, ${[0, 20, 40, 50, 60, 80, 100].map((v) => colorAnimo(v)).join(", ")})` }} />
+            <span>luminoso</span>
+          </span>
+          <span className="flex items-center gap-2">
+            <span aria-hidden style={{ width: 22, height: 10, borderRadius: 3, background: "oklch(0.88 0.03 262)", backgroundImage: HACHURA_CSS }} />
+            rayas = tensión (más rayas, más suspenso)
+          </span>
+          <span className="flex flex-wrap items-center gap-2">
+            Cuerpo:
+            {CUERPO.map((c) => (
+              <span key={c.campo} className="flex items-center gap-1" title={c.ayuda}>
+                <span aria-hidden style={{ width: 10, height: 10, borderRadius: 3, background: COLOR_CAPA[c.campo] }} />
+                {c.nombre} {Math.round(PESO_CUERPO[c.campo] * 100)} %
+              </span>
+            ))}
+          </span>
+          <span>El ancho de cada sección es proporcional a sus compases.</span>
+        </div>
+
+        {/* Barra de la sección elegida */}
+        {enDetalle && secSel && pzSel && seleccionada && (
+          <div className="flex flex-wrap items-center gap-2 px-4 py-2" style={{ borderTop: `1px solid ${LINE}`, background: "oklch(0.975 0.006 85)" }}>
+            <span className="text-[11px] font-bold" style={{ fontFamily: MONO, color: INK }}>
+              Sección {numeroSel}: {secSel.nombre} · {pzSel.titulo}
+            </span>
+            {puedeEscribir && (
+              <span className="ml-auto flex flex-wrap gap-1.5">
+                <button type="button" onClick={() => moverSeccion(seleccionada.p, seleccionada.s, -1)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>← Antes</button>
+                <button type="button" onClick={() => moverSeccion(seleccionada.p, seleccionada.s, 1)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>Después →</button>
+                <button type="button" onClick={() => insertarSeccion(seleccionada.p, seleccionada.s)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>+ Sección después</button>
+                <button type="button" onClick={() => duplicarSeccion(seleccionada.p, seleccionada.s)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>Duplicar</button>
+                <button type="button" onClick={() => eliminarSeccion(seleccionada.p, seleccionada.s)} disabled={pzSel.secciones.length <= 1} className="px-2.5 py-1 text-xs font-bold" style={{ ...miniBoton, color: "oklch(0.5 0.18 25)" }}>Eliminar</button>
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Mesa: siete medidores y la ficha de la sección */}
+        {!enDetalle ? (
+          <div className="grid gap-5 p-4" style={{ borderTop: `1px solid ${LINE}` }}>
             <div>
-              <div className="text-[10px]" style={{ fontFamily: MONO, color: MUTED }}>
-                Sección {numeroSel} · {pzSel.titulo}
-                {secSel.transmite ? ` · «${recorta(secSel.transmite, 48)}»` : ""}
-              </div>
-              <div className="mt-1.5 flex items-center gap-2">
+              <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: INK }}>Techos del EP</div>
+              <p className="mt-1 max-w-[48rem] text-[11px] leading-snug" style={{ color: MUTED }}>
+                Aquí pones hasta dónde puede llegar cada indicador en todo el EP. Ningún valor de ninguna sección pasa de su techo: el 100 de una sección equivale a este techo, y las líneas punteadas de las gráficas marcan lo más alto que pueden llegar. Para mover los valores de cada sección, elige una canción arriba o toca una sección de la gráfica.
+              </p>
+            </div>
+            {grupos("techos")}
+          </div>
+        ) : secSel && pzSel && seleccionada ? (
+          <div className="grid gap-6 p-4" style={{ borderTop: `1px solid ${LINE}` }}>
+            {grupos("seccion")}
+
+            <div className="min-w-0" style={{ borderTop: `1px solid ${LINE}`, paddingTop: 16 }}>
+              <div className="flex flex-wrap items-center gap-2">
                 <input
                   list="ep-formas"
                   value={secSel.nombre}
                   onChange={(e) => cambiarSeccion(seleccionada.p, seleccionada.s, { nombre: e.target.value })}
                   disabled={!puedeEscribir}
                   maxLength={120}
-                  aria-label="Forma de la sección"
-                  placeholder="Parte de la canción: Intro, Verso, Dub, Coro…"
+                  aria-label="Parte de la canción"
+                  placeholder="Parte: Intro, Verso, Dub, Coro…"
                   className="min-w-0 flex-1 px-3 py-1.5 text-base font-bold"
                   style={{ ...inputStyle, fontFamily: "var(--font-fraunces), sans-serif" }}
                 />
@@ -449,65 +640,31 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
                   <input type="number" min={1} max={512} value={secSel.compases} onChange={(e) => cambiarSeccion(seleccionada.p, seleccionada.s, { compases: clamp(Math.round(Number(e.target.value) || 1), 1, 512) })} disabled={!puedeEscribir} className="w-16 px-2 py-1" style={inputStyle} />
                 </label>
               </div>
-              <label className="mt-2.5 block text-[10px] font-bold uppercase tracking-[0.12em]" style={{ fontFamily: MONO, color: MUTED }}>
+              <div className="mt-1.5 text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
+                {durSec !== null ? `≈ ${formatoMSS(durSec)} a ${pzSel.bpm} BPM · ` : "Sin BPM: no se calcula el tiempo · "}
+                {Math.round((secSel.compases / Math.max(1, compasesPieza)) * 100)} % de la canción ({secSel.compases} de {compasesPieza} compases)
+                {totalEP > compasesPieza ? ` · ${Math.round((secSel.compases / totalEP) * 100)} % del EP` : ""}
+              </div>
+              <div className="mt-2.5 grid gap-3 md:grid-cols-2">
+              <label className="block text-[10px] font-bold uppercase tracking-[0.12em]" style={{ fontFamily: MONO, color: MUTED }}>
                 Intención (lo que debe hacer sentir)
                 <textarea value={secSel.transmite} onChange={(e) => cambiarSeccion(seleccionada.p, seleccionada.s, { transmite: e.target.value })} disabled={!puedeEscribir} rows={2} maxLength={1000} placeholder="Ej. algo grande está lejos" className="mt-1 w-full p-2.5 text-sm font-normal normal-case tracking-normal" style={{ ...inputStyle, fontFamily: "inherit" }} />
               </label>
-              <label className="mt-2 block text-[10px] font-bold uppercase tracking-[0.12em]" style={{ fontFamily: MONO, color: MUTED }}>
+              <label className="block text-[10px] font-bold uppercase tracking-[0.12em]" style={{ fontFamily: MONO, color: MUTED }}>
                 Notas y armonía
                 <textarea value={secSel.armonia} onChange={(e) => cambiarSeccion(seleccionada.p, seleccionada.s, { armonia: e.target.value })} disabled={!puedeEscribir} rows={2} maxLength={1000} placeholder="Ej. Am | Am | Dm | Em" className="mt-1 w-full p-2.5 text-sm font-normal normal-case tracking-normal" style={{ ...inputStyle, fontFamily: "inherit" }} />
               </label>
-              <details className="mt-2">
-                <summary className="cursor-pointer text-[11px] font-bold" style={{ color: MUTED }}>
-                  Instrumentos (opcional) · {secSel.instrumentos.length}
-                </summary>
-                {BANDAS_FRECUENCIA.map((b) => (
-                  <div key={b.nombre} className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <span className="w-12 text-[10px]" style={{ fontFamily: MONO, color: MUTED }}>{b.nombre}</span>
-                    {b.instrumentos.map((ins) => {
-                      const on = secSel.instrumentos.includes(ins);
-                      return (
-                        <button key={ins} type="button" disabled={!puedeEscribir} onClick={() => cambiarSeccion(seleccionada.p, seleccionada.s, { instrumentos: on ? secSel.instrumentos.filter((x) => x !== ins) : [...secSel.instrumentos, ins] })} className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: on ? INK : "oklch(0.93 0.010 85)", color: on ? "oklch(0.99 0.006 85)" : MUTED }}>
-                          {ins}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
-              </details>
-              {puedeEscribir && (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  <button type="button" onClick={() => moverSeccion(seleccionada.p, seleccionada.s, -1)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>← Antes</button>
-                  <button type="button" onClick={() => moverSeccion(seleccionada.p, seleccionada.s, 1)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>Después →</button>
-                  <button type="button" onClick={() => insertarSeccion(seleccionada.p, seleccionada.s)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>+ Sección después</button>
-                  <button type="button" onClick={() => duplicarSeccion(seleccionada.p, seleccionada.s)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>Duplicar</button>
-                  <button type="button" onClick={() => eliminarSeccion(seleccionada.p, seleccionada.s)} disabled={pzSel.secciones.length <= 1} className="px-2.5 py-1 text-xs font-bold" style={{ ...miniBoton, color: "oklch(0.5 0.18 25)" }}>Eliminar</button>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <Control campo="nivel" nombre={`${INDICADOR_EMOCION.nombre} (la curva)`} ayuda={INDICADOR_EMOCION.ayuda} valor={nivelEfectivo(secSel.nivel, pzSel.ajuste)} onCambio={(v) => cambiarSeccion(seleccionada.p, seleccionada.s, { nivel: clamp(v - pzSel.ajuste, 0, 100) })} deshabilitado={!puedeEscribir} color={ACCENT} />
-              {(["Frecuencias", "Carácter"] as const).map((grupo) => (
-                <div key={grupo} className="mt-3">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ fontFamily: MONO, color: grupo === "Frecuencias" ? ACCENT : AZUL }}>{grupo}</div>
-                  <div className="mt-1 grid gap-x-4 gap-y-2 sm:grid-cols-2">
-                    {INDICADORES.filter((i) => i.grupo === grupo).map((ind) => (
-                      <Control key={ind.campo} campo={ind.campo} nombre={ind.nombre} ayuda={ind.ayuda} valor={secSel[ind.campo]} onCambio={(v) => cambiarSeccion(seleccionada.p, seleccionada.s, { [ind.campo]: v } as Partial<Seccion>)} deshabilitado={!puedeEscribir} color={grupo === "Frecuencias" ? ACCENT : AZUL} />
-                    ))}
-                  </div>
-                </div>
-              ))}
+              </div>
             </div>
           </div>
         ) : (
           <p className="p-4 text-sm" style={{ color: MUTED, borderTop: `1px solid ${LINE}` }}>
-            Toca una sección de la gráfica para ver y mover sus valores.
+            Toca una sección de la gráfica o de la tira para mover sus medidores.
           </p>
         )}
       </div>
       <p className="mt-1.5 text-[11px]" style={{ color: MUTED }}>
-        La línea es la emoción: arrastra sus puntos (o usa las flechas del teclado). Cada fila de abajo es un valor que tú mueves; arrastra dentro de la celda o afínalo en la mesa. Cuando estés listo, dile a Cosmo «arma [canción]»: lee estos valores y propone estructura, tempo, tono y MIDI.
+        En la vista del EP completo fijas el techo de cada indicador; en la de una canción mueves los medidores de cada sección. Las gráficas se dibujan solas. Cuando estés listo, dile a Cosmo «arma [canción]»: lee estos valores, los compases y la intención, y propone estructura, tempo, tono y los MIDI de cada escena.
       </p>
 
       {/* Canciones */}
@@ -522,47 +679,48 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
         )}
       </div>
       <div className="mt-2 grid gap-2.5 md:grid-cols-2">
-        {proy.piezas.map((pz, p) => (
-          <div key={pz.id} className="rounded-2xl p-3.5" style={{ background: CARD, border: `1px solid ${LINE}` }}>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold" style={{ fontFamily: MONO, color: MUTED }}>{p + 1}</span>
-              <input
-                value={pz.titulo}
-                onChange={(e) => cambiarPieza(p, { titulo: e.target.value })}
-                disabled={!puedeEscribir}
-                maxLength={120}
-                aria-label="Nombre de la canción"
-                placeholder="Nombre de la canción"
-                className="min-w-0 flex-1 px-2.5 py-1 text-[17px] font-bold"
-                style={{ ...inputStyle, fontFamily: "var(--font-fraunces), sans-serif", borderStyle: puedeEscribir ? "dashed" : "solid" }}
-              />
-              {puedeEscribir && (
-                <span className="flex shrink-0 gap-1">
-                  <button type="button" onClick={() => moverPieza(p, -1)} disabled={p === 0} aria-label="Subir canción" className="px-2 py-1 text-xs" style={miniBoton}>↑</button>
-                  <button type="button" onClick={() => moverPieza(p, 1)} disabled={p === proy.piezas.length - 1} aria-label="Bajar canción" className="px-2 py-1 text-xs" style={miniBoton}>↓</button>
-                  <button type="button" onClick={() => eliminarPieza(p)} aria-label="Eliminar canción" className="px-2 py-1 text-xs" style={{ ...miniBoton, color: "oklch(0.5 0.18 25)" }}>✕</button>
+        {proy.piezas.map((pz, p) => {
+          const comp = totalCompases(pz);
+          const dur = duracionSeg(comp, pz.bpm);
+          return (
+            <div key={pz.id} className="rounded-2xl p-3.5" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold" style={{ fontFamily: MONO, color: MUTED }}>{p + 1}</span>
+                <input
+                  value={pz.titulo}
+                  onChange={(e) => cambiarPieza(p, { titulo: e.target.value })}
+                  disabled={!puedeEscribir}
+                  maxLength={120}
+                  aria-label="Nombre de la canción"
+                  placeholder="Nombre de la canción"
+                  className="min-w-0 flex-1 px-2.5 py-1 text-[17px] font-bold"
+                  style={{ ...inputStyle, fontFamily: "var(--font-fraunces), sans-serif", borderStyle: puedeEscribir ? "dashed" : "solid" }}
+                />
+                {puedeEscribir && (
+                  <span className="flex shrink-0 gap-1">
+                    <button type="button" onClick={() => moverPieza(p, -1)} disabled={p === 0} aria-label="Subir canción" className="px-2 py-1 text-xs" style={miniBoton}>↑</button>
+                    <button type="button" onClick={() => moverPieza(p, 1)} disabled={p === proy.piezas.length - 1} aria-label="Bajar canción" className="px-2 py-1 text-xs" style={miniBoton}>↓</button>
+                    <button type="button" onClick={() => eliminarPieza(p)} aria-label="Eliminar canción" className="px-2 py-1 text-xs" style={{ ...miniBoton, color: "oklch(0.5 0.18 25)" }}>✕</button>
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
+                <label className="flex items-center gap-1.5">
+                  Tono
+                  <input value={pz.tonalidad} onChange={(e) => cambiarPieza(p, { tonalidad: e.target.value })} disabled={!puedeEscribir} maxLength={40} placeholder="lo propone Cosmo" className="w-28 px-2 py-1" style={inputStyle} />
+                </label>
+                <label className="flex items-center gap-1.5">
+                  BPM
+                  <input type="number" min={20} max={300} value={pz.bpm ?? ""} onChange={(e) => cambiarPieza(p, { bpm: e.target.value === "" ? null : Number(e.target.value) })} disabled={!puedeEscribir} placeholder="—" className="w-16 px-2 py-1" style={inputStyle} />
+                </label>
+                <span>
+                  {comp} compases · {pz.secciones.length} secciones{dur !== null ? ` · ≈ ${formatoMSS(dur)}` : ""}
                 </span>
-              )}
+              </div>
+              <textarea value={pz.idea} onChange={(e) => cambiarPieza(p, { idea: e.target.value })} disabled={!puedeEscribir} rows={2} maxLength={1000} placeholder="Qué cuenta esta canción en el viaje." className="mt-2 w-full p-2.5 text-sm" style={inputStyle} />
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
-              <label className="flex items-center gap-1.5">
-                Altura de toda la canción
-                <input type="range" min={-50} max={50} value={pz.ajuste} onChange={(e) => cambiarPieza(p, { ajuste: Number(e.target.value) })} disabled={!puedeEscribir} aria-label="Altura de toda la canción" style={rango} />
-                <b style={{ color: INK, minWidth: 28, textAlign: "right" }}>{pz.ajuste > 0 ? "+" : ""}{pz.ajuste}</b>
-              </label>
-              <label className="flex items-center gap-1.5">
-                Tono
-                <input value={pz.tonalidad} onChange={(e) => cambiarPieza(p, { tonalidad: e.target.value })} disabled={!puedeEscribir} maxLength={40} placeholder="vacío = lo propone Cosmo" className="w-24 px-2 py-1" style={inputStyle} />
-              </label>
-              <label className="flex items-center gap-1.5">
-                BPM
-                <input type="number" min={20} max={300} value={pz.bpm ?? ""} onChange={(e) => cambiarPieza(p, { bpm: e.target.value === "" ? null : Number(e.target.value) })} disabled={!puedeEscribir} placeholder="—" className="w-16 px-2 py-1" style={inputStyle} />
-              </label>
-              <span>{totalCompases(pz)} compases · {pz.secciones.length} secciones</span>
-            </div>
-            <textarea value={pz.idea} onChange={(e) => cambiarPieza(p, { idea: e.target.value })} disabled={!puedeEscribir} rows={2} maxLength={1000} placeholder="Qué cuenta esta canción en el viaje." className="mt-2 w-full p-2.5 text-sm" style={inputStyle} />
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import "server-only";
 import { supabaseMalgesto } from "@/lib/supabase/malgesto";
-import { normalizarProyecto, type Etapa, type Proyecto } from "@/lib/epModelo";
+import { CAMPOS, TECHOS_INICIALES, normalizarProyecto, type Proyecto, type Techos } from "@/lib/epModelo";
 
 // Mapa del EP (planeación de un proyecto musical). Vive aparte de canciones: ver supabase/migrations/20261120130000.
 
@@ -10,17 +10,13 @@ type FilaSeccion = {
   orden: number;
   nombre: string;
   compases: number;
-  nivel: number;
-  sub: number;
-  graves: number;
-  medios: number;
-  altos: number;
+  energia: number;
+  animo: number;
   tension: number;
-  espacio: number;
-  densidad: number;
-  ritmo: number;
-  etapa: Etapa;
-  instrumentos: string[];
+  altos: number;
+  medios: number;
+  graves: number;
+  sub: number;
   armonia: string;
   transmite: string;
 };
@@ -34,7 +30,7 @@ export async function listarProyectos(bandaId: string): Promise<{ id: string; no
 
 export async function obtenerProyecto(bandaId: string, proyectoId?: string): Promise<Proyecto | null> {
   const db = supabaseMalgesto();
-  let q = db.from("proyectos_musicales").select("id, banda_id, nombre, tipo, historia").eq("banda_id", bandaId);
+  let q = db.from("proyectos_musicales").select("id, banda_id, nombre, tipo, historia, techos, updated_at").eq("banda_id", bandaId);
   q = proyectoId ? q.eq("id", proyectoId) : q.order("created_at").limit(1);
   const { data: proys, error } = await q;
   if (error) throw new Error(error.message);
@@ -43,7 +39,7 @@ export async function obtenerProyecto(bandaId: string, proyectoId?: string): Pro
 
   const { data: piezas, error: e2 } = await db
     .from("proyecto_piezas")
-    .select("id, orden, titulo, ajuste, tonalidad, bpm, idea")
+    .select("id, orden, titulo, tonalidad, bpm, idea")
     .eq("proyecto_id", proy.id)
     .order("orden");
   if (e2) throw new Error(e2.message);
@@ -53,7 +49,7 @@ export async function obtenerProyecto(bandaId: string, proyectoId?: string): Pro
   if (ids.length > 0) {
     const { data, error: e3 } = await db
       .from("proyecto_secciones")
-      .select("id, pieza_id, orden, nombre, compases, nivel, sub, graves, medios, altos, tension, espacio, densidad, ritmo, etapa, instrumentos, armonia, transmite")
+      .select("id, pieza_id, orden, nombre, compases, energia, animo, tension, altos, medios, graves, sub, armonia, transmite")
       .in("pieza_id", ids)
       .order("orden");
     if (e3) throw new Error(e3.message);
@@ -66,10 +62,11 @@ export async function obtenerProyecto(bandaId: string, proyectoId?: string): Pro
     nombre: proy.nombre,
     tipo: proy.tipo === "album" ? "album" : "ep",
     historia: proy.historia,
+    techos: Object.fromEntries(CAMPOS.map((c) => [c, typeof proy.techos?.[c] === "number" ? Math.min(100, Math.max(0, Math.round(proy.techos[c]))) : TECHOS_INICIALES[c]])) as Techos,
+    version: String(proy.updated_at),
     piezas: (piezas ?? []).map((p) => ({
       id: p.id,
       titulo: p.titulo,
-      ajuste: p.ajuste,
       tonalidad: p.tonalidad,
       bpm: p.bpm,
       idea: p.idea,
@@ -79,17 +76,13 @@ export async function obtenerProyecto(bandaId: string, proyectoId?: string): Pro
           id: s.id,
           nombre: s.nombre,
           compases: s.compases,
-          nivel: s.nivel,
-          sub: s.sub,
-          graves: s.graves,
-          medios: s.medios,
-          altos: s.altos,
+          energia: s.energia,
+          animo: s.animo,
           tension: s.tension,
-          espacio: s.espacio,
-          densidad: s.densidad,
-          ritmo: s.ritmo,
-          etapa: s.etapa,
-          instrumentos: s.instrumentos ?? [],
+          altos: s.altos,
+          medios: s.medios,
+          graves: s.graves,
+          sub: s.sub,
           armonia: s.armonia,
           transmite: s.transmite,
         })),
@@ -109,12 +102,14 @@ export async function crearProyecto(bandaId: string, nombre: string, tipo: "ep" 
 }
 
 // Guarda el proyecto completo tal como lo manda el cliente: actualiza lo que existe, agrega lo nuevo y borra lo que ya no está.
-export async function guardarProyecto(bandaId: string, proyectoId: string, entrada: unknown): Promise<void> {
+export async function guardarProyecto(bandaId: string, proyectoId: string, entrada: unknown, version: unknown): Promise<string> {
   const db = supabaseMalgesto();
   const p = normalizarProyecto(entrada);
 
-  const { data: dueno } = await db.from("proyectos_musicales").select("id").eq("id", proyectoId).eq("banda_id", bandaId).maybeSingle();
+  const { data: dueno } = await db.from("proyectos_musicales").select("id, updated_at").eq("id", proyectoId).eq("banda_id", bandaId).maybeSingle();
   if (!dueno) throw new Error("Proyecto no encontrado.");
+  // Una pantalla vieja (sin marca de versión o con otra) no puede pisar lo guardado después.
+  if (typeof version !== "string" || version !== String(dueno.updated_at)) throw new Error("DESACTUALIZADO");
 
   // Ningún id recibido puede pertenecer a otro proyecto (el cliente genera los ids, no se confía en ellos).
   const idsPiezas = p.piezas.map((x) => x.id);
@@ -131,15 +126,17 @@ export async function guardarProyecto(bandaId: string, proyectoId: string, entra
     if ((filas ?? []).some((f) => !propias.has(f.pieza_id))) throw new Error("Identificador inválido.");
   }
 
-  const { error: e1 } = await db
+  const { data: nuevo, error: e1 } = await db
     .from("proyectos_musicales")
-    .update({ nombre: p.nombre, tipo: p.tipo, historia: p.historia, updated_at: new Date().toISOString() })
-    .eq("id", proyectoId);
+    .update({ nombre: p.nombre, tipo: p.tipo, historia: p.historia, techos: p.techos, updated_at: new Date().toISOString() })
+    .eq("id", proyectoId)
+    .select("updated_at")
+    .single();
   if (e1) throw new Error(e1.message);
 
   if (p.piezas.length > 0) {
     const { error: e2 } = await db.from("proyecto_piezas").upsert(
-      p.piezas.map((x, i) => ({ id: x.id, proyecto_id: proyectoId, orden: i, titulo: x.titulo, ajuste: x.ajuste, tonalidad: x.tonalidad, bpm: x.bpm, idea: x.idea })),
+      p.piezas.map((x, i) => ({ id: x.id, proyecto_id: proyectoId, orden: i, titulo: x.titulo, tonalidad: x.tonalidad, bpm: x.bpm, idea: x.idea })),
     );
     if (e2) throw new Error(e2.message);
   }
@@ -161,17 +158,13 @@ export async function guardarProyecto(bandaId: string, proyectoId: string, entra
           orden: i,
           nombre: s.nombre,
           compases: s.compases,
-          nivel: s.nivel,
-          sub: s.sub,
-          graves: s.graves,
-          medios: s.medios,
-          altos: s.altos,
+          energia: s.energia,
+          animo: s.animo,
           tension: s.tension,
-          espacio: s.espacio,
-          densidad: s.densidad,
-          ritmo: s.ritmo,
-          etapa: s.etapa,
-          instrumentos: s.instrumentos,
+          altos: s.altos,
+          medios: s.medios,
+          graves: s.graves,
+          sub: s.sub,
           armonia: s.armonia,
           transmite: s.transmite,
         })),
@@ -189,6 +182,8 @@ export async function guardarProyecto(bandaId: string, proyectoId: string, entra
       if (error) throw new Error(error.message);
     }
   }
+
+  return String(nuevo.updated_at);
 }
 
 export async function eliminarProyecto(bandaId: string, proyectoId: string): Promise<void> {
