@@ -23,12 +23,38 @@ export const BANDAS_FRECUENCIA: { nombre: string; instrumentos: string[] }[] = [
 ];
 export const INSTRUMENTOS: string[] = BANDAS_FRECUENCIA.flatMap((b) => b.instrumentos);
 
+// Las frecuencias van de arriba (altos) a abajo (sub), como se ven y se sienten.
+// Valores que Jorge mueve (0-100) en cada sección. La emoción (`nivel`) es la curva principal;
+// los demás se dibujan como filas debajo de la curva. Cosmo los lee para armar tempo, tono, estructura y MIDI.
+export type CampoValor = "nivel" | "sub" | "graves" | "medios" | "altos" | "tension" | "espacio" | "densidad" | "ritmo";
+
+export const INDICADOR_EMOCION = { campo: "nivel" as CampoValor, nombre: "Emoción", ayuda: "Qué tan intensa se siente la sección: 0 calma total, 100 éxtasis." };
+
+export const INDICADORES: { campo: CampoValor; nombre: string; ayuda: string; grupo: "Frecuencias" | "Carácter" }[] = [
+  { campo: "altos", nombre: "Altos", ayuda: "Altos (arriba de 2 kHz): hi-hats, flauta, metales brillantes, aire.", grupo: "Frecuencias" },
+  { campo: "medios", nombre: "Medios", ayuda: "Medios (250 Hz-2 kHz): skank, órgano, caja, la armonía.", grupo: "Frecuencias" },
+  { campo: "graves", nombre: "Graves", ayuda: "Graves (60-250 Hz): el bajo y el bombo, el cuerpo de la canción.", grupo: "Frecuencias" },
+  { campo: "sub", nombre: "Sub", ayuda: "Frecuencias más graves (30-60 Hz): lo que se siente en el pecho (tuba, sub).", grupo: "Frecuencias" },
+  { campo: "tension", nombre: "Tensión", ayuda: "0 resuelto y estable, 100 sin resolver: algo está por pasar.", grupo: "Carácter" },
+  { campo: "espacio", nombre: "Espacio", ayuda: "0 seco y cercano, 100 mucho eco y aire (el dub).", grupo: "Carácter" },
+  { campo: "densidad", nombre: "Densidad", ayuda: "0 casi no suena nada, 100 suena todo a la vez.", grupo: "Carácter" },
+  { campo: "ritmo", nombre: "Ritmo", ayuda: "0 pulso mínimo y quieto, 100 muy movido y bailable.", grupo: "Carácter" },
+];
+
 export type Seccion = {
   id: string;
+  // Forma musical (Intro, Verso, Dub, Coro, Puente...). Lo que se siente va en `transmite` (la intención).
   nombre: string;
   compases: number;
   nivel: number;
+  sub: number;
   graves: number;
+  medios: number;
+  altos: number;
+  tension: number;
+  espacio: number;
+  densidad: number;
+  ritmo: number;
   etapa: Etapa;
   instrumentos: string[];
   armonia: string;
@@ -118,7 +144,7 @@ export function curvaSuave(puntos: Punto[]): string {
 }
 
 export function nuevaSeccion(nombre = "Nueva sección"): Seccion {
-  return { id: crypto.randomUUID(), nombre, compases: 8, nivel: 50, graves: 50, etapa: "descubrimiento", instrumentos: [], armonia: "", transmite: "" };
+  return { id: crypto.randomUUID(), nombre, compases: 8, nivel: 50, sub: 50, graves: 50, medios: 50, altos: 50, tension: 50, espacio: 50, densidad: 50, ritmo: 50, etapa: "descubrimiento", instrumentos: [], armonia: "", transmite: "" };
 }
 
 export function nuevaPieza(titulo = "Nueva canción"): Pieza {
@@ -165,7 +191,14 @@ export function normalizarProyecto(entrada: unknown): Omit<Proyecto, "id" | "ban
           nombre: txt(s.nombre, 120).trim() || "Sección",
           compases: ent(s.compases, 1, 512, 8),
           nivel: ent(s.nivel, 0, 100, 50),
+          sub: ent(s.sub, 0, 100, 50),
           graves: ent(s.graves, 0, 100, 50),
+          medios: ent(s.medios, 0, 100, 50),
+          altos: ent(s.altos, 0, 100, 50),
+          tension: ent(s.tension, 0, 100, 50),
+          espacio: ent(s.espacio, 0, 100, 50),
+          densidad: ent(s.densidad, 0, 100, 50),
+          ritmo: ent(s.ritmo, 0, 100, 50),
           etapa: (ETAPAS_VALIDAS.has(String(s.etapa)) ? s.etapa : "descubrimiento") as Etapa,
           instrumentos: instr,
           armonia: txt(s.armonia, 1000),
