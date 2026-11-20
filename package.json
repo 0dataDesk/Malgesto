@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check": "tsx scripts/check-acordes.ts",
+    "check": "tsx scripts/check-acordes.ts && tsx scripts/check-ep.ts",
     "prebuild": "npm run check"
   },
   "dependencies": {

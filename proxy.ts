@@ -14,6 +14,7 @@ export const config = {
   matcher: [
     "/inicio", "/inicio/:path*",
     "/canciones", "/canciones/:path*",
+    "/ep", "/ep/:path*",
     "/set-list", "/set-list/:path*",
     "/seteos", "/seteos/:path*",
     "/gestion", "/gestion/:path*",
