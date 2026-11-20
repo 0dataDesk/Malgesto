@@ -8,6 +8,9 @@
 //   Peso (cuerpo)       = 30 % Sub + 30 % Graves + 25 % Medios + 15 % Altos (lo grave pesa más).
 // Respaldo: modelo de activación y valencia (Russell, Thayer) para el núcleo; práctica de mezcla para el cuerpo.
 // Los porcentajes son decisión de diseño y se pueden ajustar aquí.
+// Dos niveles: cada CANCIÓN fija el nivel de cada indicador (su 100 %, p. ej. Energía 10 = «calma»; vista del EP completo) y cada
+// ESCENA guarda cuánto de ese nivel usa (0-100 %). El valor que se oye y se dibuja es el efectivo: nivel de la canción × escena / 100.
+// Así el detalle de la canción es un zoom del nivel que se fijó arriba, y mover el nivel de la canción conserva exacta la forma.
 // El tamaño de cada sección son sus compases: el ancho en la gráfica es proporcional y la duración sale del BPM (4/4).
 
 export type CampoNucleo = "energia" | "animo" | "tension";
@@ -57,9 +60,14 @@ export type Seccion = {
   transmite: string;
 };
 
+export type Niveles = Record<CampoValor, number>;
+export const NIVELES_INICIALES: Niveles = { energia: 100, animo: 100, tension: 100, altos: 100, medios: 100, graves: 100, sub: 100 };
+
 export type Pieza = {
   id: string;
   titulo: string;
+  // Nivel de cada indicador para toda la canción (el 100 % de sus escenas).
+  niveles: Niveles;
   tonalidad: string;
   bpm: number | null;
   idea: string;
@@ -79,52 +87,27 @@ export type Proyecto = {
 
 export const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
-export const intensidad = (s: Pick<Seccion, "energia" | "tension">) => clamp(Math.round(PESO_INTENSIDAD.energia * s.energia + PESO_INTENSIDAD.tension * s.tension), 0, 100);
+// Valor efectivo de una escena: su porcentaje (0-100) del nivel que se fijó para la canción.
+export const conNivel = (porcentaje: number, nivel: number) => Math.round((porcentaje * nivel) / 100);
 
-export const contribuciones = (s: Pick<Seccion, CampoCuerpo>): Record<CampoCuerpo, number> => ({
-  altos: PESO_CUERPO.altos * s.altos,
-  medios: PESO_CUERPO.medios * s.medios,
-  graves: PESO_CUERPO.graves * s.graves,
-  sub: PESO_CUERPO.sub * s.sub,
+export const intensidad = (s: Pick<Seccion, "energia" | "tension">, n: Niveles = NIVELES_INICIALES) =>
+  clamp(Math.round((PESO_INTENSIDAD.energia * s.energia * n.energia) / 100 + (PESO_INTENSIDAD.tension * s.tension * n.tension) / 100), 0, 100);
+
+export const contribuciones = (s: Pick<Seccion, CampoCuerpo>, n: Niveles = NIVELES_INICIALES): Record<CampoCuerpo, number> => ({
+  altos: (PESO_CUERPO.altos * s.altos * n.altos) / 100,
+  medios: (PESO_CUERPO.medios * s.medios * n.medios) / 100,
+  graves: (PESO_CUERPO.graves * s.graves * n.graves) / 100,
+  sub: (PESO_CUERPO.sub * s.sub * n.sub) / 100,
 });
 
-export const peso = (s: Pick<Seccion, CampoCuerpo>) => {
-  const c = contribuciones(s);
+export const peso = (s: Pick<Seccion, CampoCuerpo>, n: Niveles = NIVELES_INICIALES) => {
+  const c = contribuciones(s, n);
   return clamp(Math.round(c.altos + c.medios + c.graves + c.sub), 0, 100);
 };
 
-// Promedio general de una canción: lo que se espera de ella en cada indicador. Sale de sus secciones (ponderado por compases)
-// y se puede mover desde la vista del EP completo: todas sus secciones suben o bajan juntas y conservan su forma.
-export const promedioDe = (pieza: Pieza, campo: CampoValor): number => {
-  const total = pieza.secciones.reduce((a, s) => a + Math.max(1, s.compases), 0);
-  if (total === 0) return 0;
-  return Math.round(pieza.secciones.reduce((a, s) => a + s[campo] * Math.max(1, s.compases), 0) / total);
-};
-
-// Mueve el promedio de una canción en un indicador hasta `objetivo` sin salirse de 0-100 y sin aplanar la forma:
-// subir acerca cada sección a 100 en la misma proporción; bajar la acerca a 0.
-export function moverPromedio(pieza: Pieza, campo: CampoValor, objetivo: number): Pieza {
-  const meta = clamp(Math.round(objetivo), 0, 100);
-  const actual = promedioDe(pieza, campo);
-  if (meta === actual) return pieza;
-  const f = meta > actual ? (meta - actual) / (100 - actual) : (actual - meta) / actual;
-  const secciones = pieza.secciones.map((s) => {
-    const v = s[campo];
-    const nuevo = meta > actual ? v + (100 - v) * f : v - v * f;
-    return { ...s, [campo]: clamp(Math.round(nuevo), 0, 100) };
-  });
-  return { ...pieza, secciones };
-}
-
-// Promedio (ponderado por compases) de las dos líneas calculadas de una canción.
-export const promedioIntensidad = (pieza: Pieza) => {
-  const total = pieza.secciones.reduce((a, s) => a + Math.max(1, s.compases), 0);
-  return total === 0 ? 0 : Math.round(pieza.secciones.reduce((a, s) => a + intensidad(s) * Math.max(1, s.compases), 0) / total);
-};
-export const promedioPeso = (pieza: Pieza) => {
-  const total = pieza.secciones.reduce((a, s) => a + Math.max(1, s.compases), 0);
-  return total === 0 ? 0 : Math.round(pieza.secciones.reduce((a, s) => a + peso(s) * Math.max(1, s.compases), 0) / total);
-};
+// Lo más alto que pueden llegar las dos líneas de una canción con los niveles que se le fijaron (todas sus escenas al 100 %).
+export const techoIntensidad = (n: Niveles) => clamp(Math.round(PESO_INTENSIDAD.energia * n.energia + PESO_INTENSIDAD.tension * n.tension), 0, 100);
+export const techoPeso = (n: Niveles) => clamp(Math.round(PESO_CUERPO.altos * n.altos + PESO_CUERPO.medios * n.medios + PESO_CUERPO.graves * n.graves + PESO_CUERPO.sub * n.sub), 0, 100);
 
 // Duración en segundos de N compases en 4/4 a un BPM (null si no hay BPM).
 export const duracionSeg = (compases: number, bpm: number | null) => (bpm && bpm > 0 ? Math.round((compases * 4 * 60) / bpm) : null);
@@ -186,7 +169,8 @@ export function tramosDe(piezas: Pieza[], soloPieza: number | null = null): Tram
     const x0 = acc / total;
     acc += compases;
     const x1 = acc / total;
-    return { pieza: p, seccion: s, x0, x1, xc: (x0 + x1) / 2, intensidad: intensidad(sc), peso: peso(sc), animo: sc.animo, tension: sc.tension, contrib: contribuciones(sc) };
+    const n = piezas[p].niveles;
+    return { pieza: p, seccion: s, x0, x1, xc: (x0 + x1) / 2, intensidad: intensidad(sc, n), peso: peso(sc, n), animo: conNivel(sc.animo, n.animo), tension: conNivel(sc.tension, n.tension), contrib: contribuciones(sc, n) };
   });
 }
 
@@ -221,7 +205,7 @@ export function nuevaSeccion(nombre = "Nueva escena", parte = "Verso"): Seccion 
 }
 
 export function nuevaPieza(titulo = "Nueva canción"): Pieza {
-  return { id: crypto.randomUUID(), titulo, tonalidad: "", bpm: null, idea: "", secciones: [nuevaSeccion("Primera escena", "Intro")] };
+  return { id: crypto.randomUUID(), titulo, niveles: { ...NIVELES_INICIALES }, tonalidad: "", bpm: null, idea: "", secciones: [nuevaSeccion("Primera escena", "Intro")] };
 }
 
 export function totalCompases(p: Pieza): number {
@@ -251,6 +235,7 @@ export function normalizarProyecto(entrada: unknown): Omit<Proyecto, "id" | "ban
     return {
       id: unico(p.id),
       titulo: txt(p.titulo, 120).trim() || "Sin título",
+      niveles: Object.fromEntries(CAMPOS.map((c) => [c, ent(((p.niveles ?? {}) as Record<string, unknown>)[c], 0, 100, 100)])) as Niveles,
       tonalidad: txt(p.tonalidad, 40),
       bpm: p.bpm === null || p.bpm === undefined ? null : ent(p.bpm, 20, 300, 70),
       idea: txt(p.idea, 1000),

@@ -1,5 +1,5 @@
 // Revisa la geometría, los cálculos y la validación del Mapa del EP. Corre con npm run check (antes de cada build).
-import { CAMPOS, CUERPO, NUCLEO, PESO_CUERPO, PESO_INTENSIDAD, moverPromedio, promedioDe, promedioIntensidad, promedioPeso, capaEntre, clamp, colorAnimo, curvaSuave, duracionSeg, formatoMSS, intensidad, nuevaPieza, normalizarProyecto, palabraDe, peso, tramosDe, type Pieza, type Seccion } from "../lib/epModelo";
+import { CAMPOS, CUERPO, NIVELES_INICIALES, NUCLEO, PESO_CUERPO, PESO_INTENSIDAD, conNivel, techoIntensidad, techoPeso, capaEntre, clamp, colorAnimo, curvaSuave, duracionSeg, formatoMSS, intensidad, nuevaPieza, normalizarProyecto, palabraDe, peso, tramosDe, type Pieza, type Seccion } from "../lib/epModelo";
 
 const errores: string[] = [];
 const falla = (m: string) => errores.push(m);
@@ -20,25 +20,22 @@ if (peso(sec({ sub: 100, graves: 100, medios: 100, altos: 100 })) !== 100 || pes
 if (peso(sec({ sub: 100, graves: 100, medios: 0, altos: 0 })) !== 60) falla("sub y graves deben pesar 60 en total");
 if (peso(sec({ sub: 0, graves: 0, medios: 0, altos: 100 })) !== 15) falla("los altos deben pesar 15");
 
-// Promedio por canción: ponderado por compases; moverlo lleva el promedio al objetivo sin salirse de 0-100 y conservando el orden de las secciones.
-const cancion: Pieza = { ...nuevaPieza("C"), secciones: [sec({ compases: 8, energia: 10 }), sec({ compases: 16, energia: 40 }), sec({ compases: 8, energia: 90 })] };
-if (promedioDe(cancion, "energia") !== 45) falla("promedioDe debe ponderar por compases: (10×8 + 40×16 + 90×8) / 32 = 45");
-for (const campo of CAMPOS) {
-  for (const objetivo of [0, 10, 25, 45, 60, 80, 100]) {
-    const n = moverPromedio(cancion, campo, objetivo);
-    const prom = promedioDe(n, campo);
-    if (Math.abs(prom - objetivo) > 2) falla(`moverPromedio(${campo}, ${objetivo}) dejó el promedio en ${prom}`);
-    if (n.secciones.some((x) => x[campo] < 0 || x[campo] > 100)) falla(`moverPromedio(${campo}, ${objetivo}) se salió de 0-100`);
-  }
-}
-const sube = moverPromedio(cancion, "energia", 80).secciones.map((x) => x.energia);
-const baja = moverPromedio(cancion, "energia", 20).secciones.map((x) => x.energia);
-if (!(sube[0] < sube[1] && sube[1] < sube[2]) || !(baja[0] < baja[1] && baja[1] < baja[2])) falla("moverPromedio debe conservar el orden de las secciones (su forma)");
-if (sube.some((v, i) => v < cancion.secciones[i].energia) || baja.some((v, i) => v > cancion.secciones[i].energia)) falla("subir el promedio no debe bajar secciones, ni bajarlo subirlas");
-if (moverPromedio(cancion, "energia", 45) !== cancion) falla("sin cambio de promedio no debe tocar la canción");
-if (moverPromedio(cancion, "sub", 80).secciones.some((x, i) => x.energia !== cancion.secciones[i].energia)) falla("moverPromedio solo debe tocar el indicador pedido");
-if (promedioIntensidad(cancion) !== Math.round((intensidad(cancion.secciones[0]) * 8 + intensidad(cancion.secciones[1]) * 16 + intensidad(cancion.secciones[2]) * 8) / 32)) falla("promedioIntensidad debe ponderar por compases");
-if (promedioPeso({ ...cancion, secciones: [sec({ sub: 100, graves: 100, medios: 100, altos: 100 })] }) !== 100) falla("promedioPeso de todo al máximo debe ser 100");
+// Niveles por canción: el 100 % de las escenas. El valor efectivo es nivel × porcentaje / 100 (un zoom del nivel fijado).
+const n10: typeof NIVELES_INICIALES = { ...NIVELES_INICIALES, energia: 10, tension: 78 };
+if (conNivel(100, 10) !== 10 || conNivel(50, 10) !== 5 || conNivel(80, 100) !== 80 || conNivel(0, 78) !== 0) falla("conNivel debe dar el porcentaje del nivel");
+if (intensidad(sec({ energia: 100, tension: 100 }), n10) !== techoIntensidad(n10) || techoIntensidad(n10) !== 34) falla("el techo de la intensidad con energía 10 y tensión 78 debe ser 0.65×10 + 0.35×78 = 34");
+if (peso(sec({ sub: 100, graves: 100, medios: 100, altos: 100 }), { ...NIVELES_INICIALES, sub: 50, altos: 20 }) !== techoPeso({ ...NIVELES_INICIALES, sub: 50, altos: 20 }) || techoPeso({ ...NIVELES_INICIALES, sub: 50, altos: 20 }) !== 73) falla("el techo del peso debe ser 15×0.2 + 25 + 30 + 30×0.5 = 73");
+if (techoIntensidad(NIVELES_INICIALES) !== 100 || techoPeso(NIVELES_INICIALES) !== 100) falla("sin niveles fijados (100) el techo es 100");
+// Ninguna escena pasa del techo de su canción, y mover el nivel de la canción conserva exacta la forma de sus escenas.
+const forma = [10, 40, 90, 60];
+const sube = forma.map((v) => conNivel(v, 80));
+const baja = forma.map((v) => conNivel(v, 20));
+if (sube.some((v, i) => v > 80 || (i > 0 && (v > sube[i - 1]) !== (forma[i] > forma[i - 1])))) falla("con nivel 80 ninguna escena pasa de 80 y se conserva el orden");
+if (!(baja[0] <= baja[1] && baja[1] <= baja[2] && baja[2] >= baja[3])) falla("con nivel 20 se conserva la forma de las escenas");
+const cancion: Pieza = { ...nuevaPieza("C"), niveles: { ...NIVELES_INICIALES, energia: 10 }, secciones: [sec({ compases: 8, energia: 30 }), sec({ compases: 8, energia: 100 })] };
+const tn = tramosDe([cancion]);
+if (tn[1].intensidad !== intensidad(cancion.secciones[1], cancion.niveles) || tn[1].intensidad > techoIntensidad(cancion.niveles)) falla("tramosDe debe usar los niveles de cada canción y no pasar su techo");
+if (tramosDe([{ ...cancion, secciones: [sec({ animo: 100 })], niveles: { ...NIVELES_INICIALES, animo: 60 } }])[0].animo !== 60) falla("tramosDe debe dar el ánimo efectivo con el nivel de la canción");
 
 // Escalas: cada medidor dice qué es 0, qué es 100 y tiene cinco palabras distintas en el camino.
 [...NUCLEO, ...CUERPO].forEach((m) => {
@@ -83,6 +80,8 @@ const ok = normalizarProyecto({
 });
 const s0 = ok.piezas[0].secciones[0];
 if (ok.nombre !== "X" || ok.tipo !== "album") falla("normalizarProyecto: nombre/tipo");
+if (Object.values(ok.piezas[0].niveles).some((v) => v !== 100)) falla("normalizarProyecto debe dar nivel 100 a lo que falta");
+if (normalizarProyecto({ nombre: "x", piezas: [{ id: crypto.randomUUID(), niveles: { sub: 40, energia: 500, animo: "x" }, secciones: [] }] }).piezas[0].niveles.sub !== 40 || normalizarProyecto({ nombre: "x", piezas: [{ id: crypto.randomUUID(), niveles: { energia: 500 }, secciones: [] }] }).piezas[0].niveles.energia !== 100) falla("normalizarProyecto debe recortar los niveles");
 if (s0.nombre !== "S" || s0.parte !== "") falla("normalizarProyecto: la escena es el nombre y la parte es un campo aparte (vacía si falta)");
 if (normalizarProyecto({ nombre: "x", piezas: [{ id: crypto.randomUUID(), secciones: [{ id: crypto.randomUUID(), nombre: "Niebla", parte: " Intro " }] }] }).piezas[0].secciones[0].parte !== "Intro") falla("normalizarProyecto debe conservar la parte");
 if (s0.compases !== 1 || s0.energia !== 0 || s0.sub !== 100 || s0.altos !== 50 || s0.animo !== 50) falla("normalizarProyecto debe recortar rangos y dar 50 a lo que falta");

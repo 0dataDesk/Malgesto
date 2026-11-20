@@ -1,6 +1,6 @@
 import "server-only";
 import { supabaseMalgesto } from "@/lib/supabase/malgesto";
-import { normalizarProyecto, type Proyecto } from "@/lib/epModelo";
+import { CAMPOS, NIVELES_INICIALES, normalizarProyecto, type Niveles, type Proyecto } from "@/lib/epModelo";
 
 // Mapa del EP (planeación de un proyecto musical). Vive aparte de canciones: ver supabase/migrations/20261120130000.
 
@@ -40,7 +40,7 @@ export async function obtenerProyecto(bandaId: string, proyectoId?: string): Pro
 
   const { data: piezas, error: e2 } = await db
     .from("proyecto_piezas")
-    .select("id, orden, titulo, tonalidad, bpm, idea")
+    .select("id, orden, titulo, niveles, tonalidad, bpm, idea")
     .eq("proyecto_id", proy.id)
     .order("orden");
   if (e2) throw new Error(e2.message);
@@ -67,6 +67,7 @@ export async function obtenerProyecto(bandaId: string, proyectoId?: string): Pro
     piezas: (piezas ?? []).map((p) => ({
       id: p.id,
       titulo: p.titulo,
+      niveles: Object.fromEntries(CAMPOS.map((c) => [c, typeof (p.niveles as Record<string, unknown> | null)?.[c] === "number" ? Math.min(100, Math.max(0, Math.round((p.niveles as Record<string, number>)[c]))) : NIVELES_INICIALES[c]])) as Niveles,
       tonalidad: p.tonalidad,
       bpm: p.bpm,
       idea: p.idea,
@@ -137,7 +138,7 @@ export async function guardarProyecto(bandaId: string, proyectoId: string, entra
 
   if (p.piezas.length > 0) {
     const { error: e2 } = await db.from("proyecto_piezas").upsert(
-      p.piezas.map((x, i) => ({ id: x.id, proyecto_id: proyectoId, orden: i, titulo: x.titulo, tonalidad: x.tonalidad, bpm: x.bpm, idea: x.idea })),
+      p.piezas.map((x, i) => ({ id: x.id, proyecto_id: proyectoId, orden: i, titulo: x.titulo, niveles: x.niveles, tonalidad: x.tonalidad, bpm: x.bpm, idea: x.idea })),
     );
     if (e2) throw new Error(e2.message);
   }
