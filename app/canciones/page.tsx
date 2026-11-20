@@ -213,6 +213,13 @@ export default async function CancionesPage({
             Canciones
           </h2>
           <span className="flex items-center gap-2.5">
+            <Link
+              href={`/ep?banda=${bandaActiva}`}
+              className="rounded-full px-2.5 py-1 text-[10px] font-bold no-underline"
+              style={{ fontFamily: MONO, background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
+            >
+              Mapa del EP
+            </Link>
             {puedeEscribir && <CopiarInstruccion />}
             <span className="font-mono text-sm" style={{ color: "oklch(0.5 0.044 262)" }}>
               {visibles.length}
