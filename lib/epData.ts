@@ -11,7 +11,14 @@ type FilaSeccion = {
   nombre: string;
   compases: number;
   nivel: number;
+  sub: number;
   graves: number;
+  medios: number;
+  altos: number;
+  tension: number;
+  espacio: number;
+  densidad: number;
+  ritmo: number;
   etapa: Etapa;
   instrumentos: string[];
   armonia: string;
@@ -46,7 +53,7 @@ export async function obtenerProyecto(bandaId: string, proyectoId?: string): Pro
   if (ids.length > 0) {
     const { data, error: e3 } = await db
       .from("proyecto_secciones")
-      .select("id, pieza_id, orden, nombre, compases, nivel, graves, etapa, instrumentos, armonia, transmite")
+      .select("id, pieza_id, orden, nombre, compases, nivel, sub, graves, medios, altos, tension, espacio, densidad, ritmo, etapa, instrumentos, armonia, transmite")
       .in("pieza_id", ids)
       .order("orden");
     if (e3) throw new Error(e3.message);
@@ -73,7 +80,14 @@ export async function obtenerProyecto(bandaId: string, proyectoId?: string): Pro
           nombre: s.nombre,
           compases: s.compases,
           nivel: s.nivel,
+          sub: s.sub,
           graves: s.graves,
+          medios: s.medios,
+          altos: s.altos,
+          tension: s.tension,
+          espacio: s.espacio,
+          densidad: s.densidad,
+          ritmo: s.ritmo,
           etapa: s.etapa,
           instrumentos: s.instrumentos ?? [],
           armonia: s.armonia,
@@ -148,7 +162,14 @@ export async function guardarProyecto(bandaId: string, proyectoId: string, entra
           nombre: s.nombre,
           compases: s.compases,
           nivel: s.nivel,
+          sub: s.sub,
           graves: s.graves,
+          medios: s.medios,
+          altos: s.altos,
+          tension: s.tension,
+          espacio: s.espacio,
+          densidad: s.densidad,
+          ritmo: s.ritmo,
           etapa: s.etapa,
           instrumentos: s.instrumentos,
           armonia: s.armonia,
