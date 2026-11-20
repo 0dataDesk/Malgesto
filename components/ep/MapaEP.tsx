@@ -48,14 +48,25 @@ const ACCENT = "oklch(0.64 0.170 28)";
 const CARD = "oklch(0.99 0.005 85)";
 const CELDA = "oklch(0.94 0.010 262)";
 
-// Capas del cuerpo, de grave (oscuro y denso) a agudo (claro y aéreo).
-const COLOR_CAPA: Record<CampoCuerpo, string> = {
-  sub: "oklch(0.30 0.09 285)",
-  graves: "oklch(0.42 0.12 15)",
-  medios: "oklch(0.66 0.14 55)",
-  altos: "oklch(0.86 0.09 95)",
+// Cuerpo: una sola paleta (un matiz, de oscuro a claro). Sub y graves son casi gemelos (L y R: mismo matiz, casi el mismo tono y la misma
+// textura de puntos); medios y altos siguen la misma paleta, cada vez más claros y aéreos. Los medidores reaccionan: con poco valor se
+// ven pálidos y apagados, con mucho se ven profundos y saturados (como el ánimo o la tensión en el núcleo).
+const BASE_CUERPO: Record<CampoCuerpo, { L: number; C: number; h: number }> = {
+  sub: { L: 0.27, C: 0.07, h: 190 },
+  graves: { L: 0.36, C: 0.085, h: 190 },
+  medios: { L: 0.58, C: 0.1, h: 185 },
+  altos: { L: 0.82, C: 0.075, h: 180 },
 };
+const colorCuerpo = (campo: CampoCuerpo, valor = 100) => {
+  const b = BASE_CUERPO[campo];
+  const f = clamp(valor, 0, 100) / 100;
+  return `oklch(${(b.L + (1 - f) * 0.16).toFixed(3)} ${(b.C * (0.4 + 0.6 * f)).toFixed(3)} ${b.h})`;
+};
+const COLOR_CAPA: Record<CampoCuerpo, string> = { sub: colorCuerpo("sub"), graves: colorCuerpo("graves"), medios: colorCuerpo("medios"), altos: colorCuerpo("altos") };
+const FONDO_PAREJA = "oklch(0.27 0.07 190 / 0.09)";
+const PUNTOS_CSS = "radial-gradient(circle, oklch(1 0 0 / 0.6) 1.1px, transparent 1.6px)";
 const ORDEN_APILADO: CampoCuerpo[] = ["sub", "graves", "medios", "altos"]; // de abajo hacia arriba
+const CUERPO_DE_ABAJO_ARRIBA = ORDEN_APILADO.map((c) => CUERPO.find((x) => x.campo === c)!); // sub, graves, medios, altos
 const HACHURA_CSS = `repeating-linear-gradient(135deg, ${INK} 0 2px, transparent 2px 6px)`;
 
 const FORMAS = ["Intro", "Entrada", "Verso", "Pre-coro", "Coro", "Dub", "Puente", "Cima", "Break", "Final", "Salida"];
@@ -82,11 +93,12 @@ const miniBoton = { background: "oklch(0.93 0.010 85)", color: MUTED, borderRadi
 type Sel = { p: number; s: number } | null;
 type Estado = "guardado" | "pendiente" | "guardando" | "error";
 
-function estiloMedidor(campo: CampoValor, valor: number): { relleno: string; textura?: string } {
+function estiloMedidor(campo: CampoValor, valor: number): { relleno: string; textura?: string; texturaTam?: string } {
   if (campo === "energia") return { relleno: ACCENT };
   if (campo === "animo") return { relleno: colorAnimo(valor) };
   if (campo === "tension") return { relleno: "oklch(0.80 0.03 262)", textura: HACHURA_CSS };
-  return { relleno: COLOR_CAPA[campo] };
+  if (campo === "sub" || campo === "graves") return { relleno: colorCuerpo(campo, valor), textura: PUNTOS_CSS, texturaTam: "6px 6px" };
+  return { relleno: colorCuerpo(campo, valor) };
 }
 
 // Caja para escribir el valor (0-100). Se puede borrar y escribir de nuevo; ↑/↓ suman o restan 1 (con Mayús, 10); al salir vuelve al valor real.
@@ -143,7 +155,7 @@ function CajaValor({ valor, onCambio, deshabilitado, nombre, ancho = 44, onInici
 // Medidor vertical: se arrastra (o con las flechas) y el valor llena la columna de abajo hacia arriba.
 //  - Completo (detalle de sección): a su lado dice qué es el 100 (arriba), qué es el 0 (abajo) y, a la altura del nivel, cómo se llama lo elegido.
 //  - Compacto (promedios por canción en la vista general): valor arriba, nombre y la palabra del nivel abajo.
-function Medidor({ nombre, ayuda, valor, onCambio, deshabilitado, relleno, textura, escala, referencia, compacto = false, onInicio, onFin }: { nombre: string; ayuda: string; valor: number; onCambio: (v: number) => void; deshabilitado: boolean; relleno: string; textura?: string; escala: Escala; referencia?: number; compacto?: boolean; onInicio?: () => void; onFin?: () => void }) {
+function Medidor({ nombre, ayuda, valor, onCambio, deshabilitado, relleno, textura, escala, texturaTam, referencia, compacto = false, onInicio, onFin }: { nombre: string; ayuda: string; valor: number; onCambio: (v: number) => void; deshabilitado: boolean; relleno: string; textura?: string; texturaTam?: string; escala: Escala; referencia?: number; compacto?: boolean; onInicio?: () => void; onFin?: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const poner = (clientY: number) => {
     const r = ref.current!.getBoundingClientRect();
@@ -189,7 +201,7 @@ function Medidor({ nombre, ayuda, valor, onCambio, deshabilitado, relleno, textu
       }}
     >
       <div className="absolute inset-x-0 bottom-0" style={{ height: `${valor}%`, background: relleno }} />
-      {textura && <div className="absolute inset-x-0 bottom-0" style={{ height: `${valor}%`, backgroundImage: textura, opacity: 0.55 }} />}
+      {textura && <div className="absolute inset-x-0 bottom-0" style={{ height: `${valor}%`, backgroundImage: textura, ...(texturaTam ? { backgroundSize: texturaTam } : {}), opacity: 0.55 }} />}
       {[25, 50, 75].map((m) => (
         <div key={m} className="absolute inset-x-0" style={{ bottom: `${m}%`, height: 1, background: INK, opacity: 0.18 }} />
       ))}
@@ -445,22 +457,30 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
     return (
       <div className="flex flex-wrap gap-x-3 gap-y-3">
         <div>
+          <div className="text-[9.5px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: INK }}>Cuerpo</div>
+          <div className="mt-1.5 flex gap-1">
+            {(() => {
+              const metros = CUERPO_DE_ABAJO_ARRIBA.map((c) => {
+                const v = promedioDe(pz, c.campo);
+                const e = estiloMedidor(c.campo, v);
+                return <Medidor key={c.campo} compacto nombre={c.nombre} ayuda={`${c.ayuda} (${c.hz})`} escala={c.escala} valor={v} onCambio={(x) => moverPromedioPieza(p, c.campo, x)} onInicio={() => iniciarPromedio(p, c.campo)} onFin={terminarPromedio} deshabilitado={!puedeEscribir} relleno={e.relleno} textura={e.textura} texturaTam={e.texturaTam} />;
+              });
+              return (
+                <>
+                  <div className="flex gap-0.5 rounded-xl px-1 pb-1 pt-1.5" style={{ background: FONDO_PAREJA }} title="Sub y graves: casi uno solo, como L y R">{metros.slice(0, 2)}</div>
+                  {metros.slice(2)}
+                </>
+              );
+            })()}
+          </div>
+        </div>
+        <div>
           <div className="text-[9.5px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: INK }}>Núcleo</div>
           <div className="mt-1.5 flex gap-1">
             {NUCLEO.map((n) => {
               const v = promedioDe(pz, n.campo);
               const e = estiloMedidor(n.campo, v);
               return <Medidor key={n.campo} compacto nombre={n.nombre} ayuda={n.ayuda} escala={n.escala} valor={v} onCambio={(x) => moverPromedioPieza(p, n.campo, x)} onInicio={() => iniciarPromedio(p, n.campo)} onFin={terminarPromedio} deshabilitado={!puedeEscribir} relleno={e.relleno} textura={e.textura} />;
-            })}
-          </div>
-        </div>
-        <div>
-          <div className="text-[9.5px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: INK }}>Cuerpo</div>
-          <div className="mt-1.5 flex gap-1">
-            {CUERPO.map((c) => {
-              const v = promedioDe(pz, c.campo);
-              const e = estiloMedidor(c.campo, v);
-              return <Medidor key={c.campo} compacto nombre={c.nombre} ayuda={`${c.ayuda} (${c.hz})`} escala={c.escala} valor={v} onCambio={(x) => moverPromedioPieza(p, c.campo, x)} onInicio={() => iniciarPromedio(p, c.campo)} onFin={terminarPromedio} deshabilitado={!puedeEscribir} relleno={e.relleno} />;
             })}
           </div>
         </div>
@@ -475,8 +495,33 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
       <div className="flex flex-wrap gap-x-8 gap-y-5">
         <div>
           <div className="flex items-baseline gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: INK }}>Cuerpo</span>
+            <span className="text-[11px]" style={{ fontFamily: MONO, color: MUTED }} title="Resumen del cuerpo de esta escena: 30 % sub + 30 % graves + 25 % medios + 15 % altos">
+              Peso <b style={{ color: INK }}>{peso(secSel)}</b>
+            </span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-3">
+            {(() => {
+              const metros = CUERPO_DE_ABAJO_ARRIBA.map((c) => {
+              const e = estiloMedidor(c.campo, secSel[c.campo]);
+              return <Medidor key={c.campo} texturaTam={e.texturaTam} nombre={c.nombre} ayuda={`${c.ayuda} (${c.hz}; 0 ${c.escala.cero}, 100 ${c.escala.cien})`} escala={c.escala} valor={secSel[c.campo]} referencia={pzSel.referencia[c.campo]} onCambio={(v) => ponerValor(c.campo, v)} deshabilitado={!puedeEscribir} relleno={e.relleno} textura={e.textura} />;
+            });
+              return (
+                <>
+                  <div className="flex gap-2 rounded-xl px-1.5 pb-1.5 pt-1" style={{ background: FONDO_PAREJA }} title="Sub y graves: casi uno solo, como L y R">{metros.slice(0, 2)}</div>
+                  {metros.slice(2)}
+                </>
+              );
+            })()}
+          </div>
+          <div className="mt-1.5 max-w-[30rem] text-[10px] leading-snug" style={{ color: MUTED }}>
+            Peso = {CUERPO.slice().reverse().map((c) => `${Math.round(PESO_CUERPO[c.campo] * 100)} % ${c.nombre.toLowerCase()}`).join(" + ")}. Lo grave pesa más.
+          </div>
+        </div>
+        <div>
+          <div className="flex items-baseline gap-2">
             <span className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: INK }}>Núcleo</span>
-            <span className="text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
+            <span className="text-[11px]" style={{ fontFamily: MONO, color: MUTED }} title="Resumen del núcleo de esta escena: 65 % energía + 35 % tensión">
               Intensidad <b style={{ color: INK }}>{intensidad(secSel)}</b>
             </span>
           </div>
@@ -488,23 +533,6 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
           </div>
           <div className="mt-1.5 max-w-[22rem] text-[10px] leading-snug" style={{ color: MUTED }}>
             Intensidad = {Math.round(PESO_INTENSIDAD.energia * 100)} % energía + {Math.round(PESO_INTENSIDAD.tension * 100)} % tensión. El ánimo la tiñe.
-          </div>
-        </div>
-        <div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: INK }}>Cuerpo</span>
-            <span className="text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
-              Peso <b style={{ color: INK }}>{peso(secSel)}</b>
-            </span>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-3">
-            {CUERPO.map((c) => {
-              const e = estiloMedidor(c.campo, secSel[c.campo]);
-              return <Medidor key={c.campo} nombre={c.nombre} ayuda={`${c.ayuda} (${c.hz}; 0 ${c.escala.cero}, 100 ${c.escala.cien})`} escala={c.escala} valor={secSel[c.campo]} referencia={pzSel.referencia[c.campo]} onCambio={(v) => ponerValor(c.campo, v)} deshabilitado={!puedeEscribir} relleno={e.relleno} />;
-            })}
-          </div>
-          <div className="mt-1.5 max-w-[30rem] text-[10px] leading-snug" style={{ color: MUTED }}>
-            Peso = {CUERPO.slice().reverse().map((c) => `${Math.round(PESO_CUERPO[c.campo] * 100)} % ${c.nombre.toLowerCase()}`).join(" + ")}. Lo grave pesa más.
           </div>
         </div>
       </div>
@@ -644,7 +672,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
             {capas.map((c) => (
               <g key={c.campo}>
                 <path d={c.d} fill={COLOR_CAPA[c.campo]} />
-                {c.campo === "sub" && <path d={c.d} fill="url(#ep-puntos)" opacity="0.28" />}
+                {(c.campo === "sub" || c.campo === "graves") && <path d={c.d} fill="url(#ep-puntos)" opacity={c.campo === "sub" ? 0.28 : 0.2} />}
                 <path d={curvaSuave(c.techo)} fill="none" stroke="white" strokeOpacity="0.55" strokeWidth="1" />
               </g>
             ))}
@@ -719,7 +747,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
           </span>
           <span className="flex flex-wrap items-center gap-2">
             Cuerpo:
-            {CUERPO.map((c) => (
+            {CUERPO_DE_ABAJO_ARRIBA.map((c) => (
               <span key={c.campo} className="flex items-center gap-1" title={c.ayuda}>
                 <span aria-hidden style={{ width: 10, height: 10, borderRadius: 3, background: COLOR_CAPA[c.campo] }} />
                 {c.nombre} {Math.round(PESO_CUERPO[c.campo] * 100)} %
@@ -761,7 +789,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
                     <button type="button" onClick={() => { setVista(p); setSel({ p, s: 0 }); }} className="text-left text-[15px] font-bold" style={{ fontFamily: "var(--font-fraunces), sans-serif", color: INK }}>
                       {p + 1}. {pz.titulo} ›
                     </button>
-                    <span className="text-[10px]" style={{ fontFamily: MONO, color: MUTED }}>
+                    <span className="text-[10px]" style={{ fontFamily: MONO, color: MUTED }} title="Promedio, ponderado por compases, de la intensidad (65 % energía + 35 % tensión) y del peso (30 % sub + 30 % graves + 25 % medios + 15 % altos) de las escenas de la canción">
                       intensidad {promedioIntensidad(pz)} · peso {promedioPeso(pz)}
                     </span>
                   </div>
@@ -770,7 +798,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
               ))}
             </div>
             <div className="mt-3 grid gap-x-6 gap-y-1 text-[10px]" style={{ fontFamily: MONO, color: MUTED, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
-              {[...NUCLEO, ...CUERPO].map((m) => (
+              {[...CUERPO_DE_ABAJO_ARRIBA, ...NUCLEO].map((m) => (
                 <span key={m.campo}>
                   <b style={{ color: INK }}>{m.nombre}:</b> 0 = {m.escala.cero} · 100 = {m.escala.cien}
                 </span>
