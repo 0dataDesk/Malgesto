@@ -778,7 +778,14 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
         {/* Mesa */}
         {!enDetalle ? (
           <div className="p-4" style={{ borderTop: `1px solid ${LINE}` }}>
-            <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: INK }}>Promedio de cada canción</div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: INK }}>Promedio de cada canción · {proy.piezas.length}</div>
+              {puedeEscribir && (
+                <button type="button" onClick={agregarPieza} className="rounded-full px-3 py-1 text-[11px] font-bold" style={{ background: ACCENT, color: "oklch(0.99 0.006 85)" }}>
+                  + Canción
+                </button>
+              )}
+            </div>
             <p className="mt-1 max-w-[60rem] text-[11px] leading-snug" style={{ color: MUTED }}>
               Aquí fijas, para cada canción, el nivel general que esperas en cada indicador. Parte de mi propuesta: es el promedio de sus escenas (las largas pesan más). Al mover un medidor, todas las escenas de esa canción suben o bajan juntas y conservan su forma. El detalle de cada escena se modela al entrar a la canción (toca su título o una escena de la gráfica).
             </p>
@@ -789,6 +796,13 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
                     <button type="button" onClick={() => { setVista(p); setSel({ p, s: 0 }); }} className="text-left text-[15px] font-bold" style={{ fontFamily: "var(--font-fraunces), sans-serif", color: INK }}>
                       {p + 1}. {pz.titulo} ›
                     </button>
+                    {puedeEscribir && (
+                      <span className="flex shrink-0 gap-1">
+                        <button type="button" onClick={() => moverPieza(p, -1)} disabled={p === 0} aria-label="Subir canción" className="px-2 py-0.5 text-xs" style={miniBoton}>↑</button>
+                        <button type="button" onClick={() => moverPieza(p, 1)} disabled={p === proy.piezas.length - 1} aria-label="Bajar canción" className="px-2 py-0.5 text-xs" style={miniBoton}>↓</button>
+                        <button type="button" onClick={() => eliminarPieza(p)} aria-label="Eliminar canción" className="px-2 py-0.5 text-xs" style={{ ...miniBoton, color: "oklch(0.5 0.18 25)" }}>✕</button>
+                      </span>
+                    )}
                     <span className="text-[10px]" style={{ fontFamily: MONO, color: MUTED }} title="Promedio, ponderado por compases, de la intensidad (65 % energía + 35 % tensión) y del peso (30 % sub + 30 % graves + 25 % medios + 15 % altos) de las escenas de la canción">
                       intensidad {promedioIntensidad(pz)} · peso {promedioPeso(pz)}
                     </span>
@@ -877,23 +891,15 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
         Vista del EP completo: el promedio de cada canción. Vista de una canción: el detalle de cada escena. Las gráficas se dibujan solas. Cuando estés listo, dile a Cosmo «arma [canción]»: lee estos valores, los compases y la intención, y propone estructura, tempo, tono y los MIDI de cada escena.
       </p>
 
-      {/* Canciones */}
-      <div className="mt-6 flex items-center justify-between">
-        <h3 className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: INK }}>
-          Canciones · {proy.piezas.length}
-        </h3>
-        {puedeEscribir && (
-          <button type="button" onClick={agregarPieza} className="rounded-full px-3 py-1 text-[11px] font-bold" style={{ background: ACCENT, color: "oklch(0.99 0.006 85)" }}>
-            + Canción
-          </button>
-        )}
-      </div>
-      <div className="mt-2 grid gap-2.5 md:grid-cols-2 2xl:grid-cols-4">
-        {proy.piezas.map((pz, p) => {
-          const comp = totalCompases(pz);
-          const dur = duracionSeg(comp, pz.bpm);
-          return (
-            <div key={pz.id} className="rounded-2xl p-3.5" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+      {/* Datos de la canción: solo dentro de la canción abierta */}
+      {enDetalle && proy.piezas[vista as number] && (() => {
+        const p = vista as number;
+        const pz = proy.piezas[p];
+        const comp = totalCompases(pz);
+        const dur = duracionSeg(comp, pz.bpm);
+        return (
+          <div className="mt-3 grid items-start gap-3 rounded-2xl p-3.5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+            <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold" style={{ fontFamily: MONO, color: MUTED }}>{p + 1}</span>
                 <input
@@ -906,13 +912,6 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
                   className="min-w-0 flex-1 px-2.5 py-1 text-[17px] font-bold"
                   style={{ ...inputStyle, fontFamily: "var(--font-fraunces), sans-serif", borderStyle: puedeEscribir ? "dashed" : "solid" }}
                 />
-                {puedeEscribir && (
-                  <span className="flex shrink-0 gap-1">
-                    <button type="button" onClick={() => moverPieza(p, -1)} disabled={p === 0} aria-label="Subir canción" className="px-2 py-1 text-xs" style={miniBoton}>↑</button>
-                    <button type="button" onClick={() => moverPieza(p, 1)} disabled={p === proy.piezas.length - 1} aria-label="Bajar canción" className="px-2 py-1 text-xs" style={miniBoton}>↓</button>
-                    <button type="button" onClick={() => eliminarPieza(p)} aria-label="Eliminar canción" className="px-2 py-1 text-xs" style={{ ...miniBoton, color: "oklch(0.5 0.18 25)" }}>✕</button>
-                  </span>
-                )}
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
                 <label className="flex items-center gap-1.5">
@@ -927,11 +926,11 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
                   {comp} compases · {pz.secciones.length} escenas{dur !== null ? ` · ≈ ${formatoMSS(dur)}` : ""}
                 </span>
               </div>
-              <textarea value={pz.idea} onChange={(e) => cambiarPieza(p, { idea: e.target.value })} disabled={!puedeEscribir} rows={3} maxLength={1000} placeholder="Qué cuenta esta canción en el viaje." className="mt-2 w-full p-2.5 text-sm" style={inputStyle} />
             </div>
-          );
-        })}
-      </div>
+            <textarea value={pz.idea} onChange={(e) => cambiarPieza(p, { idea: e.target.value })} disabled={!puedeEscribir} rows={3} maxLength={1000} placeholder="Qué cuenta esta canción en el viaje." aria-label="Idea de la canción" className="w-full p-2.5 text-sm" style={inputStyle} />
+          </div>
+        );
+      })()}
     </div>
   );
 }
