@@ -90,7 +90,7 @@ function estiloMedidor(campo: CampoValor, valor: number): { relleno: string; tex
 }
 
 // Caja para escribir el valor (0-100). Se puede borrar y escribir de nuevo; ↑/↓ suman o restan 1 (con Mayús, 10); al salir vuelve al valor real.
-function CajaValor({ valor, onCambio, deshabilitado, nombre, ancho = 44 }: { valor: number; onCambio: (v: number) => void; deshabilitado: boolean; nombre: string; ancho?: number }) {
+function CajaValor({ valor, onCambio, deshabilitado, nombre, ancho = 44, onInicio, onFin }: { valor: number; onCambio: (v: number) => void; deshabilitado: boolean; nombre: string; ancho?: number; onInicio?: () => void; onFin?: () => void }) {
   const [texto, setTexto] = useState(String(valor));
   const enfocada = useRef(false);
   useEffect(() => {
@@ -110,6 +110,7 @@ function CajaValor({ valor, onCambio, deshabilitado, nombre, ancho = 44 }: { val
       onFocus={(e) => {
         enfocada.current = true;
         e.currentTarget.select();
+        onInicio?.();
       }}
       onChange={(e) => {
         const limpio = e.target.value.replace(/\D/g, "").slice(0, 3);
@@ -133,6 +134,7 @@ function CajaValor({ valor, onCambio, deshabilitado, nombre, ancho = 44 }: { val
       onBlur={() => {
         enfocada.current = false;
         setTexto(String(valor));
+        onFin?.();
       }}
     />
   );
@@ -142,7 +144,7 @@ function CajaValor({ valor, onCambio, deshabilitado, nombre, ancho = 44 }: { val
 //  - Completo (detalle de sección): a su lado dice qué es el 100 (arriba), qué es el 0 (abajo) y, a la altura del nivel, cómo se llama lo elegido.
 //  - Compacto (promedios por canción en la vista general): valor arriba, nombre y la palabra del nivel abajo.
 // `promedio` dibuja una raya punteada con el promedio de la canción.
-function Medidor({ nombre, ayuda, valor, onCambio, deshabilitado, relleno, textura, escala, promedio, compacto = false }: { nombre: string; ayuda: string; valor: number; onCambio: (v: number) => void; deshabilitado: boolean; relleno: string; textura?: string; escala: Escala; promedio?: number; compacto?: boolean }) {
+function Medidor({ nombre, ayuda, valor, onCambio, deshabilitado, relleno, textura, escala, promedio, compacto = false, onInicio, onFin }: { nombre: string; ayuda: string; valor: number; onCambio: (v: number) => void; deshabilitado: boolean; relleno: string; textura?: string; escala: Escala; promedio?: number; compacto?: boolean; onInicio?: () => void; onFin?: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const poner = (clientY: number) => {
     const r = ref.current!.getBoundingClientRect();
@@ -162,9 +164,12 @@ function Medidor({ nombre, ayuda, valor, onCambio, deshabilitado, relleno, textu
       aria-valuetext={`${valor}: ${palabraDe(escala, valor)}`}
       className="relative shrink-0 overflow-hidden"
       style={{ width: compacto ? 30 : 34, height: ALTO, borderRadius: 10, background: CELDA, border: `1px solid ${LINE}`, touchAction: "none", cursor: deshabilitado ? "default" : "ns-resize", outline: "none" }}
+      onFocus={() => onInicio?.()}
+      onBlur={() => onFin?.()}
       onPointerDown={(e) => {
         if (deshabilitado) return;
         e.currentTarget.setPointerCapture(e.pointerId);
+        onInicio?.();
         poner(e.clientY);
       }}
       onPointerMove={(e) => {
@@ -194,7 +199,7 @@ function Medidor({ nombre, ayuda, valor, onCambio, deshabilitado, relleno, textu
   if (compacto) {
     return (
       <div className="flex w-[50px] flex-col items-center gap-1" title={`${ayuda} (0 ${escala.cero}, 100 ${escala.cien})`}>
-        <CajaValor valor={valor} onCambio={onCambio} deshabilitado={deshabilitado} nombre={nombre} ancho={40} />
+        <CajaValor valor={valor} onCambio={onCambio} deshabilitado={deshabilitado} nombre={nombre} ancho={40} onInicio={onInicio} onFin={onFin} />
         {pista}
         <span className="text-[10px] font-bold" style={{ fontFamily: MONO, color: MUTED }}>{nombre}</span>
         <span className="text-center text-[9.5px] leading-tight" style={{ fontFamily: MONO, color: INK, minHeight: 24 }}>{palabraDe(escala, valor)}</span>
@@ -205,7 +210,7 @@ function Medidor({ nombre, ayuda, valor, onCambio, deshabilitado, relleno, textu
     <div className="flex w-[118px] flex-col gap-1" title={ayuda}>
       <div className="flex items-baseline justify-between">
         <span className="text-[10px] font-bold" style={{ fontFamily: MONO, color: MUTED }}>{nombre}</span>
-        <CajaValor valor={valor} onCambio={onCambio} deshabilitado={deshabilitado} nombre={nombre} />
+        <CajaValor valor={valor} onCambio={onCambio} deshabilitado={deshabilitado} nombre={nombre} onInicio={onInicio} onFin={onFin} />
       </div>
       <div className="flex gap-1.5">
         {pista}
@@ -302,7 +307,24 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
   const cambiarSeccion = (p: number, s: number, patch: Partial<Seccion>) =>
     setProy((pr) => ({ ...pr, piezas: pr.piezas.map((pz, i) => (i !== p ? pz : { ...pz, secciones: pz.secciones.map((sc, j) => (j !== s ? sc : { ...sc, ...patch })) })) }));
   const cambiarPieza = (p: number, patch: Partial<Pieza>) => setProy((pr) => ({ ...pr, piezas: pr.piezas.map((pz, i) => (i !== p ? pz : { ...pz, ...patch })) }));
-  const moverPromedioPieza = (p: number, campo: CampoValor, v: number) => setProy((pr) => ({ ...pr, piezas: pr.piezas.map((pz, i) => (i !== p ? pz : moverPromedio(pz, campo, v))) }));
+  // Mover el promedio parte SIEMPRE de la forma que tenía la canción al empezar (foco o clic), no del último paso:
+  // así escribir "4" y luego "45", o arrastrar hasta 0 y volver, no aplana las secciones.
+  const baseProm = useRef<{ p: number; campo: CampoValor; pieza: Pieza } | null>(null);
+  const iniciarPromedio = (p: number, campo: CampoValor) => {
+    if (baseProm.current?.p === p && baseProm.current.campo === campo) return;
+    baseProm.current = { p, campo, pieza: ultimo.current.piezas[p] };
+  };
+  const terminarPromedio = () => {
+    baseProm.current = null;
+  };
+  const moverPromedioPieza = (p: number, campo: CampoValor, v: number) => {
+    const fuente = baseProm.current && baseProm.current.p === p && baseProm.current.campo === campo ? baseProm.current.pieza : ultimo.current.piezas[p];
+    const nuevo = moverPromedio(fuente, campo, v);
+    setProy((pr) => ({
+      ...pr,
+      piezas: pr.piezas.map((pz, i) => (i !== p || pz.secciones.length !== nuevo.secciones.length ? pz : { ...pz, secciones: pz.secciones.map((sc, j) => ({ ...sc, [campo]: nuevo.secciones[j][campo] })) })),
+    }));
+  };
 
   // Geometría del núcleo (línea de Intensidad)
   const ptsN = tramos.map((t) => ({ x: xDe(t.xc), y: yN(t.intensidad) }));
@@ -354,7 +376,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
     setSel({ p: proy.piezas.length, s: 0 });
   };
   const eliminarPieza = (p: number) => {
-    if (!window.confirm(`¿Eliminar "${proy.piezas[p].titulo}" y todas sus secciones?`)) return;
+    if (!window.confirm(`¿Eliminar "${proy.piezas[p].titulo}" y todas sus escenas?`)) return;
     setProy((pr) => ({ ...pr, piezas: pr.piezas.filter((_, i) => i !== p) }));
     setSel(null);
     setVista(null);
@@ -371,7 +393,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
     setVista(null);
   };
   const insertarSeccion = (p: number, despuesDe: number) => {
-    const nueva = nuevaSeccion("Verso");
+    const nueva = nuevaSeccion("Nueva escena", "Verso");
     setProy((pr) => ({ ...pr, piezas: pr.piezas.map((pz, i) => (i !== p ? pz : { ...pz, secciones: [...pz.secciones.slice(0, despuesDe + 1), nueva, ...pz.secciones.slice(despuesDe + 1)] })) }));
     setSel({ p, s: despuesDe + 1 });
   };
@@ -417,7 +439,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
             {NUCLEO.map((n) => {
               const v = promedioDe(pz, n.campo);
               const e = estiloMedidor(n.campo, v);
-              return <Medidor key={n.campo} compacto nombre={n.nombre} ayuda={n.ayuda} escala={n.escala} valor={v} onCambio={(x) => moverPromedioPieza(p, n.campo, x)} deshabilitado={!puedeEscribir} relleno={e.relleno} textura={e.textura} />;
+              return <Medidor key={n.campo} compacto nombre={n.nombre} ayuda={n.ayuda} escala={n.escala} valor={v} onCambio={(x) => moverPromedioPieza(p, n.campo, x)} onInicio={() => iniciarPromedio(p, n.campo)} onFin={terminarPromedio} deshabilitado={!puedeEscribir} relleno={e.relleno} textura={e.textura} />;
             })}
           </div>
         </div>
@@ -427,7 +449,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
             {CUERPO.map((c) => {
               const v = promedioDe(pz, c.campo);
               const e = estiloMedidor(c.campo, v);
-              return <Medidor key={c.campo} compacto nombre={c.nombre} ayuda={`${c.ayuda} (${c.hz})`} escala={c.escala} valor={v} onCambio={(x) => moverPromedioPieza(p, c.campo, x)} deshabilitado={!puedeEscribir} relleno={e.relleno} />;
+              return <Medidor key={c.campo} compacto nombre={c.nombre} ayuda={`${c.ayuda} (${c.hz})`} escala={c.escala} valor={v} onCambio={(x) => moverPromedioPieza(p, c.campo, x)} onInicio={() => iniciarPromedio(p, c.campo)} onFin={terminarPromedio} deshabilitado={!puedeEscribir} relleno={e.relleno} />;
             })}
           </div>
         </div>
@@ -538,7 +560,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
       {/* Gráfica (calculada), leyenda y mesa de medidores, en una sola tarjeta */}
       <div className="mt-2.5 overflow-hidden rounded-2xl" style={{ background: CARD, border: `1px solid ${LINE}` }}>
         <div ref={cajaRef} className="overflow-x-auto">
-          <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Intensidad y peso de cada sección, calculados de los medidores" style={{ display: "block" }}>
+          <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Intensidad y peso de cada escena, calculados de los medidores" style={{ display: "block" }}>
             <defs>
               <linearGradient id="ep-animo" gradientUnits="userSpaceOnUse" x1={xDe(0)} x2={xDe(1)} y1="0" y2="0">
                 {tramos.length > 0 && <stop offset="0" stopColor={colorAnimo(tramos[0].animo)} />}
@@ -627,7 +649,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
               );
             })}
 
-            {/* Selección, zonas clicables y tira de secciones (el tamaño es proporcional a los compases) */}
+            {/* Selección, zonas clicables y tira de escenas (el tamaño es proporcional a los compases) */}
             {tramos.map((t, k) => {
               const sc = proy.piezas[t.pieza].secciones[t.seccion];
               const esSel = enDetalle && seleccionada?.p === t.pieza && seleccionada?.s === t.seccion;
@@ -648,19 +670,19 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
                   )}
                   {/* tira */}
                   <rect x={x0 + 1} y={TIRA_Y} width={Math.max(1, ancho - 2)} height={TIRA_H} rx="7" fill={colorAnimo(t.animo, esSel ? 0.9 : 0.34)} stroke={esSel ? INK : "none"} strokeWidth="2" style={{ cursor: "pointer" }} onClick={() => elegir(t.pieza, t.seccion)}>
-                    <title>{`${k + 1}. ${sc.nombre} · ${sc.compases} compases${sc.transmite ? ` · ${sc.transmite}` : ""}`}</title>
+                    <title>{`${k + 1}. ${sc.nombre}${sc.parte ? ` (${sc.parte})` : ""} · ${sc.compases} compases${sc.transmite ? ` · ${sc.transmite}` : ""}`}</title>
                   </rect>
                   <text x={xDe(t.xc)} y={TIRA_Y + 17} fontSize="11" fontWeight={esSel ? 700 : 500} textAnchor="middle" fill={esSel && t.animo > 55 ? INK : esSel ? "white" : INK} pointerEvents="none" style={{ fontFamily: MONO }}>
                     {recorta(sc.nombre, caben)}
                   </text>
                   <text x={xDe(t.xc)} y={TIRA_Y + 31} fontSize="9.5" textAnchor="middle" fill={esSel && t.animo <= 55 ? "white" : MUTED} pointerEvents="none" style={{ fontFamily: MONO }}>
-                    {caben >= 5 ? `${sc.compases} c` : ancho >= 22 ? String(sc.compases) : ""}
+                    {caben >= 14 && sc.parte ? `${recorta(sc.parte, caben - 8)} · ${sc.compases} c` : caben >= 5 ? `${sc.compases} c` : ancho >= 22 ? String(sc.compases) : ""}
                   </text>
                 </g>
               );
             })}
             {tramos.length > 0 && (
-              <text x={L - 8} y={TIRA_Y + 24} fontSize="10" fontWeight="700" textAnchor="end" fill={INK} style={{ fontFamily: MONO }}>SECCIONES</text>
+              <text x={L - 8} y={TIRA_Y + 24} fontSize="10" fontWeight="700" textAnchor="end" fill={INK} style={{ fontFamily: MONO }}>ESCENAS</text>
             )}
             {tramos.length === 0 && (
               <text x={W / 2} y={T1 + PH1 / 2} textAnchor="middle" fontSize="13" fill={MUTED}>Agrega una canción para empezar el mapa.</text>
@@ -689,20 +711,20 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
               </span>
             ))}
           </span>
-          <span>El ancho de cada sección es proporcional a sus compases.</span>
+          <span>El ancho de cada escena es proporcional a sus compases.</span>
         </div>
 
-        {/* Barra de la sección elegida (solo en el detalle de una canción) */}
+        {/* Barra de la escena elegida (solo en el detalle de una canción) */}
         {enDetalle && secSel && pzSel && seleccionada && (
           <div className="flex flex-wrap items-center gap-2 px-4 py-2" style={{ borderTop: `1px solid ${LINE}`, background: "oklch(0.975 0.006 85)" }}>
             <span className="text-[11px] font-bold" style={{ fontFamily: MONO, color: INK }}>
-              Sección {numeroSel}: {secSel.nombre} · {pzSel.titulo}
+              Escena {numeroSel}: {secSel.nombre}{secSel.parte ? ` (${secSel.parte})` : ""} · {pzSel.titulo}
             </span>
             {puedeEscribir && (
               <span className="ml-auto flex flex-wrap gap-1.5">
                 <button type="button" onClick={() => moverSeccion(seleccionada.p, seleccionada.s, -1)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>← Antes</button>
                 <button type="button" onClick={() => moverSeccion(seleccionada.p, seleccionada.s, 1)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>Después →</button>
-                <button type="button" onClick={() => insertarSeccion(seleccionada.p, seleccionada.s)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>+ Sección después</button>
+                <button type="button" onClick={() => insertarSeccion(seleccionada.p, seleccionada.s)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>+ Escena después</button>
                 <button type="button" onClick={() => duplicarSeccion(seleccionada.p, seleccionada.s)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>Duplicar</button>
                 <button type="button" onClick={() => eliminarSeccion(seleccionada.p, seleccionada.s)} disabled={pzSel.secciones.length <= 1} className="px-2.5 py-1 text-xs font-bold" style={{ ...miniBoton, color: "oklch(0.5 0.18 25)" }}>Eliminar</button>
               </span>
@@ -715,7 +737,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
           <div className="p-4" style={{ borderTop: `1px solid ${LINE}` }}>
             <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: INK }}>Promedio de cada canción</div>
             <p className="mt-1 max-w-[60rem] text-[11px] leading-snug" style={{ color: MUTED }}>
-              Aquí fijas, para cada canción, el nivel general que esperas en cada indicador. Parte de mi propuesta: es el promedio de sus secciones (las largas pesan más). Al mover un medidor, todas las secciones de esa canción suben o bajan juntas y conservan su forma. El detalle de cada sección se modela al entrar a la canción (toca su título o una sección de la gráfica).
+              Aquí fijas, para cada canción, el nivel general que esperas en cada indicador. Parte de mi propuesta: es el promedio de sus escenas (las largas pesan más). Al mover un medidor, todas las escenas de esa canción suben o bajan juntas y conservan su forma. El detalle de cada escena se modela al entrar a la canción (toca su título o una escena de la gráfica).
             </p>
             <div className="mt-3 grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))" }}>
               {proy.piezas.map((pz, p) => (
@@ -745,23 +767,36 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
             <div>
               {gruposSeccion()}
               <p className="mt-2 max-w-[48rem] text-[10px] leading-snug" style={{ color: MUTED }}>
-                La raya punteada de cada medidor marca el promedio de la canción en ese indicador; si mueves los valores de las secciones, el promedio se modela con ellos.
+                La raya punteada de cada medidor marca el promedio de la canción en ese indicador; si mueves los valores de las escenas, el promedio se modela con ellos.
               </p>
             </div>
 
             <div className="min-w-0 border-t pt-4 xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0" style={{ borderColor: LINE }}>
               <div className="flex flex-wrap items-center gap-2">
                 <input
-                  list="ep-formas"
                   value={secSel.nombre}
                   onChange={(e) => cambiarSeccion(seleccionada.p, seleccionada.s, { nombre: e.target.value })}
                   disabled={!puedeEscribir}
                   maxLength={120}
-                  aria-label="Parte de la canción"
-                  placeholder="Parte: Intro, Verso, Dub, Coro…"
+                  aria-label="Escena"
+                  placeholder="Escena: cómo la imaginas (Niebla, Se abre el eco…)"
                   className="min-w-0 flex-1 px-3 py-1.5 text-base font-bold"
                   style={{ ...inputStyle, fontFamily: "var(--font-fraunces), sans-serif" }}
                 />
+                <label className="flex items-center gap-1 text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
+                  parte
+                  <input
+                    list="ep-formas"
+                    value={secSel.parte}
+                    onChange={(e) => cambiarSeccion(seleccionada.p, seleccionada.s, { parte: e.target.value })}
+                    disabled={!puedeEscribir}
+                    maxLength={60}
+                    aria-label="Parte de la canción"
+                    placeholder="Intro, Verso…"
+                    className="w-28 px-2 py-1.5"
+                    style={inputStyle}
+                  />
+                </label>
                 <datalist id="ep-formas">
                   {FORMAS.map((f) => (
                     <option key={f} value={f} />
@@ -779,7 +814,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
               </div>
               <div className="mt-2.5 grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                 <label className="block text-[10px] font-bold uppercase tracking-[0.12em]" style={{ fontFamily: MONO, color: MUTED }}>
-                  Intención (lo que debe hacer sentir)
+                  Intención (qué debe pasar y hacer sentir)
                   <textarea value={secSel.transmite} onChange={(e) => cambiarSeccion(seleccionada.p, seleccionada.s, { transmite: e.target.value })} disabled={!puedeEscribir} rows={3} maxLength={1000} placeholder="Ej. algo grande está lejos" className="mt-1 w-full p-2.5 text-sm font-normal normal-case tracking-normal" style={{ ...inputStyle, fontFamily: "inherit" }} />
                 </label>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.12em]" style={{ fontFamily: MONO, color: MUTED }}>
@@ -791,12 +826,12 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
           </div>
         ) : (
           <p className="p-4 text-sm" style={{ color: MUTED, borderTop: `1px solid ${LINE}` }}>
-            Toca una sección de la gráfica o de la tira para mover sus medidores.
+            Toca una escena de la gráfica o de la tira para mover sus medidores.
           </p>
         )}
       </div>
       <p className="mt-1.5 text-[11px]" style={{ color: MUTED }}>
-        Vista del EP completo: el promedio de cada canción. Vista de una canción: el detalle de cada sección. Las gráficas se dibujan solas. Cuando estés listo, dile a Cosmo «arma [canción]»: lee estos valores, los compases y la intención, y propone estructura, tempo, tono y los MIDI de cada escena.
+        Vista del EP completo: el promedio de cada canción. Vista de una canción: el detalle de cada escena. Las gráficas se dibujan solas. Cuando estés listo, dile a Cosmo «arma [canción]»: lee estos valores, los compases y la intención, y propone estructura, tempo, tono y los MIDI de cada escena.
       </p>
 
       {/* Canciones */}
@@ -846,7 +881,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
                   <input type="number" min={20} max={300} value={pz.bpm ?? ""} onChange={(e) => cambiarPieza(p, { bpm: e.target.value === "" ? null : Number(e.target.value) })} disabled={!puedeEscribir} placeholder="—" className="w-16 px-2 py-1" style={inputStyle} />
                 </label>
                 <span>
-                  {comp} compases · {pz.secciones.length} secciones{dur !== null ? ` · ≈ ${formatoMSS(dur)}` : ""}
+                  {comp} compases · {pz.secciones.length} escenas{dur !== null ? ` · ≈ ${formatoMSS(dur)}` : ""}
                 </span>
               </div>
               <textarea value={pz.idea} onChange={(e) => cambiarPieza(p, { idea: e.target.value })} disabled={!puedeEscribir} rows={3} maxLength={1000} placeholder="Qué cuenta esta canción en el viaje." className="mt-2 w-full p-2.5 text-sm" style={inputStyle} />

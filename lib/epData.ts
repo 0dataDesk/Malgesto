@@ -9,6 +9,7 @@ type FilaSeccion = {
   pieza_id: string;
   orden: number;
   nombre: string;
+  parte: string;
   compases: number;
   energia: number;
   animo: number;
@@ -49,7 +50,7 @@ export async function obtenerProyecto(bandaId: string, proyectoId?: string): Pro
   if (ids.length > 0) {
     const { data, error: e3 } = await db
       .from("proyecto_secciones")
-      .select("id, pieza_id, orden, nombre, compases, energia, animo, tension, altos, medios, graves, sub, armonia, transmite")
+      .select("id, pieza_id, orden, nombre, parte, compases, energia, animo, tension, altos, medios, graves, sub, armonia, transmite")
       .in("pieza_id", ids)
       .order("orden");
     if (e3) throw new Error(e3.message);
@@ -74,6 +75,7 @@ export async function obtenerProyecto(bandaId: string, proyectoId?: string): Pro
         .map((s) => ({
           id: s.id,
           nombre: s.nombre,
+          parte: s.parte,
           compases: s.compases,
           energia: s.energia,
           animo: s.animo,
@@ -156,6 +158,7 @@ export async function guardarProyecto(bandaId: string, proyectoId: string, entra
           pieza_id: x.id,
           orden: i,
           nombre: s.nombre,
+          parte: s.parte,
           compases: s.compases,
           energia: s.energia,
           animo: s.animo,

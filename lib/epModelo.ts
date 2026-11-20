@@ -41,8 +41,10 @@ export const palabraDe = (escala: Escala, valor: number) => escala.pasos[Math.mi
 
 export type Seccion = {
   id: string;
-  // Parte de la canción (Intro, Verso, Dub, Coro, Puente…). Lo que debe hacer sentir va en `transmite` (la intención).
+  // La escena: cómo se imagina («Niebla», «Se abre el eco»). Es el nombre principal y el de la escena de Live.
   nombre: string;
+  // Parte de la canción (Intro, Verso, Dub, Coro, Puente…): su función musical, campo secundario.
+  parte: string;
   compases: number;
   energia: number;
   animo: number;
@@ -214,12 +216,12 @@ export function capaEntre(arriba: Punto[], abajo: Punto[]): string {
   return `${ida} ${vuelta} Z`;
 }
 
-export function nuevaSeccion(nombre = "Verso"): Seccion {
-  return { id: crypto.randomUUID(), nombre, compases: 8, energia: 50, animo: 50, tension: 50, altos: 50, medios: 50, graves: 50, sub: 50, armonia: "", transmite: "" };
+export function nuevaSeccion(nombre = "Nueva escena", parte = "Verso"): Seccion {
+  return { id: crypto.randomUUID(), nombre, parte, compases: 8, energia: 50, animo: 50, tension: 50, altos: 50, medios: 50, graves: 50, sub: 50, armonia: "", transmite: "" };
 }
 
 export function nuevaPieza(titulo = "Nueva canción"): Pieza {
-  return { id: crypto.randomUUID(), titulo, tonalidad: "", bpm: null, idea: "", secciones: [nuevaSeccion("Intro")] };
+  return { id: crypto.randomUUID(), titulo, tonalidad: "", bpm: null, idea: "", secciones: [nuevaSeccion("Primera escena", "Intro")] };
 }
 
 export function totalCompases(p: Pieza): number {
@@ -256,7 +258,8 @@ export function normalizarProyecto(entrada: unknown): Omit<Proyecto, "id" | "ban
         const s = rs as Record<string, unknown>;
         return {
           id: unico(s.id),
-          nombre: txt(s.nombre, 120).trim() || "Sección",
+          nombre: txt(s.nombre, 120).trim() || "Escena",
+          parte: txt(s.parte, 60).trim(),
           compases: ent(s.compases, 1, 512, 8),
           energia: ent(s.energia, 0, 100, 50),
           animo: ent(s.animo, 0, 100, 50),

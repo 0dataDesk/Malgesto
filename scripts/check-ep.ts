@@ -83,6 +83,8 @@ const ok = normalizarProyecto({
 });
 const s0 = ok.piezas[0].secciones[0];
 if (ok.nombre !== "X" || ok.tipo !== "album") falla("normalizarProyecto: nombre/tipo");
+if (s0.nombre !== "S" || s0.parte !== "") falla("normalizarProyecto: la escena es el nombre y la parte es un campo aparte (vacía si falta)");
+if (normalizarProyecto({ nombre: "x", piezas: [{ id: crypto.randomUUID(), secciones: [{ id: crypto.randomUUID(), nombre: "Niebla", parte: " Intro " }] }] }).piezas[0].secciones[0].parte !== "Intro") falla("normalizarProyecto debe conservar la parte");
 if (s0.compases !== 1 || s0.energia !== 0 || s0.sub !== 100 || s0.altos !== 50 || s0.animo !== 50) falla("normalizarProyecto debe recortar rangos y dar 50 a lo que falta");
 try {
   normalizarProyecto({ nombre: "x", piezas: [{ id: "no-es-uuid", secciones: [] }] });
