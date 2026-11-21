@@ -381,7 +381,10 @@ export function VistaEstudio({
     if (prefsLeidas.current) guardar(PREF, { instrumento, afinId });
   }, [instrumento, afinId]);
 
-  const tonalidad = useMemo(() => ({ raiz: transponerNota(cancion.tonalidadNota, semi), modo: cancion.tonalidadModo }), [cancion.tonalidadNota, cancion.tonalidadModo, semi]);
+  // El ukulele no lleva capo: toca los acordes tal como suenan (formas de la hoja + capo), sin barra de capo.
+  const capoInstr = instrumento === "ukulele" ? 0 : cancion.capo;
+  const semiEf = semi + (instrumento === "ukulele" ? cancion.capo : 0);
+  const tonalidad = useMemo(() => ({ raiz: transponerNota(cancion.tonalidadNota, semiEf), modo: cancion.tonalidadModo }), [cancion.tonalidadNota, cancion.tonalidadModo, semiEf]);
   const afinaciones = INSTRUMENTOS_ESTUDIO[instrumento].afinaciones;
   const afinacion = afinaciones.find((a) => a.id === afinId) ?? afinaciones[0];
 
@@ -398,8 +401,8 @@ export function VistaEstudio({
           [...l.acordes]
             .sort((a, b) => a.posicion - b.posicion || a.orden - b.orden)
             .forEach((a) => {
-              const nota = transponerNota(a.notaRaiz, semi);
-              const bajo = a.notaBajo ? transponerNota(a.notaBajo, semi) : null;
+              const nota = transponerNota(a.notaRaiz, semiEf);
+              const bajo = a.notaBajo ? transponerNota(a.notaBajo, semiEf) : null;
               ids.push(ev.length);
               porSec[si].push(ev.length);
               ev.push({ sec: si, linea: li, nota, calidad: a.calidad, bajo, clave: claveDe(nota, a.calidad, bajo) });
@@ -410,15 +413,15 @@ export function VistaEstudio({
         [...s.acordes]
           .sort((a, b) => a.orden - b.orden)
           .forEach((a) => {
-            const nota = transponerNota(a.notaRaiz, semi);
-            const bajo = a.notaBajo ? transponerNota(a.notaBajo, semi) : null;
+            const nota = transponerNota(a.notaRaiz, semiEf);
+            const bajo = a.notaBajo ? transponerNota(a.notaBajo, semiEf) : null;
             porSec[si].push(ev.length);
             ev.push({ sec: si, linea: null, nota, calidad: a.calidad, bajo, clave: claveDe(nota, a.calidad, bajo) });
           });
       }
     });
     return { eventos: ev, indicesPorLinea: porLinea, indicesPorSeccion: porSec };
-  }, [cancion.secciones, semi]);
+  }, [cancion.secciones, semiEf]);
 
   const total = eventos.length;
   const ocurr = useMemo(() => ocurrencias(indicesPorSeccion, cancion.secciones.map((x) => x.repiteVeces)), [indicesPorSeccion, cancion.secciones]);
@@ -758,7 +761,7 @@ export function VistaEstudio({
 
   const claveVar = (nota: Nota, calidad: Calidad, bajo?: Nota | null) => `${instrumento}|${afinacion.id}|${claveDe(nota, calidad, bajo)}`;
   // Forma tomada de la hoja de la canción (solo sin transponer: transpuesta ya no sería la misma).
-  const formaHoja = (nota: Nota, calidad: Calidad, bajo: Nota | null) => (semi === 0 ? cancion.formas?.[`${instrumento}|${afinacion.id}|${simboloAcorde(nota, calidad, bajo)}`] ?? null : null);
+  const formaHoja = (nota: Nota, calidad: Calidad, bajo: Nota | null) => (semiEf === 0 ? cancion.formas?.[`${instrumento}|${afinacion.id}|${simboloAcorde(nota, calidad, bajo)}`] ?? null : null);
   const elegirVariante = (nota: Nota, calidad: Calidad, i: number, bajo?: Nota | null) => {
     const nuevo = { ...variantes, [claveVar(nota, calidad, bajo)]: i };
     setVariantes(nuevo);
@@ -834,13 +837,13 @@ export function VistaEstudio({
           {/* Foco del capo: chico, se prende solo cuando la canción lo usa */}
           <div
             className="flex items-center gap-1.5"
-            title={cancion.capo > 0 ? `Capo en el traste ${cancion.capo}: suena en ${transponerNota(tonalidad.raiz, cancion.capo)}` : "Esta canción no usa capo"}
+            title={capoInstr > 0 ? `Capo en el traste ${capoInstr}: suena en ${transponerNota(tonalidad.raiz, capoInstr)}` : cancion.capo > 0 ? `Ukulele sin capo: los acordes ya van como suenan (la guitarra lleva capo ${cancion.capo})` : "Esta canción no usa capo"}
           >
             <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED }}>Capo</span>
             <span
-              style={{ width: 24, height: 24, borderRadius: 99, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontWeight: 800, fontSize: 12, background: cancion.capo > 0 ? CORAL : "transparent", color: cancion.capo > 0 ? "white" : MUTED, border: `1.5px solid ${cancion.capo > 0 ? CORAL : LINE}`, boxShadow: cancion.capo > 0 ? `0 0 10px 2px color-mix(in srgb, ${CORAL} 55%, transparent)` : "none" }}
+              style={{ width: 24, height: 24, borderRadius: 99, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontWeight: 800, fontSize: 12, background: capoInstr > 0 ? CORAL : "transparent", color: capoInstr > 0 ? "white" : MUTED, border: `1.5px solid ${capoInstr > 0 ? CORAL : LINE}`, boxShadow: cancion.capo > 0 ? `0 0 10px 2px color-mix(in srgb, ${CORAL} 55%, transparent)` : "none" }}
             >
-              {cancion.capo > 0 ? cancion.capo : ""}
+              {capoInstr > 0 ? capoInstr : ""}
             </span>
           </div>
         </div>
@@ -946,7 +949,7 @@ export function VistaEstudio({
                     >
                       <div style={{ background: "white", borderRadius: 10, padding: 3, display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
                         {vs[elegida] ? (
-                          <Diagrama forma={vs[elegida]} afinacion={afinacion} capo={cancion.capo} tam={abierto ? 150 : ancho - 6} acorde={{ nota: e.nota, calidad: e.calidad }} />
+                          <Diagrama forma={vs[elegida]} afinacion={afinacion} capo={capoInstr} tam={abierto ? 150 : ancho - 6} acorde={{ nota: e.nota, calidad: e.calidad }} />
                         ) : (
                           <span style={{ fontFamily: MONO, fontSize: 11, color: INK }}>{notasDelAcorde(e.nota, e.calidad).map((p) => NOTAS[p]).join(" ")}</span>
                         )}
@@ -976,7 +979,7 @@ export function VistaEstudio({
                           title={f.origen === "hoja" ? "Forma de la hoja de la canción" : f.origen === "catalogo" ? "Forma común" : "Forma sugerida"}
                           style={{ background: "white", borderRadius: 8, border: i === elegida ? `3px solid ${INK}` : "3px solid transparent", padding: 1, cursor: "pointer", display: "flex", justifyContent: "center" }}
                         >
-                          <Diagrama forma={f} afinacion={afinacion} mini capo={cancion.capo} />
+                          <Diagrama forma={f} afinacion={afinacion} mini capo={capoInstr} />
                         </button>
                       ))}
                     </div>
@@ -1118,7 +1121,7 @@ export function VistaEstudio({
                     </button>
                   )}
                 </div>
-                <Mastil capo={cancion.capo} afinacion={afinacion} acordes={(filtro.length ? distintos.filter((d) => filtro.includes(claveDe(d.nota, d.calidad, d.bajo))) : distintos).map((d) => ({ nota: d.nota, calidad: d.calidad }))} />
+                <Mastil capo={capoInstr} afinacion={afinacion} acordes={(filtro.length ? distintos.filter((d) => filtro.includes(claveDe(d.nota, d.calidad, d.bajo))) : distintos).map((d) => ({ nota: d.nota, calidad: d.calidad }))} />
               </section>
 
               <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(0,1fr) 230px" }}>
