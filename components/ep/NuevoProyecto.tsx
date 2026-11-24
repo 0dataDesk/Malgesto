@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { crearProyectoAction } from "@/app/ep/actions";
+import { crearProyectoAction } from "@/app/musical/actions";
 
 const INK = "oklch(0.24 0.044 262)";
 const MUTED = "oklch(0.5 0.044 262)";

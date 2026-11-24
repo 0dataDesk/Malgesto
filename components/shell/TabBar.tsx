@@ -143,6 +143,23 @@ function IconoPresskit() {
   );
 }
 
+function IconoLirico() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 20l1.2-4.2L16.5 4.5a2 2 0 0 1 2.8 2.8L8 18.6z" />
+      <path d="M14.5 6.5l3 3" />
+    </svg>
+  );
+}
+
+function IconoMusical() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 12h2.5l2-6 3 12 3-9 2 3H21" />
+    </svg>
+  );
+}
+
 // Brief "Menú de vistas: acordeón flotante": la etiqueta + ícono de la vista
 // activa quedan en el trigger del acordeón, colapsado por default -- mismo
 // criterio de interacción que los demás acordeones de la app (ej.
@@ -152,6 +169,8 @@ function IconoPresskit() {
 const ETIQUETA_VISTA: Record<string, string> = {
   calendario: "Calendario",
   canciones: "Canciones",
+  lirico: "Lírico",
+  musical: "Musical",
   setlist: "Set List",
   seteos: "Seteos",
   finanzas: "Finanzas",
@@ -189,7 +208,7 @@ export function TabBar({
   mostrarStagePlot = true,
   mostrarPresskit = true,
 }: {
-  activa: "calendario" | "canciones" | "setlist" | "seteos" | "finanzas" | "stage_plot" | "presskit";
+  activa: "calendario" | "canciones" | "lirico" | "musical" | "setlist" | "seteos" | "finanzas" | "stage_plot" | "presskit";
   userEmail?: string;
   esSuperadmin?: boolean;
   mostrarCanciones?: boolean;
@@ -244,6 +263,16 @@ export function TabBar({
         {mostrarCanciones && (
           <NavBoton href="/canciones" activo={activa === "canciones"} label="Canciones">
             <IconoCanciones />
+          </NavBoton>
+        )}
+        {mostrarCanciones && (
+          <NavBoton href="/lirico" activo={activa === "lirico"} label="Lírico">
+            <IconoLirico />
+          </NavBoton>
+        )}
+        {mostrarCanciones && (
+          <NavBoton href="/musical" activo={activa === "musical"} label="Musical">
+            <IconoMusical />
           </NavBoton>
         )}
         {mostrarSetlist && (

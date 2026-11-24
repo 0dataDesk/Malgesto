@@ -9,8 +9,8 @@ import { crearProyecto, guardarProyecto, eliminarProyecto } from "@/lib/epData";
 export async function crearProyectoAction(bandaId: string, nombre: string, tipo: "ep" | "album") {
   await requerirAccesoBloque(bandaId, "canciones");
   const id = await crearProyecto(bandaId, nombre, tipo === "album" ? "album" : "ep");
-  revalidatePath("/ep");
-  redirect(`/ep?banda=${bandaId}&proyecto=${id}`);
+  revalidatePath("/musical");
+  redirect(`/musical?banda=${bandaId}&proyecto=${id}`);
 }
 
 // Devuelve la nueva versión; con una pantalla desactualizada (otra versión se guardó antes) no pisa nada y lo avisa.
@@ -28,6 +28,6 @@ export async function guardarMapaAction(bandaId: string, proyectoId: string, pro
 export async function eliminarProyectoAction(bandaId: string, proyectoId: string) {
   await requerirAccesoBloque(bandaId, "canciones");
   await eliminarProyecto(bandaId, proyectoId);
-  revalidatePath("/ep");
-  redirect(`/ep?banda=${bandaId}`);
+  revalidatePath("/musical");
+  redirect(`/musical?banda=${bandaId}`);
 }

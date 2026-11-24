@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { guardarMapaAction } from "@/app/ep/actions";
+import { guardarMapaAction } from "@/app/musical/actions";
 import {
   CUERPO,
   NUCLEO,
