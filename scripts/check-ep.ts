@@ -112,6 +112,14 @@ if (nuevaPieza().secciones.length !== 0) falla("una canción nueva nace sin estr
 const conNueva = nuevaSeccion("Coro", 16, { energia: 85, animo: 90, tension: 10, altos: 75, medios: 85, graves: 85, sub: 85 });
 if (conNueva.energia !== 85 || conNueva.compases !== 16 || conNueva.parte !== "Coro") falla("nuevaSeccion parte de la referencia de la canción");
 
+// Canción sin escenas: el EP completo muestra su nivel general (referencia), no ceros
+const vacia: Pieza = { ...nuevaPieza("V"), referencia: { energia: 10, animo: 10, tension: 70, altos: 70, medios: 35, graves: 60, sub: 60 } };
+if (promedioDe(vacia, "tension") !== 70) falla("sin escenas, promedioDe debe dar el nivel general de la canción");
+const tv = tramosDe([vacia, cancion], null);
+if (tv.length !== 1 + cancion.secciones.length || !tv[0].virtual || tv[0].seccion !== -1) falla("el EP completo dibuja un bloque general por canción sin escenas");
+if (tramosDe([vacia, cancion], 0).length !== 0) falla("en la vista de una canción vacía no hay bloques");
+if (promedioIntensidad(vacia) === 0) falla("intensidad de una canción vacía sale de su nivel general");
+
 if (errores.length > 0) {
   console.error("Mapa del EP: fallas\n- " + errores.join("\n- "));
   process.exit(1);

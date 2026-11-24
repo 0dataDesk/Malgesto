@@ -693,8 +693,8 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
 
             {/* Selección, zonas clicables y tira de escenas (el tamaño es proporcional a los compases) */}
             {tramos.map((t, k) => {
-              const sc = proy.piezas[t.pieza].secciones[t.seccion];
-              const etq = etiquetaDe(proy.piezas[t.pieza], t.seccion);
+              const sc = t.virtual ? { id: `general-${t.pieza}`, compases: 8, transmite: "", parte: "" } : proy.piezas[t.pieza].secciones[t.seccion];
+              const etq = t.virtual ? proy.piezas[t.pieza].titulo : etiquetaDe(proy.piezas[t.pieza], t.seccion);
               const esSel = enDetalle && seleccionada?.p === t.pieza && seleccionada?.s === t.seccion;
               const x0 = xDe(t.x0);
               const ancho = (t.x1 - t.x0) * PW;
@@ -717,13 +717,13 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
                   )}
                   {/* tira */}
                   <rect x={x0 + 1} y={TIRA_Y} width={Math.max(1, ancho - 2)} height={TIRA_H} rx="7" fill={colorAnimo(t.animo, esSel ? 0.9 : 0.34)} stroke={esSel ? INK : "none"} strokeWidth="2" style={{ cursor: "pointer" }} onClick={() => elegir(t.pieza, t.seccion)}>
-                    <title>{`${k + 1}. ${etq} · ${sc.compases} compases${sc.transmite ? ` · ${sc.transmite}` : ""}`}</title>
+                    <title>{`${k + 1}. ${etq}${t.virtual ? " · sin estructura: nivel general de la canción" : ` · ${sc.compases} compases${sc.transmite ? ` · ${sc.transmite}` : ""}`}`}</title>
                   </rect>
                   <text x={xDe(t.xc)} y={TIRA_Y + 17} fontSize="11" fontWeight={esSel ? 700 : 500} textAnchor="middle" fill={esSel && t.animo > 55 ? INK : esSel ? "white" : INK} pointerEvents="none" style={{ fontFamily: MONO }}>
                     {recorta(etq, caben)}
                   </text>
                   <text x={xDe(t.xc)} y={TIRA_Y + 31} fontSize="9.5" textAnchor="middle" fill={esSel && t.animo <= 55 ? "white" : MUTED} pointerEvents="none" style={{ fontFamily: MONO }}>
-                    {caben >= 5 ? `${sc.compases} c` : ancho >= 22 ? String(sc.compases) : ""}
+                    {t.virtual ? (caben >= 14 ? "sin estructura" : "") : caben >= 5 ? `${sc.compases} c` : ancho >= 22 ? String(sc.compases) : ""}
                   </text>
                 </g>
               );
