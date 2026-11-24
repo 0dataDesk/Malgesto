@@ -22,6 +22,12 @@ export function compasesDeSeccion(s: {
   return s.acordes.reduce((total, a) => total + Number(a.duracionCompases), 0);
 }
 
+// Duración de un acorde para mostrar: compases ("2c") o, si dura menos de un compás, tiempos ("2t").
+export function etiquetaDuracion(compases: number): string {
+  if (compases >= 1 || compases <= 0) return `${Number(compases.toFixed(2))}c`;
+  return `${Number((compases * TIEMPOS_POR_COMPAS).toFixed(2))}t`;
+}
+
 export function segundosPorCompas(bpm: number): number {
   if (!bpm || bpm <= 0) return 0;
   return (TIEMPOS_POR_COMPAS * 60) / bpm;

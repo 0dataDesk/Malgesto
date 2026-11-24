@@ -128,7 +128,7 @@ function aDropD(base: (number | null)[]): (number | null)[] | null {
 // 1) la forma que trae la hoja de la canción (`personalizada`, traste por cuerda),
 // 2) el catálogo de formas comunes, 3) formas calculadas (todas las notas del acorde y la
 // nota más grave = el bajo, que es la raíz salvo en acordes con barra: Dsus4/F#).
-// Bajo (instrumento): raíz, quinta y octava (lo que se toca de un acorde en el bajo).
+// Bajo (instrumento): las notas del acorde en una ventana de 5 trastes, con la raíz resaltada.
 export function variantesDeAcorde(
   instrumento: NombreInstrumento,
   afinacion: Afinacion,
@@ -170,25 +170,30 @@ export function variantesDeAcorde(
 
 // Bajo: la raíz en las tres cuerdas graves, con su quinta una cuerda arriba y su octava dos cuerdas arriba.
 function formasBajo(afinacion: Afinacion, raiz: Nota, calidad: Calidad): Forma[] {
+  // Bajo: las notas del acorde (raíz, tercera, quinta…) en una ventana de 5 trastes, una por cuerda;
+  // la raíz es la que se toca y se resalta en el dibujo.
   const cuerdas = afinacion.cuerdas;
   const r = NOTAS.indexOf(raiz);
-  const quinta = semitonosDeCalidad(calidad).includes(6) && !semitonosDeCalidad(calidad).includes(7) ? 6 : semitonosDeCalidad(calidad).includes(8) && !semitonosDeCalidad(calidad).includes(7) ? 8 : 7;
+  const clase = semitonosDeCalidad(calidad).map((s) => (r + s) % 12);
+  const vistas = new Set<string>();
   const formas: Forma[] = [];
-  for (let c = 0; c + 2 < cuerdas.length; c++) {
-    const f = (((r - cuerdas[c]) % 12) + 12) % 12;
-    const trastes: (number | null)[] = cuerdas.map(() => null);
-    const midiRaiz = cuerdas[c] + f;
-    trastes[c] = f;
-    trastes[c + 1] = midiRaiz + quinta - cuerdas[c + 1];
-    trastes[c + 2] = midiRaiz + 12 - cuerdas[c + 2];
+  for (let w = 0; w <= 9; w++) {
+    const trastes: (number | null)[] = cuerdas.map((m) => {
+      for (let t = w; t <= w + 4; t++) if (clase.includes((m + t) % 12)) return t;
+      return null;
+    });
     const puestas = trastes.filter((t): t is number => t !== null);
-    if (Math.max(...puestas) > 12 || Math.min(...puestas) < 0) continue;
-    const pisados = trastes.filter((t): t is number => t !== null && t > 0);
+    if (puestas.length < 3 || !trastes.some((t, i) => t !== null && (cuerdas[i] + t) % 12 === r)) continue;
+    if (!puestas.includes(w) && w > 0) continue;
+    const clave = trastes.join(",");
+    if (vistas.has(clave)) continue;
+    vistas.add(clave);
+    const pisados = puestas.filter((t) => t > 0);
     const min = pisados.length ? Math.min(...pisados) : 0;
     const dedos = trastes.map((t) => (t === null || t === 0 ? null : Math.min(4, 1 + (t - min))));
     formas.push({ trastes, dedos, barre: null, origen: "calculada" });
   }
-  return formas.sort((a, b) => Math.max(...(a.trastes.filter((t) => t !== null) as number[])) - Math.max(...(b.trastes.filter((t) => t !== null) as number[])));
+  return formas;
 }
 
 export function formaDeAcorde(instrumento: NombreInstrumento, afinacion: Afinacion, raiz: Nota, calidad: Calidad, variante = 0, bajo: Nota | null = null): Forma | null {

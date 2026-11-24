@@ -1,5 +1,6 @@
 import { simboloAcorde, tonosDelAcorde, colorRaizAcorde, colorExtension, colorContrasteTexto } from "@/lib/cancionTeoria";
 import type { AcordeGuardado } from "@/lib/cancionesData";
+import { etiquetaDuracion } from "@/lib/cancionTiempo";
 
 export type Densidad = "grande" | "media" | "compacta";
 
@@ -80,7 +81,7 @@ export function ChordBlock({
           className={`shrink-0 rounded-md px-1.5 py-0.5 font-mono ${tamano.badge}`}
           style={{ background: colorBadge, color: colorTextoBadge }}
         >
-          {acorde.duracionCompases}c
+          {etiquetaDuracion(acorde.duracionCompases)}
         </span>
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-1">
