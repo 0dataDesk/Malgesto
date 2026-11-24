@@ -27,7 +27,7 @@ export const INSTRUMENTOS_ESTUDIO: Record<NombreInstrumento, { etiqueta: string;
     ],
   },
   ukulele: {
-    etiqueta: "Ukulele soprano",
+    etiqueta: "Ukelele",
     afinaciones: [{ id: "estandar", etiqueta: "Soprano (GCEA)", cuerdas: [67, 60, 64, 69], nombres: ["G", "C", "E", "A"] }],
   },
 };
