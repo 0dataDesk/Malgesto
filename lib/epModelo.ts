@@ -102,6 +102,8 @@ export const peso = (s: Pick<Seccion, CampoCuerpo>) => {
 // Promedio general de una canción: lo que se espera de ella en cada indicador. Sale de sus secciones (ponderado por compases)
 // y se puede mover desde la vista del EP completo: todas sus secciones suben o bajan juntas y conservan su forma.
 export const promedioDe = (pieza: Pieza, campo: CampoValor): number => {
+  // Sin escenas, el nivel general es el que se fijó para la canción en la vista del EP.
+  if (pieza.secciones.length === 0) return pieza.referencia[campo];
   const total = pieza.secciones.reduce((a, s) => a + Math.max(1, s.compases), 0);
   if (total === 0) return 0;
   return Math.round(pieza.secciones.reduce((a, s) => a + s[campo] * Math.max(1, s.compases), 0) / total);
@@ -127,10 +129,12 @@ export function moverPromedio(pieza: Pieza, campo: CampoValor, objetivo: number)
 
 // Promedio (ponderado por compases) de las dos líneas calculadas de una canción.
 export const promedioIntensidad = (pieza: Pieza) => {
+  if (pieza.secciones.length === 0) return intensidad(nuevaSeccion("Intro", 8, pieza.referencia));
   const total = pieza.secciones.reduce((a, s) => a + Math.max(1, s.compases), 0);
   return total === 0 ? 0 : Math.round(pieza.secciones.reduce((a, s) => a + intensidad(s) * Math.max(1, s.compases), 0) / total);
 };
 export const promedioPeso = (pieza: Pieza) => {
+  if (pieza.secciones.length === 0) return peso(nuevaSeccion("Intro", 8, pieza.referencia));
   const total = pieza.secciones.reduce((a, s) => a + Math.max(1, s.compases), 0);
   return total === 0 ? 0 : Math.round(pieza.secciones.reduce((a, s) => a + peso(s) * Math.max(1, s.compases), 0) / total);
 };
@@ -178,6 +182,8 @@ export type Tramo = {
   animo: number;
   tension: number;
   contrib: Record<CampoCuerpo, number>;
+  // Canción sin escenas en la vista del EP: bloque que muestra su nivel general (seccion = -1).
+  virtual?: boolean;
 };
 
 // Reparte el ancho según los compases de cada sección. Con `soloPieza` solo se dibuja esa pieza.
@@ -185,17 +191,19 @@ export function tramosDe(piezas: Pieza[], soloPieza: number | null = null): Tram
   const lista: { p: number; s: number; compases: number }[] = [];
   piezas.forEach((pz, p) => {
     if (soloPieza !== null && p !== soloPieza) return;
+    // En el EP completo, una canción sin escenas se dibuja con su nivel general (un bloque de 8 compases).
+    if (pz.secciones.length === 0 && soloPieza === null) lista.push({ p, s: -1, compases: 8 });
     pz.secciones.forEach((sc, s) => lista.push({ p, s, compases: Math.max(1, sc.compases) }));
   });
   const total = lista.reduce((a, t) => a + t.compases, 0);
   if (total === 0) return [];
   let acc = 0;
   return lista.map(({ p, s, compases }) => {
-    const sc = piezas[p].secciones[s];
+    const sc = s === -1 ? nuevaSeccion("Intro", 8, piezas[p].referencia) : piezas[p].secciones[s];
     const x0 = acc / total;
     acc += compases;
     const x1 = acc / total;
-    return { pieza: p, seccion: s, x0, x1, xc: (x0 + x1) / 2, intensidad: intensidad(sc), peso: peso(sc), animo: sc.animo, tension: sc.tension, contrib: contribuciones(sc) };
+    return { pieza: p, seccion: s, virtual: s === -1 || undefined, x0, x1, xc: (x0 + x1) / 2, intensidad: intensidad(sc), peso: peso(sc), animo: sc.animo, tension: sc.tension, contrib: contribuciones(sc) };
   });
 }
 
