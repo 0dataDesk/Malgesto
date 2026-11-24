@@ -91,20 +91,30 @@ function AcordeChip({
 }) {
   const color = colorRaizAcorde(acorde.notaRaiz, acorde.calidad);
   const ink = colorContrasteTexto(color);
+  // Si dura menos de un compás se muestra en tiempos (4 tiempos = 1 compás); la unidad se cambia tocando la letra.
+  const [enTiempos, setEnTiempos] = useState(acorde.duracionCompases > 0 && acorde.duracionCompases < 1);
   return (
     <div className="flex items-center gap-1" style={{ borderRadius: 9, padding: "2px 5px 2px 2px", background: color, border: "1px solid rgba(0,0,0,.14)" }}>
       <AcordeSelector compacto tonalidad={tonalidad} notaRaiz={acorde.notaRaiz} calidad={acorde.calidad} notaBajo={acorde.notaBajo} onSeleccionar={onSeleccionar} />
       <input
-        inputMode="numeric"
-        value={acorde.duracionCompases}
-        title="Compases que dura"
+        inputMode="decimal"
+        value={enTiempos ? Number((acorde.duracionCompases * 4).toFixed(2)) : acorde.duracionCompases}
+        title={enTiempos ? "Tiempos que dura (4 tiempos = 1 compás)" : "Compases que dura"}
         onChange={(e) => {
           const limpio = e.target.value.replace(/[^0-9.]/g, "");
-          onDuracion(limpio === "" ? 0 : Number(limpio));
+          const n = limpio === "" ? 0 : Number(limpio);
+          onDuracion(enTiempos ? n / 4 : n);
         }}
         style={{ width: "2em", textAlign: "center", borderRadius: 5, padding: "1px 0", background: "rgba(255,255,255,.85)", border: "1px solid rgba(0,0,0,.1)", fontFamily: MONO, fontSize: 10, color: INK }}
       />
-      <span style={{ fontFamily: MONO, fontSize: 9, color: ink }}>c</span>
+      <button
+        type="button"
+        onClick={() => setEnTiempos((v) => !v)}
+        title={enTiempos ? "Tiempos: toca para cambiar a compases" : "Compases: toca para cambiar a tiempos (menos de un compás)"}
+        style={{ fontFamily: MONO, fontSize: 9, color: ink, textDecoration: "underline dotted", cursor: "pointer" }}
+      >
+        {enTiempos ? "t" : "c"}
+      </button>
       <button type="button" onClick={onQuitar} aria-label="Quitar acorde" style={{ color: ink, fontFamily: MONO, fontSize: 11, lineHeight: 1 }}>
         ×
       </button>

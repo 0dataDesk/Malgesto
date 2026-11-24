@@ -388,9 +388,9 @@ export function VistaEstudio({
     if (prefsLeidas.current) guardar(PREF, { instrumento, afinId });
   }, [instrumento, afinId]);
 
-  // El ukulele no lleva capo: toca los acordes tal como suenan (formas de la hoja + capo), sin barra de capo.
-  const capoInstr = instrumento === "ukulele" ? 0 : cancion.capo;
-  const semiEf = semi + (instrumento === "ukulele" ? cancion.capo : 0);
+  // Solo la guitarra lleva capo. Bajo y ukelele tocan los acordes tal como suenan (formas de la hoja + capo), sin barra de capo.
+  const capoInstr = instrumento === "guitarra" ? cancion.capo : 0;
+  const semiEf = semi + (instrumento === "guitarra" ? 0 : cancion.capo);
   const tonalidad = useMemo(() => ({ raiz: transponerNota(cancion.tonalidadNota, semiEf), modo: cancion.tonalidadModo }), [cancion.tonalidadNota, cancion.tonalidadModo, semiEf]);
   const afinaciones = INSTRUMENTOS_ESTUDIO[instrumento].afinaciones;
   const afinacion = afinaciones.find((a) => a.id === afinId) ?? afinaciones[0];
@@ -844,7 +844,7 @@ export function VistaEstudio({
           {/* Foco del capo: chico, se prende solo cuando la canción lo usa */}
           <div
             className="flex items-center gap-1.5"
-            title={capoInstr > 0 ? `Capo en el traste ${capoInstr}: suena en ${transponerNota(tonalidad.raiz, capoInstr)}` : cancion.capo > 0 ? `Ukulele sin capo: los acordes ya van como suenan (la guitarra lleva capo ${cancion.capo})` : "Esta canción no usa capo"}
+            title={capoInstr > 0 ? `Capo en el traste ${capoInstr}: suena en ${transponerNota(tonalidad.raiz, capoInstr)}` : cancion.capo > 0 ? `El capo solo es de guitarra: aquí los acordes ya van como suenan (la guitarra lleva capo ${cancion.capo})` : "Esta canción no usa capo"}
           >
             <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED }}>Capo</span>
             <span
@@ -946,12 +946,9 @@ export function VistaEstudio({
             );
           })}
         </div>
-        {/* Tiempo: 0:00 al inicio, la duración al final y una barrita que avanza mientras suena */}
-        <div className="mt-1.5 flex items-center gap-2" style={{ fontFamily: MONO, fontSize: 9, color: "oklch(0.8 0.02 262)" }}>
-          <span>0:00</span>
-          <div style={{ flex: 1, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.18)" }}>
-            <div style={{ height: 3, borderRadius: 2, background: CORAL, width: `${duracionMs > 0 ? Math.min(100, (progresoMs / duracionMs) * 100) : 0}%`, transition: "width .4s linear" }} />
-          </div>
+        {/* Tiempo: el contador avanza mientras suena (sin barra) y al final va la duración */}
+        <div className="mt-1.5 flex items-center justify-between gap-2" style={{ fontFamily: MONO, fontSize: 9, color: "oklch(0.8 0.02 262)" }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: "white", minWidth: 40 }}>{formatoMMSS(Math.floor(Math.max(0, progresoMs) / 1000))}</span>
           <span>{duracionMs > 0 ? formatoMMSS(Math.round(duracionMs / 1000)) : "—"}</span>
         </div>
       </div>
