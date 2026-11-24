@@ -10,9 +10,13 @@ import { Boton, CAMPO, Estado, Etiqueta, INK, LINEA, MUTED, useAccion } from "./
 
 const TARJETA = { background: "oklch(0.99 0.005 85)", border: LINEA } as const;
 
+function ColumnaTitulo({ children }: { children: React.ReactNode }) {
+  return <div className="border-b pb-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: MUTED, borderColor: "oklch(0.89 0.008 85)" }}>{children}</div>;
+}
+
 function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <section className="mt-6">
+    <section className="mt-5">
       <h3 className="mb-2 text-[18px] font-extrabold" style={{ fontFamily: "var(--font-fraunces), sans-serif", color: INK }}>{titulo}</h3>
       {children}
     </section>
@@ -37,7 +41,7 @@ function IdeaBloque({ bandaId, idea, puedeEscribir }: { bandaId: string; idea: I
         <Etiqueta>Origen: {ETIQUETA_ORIGEN[idea.origen]}{idea.origenRef ? ` · ${idea.origenRef}` : ""}</Etiqueta>
         <Opciones valor={estado} deshabilitado={!puedeEscribir} opciones={ESTADOS_IDEA} etiquetas={ETIQUETA_ESTADO_IDEA} onChange={(v) => { setEstado(v); correr(() => guardarIdeaAction(bandaId, idea.id, { estado: v })); }} />
       </div>
-      <textarea value={texto} onChange={(e) => setTexto(e.target.value)} readOnly={!puedeEscribir} rows={8} className="mt-2 w-full rounded-xl px-3 py-2 text-sm" style={CAMPO} />
+      <textarea value={texto} onChange={(e) => setTexto(e.target.value)} readOnly={!puedeEscribir} rows={7} className="mt-2 w-full rounded-xl px-3 py-2 text-sm" style={CAMPO} />
       {puedeEscribir && (
         <div className="mt-2 flex items-center gap-3">
           <Boton pending={pending} onClick={() => correr(() => guardarIdeaAction(bandaId, idea.id, { texto }))}>Guardar idea</Boton>
@@ -71,12 +75,14 @@ function LetraCard({ bandaId, letra, puedeEscribir }: { bandaId: string; letra: 
         <b className="text-base" style={{ color: INK }}>{letra.titulo}</b>
         <Opciones valor={estado} deshabilitado={!puedeEscribir} opciones={ESTADOS_LETRA} etiquetas={ETIQUETA_ESTADO_LETRA} onChange={(v) => { setEstado(v); a1.correr(() => guardarLetraAction(bandaId, letra.id, { estado: v })); }} />
       </div>
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
+      <div className="mt-3 grid gap-3">
         <CampoLetra etiqueta="Objetivo de esta letra" valor={c.objetivo} deshabilitado={!puedeEscribir} onChange={(v) => setC({ ...c, objetivo: v })} />
-        <CampoLetra etiqueta="Premisa (una frase)" valor={c.premisa} deshabilitado={!puedeEscribir} onChange={(v) => setC({ ...c, premisa: v })} />
-        <CampoLetra etiqueta="Ángulo (desde dónde se canta)" valor={c.angulo} deshabilitado={!puedeEscribir} onChange={(v) => setC({ ...c, angulo: v })} />
-        <CampoLetra etiqueta="Plano literal (de qué habla)" valor={c.planoLiteral} deshabilitado={!puedeEscribir} onChange={(v) => setC({ ...c, planoLiteral: v })} />
-        <CampoLetra etiqueta="Plano figurado (qué más puede ser)" valor={c.planoFigurado} deshabilitado={!puedeEscribir} onChange={(v) => setC({ ...c, planoFigurado: v })} />
+        <div className="grid gap-3 md:grid-cols-2">
+          <CampoLetra etiqueta="Premisa (una frase)" valor={c.premisa} deshabilitado={!puedeEscribir} onChange={(v) => setC({ ...c, premisa: v })} />
+          <CampoLetra etiqueta="Ángulo (desde dónde se canta)" valor={c.angulo} deshabilitado={!puedeEscribir} onChange={(v) => setC({ ...c, angulo: v })} />
+          <CampoLetra etiqueta="Plano literal (de qué habla)" valor={c.planoLiteral} deshabilitado={!puedeEscribir} onChange={(v) => setC({ ...c, planoLiteral: v })} />
+          <CampoLetra etiqueta="Plano figurado (qué más puede ser)" valor={c.planoFigurado} deshabilitado={!puedeEscribir} onChange={(v) => setC({ ...c, planoFigurado: v })} />
+        </div>
       </div>
       {puedeEscribir && (
         <div className="mt-2 flex items-center gap-3">
@@ -89,7 +95,7 @@ function LetraCard({ bandaId, letra, puedeEscribir }: { bandaId: string; letra: 
         <Etiqueta>{ultima ? `Versión ${ultima.numero} (${ultima.autor === "cosmo" ? "Cosmo" : "tuya"})` : "Sin versiones todavía"}</Etiqueta>
         {puedeEscribir && (
           <>
-            <textarea value={nueva} onChange={(e) => setNueva(e.target.value)} rows={10} placeholder="Escribe la letra aquí; cada guardado crea una versión nueva y las anteriores se conservan" className="mt-1 w-full rounded-xl px-3 py-2 text-sm" style={CAMPO} />
+            <textarea value={nueva} onChange={(e) => setNueva(e.target.value)} rows={16} placeholder="Escribe la letra aquí; cada guardado crea una versión nueva y las anteriores se conservan" className="mt-1 w-full rounded-xl px-3 py-2 text-sm" style={CAMPO} />
             <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Qué cambió o qué probaste (opcional)" maxLength={600} className="mt-2 w-full rounded-xl px-3 py-2 text-sm" style={CAMPO} />
             <div className="mt-2 flex items-center gap-3">
               <Boton pending={a2.pending} onClick={() => a2.correr(() => agregarVersionAction(bandaId, letra.id, nueva, nota), () => setNota(""))}>Guardar como versión nueva</Boton>
@@ -155,15 +161,16 @@ function EjercicioFila({ bandaId, e, puedeEscribir }: { bandaId: string; e: Ejer
 
 function LeccionCard({ bandaId, l, tecnica, letraTitulo, puedeEscribir }: { bandaId: string; l: Leccion; tecnica?: Tecnica; letraTitulo?: string; puedeEscribir: boolean }) {
   return (
-    <div className="mb-4 rounded-2xl p-4" style={TARJETA}>
-      <div className="flex flex-wrap items-center gap-3">
+    <details open={l.estado === "en_curso"} className="mb-3 rounded-2xl p-4" style={TARJETA}>
+      <summary className="cursor-pointer">
         <b className="text-base" style={{ color: INK }}>{tecnica?.nombre ?? l.tecnica}</b>
-        <span className="font-mono text-[10px] uppercase" style={{ color: MUTED }}>{ETIQUETA_ESTADO_LECCION[l.estado]}{letraTitulo ? ` · sobre «${letraTitulo}»` : ""}</span>
-      </div>
+        <span className="ml-2 rounded-full px-2 py-0.5 font-mono text-[10px] uppercase" style={{ background: l.estado === "dominada" ? "oklch(0.9 0.06 150)" : l.estado === "por_reforzar" ? "oklch(0.92 0.06 60)" : "oklch(0.93 0.010 85)", color: INK }}>{ETIQUETA_ESTADO_LECCION[l.estado]}</span>
+        {letraTitulo && <span className="ml-2 font-mono text-[10px]" style={{ color: MUTED }}>sobre «{letraTitulo}»</span>}
+      </summary>
       <div className="mt-2 text-sm" style={{ color: INK }}><b>Objetivo:</b> {l.objetivo}</div>
       {l.contenido && <div className="mt-2 whitespace-pre-line text-sm" style={{ color: INK }}>{l.contenido}</div>}
       {l.ejercicios.map((e) => <EjercicioFila key={e.id} bandaId={bandaId} e={e} puedeEscribir={puedeEscribir} />)}
-    </div>
+    </details>
   );
 }
 
@@ -194,19 +201,26 @@ function Conexiones({ bandaId, idea, otras, puedeEscribir }: { bandaId: string; 
 export function AulaIdea({ bandaId, idea, otras, tecnicas, puedeEscribir }: { bandaId: string; idea: Idea; otras: { id: string; titulo: string }[]; tecnicas: Tecnica[]; puedeEscribir: boolean }) {
   const tecnicaDe = new Map(tecnicas.map((t) => [t.clave, t]));
   const letraDe = new Map(idea.letras.map((l) => [l.id, l.titulo]));
+  const hechos = idea.lecciones.filter((l) => l.estado === "dominada").length;
   return (
-    <div>
-      <Seccion titulo="La idea"><IdeaBloque bandaId={bandaId} idea={idea} puedeEscribir={puedeEscribir} /></Seccion>
-      <Seccion titulo="Letras de esta idea">
-        {idea.letras.length === 0 && <p className="text-sm" style={{ color: MUTED }}>Esta idea todavía no tiene letras.</p>}
-        {idea.letras.map((l) => <LetraCard key={l.id} bandaId={bandaId} letra={l} puedeEscribir={puedeEscribir} />)}
-        {puedeEscribir && <NuevaLetra bandaId={bandaId} ideaId={idea.id} />}
-      </Seccion>
-      <Seccion titulo="Aula: lo que Cosmo te enseña sobre esta idea">
-        {idea.lecciones.length === 0 && <p className="text-sm" style={{ color: MUTED }}>Todavía no hay lecciones sobre esta idea. Cosmo las abre aquí, con su objetivo y sus ejercicios.</p>}
-        {idea.lecciones.map((l) => <LeccionCard key={l.id} bandaId={bandaId} l={l} tecnica={tecnicaDe.get(l.tecnica)} letraTitulo={l.letraId ? letraDe.get(l.letraId) : undefined} puedeEscribir={puedeEscribir} />)}
-      </Seccion>
-      <Seccion titulo="Conexiones"><Conexiones bandaId={bandaId} idea={idea} otras={otras} puedeEscribir={puedeEscribir} /></Seccion>
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      <div>
+        <ColumnaTitulo>Trabajo · {idea.titulo}</ColumnaTitulo>
+        <Seccion titulo="La idea"><IdeaBloque bandaId={bandaId} idea={idea} puedeEscribir={puedeEscribir} /></Seccion>
+        <Seccion titulo={`Letras de esta idea (${idea.letras.length})`}>
+          {idea.letras.length === 0 && <p className="text-sm" style={{ color: MUTED }}>Esta idea todavía no tiene letras.</p>}
+          {idea.letras.map((l) => <LetraCard key={l.id} bandaId={bandaId} letra={l} puedeEscribir={puedeEscribir} />)}
+          {puedeEscribir && <NuevaLetra bandaId={bandaId} ideaId={idea.id} />}
+        </Seccion>
+      </div>
+      <div>
+        <ColumnaTitulo>Aula · {idea.lecciones.length} lección{idea.lecciones.length === 1 ? "" : "es"} · {hechos} dominada{hechos === 1 ? "" : "s"}</ColumnaTitulo>
+        <Seccion titulo="Lo que Cosmo te enseña sobre esta idea">
+          {idea.lecciones.length === 0 && <p className="text-sm" style={{ color: MUTED }}>Todavía no hay lecciones sobre esta idea. Cosmo las abre aquí, con su objetivo y sus ejercicios.</p>}
+          {idea.lecciones.map((l) => <LeccionCard key={l.id} bandaId={bandaId} l={l} tecnica={tecnicaDe.get(l.tecnica)} letraTitulo={l.letraId ? letraDe.get(l.letraId) : undefined} puedeEscribir={puedeEscribir} />)}
+        </Seccion>
+        <Seccion titulo="Conexiones"><Conexiones bandaId={bandaId} idea={idea} otras={otras} puedeEscribir={puedeEscribir} /></Seccion>
+      </div>
     </div>
   );
 }

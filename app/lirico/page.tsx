@@ -72,40 +72,50 @@ export default async function LiricoPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.007 85)" }}>
-      <EspacioSuperior>
+      <EspacioSuperior maxWidth="max-w-none">
         <span className="font-mono text-[10px] uppercase tracking-[0.14em]" style={{ color: MUTED }}>{membresiaActiva.bandaNombre}</span>
         <h2 className="mt-1 text-[30px] font-extrabold tracking-[-0.02em]" style={{ fontFamily: "var(--font-fraunces), sans-serif", color: INK }}>
           Lírico
         </h2>
         <p className="mt-1 text-sm" style={{ color: MUTED }}>Aula de composición lírica: tus ideas, tus letras y lo que vas aprendiendo.</p>
 
-        <div className="mt-4 flex flex-wrap gap-1.5">
-          {ideas.map((i) => (
-            <Link
-              key={i.id}
-              href={`/lirico?banda=${bandaActiva}&idea=${i.id}`}
-              className="rounded-full px-3 py-1 text-[11px] font-bold no-underline"
-              title={`${ETIQUETA_ORIGEN[i.origen]} · ${ETIQUETA_ESTADO_IDEA[i.estado]}`}
-              style={{ background: i.id === idea?.id ? "oklch(0.27 0.05 262)" : "oklch(0.93 0.010 85)", color: i.id === idea?.id ? "oklch(0.99 0.006 85)" : MUTED }}
-            >
-              {i.titulo}
-            </Link>
-          ))}
+        <div className="mt-5 grid gap-8 xl:grid-cols-[270px_minmax(0,1fr)]">
+          <aside className="self-start xl:sticky xl:top-6">
+            <div className="font-mono text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: MUTED }}>Ideas ({ideas.length})</div>
+            <div className="mt-2 flex flex-col gap-2">
+              {ideas.map((i) => {
+                const activa = i.id === idea?.id;
+                return (
+                  <Link
+                    key={i.id}
+                    href={`/lirico?banda=${bandaActiva}&idea=${i.id}`}
+                    className="rounded-2xl px-3.5 py-2.5 no-underline"
+                    style={{ background: activa ? "oklch(0.27 0.05 262)" : "oklch(0.99 0.005 85)", border: "1px solid oklch(0.89 0.008 85)", color: activa ? "oklch(0.99 0.006 85)" : INK }}
+                  >
+                    <div className="text-sm font-bold leading-snug">{i.titulo}</div>
+                    <div className="mt-1 font-mono text-[10px] uppercase" style={{ color: activa ? "oklch(0.85 0.02 262)" : MUTED }}>
+                      {ETIQUETA_ESTADO_IDEA[i.estado]} · {ETIQUETA_ORIGEN[i.origen]} · {i.nLetras} letra{i.nLetras === 1 ? "" : "s"} · {i.nLecciones} lecc.
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+            {puedeEscribir && (
+              <div className="mt-4">
+                <NuevaIdea bandaId={bandaActiva} />
+              </div>
+            )}
+            <Tecnicas tecnicas={tecnicas} resumen={resumen} />
+          </aside>
+
+          <main className="min-w-0">
+            {idea ? (
+              <AulaIdea key={idea.id} bandaId={bandaActiva} idea={idea} otras={ideas.filter((i) => i.id !== idea.id).map((i) => ({ id: i.id, titulo: i.titulo }))} tecnicas={tecnicas} puedeEscribir={puedeEscribir} />
+            ) : (
+              <p className="text-sm" style={{ color: MUTED }}>Todavía no hay ideas en {membresiaActiva.bandaNombre}.</p>
+            )}
+          </main>
         </div>
-
-        {idea ? (
-          <AulaIdea key={idea.id} bandaId={bandaActiva} idea={idea} otras={ideas.filter((i) => i.id !== idea.id).map((i) => ({ id: i.id, titulo: i.titulo }))} tecnicas={tecnicas} puedeEscribir={puedeEscribir} />
-        ) : (
-          <p className="mt-6 text-sm" style={{ color: MUTED }}>Todavía no hay ideas en {membresiaActiva.bandaNombre}.</p>
-        )}
-
-        {puedeEscribir && (
-          <div className="mt-8">
-            <NuevaIdea bandaId={bandaActiva} />
-          </div>
-        )}
-
-        <Tecnicas tecnicas={tecnicas} resumen={resumen} />
       </EspacioSuperior>
       {tabBar}
     </div>

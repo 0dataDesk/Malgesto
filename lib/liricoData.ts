@@ -17,7 +17,19 @@ export async function listarTecnicas(): Promise<Tecnica[]> {
 export async function listarIdeas(bandaId: string): Promise<IdeaResumen[]> {
   const { data, error } = await supabaseMalgesto().from("lirico_ideas").select("id, titulo, origen, estado, updated_at").eq("banda_id", bandaId).order("updated_at", { ascending: false });
   if (error) throw new Error(error.message);
-  return (data ?? []).map((r) => ({ id: r.id, titulo: r.titulo, origen: elegir(r.origen, ORIGENES, "nueva"), estado: elegir(r.estado, ESTADOS_IDEA, "semilla"), actualizada: String(r.updated_at) }));
+  const ids = (data ?? []).map((r) => r.id);
+  const contar = (filas: { idea_id: string }[] | null) => {
+    const m = new Map<string, number>();
+    (filas ?? []).forEach((f) => m.set(f.idea_id, (m.get(f.idea_id) ?? 0) + 1));
+    return m;
+  };
+  const db = supabaseMalgesto();
+  const [{ data: ls }, { data: lc }] = ids.length
+    ? await Promise.all([db.from("lirico_letras").select("idea_id").in("idea_id", ids), db.from("lirico_lecciones").select("idea_id").in("idea_id", ids)])
+    : [{ data: [] }, { data: [] }];
+  const nLetras = contar(ls);
+  const nLecciones = contar(lc);
+  return (data ?? []).map((r) => ({ id: r.id, titulo: r.titulo, origen: elegir(r.origen, ORIGENES, "nueva"), estado: elegir(r.estado, ESTADOS_IDEA, "semilla"), actualizada: String(r.updated_at), nLetras: nLetras.get(r.id) ?? 0, nLecciones: nLecciones.get(r.id) ?? 0 }));
 }
 
 export async function leccionesDeBanda(bandaId: string): Promise<{ tecnica: string; estado: EstadoLeccion }[]> {

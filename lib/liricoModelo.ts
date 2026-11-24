@@ -29,8 +29,8 @@ export type Leccion = { id: string; letraId: string | null; tecnica: string; obj
 export type Version = { id: string; numero: number; texto: string; nota: string; autor: "jorge" | "cosmo"; creada: string };
 export type Letra = { id: string; titulo: string; objetivo: string; premisa: string; angulo: string; planoLiteral: string; planoFigurado: string; estado: EstadoLetra; versiones: Version[] };
 export type Conexion = { id: string; otraId: string; otraTitulo: string; motivo: string };
-export type IdeaResumen = { id: string; titulo: string; origen: Origen; estado: EstadoIdea; actualizada: string };
-export type Idea = IdeaResumen & { texto: string; origenRef: string; letras: Letra[]; lecciones: Leccion[]; conexiones: Conexion[] };
+export type IdeaResumen = { id: string; titulo: string; origen: Origen; estado: EstadoIdea; actualizada: string; nLetras: number; nLecciones: number };
+export type Idea = Omit<IdeaResumen, "nLetras" | "nLecciones"> & { texto: string; origenRef: string; letras: Letra[]; lecciones: Leccion[]; conexiones: Conexion[] };
 
 export function elegir<T extends string>(valor: unknown, validos: readonly T[], porDefecto: T): T {
   return typeof valor === "string" && (validos as readonly string[]).includes(valor) ? (valor as T) : porDefecto;
