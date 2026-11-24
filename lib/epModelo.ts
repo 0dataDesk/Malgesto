@@ -42,9 +42,9 @@ export const palabraDe = (escala: Escala, valor: number) => escala.pasos[Math.mi
 
 export type Seccion = {
   id: string;
-  // La escena: cómo se imagina («Niebla», «Se abre el eco»). Es el nombre principal y el de la escena de Live.
+  // Nombre técnico de la escena (se genera: «Verso 2»); es el de la escena de Live. En datos anteriores puede ser un nombre libre.
   nombre: string;
-  // Parte de la canción (Intro, Verso, Dub, Coro, Puente…): su función musical, campo secundario.
+  // Parte de la canción: Intro, Verso, Coro, Puente, Solo u Outro (datos anteriores pueden traer otras).
   parte: string;
   compases: number;
   energia: number;
@@ -225,12 +225,30 @@ export function capaEntre(arriba: Punto[], abajo: Punto[]): string {
   return `${ida} ${vuelta} Z`;
 }
 
-export function nuevaSeccion(nombre = "Nueva escena", parte = "Verso"): Seccion {
-  return { id: crypto.randomUUID(), nombre, parte, compases: 8, energia: 50, animo: 50, tension: 50, altos: 50, medios: 50, graves: 50, sub: 50, armonia: "", transmite: "" };
+// Partes técnicas de una canción de reggae/dub (iguales para cualquier canción). Verso, Coro, Puente y Solo se pueden repetir y se enumeran según se necesite.
+export const PARTES = ["Intro", "Verso", "Coro", "Puente", "Solo", "Outro"] as const;
+const CON_NUMERO: string[] = ["Verso", "Coro", "Puente", "Solo"];
+
+// Nombre técnico de una escena: su parte y, si hay más de una igual en la canción, su número («Verso 2»).
+// Si la parte no es una de las seis (datos anteriores), se conserva el nombre que ya tenía.
+export function etiquetaDe(pieza: { secciones: Seccion[] }, i: number): string {
+  const sc = pieza.secciones[i];
+  if (!sc) return "";
+  if (!(PARTES as readonly string[]).includes(sc.parte)) return sc.nombre || sc.parte || "Escena";
+  if (!CON_NUMERO.includes(sc.parte)) return sc.parte;
+  if (pieza.secciones.filter((x) => x.parte === sc.parte).length < 2) return sc.parte;
+  return `${sc.parte} ${pieza.secciones.slice(0, i + 1).filter((x) => x.parte === sc.parte).length}`;
 }
 
+// Escena nueva: parte y compases; los siete indicadores parten del nivel que se eligió para la canción (si hay).
+export function nuevaSeccion(parte = "Verso", compases = 8, base?: Referencia): Seccion {
+  const r = base ?? { energia: 50, animo: 50, tension: 50, altos: 50, medios: 50, graves: 50, sub: 50 };
+  return { id: crypto.randomUUID(), nombre: parte, parte, compases, energia: r.energia, animo: r.animo, tension: r.tension, altos: r.altos, medios: r.medios, graves: r.graves, sub: r.sub, armonia: "", transmite: "" };
+}
+
+// Una canción nueva nace sin estructura: se arma con las partes.
 export function nuevaPieza(titulo = "Nueva canción"): Pieza {
-  return { id: crypto.randomUUID(), titulo, referencia: { energia: 50, animo: 50, tension: 50, altos: 50, medios: 50, graves: 50, sub: 50 }, tonalidad: "", bpm: null, idea: "", secciones: [nuevaSeccion("Primera escena", "Intro")] };
+  return { id: crypto.randomUUID(), titulo, referencia: { energia: 50, animo: 50, tension: 50, altos: 50, medios: 50, graves: 50, sub: 50 }, tonalidad: "", bpm: null, idea: "", secciones: [] };
 }
 
 export function totalCompases(p: Pieza): number {
@@ -283,6 +301,9 @@ export function normalizarProyecto(entrada: unknown): Omit<Proyecto, "id" | "ban
         };
       }),
     };
+    pieza.secciones.forEach((sc, i) => {
+      if ((PARTES as readonly string[]).includes(sc.parte)) sc.nombre = etiquetaDe(pieza, i);
+    });
     const base = { ...pieza, referencia: referenciaDe({ ...pieza, referencia: NIVEL_NADA }) };
     return { ...pieza, referencia: Object.fromEntries(CAMPOS.map((c) => [c, ent(refIn[c], 0, 100, base.referencia[c])])) as Referencia };
   });
