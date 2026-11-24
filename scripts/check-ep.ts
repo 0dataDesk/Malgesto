@@ -1,5 +1,5 @@
 // Revisa la geometría, los cálculos y la validación del Mapa del EP. Corre con npm run check (antes de cada build).
-import { CAMPOS, referenciaDe, CUERPO, NUCLEO, PESO_CUERPO, PESO_INTENSIDAD, moverPromedio, promedioDe, promedioIntensidad, promedioPeso, capaEntre, clamp, colorAnimo, curvaSuave, duracionSeg, formatoMSS, intensidad, nuevaPieza, nuevaSeccion, etiquetaDe, PARTES, normalizarProyecto, palabraDe, peso, tramosDe, type Pieza, type Seccion } from "../lib/epModelo";
+import { CAMPOS, referenciaDe, CUERPO, NUCLEO, PESO_CUERPO, PESO_INTENSIDAD, moverPromedio, promedioDe, promedioIntensidad, promedioPeso, capaEntre, clamp, colorAnimo, curvaSuave, duracionSeg, formatoMSS, intensidad, normalizarMatriz, nuevaPieza, nuevaSeccion, etiquetaDe, PARTES, normalizarProyecto, palabraDe, peso, tramosDe, type Pieza, type Seccion } from "../lib/epModelo";
 
 const errores: string[] = [];
 const falla = (m: string) => errores.push(m);
@@ -119,6 +119,13 @@ const tv = tramosDe([vacia, cancion], null);
 if (tv.length !== 1 + cancion.secciones.length || !tv[0].virtual || tv[0].seccion !== -1) falla("el EP completo dibuja un bloque general por canción sin escenas");
 if (tramosDe([vacia, cancion], 0).length !== 0) falla("en la vista de una canción vacía no hay bloques");
 if (promedioIntensidad(vacia) === 0) falla("intensidad de una canción vacía sale de su nivel general");
+
+// Matriz de instrumentos: valida estados, ids y nombres
+const idPz = crypto.randomUUID();
+const mz = normalizarMatriz([{ id: "no-uuid", nombre: " kick ", bus: "BATERIA", estados: { [idPz]: "si", "otro": "si", [crypto.randomUUID()]: "x" } }, { nombre: "", estados: { [idPz]: "op" } }]);
+if (mz.length !== 2 || mz[0].nombre !== "kick" || mz[0].bus !== "BATERIA" || Object.keys(mz[0].estados).length !== 1 || mz[0].estados[idPz] !== "si") falla("normalizarMatriz: ids, nombres y estados válidos");
+if (mz[1].nombre !== "Canal" || mz[1].estados[idPz] !== "op" || mz[0].id === mz[1].id) falla("normalizarMatriz: canal sin nombre y ids únicos");
+if (normalizarMatriz(undefined).length !== 0) falla("normalizarMatriz: sin matriz es vacía");
 
 if (errores.length > 0) {
   console.error("Mapa del EP: fallas\n- " + errores.join("\n- "));

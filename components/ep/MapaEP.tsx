@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { guardarMapaAction } from "@/app/musical/actions";
 import {
+  BUSES,
   CUERPO,
   NUCLEO,
   PARTES,
@@ -26,6 +27,7 @@ import {
   promedioPeso,
   totalCompases,
   tramosDe,
+  type Canal,
   type CampoCuerpo,
   type CampoValor,
   type Escala,
@@ -447,6 +449,152 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
     const copia: Seccion = { ...orig, id: crypto.randomUUID() };
     setProy((pr) => ({ ...pr, piezas: pr.piezas.map((pz, i) => (i !== p ? pz : { ...pz, secciones: [...pz.secciones.slice(0, s + 1), copia, ...pz.secciones.slice(s + 1)] })) }));
     setSel({ p, s: s + 1 });
+  };
+
+  // ---- Matriz de instrumentos: canales con su bus y, por canción, si entran (✓), son opcionales (○) o no entran ----
+  const [nuevoCanal, setNuevoCanal] = useState({ nombre: "", bus: "" });
+  const ciclarCanal = (canalId: string, piezaId: string) =>
+    setProy((pr) => ({
+      ...pr,
+      matriz: pr.matriz.map((c) => {
+        if (c.id !== canalId) return c;
+        const estados = { ...c.estados };
+        const act = estados[piezaId];
+        if (!act) estados[piezaId] = "si";
+        else if (act === "si") estados[piezaId] = "op";
+        else delete estados[piezaId];
+        return { ...c, estados };
+      }),
+    }));
+  const ponerCanal = (canalId: string, piezaId: string) =>
+    setProy((pr) => ({ ...pr, matriz: pr.matriz.map((c) => (c.id !== canalId ? c : { ...c, estados: { ...c.estados, [piezaId]: "si" } })) }));
+  const agregarCanal = () => {
+    const nombre = nuevoCanal.nombre.trim().toUpperCase();
+    if (!nombre) return;
+    setProy((pr) => ({ ...pr, matriz: [...pr.matriz, { id: crypto.randomUUID(), nombre, bus: nuevoCanal.bus, estados: {} }] }));
+    setNuevoCanal({ nombre: "", bus: nuevoCanal.bus });
+  };
+  const quitarCanal = (c: Canal) => {
+    if (!window.confirm(`¿Quitar el canal ${c.nombre} de todas las canciones?`)) return;
+    setProy((pr) => ({ ...pr, matriz: pr.matriz.filter((x) => x.id !== c.id) }));
+  };
+  const GRUPOS_MATRIZ = [...BUSES.map((b) => ({ bus: b as string, titulo: `Bus ${b}` })), { bus: "", titulo: "Sueltos (sin bus)" }];
+  const canalesDeGrupo = (bus: string) => proy.matriz.filter((c) => (bus === "" ? !(BUSES as readonly string[]).includes(c.bus) : c.bus === bus));
+  const celda = (est: string | undefined) =>
+    est === "si"
+      ? { texto: "✓", estilo: { background: INK, color: "white", border: `1px solid ${INK}` } }
+      : est === "op"
+        ? { texto: "○", estilo: { background: "oklch(0.93 0.010 85)", color: INK, border: `1px dashed ${MUTED}` } }
+        : { texto: "–", estilo: { background: "transparent", color: MUTED, border: `1px solid ${LINE}` } };
+
+  const matrizGeneral = () => (
+    <div className="mt-4 rounded-2xl p-4" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+      <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: INK }}>
+        Instrumentos por canción · {proy.matriz.length} canales
+      </div>
+      <p className="mt-1 max-w-[60rem] text-[11px] leading-snug" style={{ color: MUTED }}>
+        Qué canales lleva cada canción, agrupados por bus. Toca una casilla para cambiarla: ✓ entra, ○ opcional, – no entra. Al entrar a una canción solo ves los suyos.
+      </p>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full border-collapse text-xs" style={{ fontFamily: MONO, color: INK }}>
+          <thead>
+            <tr>
+              <th className="py-1 pr-3 text-left text-[10px]" style={{ color: MUTED }}>Canal</th>
+              {proy.piezas.map((pz) => (
+                <th key={pz.id} className="px-2 py-1 text-center text-[10px]" style={{ color: MUTED }}>{recorta(pz.titulo, 12)}</th>
+              ))}
+              {puedeEscribir && <th />}
+            </tr>
+          </thead>
+          <tbody>
+            {GRUPOS_MATRIZ.map((g) => {
+              const filas = canalesDeGrupo(g.bus);
+              if (filas.length === 0) return null;
+              return (
+                <Fragment key={g.bus || "sueltos"}>
+                  <tr>
+                    <td colSpan={proy.piezas.length + (puedeEscribir ? 2 : 1)} className="pt-3 pb-1 text-[10px] font-bold uppercase tracking-[0.12em]">{g.titulo}</td>
+                  </tr>
+                  {filas.map((c) => (
+                    <tr key={c.id} style={{ borderTop: `1px solid ${LINE}` }}>
+                      <td className="py-1 pr-3 font-bold">{c.nombre}</td>
+                      {proy.piezas.map((pz) => {
+                        const cl = celda(c.estados[pz.id]);
+                        return (
+                          <td key={pz.id} className="px-2 py-1 text-center">
+                            <button type="button" onClick={() => ciclarCanal(c.id, pz.id)} disabled={!puedeEscribir} aria-label={`${c.nombre} en ${pz.titulo}`} className="h-6 w-9 rounded-md text-xs font-bold" style={cl.estilo}>{cl.texto}</button>
+                          </td>
+                        );
+                      })}
+                      {puedeEscribir && (
+                        <td className="pl-2 text-right">
+                          <button type="button" onClick={() => quitarCanal(c)} aria-label={`Quitar ${c.nombre}`} className="px-1.5 py-0.5 text-[11px]" style={{ ...miniBoton, color: "oklch(0.5 0.18 25)" }}>✕</button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {puedeEscribir && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <input value={nuevoCanal.nombre} onChange={(e) => setNuevoCanal({ ...nuevoCanal, nombre: e.target.value })} maxLength={40} placeholder="Nombre del canal" aria-label="Nombre del canal nuevo" className="w-44 px-2.5 py-1 text-xs" style={inputStyle} />
+          <select value={nuevoCanal.bus} onChange={(e) => setNuevoCanal({ ...nuevoCanal, bus: e.target.value })} aria-label="Bus del canal nuevo" className="px-2 py-1 text-xs" style={inputStyle}>
+            <option value="">Suelto (sin bus)</option>
+            {BUSES.map((b) => (
+              <option key={b} value={b}>{b}</option>
+            ))}
+          </select>
+          <button type="button" onClick={agregarCanal} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>+ Canal</button>
+        </div>
+      )}
+    </div>
+  );
+
+  const matrizCancion = () => {
+    const pz = proy.piezas[vista as number];
+    if (!pz) return null;
+    const incluidos = proy.matriz.filter((c) => c.estados[pz.id]);
+    const faltan = proy.matriz.filter((c) => !c.estados[pz.id]);
+    return (
+      <div className="mt-3 rounded-2xl p-4" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+        <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: INK }}>
+          Instrumentos de {pz.titulo} · {incluidos.length} canales
+        </div>
+        <p className="mt-1 text-[11px] leading-snug" style={{ color: MUTED }}>Toca un canal para pasarlo a opcional (○) o quitarlo de esta canción.</p>
+        {incluidos.length === 0 && <p className="mt-2 text-sm" style={{ color: MUTED }}>Esta canción aún no tiene instrumentos. Agrégalos abajo o en la vista del EP completo.</p>}
+        <div className="mt-2 grid gap-2.5">
+          {GRUPOS_MATRIZ.map((g) => {
+            const chips = canalesDeGrupo(g.bus).filter((c) => c.estados[pz.id]);
+            if (chips.length === 0) return null;
+            return (
+              <div key={g.bus || "sueltos"} className="flex flex-wrap items-center gap-1.5">
+                <span className="mr-1 w-28 text-[10px] font-bold uppercase tracking-[0.1em]" style={{ fontFamily: MONO, color: MUTED }}>{g.bus || "Sueltos"}</span>
+                {chips.map((c) => {
+                  const cl = celda(c.estados[pz.id]);
+                  return (
+                    <button key={c.id} type="button" onClick={() => ciclarCanal(c.id, pz.id)} disabled={!puedeEscribir} className="rounded-full px-3 py-1 text-xs font-bold" style={{ ...cl.estilo, fontFamily: MONO }}>
+                      {c.nombre}{c.estados[pz.id] === "op" ? " ○" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+        {puedeEscribir && faltan.length > 0 && (
+          <select value="" onChange={(e) => e.target.value && ponerCanal(e.target.value, pz.id)} aria-label="Agregar un canal a esta canción" className="mt-3 px-2 py-1 text-xs" style={inputStyle}>
+            <option value="">+ Agregar un canal a esta canción…</option>
+            {faltan.map((c) => (
+              <option key={c.id} value={c.id}>{c.nombre}{c.bus ? ` (${c.bus})` : ""}</option>
+            ))}
+          </select>
+        )}
+      </div>
+    );
   };
 
   const textoEstado = !puedeEscribir ? "Solo lectura" : estado === "guardado" ? "Guardado" : estado === "guardando" ? "Guardando…" : estado === "pendiente" ? "Cambios sin guardar…" : desactualizado ? "Pantalla desactualizada" : errorMsg || "No se pudo guardar";
@@ -894,6 +1042,8 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
         Vista del EP completo: los niveles generales de cada canción, que son los únicos que se editan. Vista de una canción: su estructura y la historia de cada escena; los valores de cada escena se ven fijos y se mueven con los generales. Las gráficas se dibujan solas. Cuando estés listo, dile a Cosmo «arma [canción]»: lee la historia, los compases y los niveles, y propone tono, tempo y los MIDI de cada escena.
       </p>
 
+      {!enDetalle && matrizGeneral()}
+
       {/* Datos de la canción: solo dentro de la canción abierta */}
       {enDetalle && proy.piezas[vista as number] && (() => {
         const p = vista as number;
@@ -934,6 +1084,8 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
           </div>
         );
       })()}
+
+      {enDetalle && matrizCancion()}
     </div>
   );
 }

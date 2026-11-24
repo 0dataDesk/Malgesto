@@ -1,6 +1,6 @@
 import "server-only";
 import { supabaseMalgesto } from "@/lib/supabase/malgesto";
-import { CAMPOS, normalizarProyecto, referenciaDe, type Pieza, type Proyecto, type Referencia } from "@/lib/epModelo";
+import { CAMPOS, normalizarMatriz, normalizarProyecto, referenciaDe, type Pieza, type Proyecto, type Referencia } from "@/lib/epModelo";
 
 // Mapa del EP (planeación de un proyecto musical). Vive aparte de canciones: ver supabase/migrations/20261120130000.
 
@@ -31,7 +31,7 @@ export async function listarProyectos(bandaId: string): Promise<{ id: string; no
 
 export async function obtenerProyecto(bandaId: string, proyectoId?: string): Promise<Proyecto | null> {
   const db = supabaseMalgesto();
-  let q = db.from("proyectos_musicales").select("id, banda_id, nombre, tipo, historia, updated_at").eq("banda_id", bandaId);
+  let q = db.from("proyectos_musicales").select("id, banda_id, nombre, tipo, historia, matriz, updated_at").eq("banda_id", bandaId);
   q = proyectoId ? q.eq("id", proyectoId) : q.order("created_at").limit(1);
   const { data: proys, error } = await q;
   if (error) throw new Error(error.message);
@@ -63,6 +63,7 @@ export async function obtenerProyecto(bandaId: string, proyectoId?: string): Pro
     nombre: proy.nombre,
     tipo: proy.tipo === "album" ? "album" : "ep",
     historia: proy.historia,
+    matriz: normalizarMatriz(proy.matriz),
     version: String(proy.updated_at),
     piezas: (piezas ?? []).map((p): Pieza => {
       const sinReferencia: Pieza = {
@@ -139,7 +140,7 @@ export async function guardarProyecto(bandaId: string, proyectoId: string, entra
 
   const { data: nuevo, error: e1 } = await db
     .from("proyectos_musicales")
-    .update({ nombre: p.nombre, tipo: p.tipo, historia: p.historia, updated_at: new Date().toISOString() })
+    .update({ nombre: p.nombre, tipo: p.tipo, historia: p.historia, matriz: p.matriz, updated_at: new Date().toISOString() })
     .eq("id", proyectoId)
     .select("updated_at")
     .single();
