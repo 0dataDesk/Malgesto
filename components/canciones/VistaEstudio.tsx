@@ -872,7 +872,7 @@ export function VistaEstudio({
                     color: activo ? "white" : INK,
                   }}
                 >
-                  {INSTRUMENTOS_ESTUDIO[k].etiqueta.replace(" 4", "").replace(" soprano", "")}
+                  {INSTRUMENTOS_ESTUDIO[k].etiqueta.replace(" 4", "")}
                 </button>
               );
             })}
