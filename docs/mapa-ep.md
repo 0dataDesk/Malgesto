@@ -1,4 +1,6 @@
-# Mapa del EP (`/ep`)
+# Musical, antes Mapa del EP (`/musical`; `/ep` redirige)
+
+Desde el 24/11/26 la herramienta se llama **Musical** y tiene su botón propio en la barra (ya no cuelga de Canciones). Su par es **Lírico** (`docs/lirico.md`); son procesos distintos y pueden ligarse después, de forma opcional.
 
 Herramienta de Malgesto App para **planear un EP o álbum** como curvas calculadas de siete indicadores por escena. Vive aparte de Canciones (no mezcla la armonía de canciones reales) y usa el permiso del bloque Canciones (editan administrador y superadmin de la banda). Pertenece al satélite **Producción** de Cosmos (`galaxias/produccion.md` en el repo privado `0dataDesk/Cosmos`). Para retomar el proyecto o mejorar la herramienta: `orbita/encargos/retomar-produccion.md` de ese repo.
 
@@ -19,7 +21,7 @@ Herramienta de Malgesto App para **planear un EP o álbum** como curvas calculad
 - `normalizarProyecto` valida todo lo que llega del cliente (rangos, ids únicos, tamaños máximos: 12 canciones, 40 escenas).
 
 ## Archivos
-- `app/ep/page.tsx` (ruta, permisos, selector de banda), `app/ep/actions.ts` (crear, guardar, eliminar; el guardado devuelve un resultado con `desactualizado`).
+- `app/musical/page.tsx` (ruta, permisos, selector de banda), `app/musical/actions.ts` (crear, guardar, eliminar; el guardado devuelve un resultado con `desactualizado`).
 - `components/ep/MapaEP.tsx` (toda la pantalla: SVG de ancho completo medido con `ResizeObserver`, `Medidor`, `CajaValor`), `components/ep/NuevoProyecto.tsx`.
 - `lib/epModelo.ts` (modelo), `lib/epData.ts` (lectura y guardado en Supabase; solo servidor).
 - `scripts/check-ep.ts` (corre dentro de `npm run check`, antes de cada build: cálculos, escalas, colores del ánimo, geometría, curvas, promedios, referencia, validación).
