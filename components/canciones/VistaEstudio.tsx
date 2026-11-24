@@ -308,8 +308,8 @@ function Titulo({ children }: { children: React.ReactNode }) {
 
 const PREF = "malgesto-estudio";
 const PREF_VAR = "malgesto-estudio-variantes";
-const PREF_TAM = "malgesto-estudio-tam-acordes";
-const LADO_ACORDE = { S: 96, M: 132, L: 176 } as const;
+// Anchos posibles de cada recuadro de acorde (de grande a chico); el Estudio elige el mayor con el que caben todos.
+const LADOS_ACORDE = [184, 160, 140, 122, 108, 96, 84, 74];
 const PREF_ADELANTO = "malgesto-estudio-adelanto2-"; // v2 (30/10/26): se descartan los ajustes viejos, hechos contra tiempos que ya se recalcularon
 
 function leer<T>(clave: string, defecto: T): T {
@@ -348,7 +348,8 @@ export function VistaEstudio({
   bandaNombre: string;
 }) {
   const [semi, setSemi] = useState(0);
-  const [tamAcordes, setTamAcordes] = useState<"S" | "M" | "L">("M");
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [panelMedida, setPanelMedida] = useState({ w: 0, h: 0 });
   const [instrumento, setInstrumento] = useState<NombreInstrumento>("guitarra");
   const [afinId, setAfinId] = useState("estandar");
   const [idx, setIdx] = useState(0);
@@ -384,8 +385,6 @@ export function VistaEstudio({
         if (INSTRUMENTOS_ESTUDIO[g.instrumento].afinaciones.some((a) => a.id === g.afinId)) setAfinId(g.afinId as string);
       }
       setVariantes(leer(PREF_VAR, {}));
-      const tm = leer<string>(PREF_TAM, "M");
-      if (tm === "S" || tm === "M" || tm === "L") setTamAcordes(tm);
       setAdelanto(leer<number>(PREF_ADELANTO + cancion.id, 400));
       prefsLeidas.current = true;
     }, 0);
@@ -765,6 +764,30 @@ export function VistaEstudio({
   }, [eventos]);
 
 
+  // Mide el panel derecho y elige solo el tamaño de los acordes: el mayor con el que caben todos sin desplazarse.
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const medir = () => setPanelMedida({ w: el.clientWidth, h: el.clientHeight });
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [actual]);
+  const lado = useMemo(() => {
+    const gap = 8;
+    const util = Math.max(0, panelMedida.w - 32 - 24); // menos padding del panel y de la sección
+    const alto = Math.max(0, panelMedida.h - 150); // menos el texto de arriba, el título y la nota de abajo
+    if (util === 0 || alto === 0) return LADOS_ACORDE[3];
+    for (const l of LADOS_ACORDE) {
+      const columnas = Math.max(1, Math.floor((util + gap) / (l + gap)));
+      const filas = Math.ceil(distintos.length / columnas);
+      const altoRecuadro = 30 + ((l - 22) * 160) / 150 + (l >= 120 ? 22 : 0);
+      if (filas * (altoRecuadro + gap) <= alto) return l;
+    }
+    return LADOS_ACORDE[LADOS_ACORDE.length - 1];
+  }, [panelMedida, distintos.length]);
+
   const claveVar = (nota: Nota, calidad: Calidad, bajo?: Nota | null) => `${instrumento}|${afinacion.id}|${claveDe(nota, calidad, bajo)}`;
   // Forma tomada de la hoja de la canción (solo sin transponer: transpuesta ya no sería la misma).
   const formaHoja = (nota: Nota, calidad: Calidad, bajo: Nota | null) => (semiEf === 0 ? cancion.formas?.[`${instrumento}|${afinacion.id}|${simboloAcorde(nota, calidad, bajo)}`] ?? null : null);
@@ -1142,7 +1165,7 @@ export function VistaEstudio({
 
         {/* Derecha: mástil, todos los acordes y círculo */}
         <aside className="order-3 flex min-h-0 flex-col" style={{ borderLeft: `1px solid ${LINE}`, background: BG }}>
-          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
+          <div ref={panelRef} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
           {actual && grado ? (
             <>
               <div style={{ fontSize: 13, lineHeight: 1.35 }}>
@@ -1155,22 +1178,8 @@ export function VistaEstudio({
               <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "10px 12px" }}>
                 <div className="flex items-center justify-between gap-2">
                   <Titulo>Acordes de la canción · {distintos.length}</Titulo>
-                  <div role="group" aria-label="Tamaño de los acordes" className="flex items-center" style={{ marginBottom: 6 }}>
-                    {(["S", "M", "L"] as const).map((t, n) => (
-                      <button
-                        key={t}
-                        type="button"
-                        aria-pressed={tamAcordes === t}
-                        title={t === "S" ? "Acordes chicos (caben más)" : t === "M" ? "Acordes medianos" : "Acordes grandes"}
-                        onClick={() => { setTamAcordes(t); guardar(PREF_TAM, t); }}
-                        style={{ ...boton, padding: "1px 9px", fontSize: 11, borderRadius: n === 0 ? "7px 0 0 7px" : n === 2 ? "0 7px 7px 0" : 0, marginLeft: n === 0 ? 0 : -1, background: tamAcordes === t ? INK : "white", color: tamAcordes === t ? "white" : INK }}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
                 </div>
-                <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${LADO_ACORDE[tamAcordes]}px, 1fr))` }}>
+                <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${lado}px, 1fr))` }}>
                   {distintos.map((d) => {
                     const k = claveDe(d.nota, d.calidad, d.bajo);
                     const base = colorDe(d.nota, d.calidad);
@@ -1191,13 +1200,13 @@ export function VistaEstudio({
                         style={{ border: `2px ${enSiguiente && !activo ? "dashed" : "solid"} ${activo || enSiguiente ? CORAL : LINE}`, background: activo ? "white" : BG, borderRadius: 12, padding: "5px 4px 6px", cursor: "pointer", minWidth: 0 }}
                       >
                         <div className="flex w-full items-baseline justify-between gap-1 px-1">
-                          <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: tamAcordes === "S" ? 14 : 17, color: base }}>{simboloAcorde(d.nota, d.calidad, d.bajo)}</span>
+                          <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: lado < 110 ? 14 : 17, color: base }}>{simboloAcorde(d.nota, d.calidad, d.bajo)}</span>
                           <span style={{ fontSize: 10, color: MUTED }}>{g.romano} · ×{d.veces}</span>
                         </div>
                         {vs[elegida] && (
-                          <Diagrama forma={vs[elegida]} afinacion={afinacion} capo={capoInstr} tam={LADO_ACORDE[tamAcordes] - 22} acorde={{ nota: d.nota, calidad: d.calidad }} raizResaltada={instrumento === "bajo" ? (d.bajo ?? d.nota) : null} />
+                          <Diagrama forma={vs[elegida]} afinacion={afinacion} capo={capoInstr} tam={lado - 22} acorde={{ nota: d.nota, calidad: d.calidad }} raizResaltada={instrumento === "bajo" ? (d.bajo ?? d.nota) : null} />
                         )}
-                        {tamAcordes !== "S" && (
+                        {lado >= 120 && (
                           <div className="flex w-full gap-0.5 px-1">
                             {piezas.map((p, i) => (
                               <div key={i} style={{ flex: 1, borderRadius: 5, padding: "1px 0", background: tono(base, i), color: i === 0 ? colorContrasteTexto(base) : INK, fontWeight: 800, fontSize: 10, fontFamily: MONO }}>
