@@ -849,22 +849,59 @@ export function VistaEstudio({
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <select
-            value={`${instrumento}|${afinacion.id}`}
-            onChange={(e) => {
-              const [k, a] = e.target.value.split("|");
-              setInstrumento(k as NombreInstrumento);
-              setAfinId(a);
-            }}
-            aria-label="Instrumento y afinación"
-            style={{ ...boton, fontWeight: 600, padding: "5px 8px", marginRight: 8 }}
-          >
-            {(Object.keys(INSTRUMENTOS_ESTUDIO) as NombreInstrumento[]).flatMap((k) =>
-              INSTRUMENTOS_ESTUDIO[k].afinaciones.map((a) => (
-                <option key={`${k}|${a.id}`} value={`${k}|${a.id}`}>{INSTRUMENTOS_ESTUDIO[k].etiqueta} · {a.etiqueta}</option>
-              ))
-            )}
-          </select>
+          {/* Instrumento: tres botones; la afinación solo se pregunta en el bajo (el único con dos). */}
+          <div role="group" aria-label="Instrumento" className="flex items-center" style={{ marginRight: 4 }}>
+            {(Object.keys(INSTRUMENTOS_ESTUDIO) as NombreInstrumento[]).map((k, n, todos) => {
+              const activo = k === instrumento;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  aria-pressed={activo}
+                  onClick={() => {
+                    setInstrumento(k);
+                    setAfinId(INSTRUMENTOS_ESTUDIO[k].afinaciones.some((a) => a.id === afinId) ? afinId : INSTRUMENTOS_ESTUDIO[k].afinaciones[0].id);
+                  }}
+                  style={{
+                    ...boton,
+                    fontWeight: 600,
+                    padding: "5px 10px",
+                    borderRadius: n === 0 ? "8px 0 0 8px" : n === todos.length - 1 ? "0 8px 8px 0" : 0,
+                    marginLeft: n === 0 ? 0 : -1,
+                    background: activo ? INK : "white",
+                    color: activo ? "white" : INK,
+                  }}
+                >
+                  {INSTRUMENTOS_ESTUDIO[k].etiqueta.replace(" 4", "").replace(" soprano", "")}
+                </button>
+              );
+            })}
+          </div>
+          {afinaciones.length > 1 && (
+            <div role="group" aria-label="Afinación del bajo" className="flex items-center" style={{ marginRight: 8 }}>
+              {afinaciones.map((a, n) => {
+                const activo = a.id === afinacion.id;
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    aria-pressed={activo}
+                    onClick={() => setAfinId(a.id)}
+                    style={{
+                      ...boton,
+                      padding: "5px 10px",
+                      borderRadius: n === 0 ? "8px 0 0 8px" : "0 8px 8px 0",
+                      marginLeft: n === 0 ? 0 : -1,
+                      background: activo ? CORAL : "white",
+                      color: activo ? "white" : INK,
+                    }}
+                  >
+                    {a.etiqueta.split(" (")[0]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <span title="Sube o baja TODA la canción de tono, de medio en medio tono" style={{ fontSize: 11, color: MUTED }}>Cambiar tono</span>
           <button style={boton} onClick={() => setSemi((v) => v - 1)} aria-label="Bajar medio tono" title="Bajar medio tono">−</button>
           <span style={{ fontFamily: MONO, fontSize: 12, minWidth: 22, textAlign: "center" }}>{semi > 0 ? `+${semi}` : semi}</span>
