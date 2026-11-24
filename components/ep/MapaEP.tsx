@@ -507,7 +507,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
             {(() => {
               const metros = CUERPO_DE_ABAJO_ARRIBA.map((c) => {
               const e = estiloMedidor(c.campo, secSel[c.campo]);
-              return <Medidor key={c.campo} texturaTam={e.texturaTam} nombre={c.nombre} ayuda={`${c.ayuda} (${c.hz}; 0 ${c.escala.cero}, 100 ${c.escala.cien})`} escala={c.escala} valor={secSel[c.campo]} referencia={pzSel.referencia[c.campo]} onCambio={(v) => ponerValor(c.campo, v)} deshabilitado={!puedeEscribir} relleno={e.relleno} textura={e.textura} />;
+              return <Medidor key={c.campo} texturaTam={e.texturaTam} nombre={c.nombre} ayuda={`${c.ayuda} (${c.hz}; 0 ${c.escala.cero}, 100 ${c.escala.cien})`} escala={c.escala} valor={secSel[c.campo]} referencia={pzSel.referencia[c.campo]} onCambio={(v) => ponerValor(c.campo, v)} deshabilitado relleno={e.relleno} textura={e.textura} />;
             });
               return (
                 <>
@@ -531,7 +531,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
           <div className="mt-2 flex flex-wrap gap-3">
             {NUCLEO.map((n) => {
               const e = estiloMedidor(n.campo, secSel[n.campo]);
-              return <Medidor key={n.campo} nombre={n.nombre} ayuda={`${n.ayuda} (0 ${n.escala.cero}, 100 ${n.escala.cien})`} escala={n.escala} valor={secSel[n.campo]} referencia={pzSel.referencia[n.campo]} onCambio={(v) => ponerValor(n.campo, v)} deshabilitado={!puedeEscribir} relleno={e.relleno} textura={e.textura} />;
+              return <Medidor key={n.campo} nombre={n.nombre} ayuda={`${n.ayuda} (0 ${n.escala.cero}, 100 ${n.escala.cien})`} escala={n.escala} valor={secSel[n.campo]} referencia={pzSel.referencia[n.campo]} onCambio={(v) => ponerValor(n.campo, v)} deshabilitado relleno={e.relleno} textura={e.textura} />;
             })}
           </div>
           <div className="mt-1.5 max-w-[22rem] text-[10px] leading-snug" style={{ color: MUTED }}>
@@ -837,7 +837,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
             <div>
               {gruposSeccion()}
               <p className="mt-2 max-w-[48rem] text-[10px] leading-snug" style={{ color: MUTED }}>
-                La raya y la banda gris de cada barra son lo que elegiste para esta canción en la vista del EP completo (el valor exacto y el rango de su palabra). Es solo una referencia: no hay tope, puedes pasarte a propósito.
+                Valores fijos de esta escena: solo se ven aquí y se mueven con los niveles generales de la canción, en la vista del EP completo. La raya y la banda gris de cada barra son ese nivel general (el valor exacto y el rango de su palabra).
               </p>
             </div>
 
@@ -874,8 +874,8 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
               </div>
               <div className="mt-2.5 grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                 <label className="block text-[10px] font-bold uppercase tracking-[0.12em]" style={{ fontFamily: MONO, color: MUTED }}>
-                  Intención (qué debe pasar y hacer sentir)
-                  <textarea value={secSel.transmite} onChange={(e) => cambiarSeccion(seleccionada.p, seleccionada.s, { transmite: e.target.value })} disabled={!puedeEscribir} rows={3} maxLength={1000} placeholder="Ej. algo grande está lejos" className="mt-1 w-full p-2.5 text-sm font-normal normal-case tracking-normal" style={{ ...inputStyle, fontFamily: "inherit" }} />
+                  Cómo se ve esta escena (la historia: qué pasa y qué se siente)
+                  <textarea value={secSel.transmite} onChange={(e) => cambiarSeccion(seleccionada.p, seleccionada.s, { transmite: e.target.value })} disabled={!puedeEscribir} rows={7} maxLength={1000} placeholder="Ej. el tren sale de la estación; son las primeras imágenes por la ventanilla" className="mt-1 w-full p-2.5 text-sm font-normal normal-case tracking-normal" style={{ ...inputStyle, fontFamily: "inherit" }} />
                 </label>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.12em]" style={{ fontFamily: MONO, color: MUTED }}>
                   Notas y armonía
@@ -891,7 +891,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
         )}
       </div>
       <p className="mt-1.5 text-[11px]" style={{ color: MUTED }}>
-        Vista del EP completo: el promedio de cada canción. Vista de una canción: el detalle de cada escena. Las gráficas se dibujan solas. Cuando estés listo, dile a Cosmo «arma [canción]»: lee estos valores, los compases y la intención, y propone estructura, tempo, tono y los MIDI de cada escena.
+        Vista del EP completo: los niveles generales de cada canción, que son los únicos que se editan. Vista de una canción: su estructura y la historia de cada escena; los valores de cada escena se ven fijos y se mueven con los generales. Las gráficas se dibujan solas. Cuando estés listo, dile a Cosmo «arma [canción]»: lee la historia, los compases y los niveles, y propone tono, tempo y los MIDI de cada escena.
       </p>
 
       {/* Datos de la canción: solo dentro de la canción abierta */}
