@@ -19,7 +19,7 @@ import {
   type Forma,
   type NombreInstrumento,
 } from "@/lib/estudioInstrumentos";
-import { transponerNota, gradoEnTonalidad, posicionEnCirculo, etiquetaCirculo, centroTonal, patronEnSecuencia } from "@/lib/estudioArmonia";
+import { transponerNota, gradoEnTonalidad, etiquetaCirculo, centroTonal, patronEnSecuencia } from "@/lib/estudioArmonia";
 
 // Modo Estudio (escritorio). Arriba: cabecera y línea de tiempo de la canción.
 // Izquierda: cada acorde con su color y sus formas. Centro: letra con la
@@ -165,7 +165,8 @@ function Diagrama({
 // ---- Mástil -----------------------------------------------------------------
 // Dibuja las notas de uno o varios acordes. Si dos acordes comparten una nota
 // en el mismo lugar, el círculo se parte en gajos de sus colores.
-function Mastil({ afinacion, acordes, capo = 0, soloRaiz = false }: { afinacion: Afinacion; acordes: { nota: Nota; calidad: Calidad }[]; capo?: number; soloRaiz?: boolean }) {
+// Se conserva para reusarlo en otra vista (ya no está en el panel derecho del Estudio).
+export function Mastil({ afinacion, acordes, capo = 0, soloRaiz = false }: { afinacion: Afinacion; acordes: { nota: Nota; calidad: Calidad }[]; capo?: number; soloRaiz?: boolean }) {
   const trastes = 12;
   const n = afinacion.cuerdas.length;
   const izq = 26;
@@ -241,7 +242,8 @@ function Mastil({ afinacion, acordes, capo = 0, soloRaiz = false }: { afinacion:
 }
 
 // ---- Círculo de quintas -------------------------------------------------------
-function Circulo({
+// Se conserva para reusarlo en otra vista (ya no está en el panel derecho del Estudio).
+export function Circulo({
   tonalidad,
   usados,
   actual,
@@ -306,6 +308,8 @@ function Titulo({ children }: { children: React.ReactNode }) {
 
 const PREF = "malgesto-estudio";
 const PREF_VAR = "malgesto-estudio-variantes";
+const PREF_TAM = "malgesto-estudio-tam-acordes";
+const LADO_ACORDE = { S: 96, M: 132, L: 176 } as const;
 const PREF_ADELANTO = "malgesto-estudio-adelanto2-"; // v2 (30/10/26): se descartan los ajustes viejos, hechos contra tiempos que ya se recalcularon
 
 function leer<T>(clave: string, defecto: T): T {
@@ -344,6 +348,7 @@ export function VistaEstudio({
   bandaNombre: string;
 }) {
   const [semi, setSemi] = useState(0);
+  const [tamAcordes, setTamAcordes] = useState<"S" | "M" | "L">("M");
   const [instrumento, setInstrumento] = useState<NombreInstrumento>("guitarra");
   const [afinId, setAfinId] = useState("estandar");
   const [idx, setIdx] = useState(0);
@@ -379,6 +384,8 @@ export function VistaEstudio({
         if (INSTRUMENTOS_ESTUDIO[g.instrumento].afinaciones.some((a) => a.id === g.afinId)) setAfinId(g.afinId as string);
       }
       setVariantes(leer(PREF_VAR, {}));
+      const tm = leer<string>(PREF_TAM, "M");
+      if (tm === "S" || tm === "M" || tm === "L") setTamAcordes(tm);
       setAdelanto(leer<number>(PREF_ADELANTO + cancion.id, 400));
       prefsLeidas.current = true;
     }, 0);
@@ -757,14 +764,6 @@ export function VistaEstudio({
     return [...m.values()];
   }, [eventos]);
 
-  const usados = useMemo(() => {
-    const mapa = new Map<string, string>();
-    distintos.forEach((d) => {
-      const p = posicionEnCirculo(d.nota, d.calidad);
-      mapa.set(`${p.pos}|${p.anillo}`, colorDe(d.nota, d.calidad));
-    });
-    return mapa;
-  }, [distintos]);
 
   const claveVar = (nota: Nota, calidad: Calidad, bajo?: Nota | null) => `${instrumento}|${afinacion.id}|${claveDe(nota, calidad, bajo)}`;
   // Forma tomada de la hoja de la canción (solo sin transponer: transpuesta ya no sería la misma).
@@ -1154,68 +1153,70 @@ export function VistaEstudio({
               </div>
 
               <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "10px 12px" }}>
-                <div className="flex items-center justify-between">
-                  <Titulo>Mástil · {filtro.length ? distintos.filter((d) => filtro.includes(claveDe(d.nota, d.calidad, d.bajo))).map((d) => simboloAcorde(d.nota, d.calidad, d.bajo)).join(", ") : "todas las notas de la canción"}</Titulo>
-                  {filtro.length > 0 && (
-                    <button onClick={() => setFiltro([])} style={{ fontSize: 11, color: MUTED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", marginBottom: 6 }}>
-                      ver todas
-                    </button>
-                  )}
+                <div className="flex items-center justify-between gap-2">
+                  <Titulo>Acordes de la canción · {distintos.length}</Titulo>
+                  <div role="group" aria-label="Tamaño de los acordes" className="flex items-center" style={{ marginBottom: 6 }}>
+                    {(["S", "M", "L"] as const).map((t, n) => (
+                      <button
+                        key={t}
+                        type="button"
+                        aria-pressed={tamAcordes === t}
+                        title={t === "S" ? "Acordes chicos (caben más)" : t === "M" ? "Acordes medianos" : "Acordes grandes"}
+                        onClick={() => { setTamAcordes(t); guardar(PREF_TAM, t); }}
+                        style={{ ...boton, padding: "1px 9px", fontSize: 11, borderRadius: n === 0 ? "7px 0 0 7px" : n === 2 ? "0 7px 7px 0" : 0, marginLeft: n === 0 ? 0 : -1, background: tamAcordes === t ? INK : "white", color: tamAcordes === t ? "white" : INK }}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <Mastil capo={capoInstr} soloRaiz={instrumento === "bajo"} afinacion={afinacion} acordes={(filtro.length ? distintos.filter((d) => filtro.includes(claveDe(d.nota, d.calidad, d.bajo))) : distintos).map((d) => ({ nota: d.nota, calidad: d.calidad }))} />
-              </section>
-
-              <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(0,1fr) 230px" }}>
-                <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "10px 12px" }}>
-                  <Titulo>Raíz y grados de cada acorde</Titulo>
-                  <div className="flex flex-col gap-1.5">
-                    {distintos.map((d) => {
-                      const base = colorDe(d.nota, d.calidad);
-                      const g = gradoEnTonalidad(d.nota, d.calidad, tonalidad);
-                      const t = tonosDelAcorde(d.nota, d.calidad);
-                      const piezas = [{ intervalo: "raíz", nota: t.raiz }, ...t.acompanantes.filter((a) => a.intervalo !== "9ª")];
-                      const activo = actual.clave === claveDe(d.nota, d.calidad, d.bajo);
-                      return (
-                        <button
-                          key={claveDe(d.nota, d.calidad, d.bajo)}
-                          onClick={() => elegir(d.primero)}
-                          className="flex items-center gap-2 text-left"
-                          style={{ border: `2px solid ${activo ? CORAL : "transparent"}`, background: BG, borderRadius: 11, padding: "4px 6px", cursor: "pointer" }}
-                        >
-                          <div style={{ minWidth: 58 }}>
-                            <div style={{ fontFamily: MONO, fontWeight: 800, fontSize: 15, color: base }}>{simboloAcorde(d.nota, d.calidad, d.bajo)}</div>
-                            <div style={{ fontSize: 10, color: MUTED }}>{g.romano}</div>
-                          </div>
-                          <div className="flex flex-1 gap-1">
+                <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${LADO_ACORDE[tamAcordes]}px, 1fr))` }}>
+                  {distintos.map((d) => {
+                    const k = claveDe(d.nota, d.calidad, d.bajo);
+                    const base = colorDe(d.nota, d.calidad);
+                    const g = gradoEnTonalidad(d.nota, d.calidad, tonalidad);
+                    const t = tonosDelAcorde(d.nota, d.calidad);
+                    const piezas = [{ intervalo: "raíz", nota: t.raiz }, ...t.acompanantes.filter((x) => x.intervalo !== "9ª")];
+                    const vs = variantesDeAcorde(instrumento, afinacion, d.nota, d.calidad, d.bajo, formaHoja(d.nota, d.calidad, d.bajo));
+                    const elegida = Math.min(variantes[claveVar(d.nota, d.calidad, d.bajo)] ?? 0, Math.max(vs.length - 1, 0));
+                    const activo = actual.clave === k;
+                    const enSiguiente = !!siguiente && siguiente.clave === k;
+                    return (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => elegir(d.primero)}
+                        title={`${simboloAcorde(d.nota, d.calidad, d.bajo)} · ${g.romano} · suena ${d.veces} ${d.veces === 1 ? "vez" : "veces"}`}
+                        className="flex flex-col items-center gap-1 text-center"
+                        style={{ border: `2px ${enSiguiente && !activo ? "dashed" : "solid"} ${activo || enSiguiente ? CORAL : LINE}`, background: activo ? "white" : BG, borderRadius: 12, padding: "5px 4px 6px", cursor: "pointer", minWidth: 0 }}
+                      >
+                        <div className="flex w-full items-baseline justify-between gap-1 px-1">
+                          <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: tamAcordes === "S" ? 14 : 17, color: base }}>{simboloAcorde(d.nota, d.calidad, d.bajo)}</span>
+                          <span style={{ fontSize: 10, color: MUTED }}>{g.romano} · ×{d.veces}</span>
+                        </div>
+                        {vs[elegida] && (
+                          <Diagrama forma={vs[elegida]} afinacion={afinacion} capo={capoInstr} tam={LADO_ACORDE[tamAcordes] - 22} acorde={{ nota: d.nota, calidad: d.calidad }} raizResaltada={instrumento === "bajo" ? (d.bajo ?? d.nota) : null} />
+                        )}
+                        {tamAcordes !== "S" && (
+                          <div className="flex w-full gap-0.5 px-1">
                             {piezas.map((p, i) => (
-                              <div key={i} style={{ flex: 1, textAlign: "center", borderRadius: 7, padding: "3px 0", background: tono(base, i), color: i === 0 ? colorContrasteTexto(base) : INK, fontWeight: 800, fontSize: 12, fontFamily: MONO }}>
+                              <div key={i} style={{ flex: 1, borderRadius: 5, padding: "1px 0", background: tono(base, i), color: i === 0 ? colorContrasteTexto(base) : INK, fontWeight: 800, fontSize: 10, fontFamily: MONO }}>
                                 {p.nota}
-                                <div style={{ fontSize: 8, fontWeight: 500, opacity: 0.85 }}>{p.intervalo}</div>
                               </div>
                             ))}
                           </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
-
-                <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "10px 8px" }}>
-                  <Titulo>Círculo de quintas</Titulo>
-                  <Circulo
-                    tonalidad={tonalidad}
-                    usados={usados}
-                    actual={posicionEnCirculo(actual.nota, actual.calidad)}
-                    siguiente={siguiente ? posicionEnCirculo(siguiente.nota, siguiente.calidad) : null}
-                  />
-                  <div style={{ fontSize: 10, color: MUTED, lineHeight: 1.35 }}>
-                    Azul claro: acordes de {tonalidad.raiz} {tonalidad.modo}. Color: los de esta canción. Contorno oscuro: el actual. Punteado: a dónde vas.
-                  </div>
-                </section>
-              </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize: 10, color: MUTED, lineHeight: 1.35, marginTop: 6 }}>
+                  Cada recuadro: acorde, grado en {tonalidad.raiz} {tonalidad.modo} y cuántas veces suena. Contorno naranja: el actual; punteado: el que sigue. Tócalo para ir a donde aparece primero.
+                </div>
+              </section>
             </>
           ) : (
-            <p style={{ fontSize: 13, color: MUTED }}>Cuando la canción tenga acordes, aquí verás el mástil, sus notas y el círculo de quintas.</p>
+            <p style={{ fontSize: 13, color: MUTED }}>Cuando la canción tenga acordes, aquí verás todos sus acordes.</p>
           )}
           </div>
 
