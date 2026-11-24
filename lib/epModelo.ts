@@ -72,12 +72,18 @@ export type Pieza = {
   secciones: Seccion[];
 };
 
+// Matriz de instrumentos: canales (instrumentos) con su bus y, por canción, si entran (sí) o son opcionales (op). Ausente = no entra.
+export type EstadoCanal = "si" | "op";
+export type Canal = { id: string; nombre: string; bus: string; estados: Record<string, EstadoCanal> };
+export const BUSES = ["BATERIA", "METALES", "TECLADOS"] as const; // el resto de los canales va suelto (bus vacío)
+
 export type Proyecto = {
   id: string;
   bandaId: string;
   nombre: string;
   tipo: "ep" | "album";
   historia: string;
+  matriz: Canal[];
   // Marca de la última vez que se guardó (updated_at): impide que una pantalla vieja pise lo nuevo.
   version: string;
   piezas: Pieza[];
@@ -268,6 +274,23 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const txt = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
 const ent = (v: unknown, min: number, max: number, def: number) => (typeof v === "number" && Number.isFinite(v) ? clamp(Math.round(v), min, max) : def);
 
+export function normalizarMatriz(raw: unknown): Canal[] {
+  const lista = Array.isArray(raw) ? raw : [];
+  if (lista.length > 80) throw new Error("Demasiados canales (máx. 80).");
+  const vistos = new Set<string>();
+  return lista.map((r) => {
+    const c = (r ?? {}) as Record<string, unknown>;
+    const id = typeof c.id === "string" && UUID.test(c.id) && !vistos.has(c.id) ? c.id : crypto.randomUUID();
+    vistos.add(id);
+    const est = (c.estados && typeof c.estados === "object" ? c.estados : {}) as Record<string, unknown>;
+    const estados: Record<string, EstadoCanal> = {};
+    Object.entries(est).slice(0, 12).forEach(([k, v]) => {
+      if (UUID.test(k) && (v === "si" || v === "op")) estados[k] = v;
+    });
+    return { id, nombre: txt(c.nombre, 40).trim() || "Canal", bus: txt(c.bus, 30).trim(), estados };
+  });
+}
+
 export function normalizarProyecto(entrada: unknown): Omit<Proyecto, "id" | "bandaId" | "version"> {
   const e = entrada as Record<string, unknown> | null;
   if (!e || typeof e !== "object") throw new Error("Proyecto inválido.");
@@ -319,6 +342,7 @@ export function normalizarProyecto(entrada: unknown): Omit<Proyecto, "id" | "ban
     nombre: txt(e.nombre, 120).trim() || "Sin nombre",
     tipo: e.tipo === "album" ? "album" : "ep",
     historia: txt(e.historia, 4000),
+    matriz: normalizarMatriz(e.matriz),
     piezas,
   };
 }
