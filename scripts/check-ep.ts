@@ -1,9 +1,9 @@
 // Revisa la geometría, los cálculos y la validación del Mapa del EP. Corre con npm run check (antes de cada build).
-import { CAMPOS, referenciaDe, CUERPO, NUCLEO, PESO_CUERPO, PESO_INTENSIDAD, moverPromedio, promedioDe, promedioIntensidad, promedioPeso, capaEntre, clamp, colorAnimo, curvaSuave, duracionSeg, formatoMSS, intensidad, nuevaPieza, normalizarProyecto, palabraDe, peso, tramosDe, type Pieza, type Seccion } from "../lib/epModelo";
+import { CAMPOS, referenciaDe, CUERPO, NUCLEO, PESO_CUERPO, PESO_INTENSIDAD, moverPromedio, promedioDe, promedioIntensidad, promedioPeso, capaEntre, clamp, colorAnimo, curvaSuave, duracionSeg, formatoMSS, intensidad, nuevaPieza, nuevaSeccion, etiquetaDe, PARTES, normalizarProyecto, palabraDe, peso, tramosDe, type Pieza, type Seccion } from "../lib/epModelo";
 
 const errores: string[] = [];
 const falla = (m: string) => errores.push(m);
-const sec = (patch: Partial<Seccion>): Seccion => ({ ...nuevaPieza().secciones[0], ...patch });
+const sec = (patch: Partial<Seccion>): Seccion => ({ ...nuevaSeccion("Intro"), ...patch });
 
 if (clamp(5, 0, 3) !== 3) falla("clamp");
 if (Math.abs(Object.values(PESO_CUERPO).reduce((a, b) => a + b, 0) - 1) > 1e-9) falla("los pesos del cuerpo deben sumar 1");
@@ -102,6 +102,15 @@ try {
   normalizarProyecto({ nombre: "x", piezas: [{ id, secciones: [] }, { id, secciones: [] }] });
   falla("normalizarProyecto debe rechazar ids repetidos");
 } catch {}
+
+// Partes técnicas: nombre generado y numeración
+const demo = { secciones: [sec({ parte: "Intro" }), sec({ parte: "Verso" }), sec({ parte: "Coro" }), sec({ parte: "Verso" }), sec({ parte: "Coro" }), sec({ parte: "Puente" }), sec({ parte: "Outro" }), sec({ parte: "Dub", nombre: "Dub 1" })] };
+const nombres = demo.secciones.map((_, i) => etiquetaDe(demo, i)).join("|");
+if (nombres !== "Intro|Verso 1|Coro 1|Verso 2|Coro 2|Puente|Outro|Dub 1") falla(`etiquetaDe: ${nombres}`);
+if (PARTES.length !== 6) falla("hay seis partes técnicas");
+if (nuevaPieza().secciones.length !== 0) falla("una canción nueva nace sin estructura");
+const conNueva = nuevaSeccion("Coro", 16, { energia: 85, animo: 90, tension: 10, altos: 75, medios: 85, graves: 85, sub: 85 });
+if (conNueva.energia !== 85 || conNueva.compases !== 16 || conNueva.parte !== "Coro") falla("nuevaSeccion parte de la referencia de la canción");
 
 if (errores.length > 0) {
   console.error("Mapa del EP: fallas\n- " + errores.join("\n- "));

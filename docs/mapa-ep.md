@@ -39,3 +39,10 @@ Etapas de colores (estorbaban), techo global del EP (no servía), zoom por canci
 - `npm run check`, `npx tsc --noEmit` y `npm run build` antes de subir. El build a veces falla con «next/font/google queries have exactly one entry» (descarga de la tipografía, pasajero): borrar `.next` y reintentar; no subir si no compiló.
 - Después de cambiar datos en Supabase, subir `proyectos_musicales.updated_at` para que las pantallas abiertas se recarguen.
 - Verificar el despliegue READY en Vercel (proyecto `malgesto`).
+
+## Estructura técnica de la canción (20-24/11/26)
+- Cada escena es una **parte** de una lista fija y general para el género: Intro, Verso, Coro, Puente, Solo y Outro. Verso, Coro, Puente y Solo se pueden repetir; el nombre se genera solo (`etiquetaDe` en `lib/epModelo.ts`): «Verso», o «Verso 1», «Verso 2» si hay más de uno. No hay nombre libre de escena.
+- «Dub» ya no es una parte: es un recurso creativo que puede ocurrir en cualquier escena.
+- En la vista de una canción, la barra bajo la gráfica trae «Agregar» con las seis partes (después de la escena elegida o al final), subir/bajar, duplicar y eliminar. Una canción puede quedar **sin estructura** (nace así).
+- Una escena nueva parte de los siete valores que se eligieron para la canción en la vista del EP.
+- Al guardar, el servidor escribe el nombre técnico en `proyecto_secciones.nombre` (la parte va en `parte`). Los datos anteriores con otras partes (Dub, Pre-coro, Final…) no se transforman: conservan su nombre hasta que se rehagan.

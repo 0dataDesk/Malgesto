@@ -5,6 +5,7 @@ import { guardarMapaAction } from "@/app/musical/actions";
 import {
   CUERPO,
   NUCLEO,
+  PARTES,
   PESO_CUERPO,
   PESO_INTENSIDAD,
   capaEntre,
@@ -12,6 +13,7 @@ import {
   colorAnimo,
   curvaSuave,
   duracionSeg,
+  etiquetaDe,
   formatoMSS,
   intensidad,
   moverPromedio,
@@ -68,8 +70,6 @@ const PUNTOS_CSS = "radial-gradient(circle, oklch(1 0 0 / 0.6) 1.1px, transparen
 const ORDEN_APILADO: CampoCuerpo[] = ["sub", "graves", "medios", "altos"]; // de abajo hacia arriba
 const CUERPO_DE_ABAJO_ARRIBA = ORDEN_APILADO.map((c) => CUERPO.find((x) => x.campo === c)!); // sub, graves, medios, altos
 const HACHURA_CSS = `repeating-linear-gradient(135deg, ${INK} 0 2px, transparent 2px 6px)`;
-
-const FORMAS = ["Intro", "Entrada", "Verso", "Pre-coro", "Coro", "Dub", "Puente", "Cima", "Break", "Final", "Salida"];
 
 // Geometría vertical fija; el ancho se ajusta a la pantalla.
 const L = 74;
@@ -415,15 +415,18 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
     setSel(null);
     setVista(null);
   };
-  const insertarSeccion = (p: number, despuesDe: number) => {
-    const nueva = nuevaSeccion("Nueva escena", "Verso");
-    setProy((pr) => ({ ...pr, piezas: pr.piezas.map((pz, i) => (i !== p ? pz : { ...pz, secciones: [...pz.secciones.slice(0, despuesDe + 1), nueva, ...pz.secciones.slice(despuesDe + 1)] })) }));
+  // Agrega una parte (Intro, Verso, Coro…) después de la escena elegida, o al final si no hay ninguna elegida.
+  const agregarParte = (p: number, parte: string) => {
+    const pz = proy.piezas[p];
+    const despuesDe = seleccionada && seleccionada.p === p ? seleccionada.s : pz.secciones.length - 1;
+    const nueva = nuevaSeccion(parte, 8, pz.referencia);
+    setProy((pr) => ({ ...pr, piezas: pr.piezas.map((x, i) => (i !== p ? x : { ...x, secciones: [...x.secciones.slice(0, despuesDe + 1), nueva, ...x.secciones.slice(despuesDe + 1)] })) }));
     setSel({ p, s: despuesDe + 1 });
   };
   const eliminarSeccion = (p: number, s: number) => {
-    if (proy.piezas[p].secciones.length <= 1) return;
+    const quedan = proy.piezas[p].secciones.length - 1;
     setProy((pr) => ({ ...pr, piezas: pr.piezas.map((pz, i) => (i !== p ? pz : { ...pz, secciones: pz.secciones.filter((_, j) => j !== s) })) }));
-    setSel({ p, s: Math.max(0, s - 1) });
+    setSel(quedan > 0 ? { p, s: Math.max(0, s - 1) } : null);
   };
   const moverSeccion = (p: number, s: number, d: number) => {
     const q = s + d;
@@ -691,6 +694,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
             {/* Selección, zonas clicables y tira de escenas (el tamaño es proporcional a los compases) */}
             {tramos.map((t, k) => {
               const sc = proy.piezas[t.pieza].secciones[t.seccion];
+              const etq = etiquetaDe(proy.piezas[t.pieza], t.seccion);
               const esSel = enDetalle && seleccionada?.p === t.pieza && seleccionada?.s === t.seccion;
               const x0 = xDe(t.x0);
               const ancho = (t.x1 - t.x0) * PW;
@@ -713,13 +717,13 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
                   )}
                   {/* tira */}
                   <rect x={x0 + 1} y={TIRA_Y} width={Math.max(1, ancho - 2)} height={TIRA_H} rx="7" fill={colorAnimo(t.animo, esSel ? 0.9 : 0.34)} stroke={esSel ? INK : "none"} strokeWidth="2" style={{ cursor: "pointer" }} onClick={() => elegir(t.pieza, t.seccion)}>
-                    <title>{`${k + 1}. ${sc.nombre}${sc.parte ? ` (${sc.parte})` : ""} · ${sc.compases} compases${sc.transmite ? ` · ${sc.transmite}` : ""}`}</title>
+                    <title>{`${k + 1}. ${etq} · ${sc.compases} compases${sc.transmite ? ` · ${sc.transmite}` : ""}`}</title>
                   </rect>
                   <text x={xDe(t.xc)} y={TIRA_Y + 17} fontSize="11" fontWeight={esSel ? 700 : 500} textAnchor="middle" fill={esSel && t.animo > 55 ? INK : esSel ? "white" : INK} pointerEvents="none" style={{ fontFamily: MONO }}>
-                    {recorta(sc.nombre, caben)}
+                    {recorta(etq, caben)}
                   </text>
                   <text x={xDe(t.xc)} y={TIRA_Y + 31} fontSize="9.5" textAnchor="middle" fill={esSel && t.animo <= 55 ? "white" : MUTED} pointerEvents="none" style={{ fontFamily: MONO }}>
-                    {caben >= 14 && sc.parte ? `${recorta(sc.parte, caben - 8)} · ${sc.compases} c` : caben >= 5 ? `${sc.compases} c` : ancho >= 22 ? String(sc.compases) : ""}
+                    {caben >= 5 ? `${sc.compases} c` : ancho >= 22 ? String(sc.compases) : ""}
                   </text>
                 </g>
               );
@@ -728,7 +732,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
               <text x={L - 8} y={TIRA_Y + 24} fontSize="10" fontWeight="700" textAnchor="end" fill={INK} style={{ fontFamily: MONO }}>ESCENAS</text>
             )}
             {tramos.length === 0 && (
-              <text x={W / 2} y={T1 + PH1 / 2} textAnchor="middle" fontSize="13" fill={MUTED}>Agrega una canción para empezar el mapa.</text>
+              <text x={W / 2} y={T1 + PH1 / 2} textAnchor="middle" fontSize="13" fill={MUTED}>Esta canción aún no tiene estructura: agrega su primera parte (Intro, Verso, Coro…).</text>
             )}
           </svg>
         </div>
@@ -757,19 +761,28 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
           <span>El ancho de cada escena es proporcional a sus compases.</span>
         </div>
 
-        {/* Barra de la escena elegida (solo en el detalle de una canción) */}
-        {enDetalle && secSel && pzSel && seleccionada && (
+        {/* Estructura de la canción: partes técnicas (solo en el detalle de una canción) */}
+        {enDetalle && proy.piezas[vista as number] && (
           <div className="flex flex-wrap items-center gap-2 px-4 py-2" style={{ borderTop: `1px solid ${LINE}`, background: "oklch(0.975 0.006 85)" }}>
             <span className="text-[11px] font-bold" style={{ fontFamily: MONO, color: INK }}>
-              Escena {numeroSel}: {secSel.nombre}{secSel.parte ? ` (${secSel.parte})` : ""} · {pzSel.titulo}
+              {seleccionada && seleccionada.p === vista && secSel
+                ? `${numeroSel}. ${etiquetaDe(proy.piezas[seleccionada.p], seleccionada.s)} · ${proy.piezas[seleccionada.p].titulo}`
+                : `${proy.piezas[vista as number].titulo} · ${proy.piezas[vista as number].secciones.length === 0 ? "sin estructura" : "toca una escena"}`}
             </span>
             {puedeEscribir && (
-              <span className="ml-auto flex flex-wrap gap-1.5">
-                <button type="button" onClick={() => moverSeccion(seleccionada.p, seleccionada.s, -1)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>← Antes</button>
-                <button type="button" onClick={() => moverSeccion(seleccionada.p, seleccionada.s, 1)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>Después →</button>
-                <button type="button" onClick={() => insertarSeccion(seleccionada.p, seleccionada.s)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>+ Escena después</button>
-                <button type="button" onClick={() => duplicarSeccion(seleccionada.p, seleccionada.s)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>Duplicar</button>
-                <button type="button" onClick={() => eliminarSeccion(seleccionada.p, seleccionada.s)} disabled={pzSel.secciones.length <= 1} className="px-2.5 py-1 text-xs font-bold" style={{ ...miniBoton, color: "oklch(0.5 0.18 25)" }}>Eliminar</button>
+              <span className="ml-auto flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ fontFamily: MONO, color: MUTED }}>Agregar</span>
+                {PARTES.map((parte) => (
+                  <button key={parte} type="button" onClick={() => agregarParte(vista as number, parte)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>+ {parte}</button>
+                ))}
+                {seleccionada && seleccionada.p === vista && secSel && (
+                  <>
+                    <button type="button" onClick={() => moverSeccion(seleccionada.p, seleccionada.s, -1)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>← Antes</button>
+                    <button type="button" onClick={() => moverSeccion(seleccionada.p, seleccionada.s, 1)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>Después →</button>
+                    <button type="button" onClick={() => duplicarSeccion(seleccionada.p, seleccionada.s)} className="px-2.5 py-1 text-xs font-bold" style={miniBoton}>Duplicar</button>
+                    <button type="button" onClick={() => eliminarSeccion(seleccionada.p, seleccionada.s)} className="px-2.5 py-1 text-xs font-bold" style={{ ...miniBoton, color: "oklch(0.5 0.18 25)" }}>Eliminar</button>
+                  </>
+                )}
               </span>
             )}
           </div>
@@ -830,35 +843,25 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
 
             <div className="min-w-0 border-t pt-4 xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0" style={{ borderColor: LINE }}>
               <div className="flex flex-wrap items-center gap-2">
-                <input
-                  value={secSel.nombre}
-                  onChange={(e) => cambiarSeccion(seleccionada.p, seleccionada.s, { nombre: e.target.value })}
-                  disabled={!puedeEscribir}
-                  maxLength={120}
-                  aria-label="Escena"
-                  placeholder="Escena: cómo la imaginas (Niebla, Se abre el eco…)"
-                  className="min-w-0 flex-1 px-3 py-1.5 text-base font-bold"
-                  style={{ ...inputStyle, fontFamily: "var(--font-fraunces), sans-serif" }}
-                />
+                <span className="min-w-0 flex-1 text-base font-bold" style={{ fontFamily: "var(--font-fraunces), sans-serif", color: INK }}>
+                  {etiquetaDe(pzSel, seleccionada.s)}
+                </span>
                 <label className="flex items-center gap-1 text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
                   parte
-                  <input
-                    list="ep-formas"
+                  <select
                     value={secSel.parte}
-                    onChange={(e) => cambiarSeccion(seleccionada.p, seleccionada.s, { parte: e.target.value })}
+                    onChange={(e) => cambiarSeccion(seleccionada.p, seleccionada.s, { parte: e.target.value, nombre: e.target.value })}
                     disabled={!puedeEscribir}
-                    maxLength={60}
                     aria-label="Parte de la canción"
-                    placeholder="Intro, Verso…"
-                    className="w-28 px-2 py-1.5"
+                    className="px-2 py-1.5"
                     style={inputStyle}
-                  />
+                  >
+                    {!(PARTES as readonly string[]).includes(secSel.parte) && <option value={secSel.parte}>{secSel.parte || "sin parte"} (anterior)</option>}
+                    {PARTES.map((parte) => (
+                      <option key={parte} value={parte}>{parte}</option>
+                    ))}
+                  </select>
                 </label>
-                <datalist id="ep-formas">
-                  {FORMAS.map((f) => (
-                    <option key={f} value={f} />
-                  ))}
-                </datalist>
                 <label className="flex items-center gap-1 text-[11px]" style={{ fontFamily: MONO, color: MUTED }}>
                   compases
                   <input type="number" min={1} max={512} value={secSel.compases} onChange={(e) => cambiarSeccion(seleccionada.p, seleccionada.s, { compases: clamp(Math.round(Number(e.target.value) || 1), 1, 512) })} disabled={!puedeEscribir} className="w-16 px-2 py-1" style={inputStyle} />
@@ -883,7 +886,7 @@ export function MapaEP({ inicial, puedeEscribir }: { inicial: Proyecto; puedeEsc
           </div>
         ) : (
           <p className="p-4 text-sm" style={{ color: MUTED, borderTop: `1px solid ${LINE}` }}>
-            Toca una escena de la gráfica o de la tira para mover sus medidores.
+            {proy.piezas[vista as number]?.secciones.length === 0 ? "Agrega la primera parte con los botones de arriba." : "Toca una escena de la gráfica o de la tira para mover sus medidores."}
           </p>
         )}
       </div>
