@@ -7,6 +7,7 @@ import { segundosPorCompas } from "@/lib/cancionTiempo";
 import type { CancionCompleta, CancionInput, SeccionInput, SeccionBaseInput, LetraLineaInput } from "@/lib/cancionesData";
 import { crearCancionAction, actualizarCancionAction, eliminarCancionAction, subirAudioAction, quitarAudioAction } from "@/app/canciones/actions";
 import { AcordeSelector, type AcordeRef } from "./AcordeSelector";
+import { PaletaColor } from "./PaletaColor";
 import { colorOSilencio, simboloOSilencio, SIMBOLO_SILENCIO } from "@/lib/acordeSilencio";
 import { FichaCampos, fichaAInput, fichaDesdeCancion, type FichaEstado } from "./FichaCampos";
 
@@ -452,7 +453,6 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
     });
   };
 
-  const colorTono = colorRaizAcorde(ficha.raiz, ficha.modo === "menor" ? "menor" : "mayor");
   const chip = (txt: React.ReactNode, titulo: string) => (
     <span title={titulo} style={{ background: CHIP, borderRadius: 8, padding: "3px 9px", fontFamily: MONO, fontWeight: 700, fontSize: 11, color: MUTED }}>
       {txt}
@@ -478,22 +478,26 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
     <div className="flex min-w-0 flex-1 flex-col gap-3">
       {/* Ficha */}
       <section className="rounded-2xl p-4" style={{ background: CARD, border: `1px solid ${LINE}` }}>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="min-w-0 flex-1">
+            <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED, marginBottom: 3 }} title={ficha.esCover ? "Cover" : "Canción propia"}>
+              {ficha.esCover ? "🎧 Cover" : `💡 Propia${ficha.esBorrador ? " · borrador" : ""}`}
+            </div>
             <div className="truncate" style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 24, lineHeight: 1.1 }}>{ficha.titulo || "Canción nueva"}</div>
             {ficha.autor && <div className="truncate text-sm" style={{ color: MUTED }}>{ficha.autor}</div>}
           </div>
-          <span title="Tono" style={{ background: colorTono, color: colorContrasteTexto(colorTono), borderRadius: 8, padding: "3px 10px", fontFamily: MONO, fontWeight: 800, fontSize: 14 }}>
-            {ficha.raiz}{ficha.modo === "menor" ? "m" : ""}
-          </span>
-          {chip(ficha.bpm ? `${ficha.bpm} BPM` : "— BPM", "Tempo")}
-          {chip(ficha.duracion || "—", "Duración")}
-          {chip(`${ficha.compases || totalCompases} compases`, "Compases")}
-          {ficha.capo > 0 && <span style={{ background: ACCENT, color: "white", borderRadius: 8, padding: "3px 9px", fontFamily: MONO, fontWeight: 700, fontSize: 11 }}>capo {ficha.capo}</span>}
-          {chip(ficha.esCover ? "Cover" : ficha.esBorrador ? "Propia · borrador" : "Propia", "Tipo")}
-          <button type="button" onClick={() => setFichaAbierta((v) => !v)} title={fichaAbierta ? "Cerrar ficha" : "Editar ficha"} aria-label={fichaAbierta ? "Cerrar ficha" : "Editar ficha"} style={{ ...boton, padding: "2px 9px" }}>
-            {fichaAbierta ? "✕" : "✏️"}
-          </button>
+          <div className="ml-auto flex flex-col items-end gap-2">
+            <PaletaColor tonica={{ raiz: ficha.raiz, modo: ficha.modo }} />
+            <div className="flex flex-wrap items-center justify-end gap-1.5">
+              {chip(ficha.bpm ? `${ficha.bpm} BPM` : "— BPM", "Tempo")}
+              {chip(ficha.duracion || "—", "Duración")}
+              {chip(`${ficha.compases || totalCompases} compases`, "Compases")}
+              {ficha.capo > 0 && <span style={{ background: ACCENT, color: "white", borderRadius: 8, padding: "3px 9px", fontFamily: MONO, fontWeight: 700, fontSize: 11 }}>capo {ficha.capo}</span>}
+              <button type="button" onClick={() => setFichaAbierta((v) => !v)} title={fichaAbierta ? "Cerrar ficha" : "Editar ficha"} aria-label={fichaAbierta ? "Cerrar ficha" : "Editar ficha"} style={{ ...boton, padding: "2px 9px", marginLeft: 4 }}>
+                {fichaAbierta ? "✕" : "✏️"}
+              </button>
+            </div>
+          </div>
         </div>
         {fichaAbierta && (
           <div className="mt-3 border-t pt-3" style={{ borderColor: LINE, maxWidth: 640 }}>
