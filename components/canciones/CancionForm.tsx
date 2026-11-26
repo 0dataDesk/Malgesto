@@ -2,7 +2,7 @@
 
 import { Fragment, useState, useTransition } from "react";
 import { NOTAS, type Nota, type Modo, type Calidad, simboloAcorde, colorRaizAcorde, colorContrasteTexto, colorExtension, tonosDelAcorde } from "@/lib/cancionTeoria";
-import { NOMBRES_SECCION, colorPorTipoSeccion, type NombreSeccion } from "@/lib/seccionCatalogo";
+import { PARTES_SECCION, colorPorTipoSeccion, etiquetasSecciones, parteDe, type NombreSeccion } from "@/lib/seccionCatalogo";
 import { segundosPorCompas } from "@/lib/cancionTiempo";
 import type { CancionCompleta, CancionInput, SeccionInput, SeccionBaseInput, LetraLineaInput } from "@/lib/cancionesData";
 import { crearCancionAction, actualizarCancionAction, eliminarCancionAction, subirAudioAction, quitarAudioAction } from "@/app/canciones/actions";
@@ -46,6 +46,7 @@ type CuerpoFS = {
   bpm: string;
 };
 type RepeticionFS = CuerpoFS & { repeticionIndice: number };
+// `nombre` aquí es solo la PARTE («Verso»); el número lo calcula etiquetasSecciones.
 type SeccionFS = CuerpoFS & { nombre: NombreSeccion; repiteVeces: number; repeticiones: RepeticionFS[] };
 
 function cuerpoVacio(): CuerpoFS {
@@ -55,16 +56,16 @@ function nuevaSeccion(): SeccionFS {
   return { ...cuerpoVacio(), nombre: "Intro", repiteVeces: 1, repeticiones: [] };
 }
 
-function SeccionNombreSelector({ valor, onCambio }: { valor: NombreSeccion; onCambio: (n: NombreSeccion) => void }) {
+function SeccionNombreSelector({ valor, etiqueta, onCambio }: { valor: NombreSeccion; etiqueta: string; onCambio: (n: NombreSeccion) => void }) {
   const [abierto, setAbierto] = useState(false);
   return (
     <div className="relative">
       <button type="button" onClick={() => setAbierto((v) => !v)} className="rounded-md px-2 py-1 text-xs font-bold" style={{ background: colorPorTipoSeccion(valor), color: "oklch(0.99 0.006 85)", fontFamily: DISPLAY }}>
-        {valor}
+        {etiqueta}
       </button>
       {abierto && (
         <div className="absolute z-20 mt-1 flex w-56 flex-wrap gap-1.5 rounded-xl p-2.5" style={{ background: CARD, border: `1px solid ${LINE}`, boxShadow: "0 16px 32px -16px rgba(0,0,0,0.25)" }}>
-          {NOMBRES_SECCION.map((n) => (
+          {PARTES_SECCION.map((n) => (
             <button key={n} type="button" onClick={() => { onCambio(n); setAbierto(false); }} className="rounded-lg px-2.5 py-1.5 text-xs font-bold" style={n === valor ? { background: colorPorTipoSeccion(n), color: "oklch(0.99 0.006 85)" } : inactivoStyle}>
               {n}
             </button>
@@ -341,7 +342,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
   const [fichaAbierta, setFichaAbierta] = useState(!cancionExistente);
   const [secciones, setSecciones] = useState<SeccionFS[]>(
     cancionExistente?.secciones.map((s) => ({
-      nombre: s.nombre,
+      nombre: parteDe(s.nombre),
       repiteVeces: s.repiteVeces,
       acordes: s.acordes.map((a) => ({ notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo, duracionCompases: a.duracionCompases })),
       letra: s.letra.map((l) => ({ texto: l.texto, tipo: l.tipo, acordes: l.acordes.map((a) => ({ posicion: a.posicion, notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo })) })),
@@ -381,6 +382,8 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
   };
   const totalCompases = secciones.reduce((total, s) => total + compasesSeccionTotal(s), 0);
   const totalVueltas = secciones.reduce((t, s) => t + s.repiteVeces, 0);
+  // Nombre final de cada parada («Verso 1», «Verso 2»): lo asigna el sistema según el orden.
+  const etiquetas = etiquetasSecciones(secciones.map((s) => s.nombre));
 
   const patchFicha = (patch: Partial<FichaEstado>) => setFicha((f) => ({ ...f, ...patch }));
   const patchSeccion = (i: number, patch: Partial<SeccionFS>) => setSecciones((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
@@ -438,13 +441,13 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
       setError(base);
       return;
     }
-    const seccionesInput: SeccionInput[] = secciones.map((s) => ({
-      nombre: s.nombre,
+    const seccionesInput: SeccionInput[] = secciones.map((s, i) => ({
+      nombre: etiquetas[i],
       repiteVeces: Math.max(1, s.repiteVeces),
       ...construirCuerpo(s),
       repeticiones: s.repeticiones
         .filter((r) => r.repeticionIndice >= 1 && r.repeticionIndice <= Math.max(1, s.repiteVeces))
-        .map((r) => ({ nombre: s.nombre, repiteVeces: 1, repeticionIndice: r.repeticionIndice, ...construirCuerpo(r) })),
+        .map((r) => ({ nombre: etiquetas[i], repiteVeces: 1, repeticionIndice: r.repeticionIndice, ...construirCuerpo(r) })),
     }));
     const input: CancionInput = { bandaId, ...base, esBorrador: marcarLista ? false : base.esBorrador, secciones: seccionesInput };
     startTransition(async () => {
@@ -539,7 +542,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                 >
                   <span className="flex items-center gap-1.5">
                     <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: 9, color: FAINT }}>{i + 1}</span>
-                    <span className="truncate" style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 13, color: INK }}>{s.nombre}</span>
+                    <span className="truncate" style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 13, color: INK }}>{etiquetas[i]}</span>
                     {veces > 1 && <span className="ml-auto flex-none" style={{ fontFamily: MONO, fontWeight: 800, fontSize: 10, color: ACCENT }}>↻×{veces}</span>}
                   </span>
                   <span className="mt-1 flex gap-px" style={{ minHeight: 18 }}>
@@ -581,7 +584,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
       {sec && cuerpoSel && (
         <section className="rounded-2xl px-3 py-2.5" style={{ background: CARD, border: `2px solid ${ACCENT}` }}>
           <div className="flex flex-wrap items-center gap-2.5">
-            <SeccionNombreSelector valor={sec.nombre} onCambio={(nombre) => patchSeccion(si, { nombre })} />
+            <SeccionNombreSelector valor={sec.nombre} etiqueta={etiquetas[si]} onCambio={(nombre) => patchSeccion(si, { nombre })} />
             <div className="flex items-center" style={{ fontFamily: MONO }}>
               <span style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT, marginRight: 5 }}>Se repite</span>
               <div className="flex items-center overflow-hidden rounded-md border" style={{ borderColor: LINE }}>
