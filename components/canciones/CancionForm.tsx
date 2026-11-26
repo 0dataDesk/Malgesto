@@ -97,7 +97,7 @@ function AcordeChip({
   // Si dura menos de un compás se muestra en tiempos (4 tiempos = 1 compás); la unidad se cambia tocando la letra.
   const [enTiempos, setEnTiempos] = useState(acorde.duracionCompases > 0 && acorde.duracionCompases < 1);
   return (
-    <div className="flex items-center gap-1" style={{ borderRadius: 9, padding: "2px 5px 2px 2px", background: color, border: "1px solid rgba(0,0,0,.14)" }}>
+    <div className="flex items-center gap-1.5" style={{ borderRadius: 10, padding: "3px 6px 3px 3px", background: color, border: "1px solid rgba(0,0,0,.14)" }}>
       {acorde.silencio ? (
         <span title="Silencio" style={{ padding: "1px 5px", fontFamily: MONO, fontWeight: 700, fontSize: 11, color: INK }}>{SIMBOLO_SILENCIO} silencio</span>
       ) : (
@@ -112,17 +112,17 @@ function AcordeChip({
           const n = limpio === "" ? 0 : Number(limpio);
           onDuracion(enTiempos ? n / 4 : n);
         }}
-        style={{ width: "2em", textAlign: "center", borderRadius: 5, padding: "1px 0", background: "rgba(255,255,255,.85)", border: "1px solid rgba(0,0,0,.1)", fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontWeight: 700, fontSize: 11, color: INK }}
+        style={{ width: "2.3em", textAlign: "center", borderRadius: 6, padding: "2px 0", background: "rgba(255,255,255,.9)", border: "1px solid rgba(0,0,0,.12)", fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontWeight: 800, fontSize: 13, color: INK }}
       />
       <button
         type="button"
         onClick={() => setEnTiempos((v) => !v)}
         title={enTiempos ? "Tiempos: toca para cambiar a compases" : "Compases: toca para cambiar a tiempos (menos de un compás)"}
-        style={{ fontFamily: MONO, fontSize: 9, color: ink, textDecoration: "underline dotted", cursor: "pointer" }}
+        style={{ fontFamily: NUM, fontWeight: 800, fontSize: 13, lineHeight: 1, padding: "4px 8px", borderRadius: 6, cursor: "pointer", background: enTiempos ? "oklch(0.15 0 0)" : "rgba(255,255,255,.9)", color: enTiempos ? "white" : INK, border: "1px solid rgba(0,0,0,.3)" }}
       >
         {enTiempos ? "t" : "c"}
       </button>
-      <button type="button" onClick={onQuitar} aria-label="Quitar acorde" style={{ color: ink, fontFamily: MONO, fontSize: 11, lineHeight: 1 }}>
+      <button type="button" onClick={onQuitar} aria-label="Quitar acorde" style={{ color: ink, fontFamily: MONO, fontSize: 13, lineHeight: 1 }}>
         ×
       </button>
     </div>

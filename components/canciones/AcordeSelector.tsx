@@ -153,7 +153,7 @@ export function AcordeSelector({
       <button
         type="button"
         onClick={() => (abierto ? cerrar() : abrir())}
-        className={compacto ? "rounded-md px-2 py-0.5 text-[11px] font-bold" : "rounded-lg px-3 py-2 text-sm font-bold"}
+        className={compacto ? "rounded-md px-2.5 py-1 text-[13px] font-bold" : "rounded-lg px-3 py-2 text-sm font-bold"}
         style={etiqueta ? { background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)", border: "1px dashed oklch(0.8 0.01 85)" } : { background: colorRaizAcorde(notaRaiz, calidad), color: "oklch(0.99 0.006 85)", minWidth: compacto ? 0 : 76 }}
       >
         {etiqueta ?? simboloAcorde(notaRaiz, calidad, notaBajo)}
