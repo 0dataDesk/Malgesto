@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { CancionCompleta } from "@/lib/cancionesData";
-import { NOTAS, simboloAcorde, colorRaizAcorde, colorContrasteTexto, tonosDelAcorde, type Calidad, type Nota } from "@/lib/cancionTeoria";
+import { NOTAS, gradoDeNota, simboloAcorde, colorRaizAcorde, colorContrasteTexto, tonosDelAcorde, type Calidad, type Nota } from "@/lib/cancionTeoria";
 import { formatoMMSS } from "@/lib/duracion";
 import { guardarTiemposAction } from "@/app/canciones/actions";
 import { FichaEditor } from "./FichaEditor";
@@ -123,14 +123,17 @@ function Diagrama({
         const nivel = clase ? Math.max(clase.indexOf(pc), 0) : 0;
         const colorDedo = colorBase ? tono(colorBase, nivel) : INK;
         const esRaiz = raizPc >= 0 && pc === raizPc;
-        const tenue = raizPc >= 0 && !esRaiz ? 0.4 : 1;
+        // Bajo: la raíz grande; la quinta (fácil de ubicar) más suave; las demás notas, que son las que enseñan armonía, bien visibles.
+        const grado = acorde && raizPc >= 0 ? gradoDeNota(acorde.nota, acorde.calidad, NOTAS[pc]) : "";
+        const etiquetaNota = grado || NOTAS[pc];
+        const tenue = raizPc >= 0 && !esRaiz ? (grado === "5" ? 0.5 : 0.9) : 1;
         const rd = raizPc >= 0 ? (esRaiz ? r * 1.25 : r * 0.7) : r;
         const tintaDedo = colorBase ? colorContrasteTexto(colorDedo) : "white";
         if (t === 0)
           return colorBase ? (
             <g key={i}>
               <circle cx={x} cy={yMarca} r={(mini ? 3.4 : 7) * (raizPc >= 0 ? (esRaiz ? 1.3 : 0.75) : 1)} fill={colorDedo} stroke={INK} strokeWidth={esRaiz ? 2.2 : 1} opacity={tenue} />
-              {!mini && <text x={x} y={yMarca + 3} textAnchor="middle" fontSize={8.5} fontWeight={800} fill={tintaDedo} fontFamily={MONO}>{NOTAS[pc]}</text>}
+              {!mini && <text x={x} y={yMarca + 3} textAnchor="middle" fontSize={8.5} fontWeight={800} fill={tintaDedo} fontFamily={MONO}>{etiquetaNota}</text>}
             </g>
           ) : (
             <circle key={i} cx={x} cy={yMarca} r={mini ? 2.8 : 4.5} fill="none" stroke={INK} strokeWidth={1.2} />
@@ -141,7 +144,7 @@ function Diagrama({
           <g key={i}>
             {(!enBarre || colorBase) && <circle cx={x} cy={yFila(t)} r={rd} fill={colorDedo} stroke={colorBase ? INK : "none"} strokeWidth={colorBase ? (esRaiz ? 2.6 : 1.2) : 0} opacity={tenue} />}
             {conNota && (
-              <text x={x} y={yFila(t) + 3.6} textAnchor="middle" fontSize={11} fontWeight={800} fill={tintaDedo} fontFamily={MONO}>{NOTAS[pc]}</text>
+              <text x={x} y={yFila(t) + 3.6} textAnchor="middle" fontSize={11} fontWeight={800} fill={tintaDedo} fontFamily={MONO}>{etiquetaNota}</text>
             )}
             {forma.dedos[i] !== null && !(enBarre && i !== forma.barre!.desde && !colorBase) && (
               conNota ? (
