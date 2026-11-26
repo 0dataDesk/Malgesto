@@ -39,7 +39,7 @@ type Orden = "titulo" | "tono" | "genero" | "compases";
 const tonoEtiqueta = (c: CancionLista) => `${c.tonalidadNota}${c.tonalidadModo === "menor" ? "m" : ""}`;
 const claveTono = (c: CancionLista) => NOTAS.indexOf(c.tonalidadNota) * 2 + (c.tonalidadModo === "menor" ? 1 : 0);
 
-const selectStyle = { background: CARD, border: `1px solid ${LINE}`, color: INK, borderRadius: 9, padding: "4px 8px", fontSize: 12, fontWeight: 600 } as const;
+const selectStyle = { background: CARD, border: `1px solid ${LINE}`, color: INK, borderRadius: 9, padding: "4px 8px", fontSize: 12, fontWeight: 600, height: 30 } as const;
 
 function Grupo({ titulo, canciones, puedeEscribir }: { titulo: string | null; canciones: CancionLista[]; puedeEscribir: boolean }) {
   if (canciones.length === 0) return null;
@@ -52,37 +52,46 @@ function Grupo({ titulo, canciones, puedeEscribir }: { titulo: string | null; ca
           <span className="text-[10px]" style={{ fontFamily: MONO, color: MUTED }}>{canciones.length}</span>
         </div>
       )}
-      <div className="mt-2.5 grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))" }}>
+      {/* Todas las tarjetas del mismo tamaño */}
+      <div className="mt-2.5 grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gridAutoRows: 92 }}>
         {canciones.map((c) => (
-          <div key={c.id} className="flex items-stretch gap-2">
+          <div key={c.id} className="relative">
             <Link
               href={`/canciones/${c.id}`}
-              className="relative min-w-0 flex-1 rounded-2xl p-3.5 no-underline"
+              className="flex h-full min-w-0 flex-col justify-between rounded-2xl px-3.5 py-3 no-underline"
               style={{ background: c.esBorrador ? "oklch(0.975 0.006 85)" : CARD, border: c.esBorrador ? "1px dashed oklch(0.85 0.010 85)" : `1px solid ${LINE}` }}
             >
-              {!c.compasesRevisados && (
-                <span aria-label="Compases por revisar" title="Aún no revisas sus compases" style={{ position: "absolute", top: 10, right: 10, width: 9, height: 9, borderRadius: 99, background: "oklch(0.58 0.22 25)" }} />
-              )}
-              <div className="flex flex-wrap items-center gap-1.5 pr-4">
-                <span className="text-[17px] font-bold" style={{ color: INK, fontFamily: "var(--font-fraunces), sans-serif" }}>{c.titulo}</span>
+              <div className="flex min-w-0 items-center gap-2 pr-9">
+                {!c.compasesRevisados && (
+                  <span aria-label="Compases por revisar" title="Aún no revisas sus compases" className="flex-none" style={{ width: 8, height: 8, borderRadius: 99, background: "oklch(0.58 0.22 25)" }} />
+                )}
+                <span className="truncate text-[17px] font-bold" style={{ color: INK, fontFamily: "var(--font-fraunces), sans-serif" }}>{c.titulo}</span>
+              </div>
+              <div className="flex min-w-0 items-center gap-1.5" style={{ minHeight: 18 }}>
                 {c.esCover && c.autor && (
-                  <span className="rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]" style={{ fontFamily: MONO, background: CHIP, color: MUTED }}>{c.autor}</span>
+                  <span className="truncate rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]" style={{ fontFamily: MONO, background: CHIP, color: MUTED }}>{c.autor}</span>
                 )}
                 {c.esBorrador && (
-                  <span className="rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]" style={{ fontFamily: MONO, border: `1px dashed ${ACCENT}`, color: ACCENT }}>Borrador</span>
+                  <span className="flex-none rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]" style={{ fontFamily: MONO, border: `1px dashed ${ACCENT}`, color: ACCENT }}>Borrador</span>
                 )}
+                {c.genero && <span className="flex-none rounded-md px-1.5 py-0.5 text-[10px] font-semibold" style={{ fontFamily: NUM, background: CHIP, color: MUTED }}>{c.genero}</span>}
               </div>
-              <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[12px]" style={{ fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontWeight: 600, color: MUTED }}>
+              <div className="flex items-baseline gap-x-3 text-[12px]" style={{ fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontWeight: 600, color: MUTED }}>
                 <span className="text-[15px] font-bold" style={{ color: colorRaizAcorde(c.tonalidadNota, c.tonalidadModo) }}>{tonoEtiqueta(c)}</span>
                 {c.bpm && <span>{c.bpm} BPM</span>}
                 {c.duracionSegundos !== null && <span>{formatoMMSS(c.duracionSegundos)}</span>}
                 {c.totalCompases > 0 && <span>{c.totalCompases} compases</span>}
-                {c.genero && <span className="ml-auto rounded-md px-1.5 py-0.5 text-[10px]" style={{ background: CHIP }}>{c.genero}</span>}
               </div>
             </Link>
             {puedeEscribir && (
-              <Link href={`/canciones/${c.id}/editar`} className="flex shrink-0 items-center rounded-2xl px-3 text-xs font-bold no-underline" style={{ background: CHIP, color: "oklch(0.4 0.044 262)" }}>
-                {c.esBorrador ? "Seguir" : "Editar"}
+              <Link
+                href={`/canciones/${c.id}/editar`}
+                title={c.esBorrador ? "Seguir editando" : "Editar"}
+                aria-label={c.esBorrador ? "Seguir editando" : "Editar"}
+                className="absolute flex items-center justify-center rounded-lg no-underline"
+                style={{ top: 8, right: 8, width: 26, height: 26, background: CHIP, fontSize: 13 }}
+              >
+                ✏️
               </Link>
             )}
           </div>
@@ -125,50 +134,32 @@ export function ListaCanciones({ canciones, puedeEscribir }: { canciones: Cancio
 
   return (
     <div>
-      {/* Filtros y orden */}
+      {/* Filtros y orden: todos del mismo tipo (desplegable con su título dentro) */}
       <div className="mt-4 flex flex-wrap items-center gap-2" style={{ fontFamily: NUM }}>
-        <div role="group" aria-label="Tipo" className="flex items-center">
-          {(["todas", "covers", "propias"] as Tipo[]).map((t, n) => (
-            <button
-              key={t}
-              type="button"
-              aria-pressed={tipo === t}
-              onClick={() => setTipo(t)}
-              style={{ ...selectStyle, padding: "4px 11px", borderRadius: n === 0 ? "9px 0 0 9px" : n === 2 ? "0 9px 9px 0" : 0, marginLeft: n === 0 ? 0 : -1, background: tipo === t ? INK : CARD, color: tipo === t ? "white" : INK, textTransform: "capitalize" }}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+        <select aria-label="Tipo" value={tipo} onChange={(e) => setTipo(e.target.value as Tipo)} style={selectStyle}>
+          <option value="todas">Todas las canciones</option>
+          <option value="covers">Covers</option>
+          <option value="propias">Propias</option>
+        </select>
         <select aria-label="Género" value={genero} onChange={(e) => setGenero(e.target.value)} style={selectStyle}>
-          <option value="">Todos los géneros</option>
+          <option value="">Género: todos</option>
           {generos.map((g) => <option key={g} value={g}>{g}</option>)}
           <option value="__sin">Sin género</option>
         </select>
         <select aria-label="Tono" value={tono} onChange={(e) => setTono(e.target.value)} style={selectStyle}>
-          <option value="">Todos los tonos</option>
+          <option value="">Tono: todos</option>
           {tonos.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
-        <button
-          type="button"
-          aria-pressed={soloSinCompases}
-          onClick={() => setSoloSinCompases((v) => !v)}
-          title="Solo las canciones cuyos compases aún no revisas"
-          className="flex items-center gap-1.5"
-          style={{ ...selectStyle, background: soloSinCompases ? INK : CARD, color: soloSinCompases ? "white" : INK }}
-        >
-          <span aria-hidden style={{ width: 8, height: 8, borderRadius: 99, background: "oklch(0.58 0.22 25)" }} />
-          Sin compases
-        </button>
-        <span className="ml-auto flex items-center gap-1.5 text-[12px]" style={{ color: MUTED }}>
-          Ordenar
-          <select aria-label="Ordenar por" value={orden} onChange={(e) => setOrden(e.target.value as Orden)} style={selectStyle}>
-            <option value="titulo">Título</option>
-            <option value="tono">Tono</option>
-            <option value="genero">Género</option>
-            <option value="compases">Sin compases primero</option>
-          </select>
-        </span>
+        <select aria-label="Compases" value={soloSinCompases ? "revisar" : ""} onChange={(e) => setSoloSinCompases(e.target.value === "revisar")} style={selectStyle}>
+          <option value="">Compases: todas</option>
+          <option value="revisar">Compases: por revisar</option>
+        </select>
+        <select aria-label="Ordenar por" value={orden} onChange={(e) => setOrden(e.target.value as Orden)} style={selectStyle}>
+          <option value="titulo">Orden: título</option>
+          <option value="tono">Orden: tono</option>
+          <option value="genero">Orden: género</option>
+          <option value="compases">Orden: por revisar primero</option>
+        </select>
         {hayFiltro && (
           <button type="button" onClick={() => { setTipo("todas"); setGenero(""); setTono(""); setSoloSinCompases(false); }} className="text-[12px] underline" style={{ color: MUTED }}>
             Quitar filtros
