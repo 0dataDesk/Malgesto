@@ -64,39 +64,40 @@ export function agruparCiclos(ac: AcordeFila[]): ItemFila[] {
   return out;
 }
 
-// Cambios sobre un acorde de un ciclo: valen para todas sus repeticiones.
-export function reemplazarEnCiclo(ac: AcordeFila[], c: { inicio: number; largo: number; veces: number }, offset: number, patch: Partial<AcordeFila>): AcordeFila[] {
-  const out = ac.map((a) => ({ ...a }));
-  for (let r = 0; r < c.veces; r++) out[c.inicio + r * c.largo + offset] = { ...out[c.inicio + r * c.largo + offset], ...patch };
-  return out;
+// ---- Fila que se edita: la estructura la decide quien captura, nunca se agrupa sola mientras se edita -----------------
+
+export type ItemEdicion = { tipo: "acorde"; a: AcordeFila } | { tipo: "ciclo"; bloque: AcordeFila[]; veces: number };
+
+// Al abrir una parte ya guardada se agrupa lo que se repite (solo esa vez); al editar, la estructura es la que se arma a mano.
+export function filaDesdeAcordes(ac: AcordeFila[]): ItemEdicion[] {
+  return agruparCiclos(ac).map((it) =>
+    it.tipo === "acorde"
+      ? { tipo: "acorde" as const, a: { ...ac[it.i] } }
+      : { tipo: "ciclo" as const, bloque: ac.slice(it.inicio, it.inicio + it.largo).map((x) => ({ ...x })), veces: it.veces }
+  );
 }
-export function quitarEnCiclo(ac: AcordeFila[], c: { inicio: number; largo: number; veces: number }, offset: number): AcordeFila[] {
-  const quitar = new Set<number>();
-  for (let r = 0; r < c.veces; r++) quitar.add(c.inicio + r * c.largo + offset);
-  return ac.filter((_, i) => !quitar.has(i));
+
+// Todos los acordes, en orden, con los ciclos repetidos las veces que digan.
+export function expandirFila(fila: ItemEdicion[]): AcordeFila[] {
+  return fila.flatMap((it) => (it.tipo === "acorde" ? [{ ...it.a }] : Array.from({ length: Math.max(1, it.veces) }, () => it.bloque.map((x) => ({ ...x }))).flat()));
 }
-// Cambia cuántas veces se repite un ciclo (mínimo 1).
-export function cambiarVeces(ac: AcordeFila[], c: { inicio: number; largo: number; veces: number }, nuevas: number): AcordeFila[] {
-  const n = Math.max(1, Math.round(nuevas));
-  const out = ac.map((a) => ({ ...a }));
-  if (n > c.veces) {
-    const bloque = out.slice(c.inicio, c.inicio + c.largo);
-    const extra: AcordeFila[] = [];
-    for (let r = c.veces; r < n; r++) bloque.forEach((a) => extra.push({ ...a }));
-    out.splice(c.inicio + c.veces * c.largo, 0, ...extra);
-  } else if (n < c.veces) {
-    out.splice(c.inicio + n * c.largo, (c.veces - n) * c.largo);
-  }
-  return out;
+
+// Convierte en un ciclo los últimos `n` acordes sueltos (los que están al final de la fila, sin pasar por otro ciclo).
+export function agruparUltimos(fila: ItemEdicion[], n: number, veces: number): ItemEdicion[] {
+  let sueltos = 0;
+  while (sueltos < fila.length && fila[fila.length - 1 - sueltos].tipo === "acorde") sueltos++;
+  const cuantos = Math.min(Math.max(1, Math.round(n)), sueltos);
+  if (cuantos === 0) return fila;
+  const bloque = fila.slice(fila.length - cuantos).map((x) => ({ ...(x as { tipo: "acorde"; a: AcordeFila }).a }));
+  return [...fila.slice(0, fila.length - cuantos), { tipo: "ciclo", bloque, veces: Math.max(2, Math.round(veces)) }];
 }
-// Repite los últimos `n` acordes `veces` veces en total (agrega las copias que faltan al final).
-export function repetirUltimos(ac: AcordeFila[], n: number, veces: number): AcordeFila[] {
-  const largo = Math.min(Math.max(1, Math.round(n)), ac.length);
-  if (ac.length === 0) return ac;
-  const bloque = ac.slice(ac.length - largo).map((a) => ({ ...a }));
-  const out = ac.map((a) => ({ ...a }));
-  for (let r = 1; r < Math.max(2, Math.round(veces)); r++) bloque.forEach((a) => out.push({ ...a }));
-  return out;
+
+// Deshace un ciclo: deja sus acordes sueltos, tantas veces como se repetía.
+export function deshacerCiclo(fila: ItemEdicion[], i: number): ItemEdicion[] {
+  const it = fila[i];
+  if (!it || it.tipo !== "ciclo") return fila;
+  const sueltos: ItemEdicion[] = Array.from({ length: Math.max(1, it.veces) }, () => it.bloque.map((x) => ({ tipo: "acorde" as const, a: { ...x } }))).flat();
+  return [...fila.slice(0, i), ...sueltos, ...fila.slice(i + 1)];
 }
 
 // ---- Letra: los acordes de cada línea salen de la fila ----------------------------------------------------------

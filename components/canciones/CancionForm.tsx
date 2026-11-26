@@ -8,7 +8,7 @@ import type { CancionCompleta, CancionInput, SeccionInput, SeccionBaseInput, Let
 import { crearCancionAction, actualizarCancionAction, eliminarCancionAction, subirAudioAction, quitarAudioAction } from "@/app/canciones/actions";
 import { AcordeSelector, type AcordeRef } from "./AcordeSelector";
 import { PaletaColor } from "./PaletaColor";
-import { agruparCiclos, reemplazarEnCiclo, quitarEnCiclo, cambiarVeces, repetirUltimos, sincronizarLetra, moverFrontera, cambiarTexto, moverPosicion, sinSilencios, type AcordeFila, type LineaLetra } from "@/lib/cancionLetra";
+import { filaDesdeAcordes, expandirFila, agruparUltimos, deshacerCiclo, sincronizarLetra, moverFrontera, cambiarTexto, moverPosicion, sinSilencios, type AcordeFila, type ItemEdicion, type LineaLetra } from "@/lib/cancionLetra";
 import { colorOSilencio, simboloOSilencio, SIMBOLO_SILENCIO } from "@/lib/acordeSilencio";
 import { FichaCampos, fichaAInput, fichaDesdeCancion, type FichaEstado } from "./FichaCampos";
 
@@ -33,6 +33,8 @@ type AcordeFS = { notaRaiz: Nota; calidad: Calidad; notaBajo: Nota | null; durac
 type LetraFS = { texto: string; tipo: "letra" | "tab"; acordes: { posicion: number; notaRaiz: Nota; calidad: Calidad; notaBajo: Nota | null }[] };
 type CuerpoFS = {
   acordes: AcordeFS[];
+  // La fila tal como se arma (acordes sueltos y ciclos); `acordes` es esa fila expandida.
+  fila: ItemEdicion[];
   letra: LetraFS[];
   tonalidadPropia: boolean;
   tonRaiz: Nota;
@@ -45,7 +47,7 @@ type RepeticionFS = CuerpoFS & { repeticionIndice: number };
 type SeccionFS = CuerpoFS & { nombre: NombreSeccion; repiteVeces: number; repeticiones: RepeticionFS[] };
 
 function cuerpoVacio(): CuerpoFS {
-  return { acordes: [], letra: [], tonalidadPropia: false, tonRaiz: "C", tonModo: "mayor", numeroCompases: "", bpm: "" };
+  return { acordes: [], fila: [], letra: [], tonalidadPropia: false, tonRaiz: "C", tonModo: "mayor", numeroCompases: "", bpm: "" };
 }
 function nuevaSeccion(): SeccionFS {
   return { ...cuerpoVacio(), nombre: "Intro", repiteVeces: 1, repeticiones: [] };
@@ -356,7 +358,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
       if (x.acordes.length > 0) return x;
       const delTexto = x.letra.flatMap((l) => [...l.acordes].sort((a, b) => a.posicion - b.posicion).map((a) => ({ notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo, duracionCompases: 1 })));
       return delTexto.length > 0 ? { ...x, acordes: delTexto } : x;
-    }) ?? [nuevaSeccion()]
+    }).map((x) => ({ ...x, fila: filaDesdeAcordes(x.acordes as AcordeFila[]) })) ?? [nuevaSeccion()]
   );
   const [seccionAbierta, setSeccionAbierta] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -473,9 +475,10 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
   const cuerpoSel: CuerpoFS | null = sec ?? null;
   const aplicar = (patch: Partial<CuerpoFS>) => patchSeccion(si, patch as Partial<SeccionFS>);
   // Cambia la fila de acordes y deja la letra acorde con ella (una sola captura).
-  const aplicarAcordes = (nuevos: AcordeFS[]) => {
-    const letra = cuerpoSel ? (sincronizarLetra(cuerpoSel.letra as LineaLetra[], sinSilencios(nuevos as AcordeFila[])) as LetraFS[]) : [];
-    aplicar({ acordes: nuevos, letra });
+  const aplicarFila = (fila: ItemEdicion[]) => {
+    const acordes = expandirFila(fila) as AcordeFS[];
+    const letra = cuerpoSel ? (sincronizarLetra(cuerpoSel.letra as LineaLetra[], sinSilencios(acordes as AcordeFila[])) as LetraFS[]) : [];
+    aplicar({ fila, acordes, letra });
   };
 
   const boton = { border: `1px solid ${LINE}`, background: CARD, color: INK, borderRadius: 9, padding: "4px 10px", fontFamily: MONO, fontWeight: 700, fontSize: 11 } as const;
@@ -600,50 +603,56 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
             </div>
           </div>
 
-          {/* Acordes de la parte: la única captura de acordes (cuentan los compases); lo que se repite seguido se agrupa en un ciclo ↻ ×N */}
+          {/* Acordes de la parte: la única captura de acordes (cuentan los compases). Un ciclo ↻ ×N se arma a propósito (nunca se agrupa solo) */}
           {(() => {
-            const ac = cuerpoSel.acordes;
-            const items = agruparCiclos(ac);
+            const fila = cuerpoSel.fila;
             const tonal = tonDe(cuerpoSel);
-            const chipDe = (i: number, key: string, alSeleccionar: (n: Nota, c: Calidad, b: Nota | null) => void, alDuracion: (d: number) => void, alQuitar: () => void) => (
-              <AcordeChip key={key} acorde={ac[i]} tonalidad={tonal} acordesCancion={acordesCancion} esCover={ficha.esCover} onSeleccionar={alSeleccionar} onDuracion={alDuracion} onQuitar={alQuitar} />
+            const chipDe = (a: AcordeFS, key: string, alSeleccionar: (n: Nota, c: Calidad, b: Nota | null) => void, alDuracion: (d: number) => void, alQuitar: () => void) => (
+              <AcordeChip key={key} acorde={a} tonalidad={tonal} acordesCancion={acordesCancion} esCover={ficha.esCover} onSeleccionar={alSeleccionar} onDuracion={alDuracion} onQuitar={alQuitar} />
             );
             const botonMini = { width: 18, height: 18, borderRadius: 5, background: CHIP, color: MUTED, fontFamily: MONO } as const;
+            const nuevoAcorde = (silencio: boolean): ItemEdicion => ({ tipo: "acorde", a: { notaRaiz: tonal.raiz, calidad: "mayor" as Calidad, notaBajo: null, duracionCompases: 1, ...(silencio ? { silencio: true } : {}) } });
+            const sueltosAlFinal = (() => {
+              let n = 0;
+              while (n < fila.length && fila[fila.length - 1 - n].tipo === "acorde") n++;
+              return n;
+            })();
             return (
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT, marginRight: 4 }}>Acordes</span>
-                {items.map((it) =>
+                {fila.map((it, i) =>
                   it.tipo === "acorde" ? (
                     chipDe(
-                      it.i,
-                      `a${it.i}`,
-                      (notaRaiz, calidad, notaBajo) => aplicarAcordes(ac.map((x, i) => (i === it.i ? { ...x, notaRaiz, calidad, notaBajo } : x))),
-                      (n) => aplicarAcordes(ac.map((x, i) => (i === it.i ? { ...x, duracionCompases: n } : x))),
-                      () => aplicarAcordes(ac.filter((_, i) => i !== it.i))
+                      it.a,
+                      `a${i}`,
+                      (notaRaiz, calidad, notaBajo) => aplicarFila(fila.map((x, j) => (j === i && x.tipo === "acorde" ? { tipo: "acorde", a: { ...x.a, notaRaiz, calidad, notaBajo } } : x))),
+                      (n) => aplicarFila(fila.map((x, j) => (j === i && x.tipo === "acorde" ? { tipo: "acorde", a: { ...x.a, duracionCompases: n } } : x))),
+                      () => aplicarFila(fila.filter((_, j) => j !== i))
                     )
                   ) : (
-                    <span key={`c${it.inicio}`} className="flex flex-wrap items-center gap-1 rounded-xl px-1.5 py-1" style={{ border: `1.5px dashed ${ACCENT}` }} title="Ciclo: lo que cambies en un acorde vale para todas sus repeticiones">
-                      {Array.from({ length: it.largo }).map((_, o) =>
+                    <span key={`c${i}`} className="flex flex-wrap items-center gap-1 rounded-xl px-1.5 py-1" style={{ border: `1.5px dashed ${ACCENT}` }} title="Ciclo: lo que cambies en un acorde vale para todas sus repeticiones">
+                      {it.bloque.map((a, o) =>
                         chipDe(
-                          it.inicio + o,
-                          `c${it.inicio}-${o}`,
-                          (notaRaiz, calidad, notaBajo) => aplicarAcordes(reemplazarEnCiclo(ac, it, o, { notaRaiz, calidad, notaBajo })),
-                          (n) => aplicarAcordes(reemplazarEnCiclo(ac, it, o, { duracionCompases: n })),
-                          () => aplicarAcordes(quitarEnCiclo(ac, it, o))
+                          a,
+                          `c${i}-${o}`,
+                          (notaRaiz, calidad, notaBajo) => aplicarFila(fila.map((x, j) => (j === i && x.tipo === "ciclo" ? { ...x, bloque: x.bloque.map((y, k) => (k === o ? { ...y, notaRaiz, calidad, notaBajo } : y)) } : x))),
+                          (n) => aplicarFila(fila.map((x, j) => (j === i && x.tipo === "ciclo" ? { ...x, bloque: x.bloque.map((y, k) => (k === o ? { ...y, duracionCompases: n } : y)) } : x))),
+                          () => aplicarFila(fila.flatMap((x, j) => (j !== i || x.tipo !== "ciclo" ? [x] : x.bloque.length <= 1 ? [] : [{ ...x, bloque: x.bloque.filter((_, k) => k !== o) }])))
                         )
                       )}
                       <span className="flex items-center gap-1" style={{ fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontWeight: 800, fontSize: 12, color: ACCENT }}>
                         ↻
-                        <button type="button" aria-label="Una repetición menos" onClick={() => aplicarAcordes(cambiarVeces(ac, it, it.veces - 1))} style={botonMini}>−</button>
+                        <button type="button" aria-label="Una repetición menos" onClick={() => aplicarFila(fila.map((x, j) => (j === i && x.tipo === "ciclo" ? { ...x, veces: Math.max(1, x.veces - 1) } : x)))} style={botonMini}>−</button>
                         ×{it.veces}
-                        <button type="button" aria-label="Una repetición más" onClick={() => aplicarAcordes(cambiarVeces(ac, it, it.veces + 1))} style={botonMini}>+</button>
+                        <button type="button" aria-label="Una repetición más" onClick={() => aplicarFila(fila.map((x, j) => (j === i && x.tipo === "ciclo" ? { ...x, veces: x.veces + 1 } : x)))} style={botonMini}>+</button>
+                        <button type="button" aria-label="Deshacer el ciclo" title="Deshacer el ciclo (deja los acordes sueltos)" onClick={() => aplicarFila(deshacerCiclo(fila, i))} style={{ ...botonMini, marginLeft: 2 }}>✕</button>
                       </span>
                     </span>
                   )
                 )}
                 <button
                   type="button"
-                  onClick={() => aplicarAcordes([...ac, { notaRaiz: tonal.raiz, calidad: "mayor" as Calidad, notaBajo: null, duracionCompases: 1 }])}
+                  onClick={() => aplicarFila([...fila, nuevoAcorde(false)])}
                   className="rounded-md px-2 py-0.5 text-[11px] font-bold"
                   style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}
                 >
@@ -651,16 +660,16 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                 </button>
                 <button
                   type="button"
-                  onClick={() => aplicarAcordes([...ac, { notaRaiz: tonal.raiz, calidad: "mayor" as Calidad, notaBajo: null, duracionCompases: 1, silencio: true }])}
+                  onClick={() => aplicarFila([...fila, nuevoAcorde(true)])}
                   className="rounded-md px-2 py-0.5 text-[11px] font-bold"
                   style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}
                   title="Compases o tiempos sin acorde"
                 >
                   + silencio
                 </button>
-                {ac.length > 0 && (
+                {sueltosAlFinal > 0 && (
                   <span className="flex items-center gap-1">
-                    <button type="button" onClick={() => setRepetir((r) => (r ? null : { n: Math.min(4, ac.length), veces: 2 }))} className="rounded-md px-2 py-0.5 text-[11px] font-bold" style={{ border: `1px dashed ${ACCENT}`, color: ACCENT, fontFamily: MONO }} title="Repetir los últimos acordes">
+                    <button type="button" onClick={() => setRepetir((r) => (r ? null : { n: Math.min(4, sueltosAlFinal), veces: 2 }))} className="rounded-md px-2 py-0.5 text-[11px] font-bold" style={{ border: `1px dashed ${ACCENT}`, color: ACCENT, fontFamily: MONO }} title="Agrupar los últimos acordes sueltos en un ciclo que se repite">
                       ↻ repetir
                     </button>
                     {repetir && (
@@ -670,7 +679,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                         acordes, en total
                         <input inputMode="numeric" value={repetir.veces} onChange={(e) => setRepetir({ ...repetir, veces: Number(e.target.value.replace(/[^0-9]/g, "")) || 2 })} style={{ ...inputStyle, width: 34, textAlign: "center", borderRadius: 6, border: `1px solid ${LINE}`, padding: "1px 2px" }} />
                         veces
-                        <button type="button" onClick={() => { aplicarAcordes(repetirUltimos(ac, repetir.n, repetir.veces)); setRepetir(null); }} className="rounded-md px-2 py-0.5 text-[11px] font-bold" style={activoStyle}>Listo</button>
+                        <button type="button" onClick={() => { aplicarFila(agruparUltimos(fila, repetir.n, repetir.veces)); setRepetir(null); }} className="rounded-md px-2 py-0.5 text-[11px] font-bold" style={activoStyle}>Listo</button>
                       </span>
                     )}
                   </span>
