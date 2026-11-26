@@ -1,5 +1,5 @@
 // Revisa la lógica de una sola captura de acordes (ciclos de la fila y acordes de la letra).
-import { iniciosDeSilaba, paradasDeMovimiento, agruparCiclos, cambiarVeces, reemplazarEnCiclo, quitarEnCiclo, repetirUltimos, ubicarAcordes, sincronizarLetra, moverFrontera, cambiarTexto, moverPosicion, type AcordeFila, type LineaLetra } from "../lib/cancionLetra";
+import { iniciosDeSilaba, paradasDeMovimiento, agruparCiclos, filaDesdeAcordes, expandirFila, agruparUltimos, deshacerCiclo, ubicarAcordes, sincronizarLetra, moverFrontera, cambiarTexto, moverPosicion, type AcordeFila, type LineaLetra } from "../lib/cancionLetra";
 import type { Nota, Calidad } from "../lib/cancionTeoria";
 
 const errores: string[] = [];
@@ -15,17 +15,18 @@ const items = agruparCiclos(coro);
 const resumen = items.map((x) => (x.tipo === "acorde" ? `a${x.i}` : `c${x.inicio}x${x.largo}x${x.veces}`)).join(" ");
 if (resumen !== "a0 a1 a2 a3 c4x4x7 a32 a33 a34 a35") falla(`ciclos del coro: ${resumen}`);
 
-// Cambiar un acorde del ciclo cambia todas sus repeticiones; veces ±; quitar.
-const base = [a("G"), a("D"), a("A", "menor"), a("C"), a("G"), a("D"), a("A", "menor"), a("C")];
-const ciclo = agruparCiclos(base)[0];
-if (ciclo.tipo !== "ciclo" || ciclo.largo !== 4 || ciclo.veces !== 2) falla("ciclo simple ×2");
-else {
-  if (nombres(reemplazarEnCiclo(base, ciclo, 1, { notaRaiz: "E" })) !== "G E Am C G E Am C") falla("reemplazar en ciclo");
-  if (nombres(cambiarVeces(base, ciclo, 3)) !== "G D Am C G D Am C G D Am C") falla("más veces");
-  if (nombres(cambiarVeces(base, ciclo, 1)) !== "G D Am C") falla("menos veces");
-  if (nombres(quitarEnCiclo(base, ciclo, 3)) !== "G D Am G D Am") falla("quitar en ciclo");
-}
-if (nombres(repetirUltimos([a("G"), a("D")], 2, 3)) !== "G D G D G D") falla("repetir últimos");
+// La fila que se edita no se agrupa sola: ida y vuelta, ciclos explícitos, deshacer.
+const fila0 = filaDesdeAcordes(coro);
+if (nombres(expandirFila(fila0)) !== nombres(coro)) falla("expandir la fila debe devolver los mismos acordes");
+let fila: ReturnType<typeof filaDesdeAcordes> = [];
+for (const x of [a("E", "menor"), a("G", "mayor", 6), a("C", "mayor", 2), a("G", "mayor", 6), a("C", "mayor", 2)]) fila = [...fila, { tipo: "acorde", a: x }];
+if (fila.some((x) => x.tipo === "ciclo")) falla("agregar acordes iguales no debe agruparlos solo");
+const conCiclo = agruparUltimos(fila, 2, 2);
+if (conCiclo.length !== 4 || conCiclo[3].tipo !== "ciclo") falla("agrupar los últimos 2 en un ciclo ×2");
+if (conCiclo[3].tipo === "ciclo" && (conCiclo[3].bloque.length !== 2 || conCiclo[3].veces !== 2)) falla("el ciclo trae 2 acordes ×2");
+if (nombres(expandirFila(conCiclo)) !== "Em G:6 C:2 G:6 C:2 G:6 C:2") falla(`expandir con ciclo: ${nombres(expandirFila(conCiclo))}`);
+if (nombres(expandirFila(deshacerCiclo(conCiclo, 3))) !== nombres(expandirFila(conCiclo)) || deshacerCiclo(conCiclo, 3).some((x) => x.tipo === "ciclo")) falla("deshacer el ciclo");
+if (agruparUltimos(conCiclo, 2, 2) !== conCiclo) falla("sin acordes sueltos al final no se agrupa nada");
 
 // Ubicar acordes: el primero al inicio, los demás al inicio de una palabra.
 const pos = ubicarAcordes("Voy a arder braceo en espiral", [1, 1, 1, 1]);
