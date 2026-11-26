@@ -40,6 +40,8 @@ export type Cancion = {
   // Solo para covers: autor/intérprete original, chip junto al título en la
   // lista (diseño Fase 2). null en canciones propias.
   autor: string | null;
+  // Género (texto libre, opcional): para filtrar y ordenar la lista.
+  genero: string | null;
   // Modo Estudio: traste del capo (0 = sin capo), canción de Spotify
   // ('spotify:track:ID') y milisegundo de cada acorde en el orden en que suenan.
   capo: number;
@@ -172,7 +174,7 @@ export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
   const { data } = await admin
     .from("canciones")
     .select(
-      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, capo, spotify_uri, tiempos_ms, formas, numero_compases, secciones(plantilla_id, repite_veces, numero_compases, acordes(duracion_compases))"
+      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, genero, capo, spotify_uri, tiempos_ms, formas, numero_compases, secciones(plantilla_id, repite_veces, numero_compases, acordes(duracion_compases))"
     )
     .in("banda_id", bandaIds)
     .order("titulo", { ascending: true });
@@ -204,6 +206,7 @@ export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
       esCover: c.es_cover,
       esBorrador: c.es_borrador,
       autor: c.autor ?? null,
+      genero: c.genero ?? null,
       capo: Number(c.capo) || 0,
       spotifyUri: c.spotify_uri ?? null,
       tiemposMs: Array.isArray(c.tiempos_ms) ? anclasValidas(c.tiempos_ms) : null,
@@ -297,7 +300,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
   const { data: cancion } = await admin
     .from("canciones")
     .select(
-      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, capo, spotify_uri, tiempos_ms, formas, numero_compases, audio_referencia_path, audio_secuencia_path"
+      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, genero, capo, spotify_uri, tiempos_ms, formas, numero_compases, audio_referencia_path, audio_secuencia_path"
     )
     .eq("id", cancionId)
     .single();
@@ -370,6 +373,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
     esCover: cancion.es_cover,
     esBorrador: cancion.es_borrador,
     autor: cancion.autor ?? null,
+    genero: cancion.genero ?? null,
     capo: Number(cancion.capo) || 0,
     spotifyUri: cancion.spotify_uri ?? null,
     tiemposMs: Array.isArray(cancion.tiempos_ms) ? anclasValidas(cancion.tiempos_ms) : null,
@@ -432,6 +436,7 @@ export type CancionInput = {
   esCover: boolean;
   esBorrador: boolean;
   autor: string | null;
+  genero: string | null;
   capo: number;
   spotifyUri: string | null;
   numeroCompases: number | null;
@@ -549,6 +554,7 @@ export async function crearCancion(input: CancionInput): Promise<string> {
       es_cover: input.esCover,
       es_borrador: input.esBorrador,
       autor: input.autor,
+      genero: input.genero,
       capo: input.capo,
       spotify_uri: input.spotifyUri,
       numero_compases: input.numeroCompases,
@@ -580,6 +586,7 @@ export async function actualizarCancion(cancionId: string, input: CancionInput) 
       es_cover: input.esCover,
       es_borrador: input.esBorrador,
       autor: input.autor,
+      genero: input.genero,
       capo: input.capo,
       spotify_uri: input.spotifyUri,
       numero_compases: input.numeroCompases,
@@ -608,6 +615,7 @@ export async function actualizarFicha(cancionId: string, f: FichaInput) {
       es_cover: f.esCover,
       es_borrador: f.esBorrador,
       autor: f.autor,
+      genero: f.genero,
       capo: f.capo,
       spotify_uri: f.spotifyUri,
       numero_compases: f.numeroCompases,

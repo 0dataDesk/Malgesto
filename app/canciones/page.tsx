@@ -4,8 +4,7 @@ import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
 import { puedeVerBorradores } from "@/lib/bloques";
 import { obtenerCanciones, type Cancion } from "@/lib/cancionesData";
-import { colorRaizAcorde } from "@/lib/cancionTeoria";
-import { formatoMMSS } from "@/lib/duracion";
+import { ListaCanciones } from "@/components/canciones/ListaCanciones";
 import { TabBar } from "@/components/shell/TabBar";
 import { CopiarInstruccion } from "@/components/canciones/CopiarInstruccion";
 import { EspacioSuperior } from "@/components/shell/EspacioSuperior";
@@ -27,92 +26,6 @@ import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda
 // datos en mono con la tonalidad coloreada. Los borradores usan fondo y
 // borde punteados para leerse "en obra" antes de abrirlos.
 const MONO = "var(--font-space-mono), ui-monospace, monospace";
-
-function SeccionCanciones({
-  titulo,
-  canciones,
-  puedeEscribir,
-}: {
-  titulo: string;
-  canciones: Cancion[];
-  puedeEscribir: boolean;
-}) {
-  if (canciones.length === 0) return null;
-  return (
-    <div className="mt-5 first:mt-4">
-      <div className="flex items-baseline gap-2">
-        <h3 className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: MONO, color: "oklch(0.24 0.044 262)" }}>
-          {titulo}
-        </h3>
-        <div className="h-px flex-1" style={{ background: "oklch(0.89 0.008 85)" }} />
-        <span className="text-[10px]" style={{ fontFamily: MONO, color: "oklch(0.5 0.044 262)" }}>
-          {canciones.length}
-        </span>
-      </div>
-      <div className="mt-2.5 flex flex-col gap-2">
-        {canciones.map((c) => (
-          <div key={c.id} className="flex items-stretch gap-2">
-            <Link
-              href={`/canciones/${c.id}`}
-              className="min-w-0 flex-1 rounded-2xl p-3.5 no-underline"
-              style={{
-                background: c.esBorrador ? "oklch(0.975 0.006 85)" : "oklch(0.99 0.005 85)",
-                border: c.esBorrador ? "1px dashed oklch(0.85 0.010 85)" : "1px solid oklch(0.89 0.008 85)",
-              }}
-            >
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[17px] font-bold" style={{ color: "oklch(0.24 0.044 262)", fontFamily: "var(--font-fraunces), sans-serif" }}>
-                  {c.titulo}
-                </span>
-                {c.esCover && c.autor && (
-                  <span className="rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]" style={{ fontFamily: MONO, background: "oklch(0.93 0.010 85)", color: "oklch(0.5 0.044 262)" }}>
-                    {c.autor}
-                  </span>
-                )}
-                {c.esBorrador && (
-                  <span
-                    className="rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]"
-                    style={{ fontFamily: MONO, border: "1px dashed oklch(0.64 0.170 28)", color: "oklch(0.64 0.170 28)" }}
-                  >
-                    Borrador
-                  </span>
-                )}
-              </div>
-              <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[11px]" style={{ fontFamily: MONO, color: "oklch(0.5 0.044 262)" }}>
-                <span className="text-[15px] font-bold" style={{ color: colorRaizAcorde(c.tonalidadNota, c.tonalidadModo) }}>
-                  {c.tonalidadNota}
-                  {c.tonalidadModo === "menor" ? "m" : ""}
-                </span>
-                {c.bpm && <span>{c.bpm} BPM</span>}
-                {c.duracionSegundos !== null && <span>{formatoMMSS(c.duracionSegundos)}</span>}
-                {c.totalCompases > 0 && <span>{c.totalCompases} compases</span>}
-                {!c.esBorrador && !(c.tiemposMs && c.tiemposMs.length > 0) && (
-                  <span
-                    className="ml-auto flex items-center gap-1 text-[10px]"
-                    title="Faltan los tiempos: abre la canción y toca Grabar tiempos"
-                    style={{ color: "oklch(0.64 0.170 28)" }}
-                  >
-                    <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: "currentColor", opacity: 0.7 }} />
-                    sin tiempos
-                  </span>
-                )}
-              </div>
-            </Link>
-            {puedeEscribir && (
-              <Link
-                href={`/canciones/${c.id}/editar`}
-                className="flex shrink-0 items-center rounded-2xl px-3 text-xs font-bold no-underline"
-                style={{ background: "oklch(0.93 0.010 85)", color: "oklch(0.4 0.044 262)" }}
-              >
-                {c.esBorrador ? "Seguir" : "Editar"}
-              </Link>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export default async function CancionesPage({
   searchParams,
@@ -185,12 +98,23 @@ export default async function CancionesPage({
 
   const todas = await obtenerCanciones([bandaActiva]);
   const visibles = verBorradores ? todas : todas.filter((c) => !c.esBorrador);
-  const propias = visibles.filter((c) => !c.esCover);
-  const covers = visibles.filter((c) => c.esCover);
+  const paraLista = visibles.map((c) => ({
+    id: c.id,
+    titulo: c.titulo,
+    autor: c.autor,
+    genero: c.genero,
+    esCover: c.esCover,
+    esBorrador: c.esBorrador,
+    tonalidadNota: c.tonalidadNota,
+    tonalidadModo: c.tonalidadModo,
+    bpm: c.bpm,
+    duracionSegundos: c.duracionSegundos,
+    totalCompases: c.totalCompases,
+  }));
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "oklch(0.965 0.007 85)" }}>
-      <EspacioSuperior>
+      <EspacioSuperior maxWidth="max-w-[1800px]">
         <div className="flex items-center gap-2.5">
           <div className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "oklch(0.5 0.044 262)" }}>
             {nombreBandaActiva}
@@ -225,10 +149,7 @@ export default async function CancionesPage({
             Todavía no hay canciones para {nombreBandaActiva}.
           </p>
         ) : (
-          <>
-            <SeccionCanciones titulo="Propias" canciones={propias} puedeEscribir={puedeEscribir} />
-            <SeccionCanciones titulo="Covers" canciones={covers} puedeEscribir={puedeEscribir} />
-          </>
+          <ListaCanciones canciones={paraLista} puedeEscribir={puedeEscribir} />
         )}
       </EspacioSuperior>
 
