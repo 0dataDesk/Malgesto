@@ -8,6 +8,7 @@ import type { CancionCompleta, CancionInput, SeccionInput, SeccionBaseInput, Let
 import { crearCancionAction, actualizarCancionAction, eliminarCancionAction, subirAudioAction, quitarAudioAction } from "@/app/canciones/actions";
 import { AcordeSelector, type AcordeRef } from "./AcordeSelector";
 import { PaletaColor } from "./PaletaColor";
+import { agruparCiclos, reemplazarEnCiclo, quitarEnCiclo, cambiarVeces, repetirUltimos, sincronizarLetra, moverFrontera, cambiarTexto, moverPosicion, sinSilencios, type AcordeFila, type LineaLetra } from "@/lib/cancionLetra";
 import { colorOSilencio, simboloOSilencio, SIMBOLO_SILENCIO } from "@/lib/acordeSilencio";
 import { FichaCampos, fichaAInput, fichaDesdeCancion, type FichaEstado } from "./FichaCampos";
 
@@ -135,29 +136,48 @@ function cicloRepetido(acordes: { notaRaiz: Nota; calidad: Calidad; notaBajo: No
   return null;
 }
 
+// Letra: solo texto. Cada línea toma sus acordes, en orden, de la fila de arriba (una sola captura) y los pone sobre
+// el texto según su duración; se pueden pasar acordes de una línea a otra (− / +) y mover cada uno por palabras (◂ ▸).
 function LetraEditor({
   letra,
-  tonalidad,
-  acordesCancion,
-  esCover,
-  raizDefault,
+  progresion,
   onCambio,
 }: {
   letra: LetraFS[];
-  tonalidad: { raiz: Nota; modo: Modo };
-  acordesCancion: AcordeRef[];
-  esCover: boolean;
-  raizDefault: Nota;
+  progresion: AcordeFila[];
   onCambio: (letra: LetraFS[]) => void;
 }) {
-  const [foco, setFoco] = useState<{ linea: number; pos: number } | null>(null);
+  const m = progresion.length;
+  const enLetra = letra.reduce((n, l) => n + (l.tipo === "letra" ? l.acordes.length : 0), 0);
   const setLinea = (i: number, patch: Partial<LetraFS>) => onCambio(letra.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  const nueva = (tipo: "letra" | "tab") => {
+    const con = [...letra, { texto: "", tipo, acordes: [] } as LetraFS];
+    // Si el reparto estaba parejo, con la línea nueva se vuelve a repartir parejo; si no, la línea nueva queda sin acordes.
+    const parejo = m > 0 && tipo === "letra" && sincronizarLetra(letra as LineaLetra[], progresion, true).every((l, i) => l.acordes.length === letra[i].acordes.length);
+    onCambio((parejo ? sincronizarLetra(con as LineaLetra[], progresion, true) : con) as LetraFS[]);
+  };
+  const mover = (li: number, idx: number, dir: -1 | 1) => {
+    const l = letra[li];
+    const orden = [...l.acordes].sort((a, b) => a.posicion - b.posicion);
+    const objetivo = orden[idx];
+    setLinea(li, { acordes: l.acordes.map((x) => (x === objetivo ? { ...x, posicion: moverPosicion(l.texto, x.posicion, dir) } : x)) });
+  };
 
   return (
     <div>
-      <div className="flex items-center gap-2">
-        <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT }}>Letra + acordes</span>
-        <span style={{ fontFamily: MONO, fontSize: 9, color: FAINT }}>· el acorde se pone donde dejaste el cursor en la línea</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT }}>Letra</span>
+        <span style={{ fontFamily: MONO, fontSize: 9, color: FAINT }}>· los acordes salen de la fila de arriba, en orden</span>
+        {m > 0 && (
+          <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: enLetra === m ? "oklch(0.45 0.12 150)" : "oklch(0.5 0.18 25)" }}>
+            {enLetra === m ? `✓ ${m} acordes en la letra` : `${enLetra} de ${m} acordes en la letra`}
+          </span>
+        )}
+        {m > 0 && (
+          <button type="button" onClick={() => onCambio(sincronizarLetra(letra as LineaLetra[], progresion, true) as LetraFS[])} title="Reparte parejo los acordes entre las líneas" className="rounded-md px-2 py-0.5 text-[10px] font-bold" style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}>
+            Acomodar
+          </button>
+        )}
       </div>
       <div className="mt-1.5 grid gap-1.5 2xl:grid-cols-2">
         {letra.map((l, li) => l.tipo === "tab" ? (
@@ -179,34 +199,38 @@ function LetraEditor({
         ) : (
           <div key={li} className="rounded-lg px-2 py-1" style={{ background: CARD2, border: `1px solid ${LINE}` }}>
             <div className="flex flex-wrap items-center gap-1">
-              {[...l.acordes].sort((a, b) => a.posicion - b.posicion).map((ac, idx) => (
-                <span key={idx} style={{ display: "flex", alignItems: "center", gap: 3, borderRadius: 5, padding: "0 4px", background: colorRaizAcorde(ac.notaRaiz, ac.calidad), fontFamily: MONO, fontWeight: 700, fontSize: 10, color: colorContrasteTexto(colorRaizAcorde(ac.notaRaiz, ac.calidad)) }}>
-                  {simboloAcorde(ac.notaRaiz, ac.calidad, ac.notaBajo)}
-                  <span style={{ opacity: 0.7, fontWeight: 500 }}>@{ac.posicion}</span>
-                  <button type="button" aria-label="Quitar acorde" onClick={() => setLinea(li, { acordes: l.acordes.filter((x) => x !== ac) })}>×</button>
-                </span>
-              ))}
-              <AcordeSelector
-                compacto
-                etiqueta="+ acorde"
-                tonalidad={tonalidad}
-                acordesCancion={acordesCancion}
-                esCover={esCover}
-                notaRaiz={raizDefault}
-                calidad="mayor"
-                onSeleccionar={(notaRaiz, calidad, notaBajo) => {
-                  const pos = foco && foco.linea === li ? foco.pos : l.texto.length;
-                  setLinea(li, { acordes: [...l.acordes, { posicion: pos, notaRaiz, calidad, notaBajo }] });
-                }}
-              />
+              {[...l.acordes].sort((a, b) => a.posicion - b.posicion).map((ac, idx) => {
+                const color = colorRaizAcorde(ac.notaRaiz, ac.calidad);
+                return (
+                  <span key={idx} style={{ display: "flex", alignItems: "center", gap: 2, borderRadius: 5, padding: "0 3px", background: color, fontFamily: MONO, fontWeight: 700, fontSize: 10, color: colorContrasteTexto(color) }}>
+                    <button type="button" aria-label="Mover a la palabra anterior" onClick={() => mover(li, idx, -1)} style={{ opacity: 0.75 }}>◂</button>
+                    {simboloAcorde(ac.notaRaiz, ac.calidad, ac.notaBajo)}
+                    <button type="button" aria-label="Mover a la palabra siguiente" onClick={() => mover(li, idx, 1)} style={{ opacity: 0.75 }}>▸</button>
+                  </span>
+                );
+              })}
+              <span className="ml-auto flex items-center gap-1" style={{ fontFamily: MONO, fontSize: 9, color: FAINT }} title="Acordes de esta línea: pasa uno a la línea vecina">
+                acordes
+                <button type="button" aria-label="Quitar un acorde a esta línea" onClick={() => onCambio(moverFrontera(letra as LineaLetra[], progresion, li, -1) as LetraFS[])} style={{ width: 18, height: 18, borderRadius: 5, background: CHIP, color: MUTED }}>−</button>
+                <b style={{ fontSize: 11, color: INK }}>{l.acordes.length}</b>
+                <button type="button" aria-label="Darle un acorde más a esta línea" onClick={() => onCambio(moverFrontera(letra as LineaLetra[], progresion, li, 1) as LetraFS[])} style={{ width: 18, height: 18, borderRadius: 5, background: CHIP, color: MUTED }}>+</button>
+              </span>
             </div>
-            <div className="mt-1 flex items-center gap-1.5">
+            <div style={{ position: "relative", height: 15, marginTop: 2, marginLeft: 9, fontFamily: MONO, fontSize: 13 }} aria-hidden>
+              {l.acordes.map((ac, idx) => {
+                const color = colorRaizAcorde(ac.notaRaiz, ac.calidad);
+                return (
+                  <span key={idx} style={{ position: "absolute", left: `${ac.posicion}ch`, top: 0, fontSize: 13, whiteSpace: "nowrap" }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, background: color, color: colorContrasteTexto(color), borderRadius: 4, padding: "0 3px" }}>{simboloAcorde(ac.notaRaiz, ac.calidad, ac.notaBajo)}</span>
+                  </span>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-1.5">
               <input
                 value={l.texto}
                 placeholder="Línea de letra…"
-                onChange={(e) => setLinea(li, { texto: e.target.value })}
-                onFocus={(e) => setFoco({ linea: li, pos: e.target.selectionStart ?? 0 })}
-                onSelect={(e) => setFoco({ linea: li, pos: (e.target as HTMLInputElement).selectionStart ?? 0 })}
+                onChange={(e) => onCambio(cambiarTexto(letra as LineaLetra[], progresion, li, e.target.value) as LetraFS[])}
                 className="min-w-0 flex-1 rounded-md border px-2 py-0.5 text-[13px] outline-none"
                 style={{ ...inputStyle, fontFamily: MONO }}
               />
@@ -218,10 +242,10 @@ function LetraEditor({
         ))}
       </div>
       <div className="mt-1.5 flex gap-1.5">
-        <button type="button" onClick={() => onCambio([...letra, { texto: "", tipo: "letra", acordes: [] }])} className="w-fit rounded-md px-2.5 py-1 text-[11px] font-bold" style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}>
+        <button type="button" onClick={() => nueva("letra")} className="w-fit rounded-md px-2.5 py-1 text-[11px] font-bold" style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}>
           + Línea
         </button>
-        <button type="button" onClick={() => onCambio([...letra, { texto: "", tipo: "tab", acordes: [] }])} className="w-fit rounded-md px-2.5 py-1 text-[11px] font-bold" style={{ border: `1px dashed ${ACCENT}`, color: ACCENT, fontFamily: MONO }}>
+        <button type="button" onClick={() => nueva("tab")} className="w-fit rounded-md px-2.5 py-1 text-[11px] font-bold" style={{ border: `1px dashed ${ACCENT}`, color: ACCENT, fontFamily: MONO }}>
           + Arreglo / solo
         </button>
       </div>
@@ -323,12 +347,18 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
       numeroCompases: s.numeroCompases?.toString() ?? "",
       bpm: s.bpm?.toString() ?? "",
       repeticiones: [],
-    })) ?? [nuevaSeccion()]
+    })).map((x) => {
+      // Una parte con acordes solo sobre la letra: se pasan a la fila (1 compás cada uno) para que haya una sola captura.
+      if (x.acordes.length > 0) return x;
+      const delTexto = x.letra.flatMap((l) => [...l.acordes].sort((a, b) => a.posicion - b.posicion).map((a) => ({ notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo, duracionCompases: 1 })));
+      return delTexto.length > 0 ? { ...x, acordes: delTexto } : x;
+    }) ?? [nuevaSeccion()]
   );
   const [seccionAbierta, setSeccionAbierta] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [guardado, setGuardado] = useState(false);
+  const [repetir, setRepetir] = useState<{ n: number; veces: number } | null>(null);
 
   const bpm = Number(ficha.bpm) || 0;
   const tonGeneral = { raiz: ficha.raiz, modo: ficha.modo };
@@ -438,6 +468,11 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
   // Una parte que se repite es la misma: se captura una sola vez y las vueltas suenan igual.
   const cuerpoSel: CuerpoFS | null = sec ?? null;
   const aplicar = (patch: Partial<CuerpoFS>) => patchSeccion(si, patch as Partial<SeccionFS>);
+  // Cambia la fila de acordes y deja la letra acorde con ella (una sola captura).
+  const aplicarAcordes = (nuevos: AcordeFS[]) => {
+    const letra = cuerpoSel ? (sincronizarLetra(cuerpoSel.letra as LineaLetra[], sinSilencios(nuevos as AcordeFila[])) as LetraFS[]) : [];
+    aplicar({ acordes: nuevos, letra });
+  };
 
   const boton = { border: `1px solid ${LINE}`, background: CARD, color: INK, borderRadius: 9, padding: "4px 10px", fontFamily: MONO, fontWeight: 700, fontSize: 11 } as const;
 
@@ -569,30 +604,50 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
             </div>
           </div>
 
-          {/* Acordes de la parte (cuentan los compases); si un ciclo se toca varias veces seguidas, una raya los separa */}
+          {/* Acordes de la parte: la única captura de acordes (cuentan los compases); lo que se repite seguido se agrupa en un ciclo ↻ ×N */}
           {(() => {
             const ac = cuerpoSel.acordes;
-            const ciclo = cicloRepetido(ac);
+            const items = agruparCiclos(ac);
+            const tonal = tonDe(cuerpoSel);
+            const chipDe = (i: number, key: string, alSeleccionar: (n: Nota, c: Calidad, b: Nota | null) => void, alDuracion: (d: number) => void, alQuitar: () => void) => (
+              <AcordeChip key={key} acorde={ac[i]} tonalidad={tonal} acordesCancion={acordesCancion} esCover={ficha.esCover} onSeleccionar={alSeleccionar} onDuracion={alDuracion} onQuitar={alQuitar} />
+            );
+            const botonMini = { width: 18, height: 18, borderRadius: 5, background: CHIP, color: MUTED, fontFamily: MONO } as const;
             return (
-              <div className="mt-2 flex flex-wrap items-center gap-1">
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT, marginRight: 4 }}>Acordes</span>
-                {ac.map((a, ai) => (
-                  <Fragment key={ai}>
-                    {ciclo && ai > 0 && ai % ciclo.largo === 0 && <span aria-hidden style={{ width: 2, alignSelf: "stretch", background: ACCENT, borderRadius: 1, margin: "0 3px" }} />}
-                    <AcordeChip
-                      acorde={a}
-                      tonalidad={tonDe(cuerpoSel)}
-                      acordesCancion={acordesCancion}
-                      esCover={ficha.esCover}
-                      onSeleccionar={(notaRaiz, calidad, notaBajo) => aplicar({ acordes: ac.map((x, i) => (i === ai ? { ...x, notaRaiz, calidad, notaBajo } : x)) })}
-                      onDuracion={(n) => aplicar({ acordes: ac.map((x, i) => (i === ai ? { ...x, duracionCompases: n } : x)) })}
-                      onQuitar={() => aplicar({ acordes: ac.filter((_, i) => i !== ai) })}
-                    />
-                  </Fragment>
-                ))}
+                {items.map((it) =>
+                  it.tipo === "acorde" ? (
+                    chipDe(
+                      it.i,
+                      `a${it.i}`,
+                      (notaRaiz, calidad, notaBajo) => aplicarAcordes(ac.map((x, i) => (i === it.i ? { ...x, notaRaiz, calidad, notaBajo } : x))),
+                      (n) => aplicarAcordes(ac.map((x, i) => (i === it.i ? { ...x, duracionCompases: n } : x))),
+                      () => aplicarAcordes(ac.filter((_, i) => i !== it.i))
+                    )
+                  ) : (
+                    <span key={`c${it.inicio}`} className="flex flex-wrap items-center gap-1 rounded-xl px-1.5 py-1" style={{ border: `1.5px dashed ${ACCENT}` }} title="Ciclo: lo que cambies en un acorde vale para todas sus repeticiones">
+                      {Array.from({ length: it.largo }).map((_, o) =>
+                        chipDe(
+                          it.inicio + o,
+                          `c${it.inicio}-${o}`,
+                          (notaRaiz, calidad, notaBajo) => aplicarAcordes(reemplazarEnCiclo(ac, it, o, { notaRaiz, calidad, notaBajo })),
+                          (n) => aplicarAcordes(reemplazarEnCiclo(ac, it, o, { duracionCompases: n })),
+                          () => aplicarAcordes(quitarEnCiclo(ac, it, o))
+                        )
+                      )}
+                      <span className="flex items-center gap-1" style={{ fontFamily: MONO, fontWeight: 800, fontSize: 11, color: ACCENT }}>
+                        ↻
+                        <button type="button" aria-label="Una repetición menos" onClick={() => aplicarAcordes(cambiarVeces(ac, it, it.veces - 1))} style={botonMini}>−</button>
+                        ×{it.veces}
+                        <button type="button" aria-label="Una repetición más" onClick={() => aplicarAcordes(cambiarVeces(ac, it, it.veces + 1))} style={botonMini}>+</button>
+                      </span>
+                    </span>
+                  )
+                )}
                 <button
                   type="button"
-                  onClick={() => aplicar({ acordes: [...ac, { notaRaiz: tonDe(cuerpoSel).raiz, calidad: "mayor" as Calidad, notaBajo: null, duracionCompases: 1 }] })}
+                  onClick={() => aplicarAcordes([...ac, { notaRaiz: tonal.raiz, calidad: "mayor" as Calidad, notaBajo: null, duracionCompases: 1 }])}
                   className="rounded-md px-2 py-0.5 text-[11px] font-bold"
                   style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}
                 >
@@ -600,16 +655,28 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                 </button>
                 <button
                   type="button"
-                  onClick={() => aplicar({ acordes: [...ac, { notaRaiz: tonDe(cuerpoSel).raiz, calidad: "mayor" as Calidad, notaBajo: null, duracionCompases: 1, silencio: true }] })}
+                  onClick={() => aplicarAcordes([...ac, { notaRaiz: tonal.raiz, calidad: "mayor" as Calidad, notaBajo: null, duracionCompases: 1, silencio: true }])}
                   className="rounded-md px-2 py-0.5 text-[11px] font-bold"
                   style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}
                   title="Compases o tiempos sin acorde"
                 >
                   + silencio
                 </button>
-                {ciclo && (
-                  <span style={{ fontFamily: MONO, fontSize: 10, color: ACCENT, marginLeft: 4 }}>
-                    ↻ un ciclo de {ciclo.largo} acordes se toca {ciclo.veces} veces
+                {ac.length > 0 && (
+                  <span className="flex items-center gap-1">
+                    <button type="button" onClick={() => setRepetir((r) => (r ? null : { n: Math.min(4, ac.length), veces: 2 }))} className="rounded-md px-2 py-0.5 text-[11px] font-bold" style={{ border: `1px dashed ${ACCENT}`, color: ACCENT, fontFamily: MONO }} title="Repetir los últimos acordes">
+                      ↻ repetir
+                    </button>
+                    {repetir && (
+                      <span className="flex items-center gap-1" style={{ fontFamily: MONO, fontSize: 10, color: MUTED }}>
+                        los últimos
+                        <input inputMode="numeric" value={repetir.n} onChange={(e) => setRepetir({ ...repetir, n: Number(e.target.value.replace(/[^0-9]/g, "")) || 1 })} style={{ ...inputStyle, width: 34, textAlign: "center", borderRadius: 6, border: `1px solid ${LINE}`, padding: "1px 2px" }} />
+                        acordes, en total
+                        <input inputMode="numeric" value={repetir.veces} onChange={(e) => setRepetir({ ...repetir, veces: Number(e.target.value.replace(/[^0-9]/g, "")) || 2 })} style={{ ...inputStyle, width: 34, textAlign: "center", borderRadius: 6, border: `1px solid ${LINE}`, padding: "1px 2px" }} />
+                        veces
+                        <button type="button" onClick={() => { aplicarAcordes(repetirUltimos(ac, repetir.n, repetir.veces)); setRepetir(null); }} className="rounded-md px-2 py-0.5 text-[11px] font-bold" style={activoStyle}>Listo</button>
+                      </span>
+                    )}
                   </span>
                 )}
               </div>
@@ -617,7 +684,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
           })()}
 
           <div className="mt-3 border-t pt-2.5" style={{ borderColor: LINE }}>
-            <LetraEditor letra={cuerpoSel.letra} tonalidad={tonDe(cuerpoSel)} acordesCancion={acordesCancion} esCover={ficha.esCover} raizDefault={tonDe(cuerpoSel).raiz} onCambio={(letra) => aplicar({ letra })} />
+            <LetraEditor letra={cuerpoSel.letra} progresion={sinSilencios(cuerpoSel.acordes)} onCambio={(letra) => aplicar({ letra })} />
           </div>
         </section>
       )}
