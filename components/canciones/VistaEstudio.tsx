@@ -479,7 +479,10 @@ export function VistaEstudio({
     const estructura = secs.reduce((t, x) => t + x.vueltas * x.compases * x.segundosPorCompas, 0);
     const duracion = cancion.duracionSegundos ?? 0;
     const entrada = duracion > 0 ? Math.min(15, Math.max(0, duracion - estructura)) : 0;
-    const auto = anclasPorTempo(Math.round(entrada * 1000), secs);
+    // Si la canción ya tenía tiempos guardados, solo se conserva de ellos el momento en que entra el primer acorde
+    // (ya estaba afinado a oído); todo lo demás sale del tempo y los compases.
+    const guardada = cancion.tiemposMs?.find((x) => x[0] === 0)?.[1];
+    const auto = anclasPorTempo(guardada ?? Math.round(entrada * 1000), secs);
     return auto.length === ocurr.length ? auto : [];
   }, [cancion, ocurr]);
   const anclasSeg = anclasAuto;
