@@ -9,6 +9,7 @@ import { FichaEditor } from "./FichaEditor";
 import { compasesDeSeccion, segundosPorCompas } from "@/lib/cancionTiempo";
 import { colorPorTipoSeccion, tintaPorTipoSeccion } from "@/lib/seccionCatalogo";
 import { PaletaColor } from "./PaletaColor";
+import { agruparCiclos } from "@/lib/cancionLetra";
 import { ocurrencias, anclasPorTempo, ocurrenciaPorAnclas, posicionEstimada, pesosDeSeccion, type Ancla } from "@/lib/estudioSync";
 import {
   INSTRUMENTOS_ESTUDIO,
@@ -593,10 +594,14 @@ export function VistaEstudio({
   }, [reproduciendo]);
 
   // La faja de arriba copia el recorrido del editor: cada parte con su fondo y sus acordes del ancho de su duración (en compases).
+  // Lo que se repite seguido se muestra una sola vez con su «×N» (así el recorrido no se alarga).
   const faja = useMemo(() => {
+    type Tile = { silencio: boolean; dur: number; evs: (number | null)[]; ks: (number | null)[] };
+    type Item = { ancho: number; veces: number; x0: number; tiles: Tile[] };
     let k = 0;
     let pos = 0;
-    const partes: { si: number; ancho: number; tiles: { silencio: boolean; dur: number; ev: number | null; k: number | null; x0: number }[] }[] = [];
+    const inicios = new Map<number, number>();
+    const partes: { si: number; ancho: number; items: Item[] }[] = [];
     for (let si = 0; si < cancion.secciones.length; si++) {
       const s = cancion.secciones[si];
       const ids = indicesPorSeccion[si] ?? [];
@@ -604,26 +609,48 @@ export function VistaEstudio({
       const reales = acordes.filter((x) => !x.silencio).length;
       const porAcordes = acordes.length > 0 && reales === ids.length;
       const base = porAcordes ? acordes.map((x) => ({ silencio: !!x.silencio, dur: Math.max(Number(x.duracionCompases) || 1, 0.0001) })) : ids.map(() => ({ silencio: false, dur: 1 }));
-      const inicioParte = pos;
-      const tiles: { silencio: boolean; dur: number; ev: number | null; k: number | null; x0: number }[] = [];
+      // Todas las notas de la parte, vuelta por vuelta.
+      const planas: { silencio: boolean; dur: number; ev: number | null; k: number | null; clave: string }[] = [];
       for (let v = 0; v < Math.max(1, s.repiteVeces); v++) {
         let enVuelta = 0;
         for (const t of base) {
           const ev = t.silencio ? null : ids[enVuelta++] ?? null;
-          tiles.push({ silencio: t.silencio, dur: t.dur, ev, k: t.silencio ? null : k++, x0: pos });
-          pos += t.dur;
+          planas.push({ silencio: t.silencio, dur: t.dur, ev, k: t.silencio ? null : k++, clave: t.silencio ? "silencio" : eventos[ev ?? -1]?.clave ?? "?" });
         }
       }
-      partes.push({ si, ancho: Math.max(pos - inicioParte, 0.0001), tiles });
+      const filas = agruparCiclos(planas.map((t) => ({ notaRaiz: t.clave as unknown as Nota, calidad: "mayor" as Calidad, notaBajo: null, duracionCompases: t.dur, silencio: t.silencio })));
+      const items: Item[] = [];
+      const inicioParte = pos;
+      for (const it of filas) {
+        const veces = it.tipo === "ciclo" ? it.veces : 1;
+        const largo = it.tipo === "ciclo" ? it.largo : 1;
+        const desde = it.tipo === "ciclo" ? it.inicio : it.i;
+        const tiles: Tile[] = [];
+        for (let o = 0; o < largo; o++) {
+          const ocurr = Array.from({ length: veces }, (_, r) => planas[desde + r * largo + o]);
+          tiles.push({ silencio: ocurr[0].silencio, dur: ocurr[0].dur, evs: ocurr.map((x) => x.ev), ks: ocurr.map((x) => x.k) });
+        }
+        const ancho = tiles.reduce((n, t) => n + t.dur, 0);
+        const unCiclo = ancho;
+        let antes = 0;
+        for (const t of tiles) {
+          t.ks.forEach((kk, r) => {
+            if (kk !== null) inicios.set(kk, pos + ((r * unCiclo + antes) / (veces * unCiclo)) * ancho);
+          });
+          antes += t.dur;
+        }
+        items.push({ ancho, veces, x0: pos, tiles });
+        pos += ancho;
+      }
+      partes.push({ si, ancho: Math.max(pos - inicioParte, 0.0001), items });
     }
-    return { partes, total: Math.max(pos, 0.0001) };
-  }, [cancion.secciones, indicesPorSeccion]);
+    return { partes, total: Math.max(pos, 0.0001), inicios };
+  }, [cancion.secciones, indicesPorSeccion, eventos]);
 
-  // Dónde va la barra que avanza (0 a 1): sigue los mismos tiempos que el seguimiento de los acordes.
+  // Dónde va la barra que crece (0 a 1): sigue los mismos tiempos que el seguimiento de los acordes.
   const xDeTiempo = (ms: number): number => {
     const T = anclasSeg;
-    const inicios = new Map<number, number>();
-    faja.partes.forEach((p) => p.tiles.forEach((t) => t.k !== null && inicios.set(t.k, t.x0)));
+    const inicios = faja.inicios;
     if (T.length === 0 || inicios.size === 0) return duracionMs > 0 ? Math.min(1, Math.max(0, ms / duracionMs)) : 0;
     const puntos: [number, number][] = T.filter((a) => inicios.has(a[0])).map((a) => [a[1], inicios.get(a[0]) as number]);
     puntos.push([Math.max(duracionMs, (puntos[puntos.length - 1]?.[0] ?? 0) + 1000), faja.total]);
@@ -768,20 +795,23 @@ export function VistaEstudio({
   return (
     <div className="flex min-h-screen flex-col xl:h-screen" style={{ background: BG, color: INK }}>
       {/* Cabecera: volver y nombre | datos de la canción (centrados) | cambiar tono y editar */}
-      <header className="px-5 pb-1 pt-3">
-        <Link href={volverHref} className="mb-2 flex w-fit items-center no-underline" style={{ fontSize: 13, color: MUTED }}>
+      <header className="px-5 pb-1 pt-2">
+        <Link href={volverHref} className="mb-1 flex w-fit items-center no-underline" style={{ fontSize: 12, color: MUTED }}>
           ‹ Canciones
         </Link>
-        <section className="flex flex-wrap items-start gap-x-6 gap-y-3 rounded-2xl p-4" style={{ background: CARD, border: `1px solid ${LINE}` }}>
-          <div className="min-w-0 flex-1" style={{ minWidth: 260 }}>
-            <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED, marginBottom: 3 }}>
+        <section className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl px-4 py-2.5" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+          <div className="min-w-0 flex-1" style={{ minWidth: 240 }}>
+            <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED, marginBottom: 1 }}>
               {cancion.esCover ? "Cover" : `Propia${cancion.esBorrador ? " · borrador" : ""}`}
             </div>
-            <h1 className="truncate" style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 26, lineHeight: 1.08 }}>{cancion.titulo}</h1>
-            {cancion.autor && <div className="truncate" style={{ fontSize: 14, color: MUTED }}>{cancion.autor}</div>}
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+            <h1 className="truncate" style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 22, lineHeight: 1.08 }}>{cancion.titulo}</h1>
+            {cancion.autor && <div className="truncate" style={{ fontSize: 12, color: MUTED }}>{cancion.autor}</div>}
+          </div>
+          {/* En medio, lo propio de la ejecución: instrumento y, debajo, el cambiador de tono */}
+          <div className="flex flex-col items-start gap-1.5">
+            <div className="flex flex-wrap items-center gap-2">
           {/* Instrumento: tres botones; la afinación solo se pregunta en el bajo (el único con dos). */}
-          <div role="group" aria-label="Instrumento" className="flex items-center" style={{ marginRight: 4 }}>
+          <div role="group" aria-label="Instrumento" className="flex items-center" style={{ marginRight: 0 }}>
             {(Object.keys(INSTRUMENTOS_ESTUDIO) as NombreInstrumento[]).map((k, n, todos) => {
               const activo = k === instrumento;
               return (
@@ -796,7 +826,7 @@ export function VistaEstudio({
                   style={{
                     ...boton,
                     fontWeight: 600,
-                    padding: "5px 10px",
+                    padding: "2px 9px", fontSize: 11,
                     borderRadius: n === 0 ? "8px 0 0 8px" : n === todos.length - 1 ? "0 8px 8px 0" : 0,
                     marginLeft: n === 0 ? 0 : -1,
                     background: activo ? INK : "white",
@@ -809,7 +839,7 @@ export function VistaEstudio({
             })}
           </div>
           {afinaciones.length > 1 && (
-            <div role="group" aria-label="Afinación del bajo" className="flex items-center" style={{ marginRight: 8 }}>
+            <div role="group" aria-label="Afinación del bajo" className="flex items-center" style={{ marginRight: 0 }}>
               {afinaciones.map((a, n) => {
                 const activo = a.id === afinacion.id;
                 return (
@@ -820,7 +850,7 @@ export function VistaEstudio({
                     onClick={() => setAfinId(a.id)}
                     style={{
                       ...boton,
-                      padding: "5px 10px",
+                      padding: "2px 9px", fontSize: 11,
                       borderRadius: n === 0 ? "8px 0 0 8px" : "0 8px 8px 0",
                       marginLeft: n === 0 ? 0 : -1,
                       background: activo ? CORAL : "white",
@@ -833,10 +863,12 @@ export function VistaEstudio({
               })}
             </div>
           )}
+            </div>
+            <div className="flex items-center gap-1.5">
           <span title="Sube o baja TODA la canción de tono, de medio en medio tono" style={{ fontSize: 11, color: MUTED }}>Cambiar tono</span>
-          <button style={boton} onClick={() => setSemi((v) => v - 1)} aria-label="Bajar medio tono" title="Bajar medio tono">−</button>
+          <button style={{ ...boton, padding: "0 8px", fontSize: 11 }} onClick={() => setSemi((v) => v - 1)} aria-label="Bajar medio tono" title="Bajar medio tono">−</button>
           <span style={{ fontFamily: MONO, fontSize: 12, minWidth: 22, textAlign: "center" }}>{semi > 0 ? `+${semi}` : semi}</span>
-          <button style={boton} onClick={() => setSemi((v) => v + 1)} aria-label="Subir medio tono" title="Subir medio tono">+</button>
+          <button style={{ ...boton, padding: "0 8px", fontSize: 11 }} onClick={() => setSemi((v) => v + 1)} aria-label="Subir medio tono" title="Subir medio tono">+</button>
             </div>
           </div>
           <div className="ml-auto flex flex-col items-end gap-2">
@@ -868,9 +900,9 @@ export function VistaEstudio({
         </section>
       </header>
 
-      {/* Recorrido de la canción (el mismo modelo del editor): cada parte con su fondo, sus acordes por color y la barra que avanza */}
+      {/* Recorrido de la canción (el mismo modelo del editor): cada parte con su fondo, sus acordes por color y una barra que crece */}
       <div className="px-5 pb-1.5 pt-2">
-        <div className="relative overflow-hidden rounded-2xl" style={{ height: 52, background: CARD, border: `1px solid ${LINE}` }}>
+        <div className="relative overflow-hidden" style={{ height: 52, background: CARD, border: `1px solid ${LINE}` }}>
           <div className="relative flex h-full">
             {faja.partes.map((p) => {
               const s = cancion.secciones[p.si];
@@ -880,43 +912,44 @@ export function VistaEstudio({
                 <div
                   key={s.id}
                   className="relative flex min-w-0 flex-col items-stretch justify-between"
-                  style={{ flex: `${p.ancho} 1 0`, background: colorPorTipoSeccion(s.nombre), color: tinta, borderLeft: p.si === 0 ? "none" : `1px solid ${LINE}`, padding: "4px 4px 5px", boxShadow: aqui ? `inset 0 0 0 2px ${INK}` : "none" }}
+                  style={{ flex: `${p.ancho} 1 0`, background: colorPorTipoSeccion(s.nombre), color: tinta, borderLeft: p.si === 0 ? "none" : `1px solid ${LINE}`, padding: "4px 4px 7px", boxShadow: aqui ? `inset 0 0 0 2px ${INK}` : "none" }}
                 >
                   <span className="truncate text-center" title={s.nombre} style={{ fontFamily: NUM, fontWeight: 800, fontSize: 11, lineHeight: 1, letterSpacing: "0.02em" }}>{nombreCortoParte(s.nombre)}</span>
-                  <div className="flex w-full items-end gap-px" style={{ height: 22 }}>
-                    {p.tiles.map((t, ti) => {
-                      if (t.ev === null) return <span key={ti} style={{ flex: `${t.dur} 1 0`, minWidth: 2, height: 8, borderRadius: 2, background: "rgba(0,0,0,0.12)" }} />;
-                      const e = eventos[t.ev];
-                      if (!e) return <span key={ti} style={{ flex: `${t.dur} 1 0`, minWidth: 2 }} />;
-                      const esActual = t.ev === actualIdx;
-                      return (
-                        <button
-                          key={ti}
-                          onClick={() => elegir(t.ev as number)}
-                          title={`${simboloAcorde(e.nota, e.calidad, e.bajo)} · ${gradoEnTonalidad(e.nota, e.calidad, tonalidad).romano}`}
-                          style={{ flex: `${t.dur} 1 0`, minWidth: 2, height: esActual ? 22 : 14, border: "none", padding: 0, cursor: "pointer", borderRadius: 3, background: colorDe(e.nota, e.calidad), opacity: esActual ? 1 : t.ev < actualIdx ? 0.5 : 1, boxShadow: esActual ? "0 0 0 1px white, 0 0 0 3px black" : "none" }}
-                        />
-                      );
-                    })}
+                  <div className="flex w-full items-end gap-1" style={{ height: 22 }}>
+                    {p.items.map((it, ii) => (
+                      <div key={ii} className="relative flex items-end gap-px" style={{ flex: `${it.ancho} 1 0`, minWidth: 0 }}>
+                        {it.veces > 1 && (
+                          <span aria-hidden style={{ position: "absolute", right: 0, top: -11, fontFamily: NUM, fontWeight: 800, fontSize: 8, lineHeight: 1, color: tinta, opacity: 0.85 }}>×{it.veces}</span>
+                        )}
+                        {it.tiles.map((t, ti) => {
+                          const evsReales = t.evs.filter((x): x is number => x !== null);
+                          if (evsReales.length === 0) return <span key={ti} style={{ flex: `${t.dur} 1 0`, minWidth: 2, height: 8, borderRadius: 2, background: "rgba(0,0,0,0.12)" }} />;
+                          const e = eventos[evsReales[0]];
+                          if (!e) return <span key={ti} style={{ flex: `${t.dur} 1 0`, minWidth: 2 }} />;
+                          const esActual = evsReales.includes(actualIdx);
+                          const pasado = evsReales.every((x) => x < actualIdx);
+                          return (
+                            <button
+                              key={ti}
+                              onClick={() => elegir(evsReales.find((x) => x >= actualIdx) ?? evsReales[0])}
+                              title={`${simboloAcorde(e.nota, e.calidad, e.bajo)} · ${gradoEnTonalidad(e.nota, e.calidad, tonalidad).romano}`}
+                              style={{ flex: `${t.dur} 1 0`, minWidth: 2, height: esActual ? 22 : 14, border: "none", padding: 0, cursor: "pointer", borderRadius: 2, background: colorDe(e.nota, e.calidad), opacity: esActual ? 1 : pasado ? 0.5 : 1, boxShadow: esActual ? "0 0 0 1px white, 0 0 0 3px black" : "none" }}
+                            />
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
                 </div>
               );
             })}
           </div>
-          {/* Barra que avanza con la canción */}
-          {(() => {
-            const x = Math.min(1, Math.max(0, xDeTiempo(Math.max(0, progresoMs) + adelanto)));
-            return (
-              <>
-                <div aria-hidden style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: `${x * 100}%`, background: "rgba(0,0,0,0.07)", pointerEvents: "none" }} />
-                <div aria-hidden style={{ position: "absolute", top: 0, bottom: 0, left: `calc(${x * 100}% - 1px)`, width: 2, background: INK, boxShadow: "0 0 0 1px rgba(255,255,255,0.85)", pointerEvents: "none" }} />
-              </>
-            );
-          })()}
+          {/* Barra horizontal que crece hacia la derecha con la canción */}
+          <div aria-hidden style={{ position: "absolute", left: 0, bottom: 0, height: 4, width: `${Math.min(1, Math.max(0, xDeTiempo(Math.max(0, progresoMs) + adelanto))) * 100}%`, background: INK, pointerEvents: "none" }} />
         </div>
-        {/* Tiempo corrido y duración */}
-        <div className="mt-1 flex items-center justify-between gap-2" style={{ fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontSize: 11, color: MUTED }}>
-          <span style={{ fontSize: 14, fontWeight: 800, color: INK, minWidth: 40 }}>{formatoMMSS(Math.floor(Math.max(0, progresoMs) / 1000))}</span>
+        {/* Tiempo corrido y duración, del mismo tamaño */}
+        <div className="mt-1 flex items-center justify-between gap-2" style={{ fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontSize: 11, fontWeight: 700, color: MUTED }}>
+          <span style={{ color: INK }}>{formatoMMSS(Math.floor(Math.max(0, progresoMs) / 1000))}</span>
           <span>{duracionMs > 0 ? formatoMMSS(Math.round(duracionMs / 1000)) : "—"}</span>
         </div>
       </div>
