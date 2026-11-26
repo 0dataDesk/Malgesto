@@ -113,22 +113,22 @@ export function acordesDiatonicos(tonalidad: Tonalidad): AcordeDiatonico[] {
 // Colores de las notas naturales: siete tonos bien separados entre sí (≥ 43°) y con un poco de variación de
 // claridad para que vecinas como B/C y E/F no se confundan. Las notas con sostenido (#) no tienen tono
 // propio: son un degradado más claro y suave de su natural (C# = C pálido).
-const AJUSTE_NATURAL: Record<string, { hue: number; dl: number }> = {
-  C: { hue: 128, dl: 0 },
-  D: { hue: 52, dl: 0 },
-  E: { hue: 8, dl: -4 },
-  F: { hue: 318, dl: 3 },
-  G: { hue: 272, dl: -2 },
-  A: { hue: 225, dl: -2 },
-  B: { hue: 182, dl: 4 },
+const AJUSTE_NATURAL: Record<string, { hue: number; dl: number; fs: number }> = {
+  C: { hue: 135, dl: -2, fs: 0.62 }, // verde menos chillón
+  D: { hue: 52, dl: 0, fs: 1 },
+  E: { hue: 358, dl: 3, fs: 1.3 }, // rojo más rojo
+  F: { hue: 328, dl: 9, fs: 1 }, // rosa más claro: se separa del rojo
+  G: { hue: 272, dl: -2, fs: 1 },
+  A: { hue: 225, dl: -2, fs: 1 },
+  B: { hue: 190, dl: 3, fs: 1.15 }, // turquesa más azulado: se separa del verde
 };
 const DL_SOSTENIDO = 16;
 const DS_SOSTENIDO = -18;
 
-function ajusteDeNota(nota: Nota): { hue: number; dl: number; ds: number } {
+function ajusteDeNota(nota: Nota): { hue: number; dl: number; ds: number; fs: number } {
   const sostenido = nota.endsWith("#");
   const base = AJUSTE_NATURAL[nota[0]];
-  return { hue: base.hue, dl: base.dl + (sostenido ? DL_SOSTENIDO : 0), ds: sostenido ? DS_SOSTENIDO : 0 };
+  return { hue: base.hue, dl: base.dl + (sostenido ? DL_SOSTENIDO : 0), ds: sostenido ? DS_SOSTENIDO : 0, fs: base.fs };
 }
 
 export function huePorNota(nota: Nota): number {
@@ -157,9 +157,9 @@ const INTENSIDAD_POR_CATEGORIA: Record<CategoriaColor, { s: number; l: number }>
 };
 
 export function colorRaizAcorde(raiz: Nota, calidad: Calidad): string {
-  const { hue, dl, ds } = ajusteDeNota(raiz);
+  const { hue, dl, ds, fs } = ajusteDeNota(raiz);
   const { s, l } = INTENSIDAD_POR_CATEGORIA[CATEGORIA_COLOR_POR_CALIDAD[calidad]];
-  return `hsl(${hue} ${s + ds}% ${l + dl}%)`;
+  return `hsl(${hue} ${Math.min(100, Math.round(s * fs + ds))}% ${l + dl}%)`;
 }
 
 const S_EXTENSION = 60;
@@ -169,8 +169,8 @@ const L_EXTENSION = 40;
 // de la tarjeta, que sale de colorRaizAcorde) — cada nota acompañante tiene
 // su propio color según su hue, no el de la raíz.
 export function colorExtension(nota: Nota): string {
-  const { hue, dl, ds } = ajusteDeNota(nota);
-  return `hsl(${hue} ${S_EXTENSION + ds}% ${L_EXTENSION + dl}%)`;
+  const { hue, dl, ds, fs } = ajusteDeNota(nota);
+  return `hsl(${hue} ${Math.min(100, Math.round(S_EXTENSION * fs + ds))}% ${L_EXTENSION + dl}%)`;
 }
 
 function hslARgb(h: number, s: number, l: number): [number, number, number] {
