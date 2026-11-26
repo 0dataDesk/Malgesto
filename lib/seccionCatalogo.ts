@@ -41,15 +41,15 @@ export function etiquetasSecciones(partes: string[]): string[] {
 // Preintro acaba en el blanco de Intro; Precoro empieza en el gris de Verso y acaba en el negro de Coro.
 const gris = (l: number) => `oklch(${l} 0 0)`;
 const GRIS_POR_PARTE: Record<string, number> = { Verso: 0.94, Puente: 0.54, Coro: 0.32 };
-const rayas = (grados: number, alfa: number) => `repeating-linear-gradient(${grados}deg, transparent 0 6px, rgba(0,0,0,${alfa}) 6px 8px)`;
+const rayas = (grados: number, alfa: number) => `repeating-linear-gradient(${grados}deg, transparent 0 7px, rgba(0,0,0,${alfa}) 7px 8px)`;
 
 // Fondo de la parte (valor de CSS `background`, puede traer varias capas).
 export function colorPorTipoSeccion(nombre: NombreSeccion): string {
   switch (parteDe(nombre)) {
-    case "Intro": return `${gris(1)} ${rayas(135, 0.28)}`;
-    case "Outro": return `${gris(1)} ${rayas(45, 0.45)}`;
-    case "Solo": return `${gris(1)} radial-gradient(rgba(0,0,0,0.4) 1.7px, transparent 2px) 0 0 / 9px 9px`;
-    case "Sección Única": return `${gris(0.8)} radial-gradient(rgba(0,0,0,0.45) 1.4px, transparent 1.6px) 0 0 / 7px 7px`;
+    case "Intro": return `${gris(1)} ${rayas(135, 0.14)}`;
+    case "Outro": return `${gris(1)} ${rayas(45, 0.2)}`;
+    case "Solo": return `${gris(1)} radial-gradient(rgba(0,0,0,0.16) 1.3px, transparent 1.6px) 0 0 / 9px 9px`;
+    case "Sección Única": return `${gris(0.8)} radial-gradient(rgba(0,0,0,0.2) 1px, transparent 1.3px) 0 0 / 6px 6px`;
     case "Preintro": return `linear-gradient(90deg, ${gris(0.62)}, ${gris(1)})`;
     case "Precoro": return `linear-gradient(90deg, ${gris(GRIS_POR_PARTE.Verso)}, ${gris(GRIS_POR_PARTE.Coro)})`;
     default: return gris(GRIS_POR_PARTE[parteDe(nombre)] ?? 0.8);
