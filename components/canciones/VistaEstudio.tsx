@@ -581,23 +581,26 @@ export function VistaEstudio({
   const faja = useMemo(() => {
     let k = 0;
     let pos = 0;
-    const partes = cancion.secciones.map((s, si) => {
+    const partes: { si: number; ancho: number; tiles: { silencio: boolean; dur: number; ev: number | null; k: number | null; x0: number }[] }[] = [];
+    for (let si = 0; si < cancion.secciones.length; si++) {
+      const s = cancion.secciones[si];
       const ids = indicesPorSeccion[si] ?? [];
-      const acordes = [...s.acordes].sort((a, b) => a.orden - b.orden);
-      const reales = acordes.filter((a) => !a.silencio).length;
+      const acordes = [...s.acordes].sort((x, y) => x.orden - y.orden);
+      const reales = acordes.filter((x) => !x.silencio).length;
       const porAcordes = acordes.length > 0 && reales === ids.length;
-      const base = porAcordes ? acordes.map((a) => ({ silencio: !!a.silencio, dur: Math.max(Number(a.duracionCompases) || 1, 0.0001) })) : ids.map(() => ({ silencio: false, dur: 1 }));
+      const base = porAcordes ? acordes.map((x) => ({ silencio: !!x.silencio, dur: Math.max(Number(x.duracionCompases) || 1, 0.0001) })) : ids.map(() => ({ silencio: false, dur: 1 }));
       const inicioParte = pos;
       const tiles: { silencio: boolean; dur: number; ev: number | null; k: number | null; x0: number }[] = [];
       for (let v = 0; v < Math.max(1, s.repiteVeces); v++) {
         let enVuelta = 0;
         for (const t of base) {
-          tiles.push({ silencio: t.silencio, dur: t.dur, ev: t.silencio ? null : ids[enVuelta++] ?? null, k: t.silencio ? null : k++, x0: pos });
+          const ev = t.silencio ? null : ids[enVuelta++] ?? null;
+          tiles.push({ silencio: t.silencio, dur: t.dur, ev, k: t.silencio ? null : k++, x0: pos });
           pos += t.dur;
         }
       }
-      return { si, ancho: Math.max(pos - inicioParte, 0.0001), tiles };
-    });
+      partes.push({ si, ancho: Math.max(pos - inicioParte, 0.0001), tiles });
+    }
     return { partes, total: Math.max(pos, 0.0001) };
   }, [cancion.secciones, indicesPorSeccion]);
 
@@ -918,11 +921,15 @@ export function VistaEstudio({
               const abierto = pos === 0 && !!abiertos[`${instrumento}|${k}`];
               const ancho = Math.round((anchoCola - 24) * FRACCION_COLA[pos]);
               const veces = distintos.find((d) => d.nota === e.nota && d.calidad === e.calidad)?.veces ?? 1;
+              // Parte de la canción a la que pertenece este acorde: barra lateral con su fondo y su nombre cuando cambia.
+              const parte = cancion.secciones[e.sec]?.nombre ?? "";
+              const rotuloParte = pos === 0 || eventos[cola[pos - 1]]?.sec !== e.sec;
               return (
                 <div
                   key={pos}
-                  style={{ width: abierto ? "100%" : ancho + 14, background: fondo, color: ink, borderRadius: 14, padding: 7, outline: activo ? `3px solid ${CORAL}` : "none", outlineOffset: 1, transition: "width .25s", opacity: pos === 0 ? 1 : 1 - pos * 0.08 }}
+                  style={{ position: "relative", overflow: "hidden", width: abierto ? "100%" : ancho + 14, background: fondo, color: ink, borderRadius: 14, padding: "7px 7px 7px 11px", outline: activo ? `3px solid ${CORAL}` : "none", outlineOffset: 1, transition: "width .25s", opacity: pos === 0 ? 1 : 1 - pos * 0.08 }}
                 >
+                  <span aria-hidden title={parte} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 7, background: colorPorTipoSeccion(parte), borderRight: "1px solid rgba(0,0,0,0.3)" }} />
                   <div className="relative">
                     <button
                       onClick={() => {
@@ -945,6 +952,7 @@ export function VistaEstudio({
                       <div className="flex items-baseline gap-1.5" style={{ alignSelf: "flex-start", paddingLeft: 3 }}>
                         <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: pos === 0 ? 24 : pos === 1 ? 18 : 14, lineHeight: 1 }}>{simboloAcorde(e.nota, e.calidad, e.bajo)}</span>
                         <span style={{ fontSize: pos === 0 ? 11 : 10, opacity: 0.9 }}>{g.romano}{pos === 0 ? ` · ${veces}×` : ""}</span>
+                        {rotuloParte && parte && <span style={{ marginLeft: 6, fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", background: "rgba(255,255,255,0.28)", borderRadius: 5, padding: "1px 5px" }}>{parte}</span>}
                       </div>
                     </button>
                     {pos === 0 && vs.length > 1 && (
