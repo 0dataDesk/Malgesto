@@ -32,7 +32,10 @@ export type Ancla = [number, number];
 // dura (compases × segundos por compás) en cada vuelta; dentro de la sección, cada acorde
 // recibe su parte según su peso (duración en compases, o texto cubierto en la letra).
 // `ocurrencias` va en el mismo orden que `ocurrencias()`: sección, vuelta, acorde.
-export function anclasPorTempo(inicioMs: number, secciones: { vueltas: number; compases: number; segundosPorCompas: number; pesos: number[] }[]): Ancla[] {
+export function anclasPorTempo(
+  inicioMs: number,
+  secciones: { vueltas: number; compases: number; segundosPorCompas: number; pesos: number[]; omitir?: boolean[] }[]
+): Ancla[] {
   const out: Ancla[] = [];
   let t = inicioMs;
   let k = 0;
@@ -41,10 +44,11 @@ export function anclasPorTempo(inicioMs: number, secciones: { vueltas: number; c
     for (let v = 0; v < Math.max(1, s.vueltas); v++) {
       const durMs = s.compases * s.segundosPorCompas * 1000;
       let acum = 0;
-      for (const w of s.pesos) {
-        out.push([k++, Math.round(t + (total > 0 ? (acum / total) * durMs : 0))]);
+      s.pesos.forEach((w, i) => {
+        // `omitir` marca los silencios: ocupan tiempo pero no son acordes, así que no llevan ancla.
+        if (!s.omitir?.[i]) out.push([k++, Math.round(t + (total > 0 ? (acum / total) * durMs : 0))]);
         acum += w;
-      }
+      });
       t += durMs;
     }
   }
