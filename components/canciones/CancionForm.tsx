@@ -584,14 +584,6 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
         <section className="rounded-2xl px-3 py-2.5" style={{ background: CARD, border: `2px solid ${ACCENT}` }}>
           <div className="flex flex-wrap items-center gap-2.5">
             <SeccionNombreSelector valor={sec.nombre} etiqueta={etiquetas[si]} onCambio={(nombre) => patchSeccion(si, { nombre })} />
-            <div className="flex items-center" style={{ fontFamily: MONO }}>
-              <span style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT, marginRight: 5 }}>Se repite</span>
-              <div className="flex items-center overflow-hidden rounded-md border" style={{ borderColor: LINE }}>
-                <button type="button" onClick={() => patchSeccion(si, { repiteVeces: Math.max(1, sec.repiteVeces - 1), repeticiones: sec.repeticiones.filter((r) => r.repeticionIndice <= sec.repiteVeces - 1) })} style={{ width: 20, height: 20, background: CHIP, color: MUTED, fontFamily: MONO }}>−</button>
-                <span style={{ width: 30, textAlign: "center", fontFamily: MONO, fontWeight: 700, fontSize: 11 }}>×{sec.repiteVeces}</span>
-                <button type="button" onClick={() => patchSeccion(si, { repiteVeces: sec.repiteVeces + 1 })} style={{ width: 20, height: 20, background: CHIP, color: MUTED, fontFamily: MONO }}>+</button>
-              </div>
-            </div>
             <span style={{ fontFamily: MONO, fontSize: 10, color: FAINT }}>
               {compasesSeccionTotal(sec)} compases{bpm > 0 ? ` · ${mmssLocal(compasesSeccionTotal(sec) * segundosPorCompas(Number(cuerpoSel.bpm) || bpm))}` : ""}
             </span>
