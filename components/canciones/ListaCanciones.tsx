@@ -29,6 +29,8 @@ export type CancionLista = {
   bpm: number | null;
   duracionSegundos: number | null;
   totalCompases: number;
+  // Ya entró a arreglar sus compases (se marca al guardar su estructura).
+  compasesRevisados: boolean;
 };
 
 type Tipo = "todas" | "covers" | "propias";
@@ -58,8 +60,8 @@ function Grupo({ titulo, canciones, puedeEscribir }: { titulo: string | null; ca
               className="relative min-w-0 flex-1 rounded-2xl p-3.5 no-underline"
               style={{ background: c.esBorrador ? "oklch(0.975 0.006 85)" : CARD, border: c.esBorrador ? "1px dashed oklch(0.85 0.010 85)" : `1px solid ${LINE}` }}
             >
-              {c.totalCompases === 0 && (
-                <span aria-label="Sin compases" title="Sin compases asignados" style={{ position: "absolute", top: 10, right: 10, width: 9, height: 9, borderRadius: 99, background: "oklch(0.58 0.22 25)" }} />
+              {!c.compasesRevisados && (
+                <span aria-label="Compases por revisar" title="Aún no revisas sus compases" style={{ position: "absolute", top: 10, right: 10, width: 9, height: 9, borderRadius: 99, background: "oklch(0.58 0.22 25)" }} />
               )}
               <div className="flex flex-wrap items-center gap-1.5 pr-4">
                 <span className="text-[17px] font-bold" style={{ color: INK, fontFamily: "var(--font-fraunces), sans-serif" }}>{c.titulo}</span>
@@ -106,13 +108,13 @@ export function ListaCanciones({ canciones, puedeEscribir }: { canciones: Cancio
         (tipo === "todas" || (tipo === "covers" ? c.esCover : !c.esCover)) &&
         (!genero || (genero === "__sin" ? !c.genero : c.genero === genero)) &&
         (!tono || tonoEtiqueta(c) === tono) &&
-        (!soloSinCompases || c.totalCompases === 0)
+        (!soloSinCompases || !c.compasesRevisados)
     );
     const porTitulo = (a: CancionLista, b: CancionLista) => a.titulo.localeCompare(b.titulo, "es");
     return [...filtradas].sort((a, b) => {
       if (orden === "tono") return claveTono(a) - claveTono(b) || porTitulo(a, b);
       if (orden === "genero") return (a.genero ?? "￿").localeCompare(b.genero ?? "￿", "es") || porTitulo(a, b);
-      if (orden === "compases") return Number(b.totalCompases === 0) - Number(a.totalCompases === 0) || porTitulo(a, b);
+      if (orden === "compases") return Number(!b.compasesRevisados) - Number(!a.compasesRevisados) || porTitulo(a, b);
       return porTitulo(a, b);
     });
   }, [canciones, tipo, orden, genero, tono, soloSinCompases]);
@@ -151,7 +153,7 @@ export function ListaCanciones({ canciones, puedeEscribir }: { canciones: Cancio
           type="button"
           aria-pressed={soloSinCompases}
           onClick={() => setSoloSinCompases((v) => !v)}
-          title="Solo las canciones a las que aún no se les asignan compases"
+          title="Solo las canciones cuyos compases aún no revisas"
           className="flex items-center gap-1.5"
           style={{ ...selectStyle, background: soloSinCompases ? INK : CARD, color: soloSinCompases ? "white" : INK }}
         >
