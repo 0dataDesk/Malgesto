@@ -149,6 +149,8 @@ function LetraEditor({
 }) {
   const m = progresion.length;
   const enLetra = letra.reduce((n, l) => n + (l.tipo === "letra" ? l.acordes.length : 0), 0);
+  // Una parte sin líneas de letra (instrumental) no tiene nada que cruzar con la fila de acordes.
+  const hayLetra = letra.some((l) => l.tipo === "letra");
   const setLinea = (i: number, patch: Partial<LetraFS>) => onCambio(letra.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const nueva = (tipo: "letra" | "tab") => {
     const con = [...letra, { texto: "", tipo, acordes: [] } as LetraFS];
@@ -167,13 +169,13 @@ function LetraEditor({
     <div>
       <div className="flex flex-wrap items-center gap-2">
         <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: FAINT }}>Letra</span>
-        <span style={{ fontFamily: MONO, fontSize: 9, color: FAINT }}>· los acordes salen de la fila de arriba, en orden</span>
-        {m > 0 && (
+        <span style={{ fontFamily: MONO, fontSize: 9, color: FAINT }}>{hayLetra ? "· los acordes salen de la fila de arriba, en orden" : "· esta parte no lleva letra (instrumental); agrega una línea si la tiene"}</span>
+        {hayLetra && m > 0 && (
           <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: enLetra === m ? "oklch(0.45 0.12 150)" : "oklch(0.5 0.18 25)" }}>
             {enLetra === m ? `✓ ${m} acordes en la letra` : `${enLetra} de ${m} acordes en la letra`}
           </span>
         )}
-        {m > 0 && (
+        {hayLetra && m > 0 && (
           <button type="button" onClick={() => onCambio(sincronizarLetra(letra as LineaLetra[], progresion, true) as LetraFS[])} title="Reparte parejo los acordes entre las líneas" className="rounded-md px-2 py-0.5 text-[10px] font-bold" style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}>
             Acomodar
           </button>
