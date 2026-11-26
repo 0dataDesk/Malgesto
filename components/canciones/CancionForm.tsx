@@ -338,6 +338,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
   const [vueltaSel, setVueltaSel] = useState<Record<number, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [guardado, setGuardado] = useState(false);
 
   const bpm = Number(ficha.bpm) || 0;
   const tonGeneral = { raiz: ficha.raiz, modo: ficha.modo };
@@ -444,8 +445,14 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
     const input: CancionInput = { bandaId, ...base, esBorrador: marcarLista ? false : base.esBorrador, secciones: seccionesInput };
     startTransition(async () => {
       try {
-        if (cancionExistente) await actualizarCancionAction(cancionExistente.id, input);
-        else await crearCancionAction(input);
+        if (cancionExistente) {
+          // «Guardar cambios» se queda en la pantalla; «Marcar lista» sí sale a la canción.
+          await actualizarCancionAction(cancionExistente.id, input, !marcarLista);
+          if (!marcarLista) {
+            setGuardado(true);
+            window.setTimeout(() => setGuardado(false), 3500);
+          }
+        } else await crearCancionAction(input);
       } catch (e) {
         if (e instanceof Error && !e.message.includes("NEXT_REDIRECT")) setError(e.message);
         else if (!(e instanceof Error)) throw e;
@@ -729,6 +736,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
         <button type="button" disabled={pending} onClick={() => onSubmit()} className="rounded-xl px-5 py-3 text-sm font-bold disabled:opacity-50" style={activoStyle}>
           {pending ? "Guardando…" : cancionExistente ? "Guardar cambios" : "Guardar"}
         </button>
+        {guardado && !pending && <span role="status" style={{ fontFamily: MONO, fontWeight: 700, fontSize: 12, color: "oklch(0.45 0.12 150)" }}>✓ Guardado</span>}
         {!ficha.esCover && ficha.esBorrador && (
           <button type="button" disabled={pending} onClick={() => onSubmit(true)} className="rounded-xl px-5 py-3 text-sm font-bold disabled:opacity-50" style={{ background: INK, color: BG }}>
             Marcar lista →
