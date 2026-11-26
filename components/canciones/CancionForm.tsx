@@ -2,7 +2,7 @@
 
 import { Fragment, useState, useTransition } from "react";
 import { NOTAS, type Nota, type Modo, type Calidad, simboloAcorde, colorRaizAcorde, colorContrasteTexto, colorExtension, tonosDelAcorde } from "@/lib/cancionTeoria";
-import { PARTES_SECCION, colorPorTipoSeccion, etiquetasSecciones, parteDe, type NombreSeccion } from "@/lib/seccionCatalogo";
+import { PARTES_SECCION, colorPorTipoSeccion, tintaPorTipoSeccion, etiquetasSecciones, parteDe, type NombreSeccion } from "@/lib/seccionCatalogo";
 import { segundosPorCompas } from "@/lib/cancionTiempo";
 import type { CancionCompleta, CancionInput, SeccionInput, SeccionBaseInput, LetraLineaInput } from "@/lib/cancionesData";
 import { crearCancionAction, actualizarCancionAction, eliminarCancionAction, subirAudioAction, quitarAudioAction } from "@/app/canciones/actions";
@@ -60,13 +60,13 @@ function SeccionNombreSelector({ valor, etiqueta, onCambio }: { valor: NombreSec
   const [abierto, setAbierto] = useState(false);
   return (
     <div className="relative">
-      <button type="button" onClick={() => setAbierto((v) => !v)} className="rounded-md px-2 py-1 text-xs font-bold" style={{ background: colorPorTipoSeccion(valor), color: "oklch(0.99 0.006 85)", fontFamily: DISPLAY }}>
+      <button type="button" onClick={() => setAbierto((v) => !v)} className="rounded-md px-2 py-1 text-xs font-bold" style={{ background: colorPorTipoSeccion(valor), color: tintaPorTipoSeccion(valor), border: "1px solid oklch(0.8 0.01 85)", fontFamily: DISPLAY }}>
         {etiqueta}
       </button>
       {abierto && (
         <div className="absolute z-20 mt-1 flex w-56 flex-wrap gap-1.5 rounded-xl p-2.5" style={{ background: CARD, border: `1px solid ${LINE}`, boxShadow: "0 16px 32px -16px rgba(0,0,0,0.25)" }}>
           {PARTES_SECCION.map((n) => (
-            <button key={n} type="button" onClick={() => { onCambio(n); setAbierto(false); }} className="rounded-lg px-2.5 py-1.5 text-xs font-bold" style={n === valor ? { background: colorPorTipoSeccion(n), color: "oklch(0.99 0.006 85)" } : inactivoStyle}>
+            <button key={n} type="button" onClick={() => { onCambio(n); setAbierto(false); }} className="rounded-lg px-2.5 py-1.5 text-xs font-bold" style={n === valor ? { background: colorPorTipoSeccion(n), color: tintaPorTipoSeccion(n), outline: "2px solid oklch(0.64 0.17 28)", outlineOffset: 1 } : inactivoStyle}>
               {n}
             </button>
           ))}
@@ -551,6 +551,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
         <div className="mt-2 flex items-stretch overflow-x-auto rounded-2xl" style={{ background: CARD, border: `1px solid ${LINE}` }}>
           {secciones.map((s, i) => {
             const color = colorPorTipoSeccion(s.nombre);
+            const tinta = tintaPorTipoSeccion(s.nombre);
             const activa = i === si;
             const compases = compasesSeccionTotal(s);
             const lista = acordesDeParada(s);
@@ -568,15 +569,15 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                   type="button"
                   onClick={() => setSeccionAbierta(i)}
                   className="flex min-w-[104px] flex-col text-left"
-                  style={{ flex: `${Math.max(1, Math.min(compases, 20))} 1 0`, background: activa ? "oklch(0.96 0.03 28)" : "transparent", borderTop: `4px solid ${color}`, padding: "6px 8px 6px", borderRight: i < secciones.length - 1 ? `1px solid ${LINE}` : "none" }}
+                  style={{ flex: `${Math.max(1, Math.min(compases, 20))} 1 0`, background: color, color: tinta, boxShadow: activa ? "inset 0 0 0 3px oklch(0.64 0.17 28)" : "none", padding: "8px 8px 6px", borderRight: i < secciones.length - 1 ? `1px solid ${LINE}` : "none" }}
                 >
                   <span className="flex items-center gap-1.5">
-                    <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: 9, color: FAINT }}>{i + 1}</span>
-                    <span className="truncate" style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 13, color: INK }}>{etiquetas[i]}</span>
-                    {veces > 1 && <span className="ml-auto flex-none" style={{ fontFamily: MONO, fontWeight: 800, fontSize: 10, color: ACCENT }}>↻×{veces}</span>}
+                    <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: 9, opacity: 0.6 }}>{i + 1}</span>
+                    <span className="truncate" style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 13 }}>{etiquetas[i]}</span>
+                    {veces > 1 && <span className="ml-auto flex-none" style={{ fontFamily: MONO, fontWeight: 800, fontSize: 10 }}>↻×{veces}</span>}
                   </span>
                   <span className="mt-1 flex gap-px" style={{ minHeight: 18 }}>
-                    {visibles.length === 0 && <span style={{ fontFamily: MONO, fontSize: 9, color: FAINT }}>sin acordes</span>}
+                    {visibles.length === 0 && <span style={{ fontFamily: MONO, fontSize: 9, opacity: 0.6 }}>sin acordes</span>}
                     {visibles.map((a, k) => {
                       const c = colorRaizAcorde(a.notaRaiz, a.calidad);
                       return (
@@ -586,7 +587,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                       );
                     })}
                   </span>
-                  <span className="mt-1 flex items-center gap-1.5" style={{ fontFamily: MONO, fontSize: 9, color: MUTED }}>
+                  <span className="mt-1 flex items-center gap-1.5" style={{ fontFamily: MONO, fontSize: 9, opacity: 0.75 }}>
                     <span>{compases}c</span>
                     {bpm > 0 && <span>{mmssLocal(compases * segundosPorCompas(Number(s.bpm) || bpm))}</span>}
                     {s.letra.length > 0 && <span className="ml-auto">♪{s.letra.length}</span>}

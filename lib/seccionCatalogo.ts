@@ -35,15 +35,29 @@ export function etiquetasSecciones(partes: string[]): string[] {
   });
 }
 
-// Brief 19 §8: no una paleta nueva — variaciones de intensidad (solo L, del
-// oklch) del mismo acento naranja (H 34, C 0.15) que ya usa toda la app, una
-// por FAMILIA de sección ("Verso 1"/"Verso 2" comparten familia "Verso") para
-// diferenciarlas de un vistazo sin que los números dentro de una familia se
-// vean distintos entre sí.
-const FAMILIAS_SECCION: string[] = [...PARTES_SECCION];
+// Color de cada parte, en escala de blancos, grises y negro (sin color: así las partes se distinguen
+// de un vistazo y los colores de los acordes resaltan). Las más usadas llevan los grises más separados;
+// Preintro, Precoro y Sección Única son degradados ligeros entre vecinos, de menor prioridad.
+// Orden de claro a oscuro: Verso, Intro, Solo, Outro, Puente, Coro.
+const gris = (l: number) => `oklch(${l} 0 0)`;
+const GRIS_POR_PARTE: Record<string, number> = { Verso: 0.93, Intro: 0.8, Solo: 0.68, Outro: 0.55, Puente: 0.4, Coro: 0.2 };
+const DEGRADADO_POR_PARTE: Record<string, [number, number]> = {
+  Preintro: [0.8, 0.98], // de Intro a casi blanco
+  Precoro: [0.93, 0.2], // de Verso a Coro: va subiendo hacia el coro
+  "Sección Única": [0.68, 0.93], // de Solo a Verso
+};
 
+// Fondo de la parte: un gris o un degradado ligero (CSS `background`).
 export function colorPorTipoSeccion(nombre: NombreSeccion): string {
-  const idx = Math.max(0, FAMILIAS_SECCION.indexOf(parteDe(nombre)));
-  const l = 0.62 - (idx / (FAMILIAS_SECCION.length - 1)) * 0.22;
-  return `oklch(${l.toFixed(3)} 0.15 34)`;
+  const parte = parteDe(nombre);
+  const d = DEGRADADO_POR_PARTE[parte];
+  if (d) return `linear-gradient(135deg, ${gris(d[0])}, ${gris(d[1])})`;
+  return gris(GRIS_POR_PARTE[parte] ?? 0.8);
+}
+
+// Tinta que se lee sobre ese fondo: clara sobre los grises oscuros, oscura sobre los claros.
+export function tintaPorTipoSeccion(nombre: NombreSeccion): string {
+  const parte = parteDe(nombre);
+  const oscuro = parte === "Coro" || parte === "Puente" || parte === "Outro";
+  return oscuro ? "oklch(0.99 0 0)" : "oklch(0.2 0 0)";
 }
