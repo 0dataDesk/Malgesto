@@ -1,3 +1,4 @@
+import { PaletaColor } from "@/components/canciones/PaletaColor";
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
@@ -37,11 +38,14 @@ export default async function EditarCancionPage({
       className="min-h-screen box-border px-6 py-8 md:px-16 md:py-8"
       style={{ background: "oklch(0.965 0.007 85)", color: "oklch(0.24 0.044 262)" }}
     >
-      <Link href={`/canciones/${cancionId}`} className="mb-4 flex w-fit items-center gap-3.5 no-underline">
-        <span className="text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
-          ‹ {banda.bandaNombre} · {cancion.titulo}
-        </span>
-      </Link>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <Link href={`/canciones/${cancionId}`} className="flex w-fit items-center gap-3.5 no-underline">
+          <span className="text-sm" style={{ color: "oklch(0.55 0.044 262)" }}>
+            ‹ {banda.bandaNombre} · {cancion.titulo}
+          </span>
+        </Link>
+        <PaletaColor />
+      </div>
       <CancionForm bandaId={banda.bandaId} cancionExistente={cancion} />
     </div>
   );

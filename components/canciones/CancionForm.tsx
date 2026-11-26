@@ -779,7 +779,6 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
         )}
       </div>
     </div>
-    <PaletaColor />
     </div>
   );
 }
@@ -793,23 +792,4 @@ function acordesDeParada(c: CuerpoFS): { notaRaiz: Nota; calidad: Calidad; notaB
 function mmssLocal(seg: number): string {
   const s = Math.max(0, Math.round(seg));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
-
-// Referencia de color por nota (solo para mirar), en vertical a un lado: 12 notas;
-// cada fila trae el color mayor (ancho) y el menor (franja).
-function PaletaColor() {
-  return (
-    <aside className="sticky top-4 hidden w-[58px] flex-none rounded-xl p-1.5 md:block" style={{ background: CARD2, border: `1px solid ${LINE}` }} aria-label="Color por nota">
-      <div className="mb-1 text-center" style={{ fontFamily: MONO, fontWeight: 700, fontSize: 7, letterSpacing: "0.08em", textTransform: "uppercase", color: FAINT }}>Color</div>
-      <div className="flex flex-col gap-0.5">
-        {NOTAS.map((n) => (
-          <div key={n} className="flex overflow-hidden rounded" title={`${n}: mayor (ancho) y menor (franja)`} style={{ height: 22 }}>
-            <div className="flex flex-1 items-center justify-center" style={{ background: colorRaizAcorde(n, "mayor"), fontFamily: MONO, fontWeight: 700, fontSize: 9, color: colorContrasteTexto(colorRaizAcorde(n, "mayor")) }}>{n}</div>
-            <div style={{ width: 9, background: colorRaizAcorde(n, "menor") }} />
-          </div>
-        ))}
-      </div>
-      <div className="mt-1 text-center" style={{ fontFamily: MONO, fontSize: 7, color: FAINT }}>mayor · menor</div>
-    </aside>
-  );
 }
