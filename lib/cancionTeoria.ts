@@ -185,3 +185,90 @@ export function colorContrasteTexto(color: string): "#000000" | "#ffffff" {
   const contrasteNegro = (luminancia + 0.05) / 0.05;
   return contrasteBlanco >= contrasteNegro ? "#ffffff" : "#000000";
 }
+
+// ---------------------------------------------------------------------------
+// Grados de las notas de un acorde (para el bajo: 1, ♭3, 5, 7, 9…).
+// ---------------------------------------------------------------------------
+const GRADO_POR_SEMITONOS: Record<number, string> = {
+  0: "1", 2: "2", 3: "♭3", 4: "3", 5: "4", 6: "♭5", 7: "5", 8: "♯5", 9: "♭♭7", 10: "♭7", 11: "7", 14: "9",
+};
+// «1», «♭3», «5», «♭7», «9»… según el acorde. Solo para notas que pertenecen al acorde.
+export function gradoDeNota(raiz: Nota, calidad: Calidad, nota: Nota): string {
+  const base = NOTAS.indexOf(raiz);
+  const pc = NOTAS.indexOf(nota);
+  for (const s of semitonosDeCalidad(calidad)) {
+    if ((base + s) % 12 === pc) return GRADO_POR_SEMITONOS[s] ?? String(s);
+  }
+  return "";
+}
+
+// ---------------------------------------------------------------------------
+// Calidad armada pulsando varios botones en orden (m → add9 = menor con novena).
+// Solo se permiten las combinaciones que existen como calidad.
+// ---------------------------------------------------------------------------
+export const TOKENS_CALIDAD = ["m", "dim", "aum", "7", "maj7", "m7b5", "sus2", "sus4", "add9"] as const;
+export type TokenCalidad = (typeof TOKENS_CALIDAD)[number];
+
+const CALIDAD_POR_TOKENS: Record<string, Calidad> = {
+  "": "mayor", m: "menor", dim: "disminuido", aum: "aumentado",
+  "7": "7", maj7: "maj7", "m+7": "m7", "dim+7": "dim7", m7b5: "m7b5",
+  sus2: "sus2", sus4: "sus4", add9: "add9", "m+add9": "madd9",
+};
+
+// Calidad que resulta de los botones pulsados (en orden); null si esa combinación no existe.
+export function calidadDeTokens(tokens: TokenCalidad[]): Calidad | null {
+  return CALIDAD_POR_TOKENS[tokens.join("+")] ?? null;
+}
+// ¿Se puede pulsar `token` después de los ya pulsados?
+export function tokenPermitido(tokens: TokenCalidad[], token: TokenCalidad): boolean {
+  return calidadDeTokens([...tokens, token]) !== null;
+}
+// Los botones que dan exactamente esta calidad (para mostrar lo pulsado al editar un acorde).
+export function tokensDeCalidad(calidad: Calidad): TokenCalidad[] {
+  const clave = Object.keys(CALIDAD_POR_TOKENS).find((k) => CALIDAD_POR_TOKENS[k] === calidad) ?? "";
+  return clave === "" ? [] : (clave.split("+") as TokenCalidad[]);
+}
+
+// ---------------------------------------------------------------------------
+// Acordes de la tonalidad. Covers: propuesta básica (lo que casi siempre aparece).
+// Canción propia: propuesta amplia (séptimas, suspendidos, novenas, prestados, dominantes secundarios).
+// ---------------------------------------------------------------------------
+export type AcordePropuesto = { raiz: Nota; calidad: Calidad; romano: string };
+export type GrupoPropuesto = { titulo: string; acordes: AcordePropuesto[] };
+
+export function acordesDeTonalidad(tonalidad: Tonalidad, detallado: boolean): GrupoPropuesto[] {
+  const r = NOTAS.indexOf(tonalidad.raiz);
+  const en = (s: number): Nota => notaEn(r + s);
+  const a = (s: number, calidad: Calidad, romano: string): AcordePropuesto => ({ raiz: en(s), calidad, romano });
+  const mayor = tonalidad.modo === "mayor";
+
+  // Triadas del tono (en menor, la V mayor es la que casi siempre suena: cadencia).
+  const triadas: AcordePropuesto[] = mayor
+    ? [a(0, "mayor", "I"), a(2, "menor", "ii"), a(4, "menor", "iii"), a(5, "mayor", "IV"), a(7, "mayor", "V"), a(9, "menor", "vi"), a(11, "disminuido", "vii°")]
+    : [a(0, "menor", "i"), a(2, "disminuido", "ii°"), a(3, "mayor", "III"), a(5, "menor", "iv"), a(7, "menor", "v"), a(8, "mayor", "VI"), a(10, "mayor", "VII")];
+  const dominante: AcordePropuesto = a(7, "7", "V7");
+  if (!mayor) triadas.push(a(7, "mayor", "V"));
+
+  if (!detallado) return [{ titulo: "Del tono", acordes: [...triadas, dominante] }];
+
+  const septimas: AcordePropuesto[] = mayor
+    ? [a(0, "maj7", "Imaj7"), a(2, "m7", "ii7"), a(4, "m7", "iii7"), a(5, "maj7", "IVmaj7"), dominante, a(9, "m7", "vi7"), a(11, "m7b5", "viiø")]
+    : [a(0, "m7", "i7"), a(2, "m7b5", "iiø"), a(3, "maj7", "IIImaj7"), a(5, "m7", "iv7"), dominante, a(8, "maj7", "VImaj7"), a(10, "7", "VII7")];
+  const color: AcordePropuesto[] = mayor
+    ? [a(0, "add9", "Iadd9"), a(0, "sus2", "Isus2"), a(0, "sus4", "Isus4"), a(5, "add9", "IVadd9"), a(5, "sus2", "IVsus2"), a(7, "sus4", "Vsus4"), a(9, "madd9", "vi(add9)"), a(9, "sus2", "visus2"), a(2, "sus4", "iisus4")]
+    : [a(0, "madd9", "i(add9)"), a(0, "sus2", "isus2"), a(0, "sus4", "isus4"), a(3, "add9", "IIIadd9"), a(5, "madd9", "iv(add9)"), a(7, "sus4", "Vsus4"), a(8, "add9", "VIadd9")];
+  const prestados: AcordePropuesto[] = mayor
+    ? [a(10, "mayor", "♭VII"), a(8, "mayor", "♭VI"), a(3, "mayor", "♭III"), a(5, "menor", "iv"), a(0, "menor", "i"), a(7, "menor", "v")]
+    : [a(0, "mayor", "I"), a(5, "mayor", "IV"), a(7, "7", "V7"), a(2, "menor", "ii"), a(1, "mayor", "♭II")];
+  const secundarios: AcordePropuesto[] = mayor
+    ? [a(9, "7", "V7/ii"), a(11, "7", "V7/iii"), a(0, "7", "V7/IV"), a(2, "7", "V7/V"), a(4, "7", "V7/vi")]
+    : [a(10, "7", "V7/III"), a(0, "7", "V7/iv"), a(2, "7", "V7/v"), a(3, "7", "V7/VI")];
+
+  return [
+    { titulo: "Triadas del tono", acordes: triadas },
+    { titulo: "Con séptima", acordes: septimas },
+    { titulo: "Color: add9 y suspendidos", acordes: color },
+    { titulo: "Prestados", acordes: prestados },
+    { titulo: "Dominantes secundarios", acordes: secundarios },
+  ];
+}

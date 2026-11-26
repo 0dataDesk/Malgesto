@@ -1,6 +1,6 @@
 // Revisa la biblioteca de acordes del Modo Estudio. Corre antes de cada build (npm run check):
 // si una forma no suena como el acorde que dice ser, o no cabe en el diagrama, el despliegue se detiene.
-import { NOTAS, CALIDADES, simboloAcorde, semitonosDeCalidad, type Nota, type Calidad } from "../lib/cancionTeoria";
+import { NOTAS, CALIDADES, simboloAcorde, semitonosDeCalidad, gradoDeNota, calidadDeTokens, tokenPermitido, tokensDeCalidad, acordesDeTonalidad, type Nota, type Calidad } from "../lib/cancionTeoria";
 import {
   INSTRUMENTOS_ESTUDIO,
   variantesDeAcorde,
@@ -51,6 +51,22 @@ function revisa(nombre: string, trastes: (number | null)[], af: Afinacion, raiz:
   if (max > 14) falla(`${nombre} [${descr(trastes)}]: pasa del traste 14`);
 }
 
+// Bajo: la nota más grave es el bajo del acorde (la raíz si no hay barra), están todas las notas del acorde (la quinta puede faltar
+// en acordes de 4 notas), no hay notas ajenas ni repetidas (sin octava) y cabe en 5 trastes.
+function revisaBajo(nombre: string, trastes: (number | null)[], af: Afinacion, raiz: Nota, calidad: Calidad, bajo: Nota | null) {
+  const clase = clasePc(raiz, calidad);
+  const bajoPc = bajo ? NOTAS.indexOf(bajo) : clase[0];
+  const permitidas = bajo ? [...clase, bajoPc] : clase;
+  const pcs = sonando(trastes, af).filter((x): x is number => x !== null);
+  const quintaPc = (clase[0] + 7) % 12;
+  for (const c of clase) if (!pcs.includes(c) && !(clase.length >= 4 && c === quintaPc)) return falla(`${nombre} [${descr(trastes)}]: falta la nota ${NOTAS[c]}`);
+  for (const p of pcs) if (!permitidas.includes(p)) return falla(`${nombre} [${descr(trastes)}]: trae la nota ajena ${NOTAS[p]}`);
+  if (new Set(pcs).size !== pcs.length) return falla(`${nombre} [${descr(trastes)}]: repite una nota (octava)`);
+  if (masGrave(trastes, af) !== bajoPc) return falla(`${nombre} [${descr(trastes)}]: la nota más grave debía ser ${NOTAS[bajoPc]}`);
+  const fr = trastes.filter((t): t is number => t !== null);
+  if (fr.length && Math.max(...fr) - Math.min(...fr) > 7) falla(`${nombre} [${descr(trastes)}]: abre más de 7 trastes`);
+}
+
 const desdeTexto = (t: string) => t.split("").map((c) => (c === "x" ? null : Number(c)));
 const guitarra = INSTRUMENTOS_ESTUDIO.guitarra.afinaciones.find((a) => a.id === "estandar")!;
 const ukulele = INSTRUMENTOS_ESTUDIO.ukulele.afinaciones[0];
@@ -92,10 +108,8 @@ for (const inst of Object.keys(INSTRUMENTOS_ESTUDIO) as NombreInstrumento[]) {
         }
         for (const f of formas) {
           total++;
-          if (inst === "bajo") {
-            const pcs = sonando(f.trastes, af).filter((x): x is number => x !== null);
-            if (!pcs.includes(NOTAS.indexOf(raiz))) falla(`${nombre} [${descr(f)}]: no toca la raíz`);
-          } else revisa(nombre, f.trastes, af, raiz, calidad, null, inst === "ukulele");
+          if (inst === "bajo") revisaBajo(nombre, f.trastes, af, raiz, calidad, null);
+          else revisa(nombre, f.trastes, af, raiz, calidad, null, inst === "ukulele");
         }
       }
     }
@@ -118,6 +132,39 @@ if (inicioDiagrama([null, null, 8, 7, 6, 6]) !== 6) falla("la forma [x,x,8,7,6,6
 
 // 4) Una forma de la hoja (personalizada) con la cantidad de cuerdas equivocada se ignora, no rompe.
 if (variantesDeAcorde("guitarra", guitarra, "D", "mayor", null, [0, 0, 0]).some((f) => f.origen === "hoja")) falla("una forma de hoja con 3 cuerdas no debió aceptarse");
+
+// 3c) Bajo con acorde con barra: la forma empieza en el bajo.
+const bajoEst = INSTRUMENTOS_ESTUDIO.bajo.afinaciones;
+for (const af of bajoEst) for (const [raiz, calidad, bajo] of CON_BARRA) {
+  const formas = variantesDeAcorde("bajo", af, raiz, calidad, bajo);
+  const nombre = `bajo/${af.id} ${simboloAcorde(raiz, calidad, bajo)}`;
+  if (formas.length === 0) falla(`${nombre}: sin ninguna forma`);
+  for (const f of formas) revisaBajo(nombre, f.trastes, af, raiz, calidad, bajo);
+}
+
+// 3d) La imagen sigue al acorde: acordes distintos nunca dan la misma primera forma, en ningún instrumento ni afinación.
+for (const inst of Object.keys(INSTRUMENTOS_ESTUDIO) as NombreInstrumento[]) {
+  for (const af of INSTRUMENTOS_ESTUDIO[inst].afinaciones) {
+    for (const raiz of NOTAS) {
+      const primera = (c: Calidad) => { const f = variantesDeAcorde(inst, af, raiz, c)[0]; return f ? descr(f) : `sin forma ${c}`; };
+      const pares: [Calidad, Calidad][] = [["mayor", "menor"], ["menor", "madd9"], ["mayor", "7"], ["menor", "m7"], ["mayor", "sus4"]];
+      for (const [c1, c2] of pares) if (primera(c1) === primera(c2) && !primera(c1).startsWith("sin forma")) falla(`${inst}/${af.id} ${simboloAcorde(raiz, c1)} y ${simboloAcorde(raiz, c2)} dan la misma forma`);
+    }
+  }
+}
+
+// 3e) Calidad armada pulsando botones en orden.
+const iguales = (a: unknown, b: unknown, m: string) => { if (a !== b) falla(`${m}: ${String(a)} ≠ ${String(b)}`); };
+iguales(calidadDeTokens(["m", "add9"]), "madd9", "m + add9");
+iguales(calidadDeTokens(["m", "7"]), "m7", "m + 7");
+iguales(calidadDeTokens(["dim", "7"]), "dim7", "dim + 7");
+iguales(calidadDeTokens([]), "mayor", "sin botones = mayor");
+iguales(calidadDeTokens(["add9", "m"]), null, "add9 + m no existe");
+iguales(tokenPermitido(["sus2"], "7"), false, "sus2 + 7 no se permite");
+iguales(gradoDeNota("A", "madd9", "C"), "♭3", "grado de C en Am(add9)");
+iguales(gradoDeNota("A", "madd9", "B"), "9", "grado de B en Am(add9)");
+for (const c of CALIDADES) iguales(calidadDeTokens(tokensDeCalidad(c)), c, `ida y vuelta de ${c}`);
+for (const detallado of [false, true]) for (const modo of ["mayor", "menor"] as const) for (const raiz of NOTAS) for (const g of acordesDeTonalidad({ raiz, modo }, detallado)) if (g.acordes.length === 0) falla(`tonalidad ${raiz} ${modo}: grupo vacío ${g.titulo}`);
 
 if (errores.length) {
   console.error(`\n✗ ${errores.length} problema(s) en la biblioteca de acordes:\n` + errores.slice(0, 60).map((e) => " - " + e).join("\n") + (errores.length > 60 ? `\n ... y ${errores.length - 60} más` : ""));

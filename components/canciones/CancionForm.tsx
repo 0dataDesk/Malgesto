@@ -6,7 +6,7 @@ import { PARTES_SECCION, colorPorTipoSeccion, etiquetasSecciones, parteDe, type 
 import { segundosPorCompas } from "@/lib/cancionTiempo";
 import type { CancionCompleta, CancionInput, SeccionInput, SeccionBaseInput, LetraLineaInput } from "@/lib/cancionesData";
 import { crearCancionAction, actualizarCancionAction, eliminarCancionAction, subirAudioAction, quitarAudioAction } from "@/app/canciones/actions";
-import { AcordeSelector } from "./AcordeSelector";
+import { AcordeSelector, type AcordeRef } from "./AcordeSelector";
 import { FichaCampos, fichaAInput, fichaDesdeCancion, type FichaEstado } from "./FichaCampos";
 
 const MONO = "var(--font-space-mono), ui-monospace, monospace";
@@ -80,12 +80,16 @@ function SeccionNombreSelector({ valor, etiqueta, onCambio }: { valor: NombreSec
 function AcordeChip({
   acorde,
   tonalidad,
+  acordesCancion,
+  esCover,
   onSeleccionar,
   onDuracion,
   onQuitar,
 }: {
   acorde: AcordeFS;
   tonalidad: { raiz: Nota; modo: Modo };
+  acordesCancion: AcordeRef[];
+  esCover: boolean;
   onSeleccionar: (n: Nota, c: Calidad, b: Nota | null) => void;
   onDuracion: (n: number) => void;
   onQuitar: () => void;
@@ -96,7 +100,7 @@ function AcordeChip({
   const [enTiempos, setEnTiempos] = useState(acorde.duracionCompases > 0 && acorde.duracionCompases < 1);
   return (
     <div className="flex items-center gap-1" style={{ borderRadius: 9, padding: "2px 5px 2px 2px", background: color, border: "1px solid rgba(0,0,0,.14)" }}>
-      <AcordeSelector compacto tonalidad={tonalidad} notaRaiz={acorde.notaRaiz} calidad={acorde.calidad} notaBajo={acorde.notaBajo} onSeleccionar={onSeleccionar} />
+      <AcordeSelector compacto tonalidad={tonalidad} acordesCancion={acordesCancion} esCover={esCover} notaRaiz={acorde.notaRaiz} calidad={acorde.calidad} notaBajo={acorde.notaBajo} onSeleccionar={onSeleccionar} />
       <input
         inputMode="decimal"
         value={enTiempos ? Number((acorde.duracionCompases * 4).toFixed(2)) : acorde.duracionCompases}
@@ -138,11 +142,15 @@ function cicloRepetido(acordes: { notaRaiz: Nota; calidad: Calidad; notaBajo: No
 function LetraEditor({
   letra,
   tonalidad,
+  acordesCancion,
+  esCover,
   raizDefault,
   onCambio,
 }: {
   letra: LetraFS[];
   tonalidad: { raiz: Nota; modo: Modo };
+  acordesCancion: AcordeRef[];
+  esCover: boolean;
   raizDefault: Nota;
   onCambio: (letra: LetraFS[]) => void;
 }) {
@@ -186,6 +194,8 @@ function LetraEditor({
                 compacto
                 etiqueta="+ acorde"
                 tonalidad={tonalidad}
+                acordesCancion={acordesCancion}
+                esCover={esCover}
                 notaRaiz={raizDefault}
                 calidad="mayor"
                 onSeleccionar={(notaRaiz, calidad, notaBajo) => {
@@ -384,6 +394,26 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
   const totalVueltas = secciones.reduce((t, s) => t + s.repiteVeces, 0);
   // Nombre final de cada parada («Verso 1», «Verso 2»): lo asigna el sistema según el orden.
   const etiquetas = etiquetasSecciones(secciones.map((s) => s.nombre));
+  // Acordes de la canción (sin repetir, en orden de aparición): los que se ofrecen primero en el selector.
+  const acordesCancion = (() => {
+    const vistos = new Set<string>();
+    const lista: AcordeRef[] = [];
+    const agregar = (a: AcordeRef) => {
+      const k = `${a.notaRaiz}|${a.calidad}|${a.notaBajo ?? ""}`;
+      if (vistos.has(k)) return;
+      vistos.add(k);
+      lista.push({ notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo });
+    };
+    const delCuerpo = (c: CuerpoFS) => {
+      c.acordes.forEach(agregar);
+      c.letra.forEach((l) => l.acordes.forEach(agregar));
+    };
+    for (const s of secciones) {
+      delCuerpo(s);
+      s.repeticiones.forEach(delCuerpo);
+    }
+    return lista;
+  })();
 
   const patchFicha = (patch: Partial<FichaEstado>) => setFicha((f) => ({ ...f, ...patch }));
   const patchSeccion = (i: number, patch: Partial<SeccionFS>) => setSecciones((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
@@ -659,6 +689,8 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                     <AcordeChip
                       acorde={a}
                       tonalidad={tonDe(cuerpoSel)}
+                      acordesCancion={acordesCancion}
+                      esCover={ficha.esCover}
                       onSeleccionar={(notaRaiz, calidad, notaBajo) => aplicar({ acordes: ac.map((x, i) => (i === ai ? { ...x, notaRaiz, calidad, notaBajo } : x)) })}
                       onDuracion={(n) => aplicar({ acordes: ac.map((x, i) => (i === ai ? { ...x, duracionCompases: n } : x)) })}
                       onQuitar={() => aplicar({ acordes: ac.filter((_, i) => i !== ai) })}
@@ -683,7 +715,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
           })()}
 
           <div className="mt-3 border-t pt-2.5" style={{ borderColor: LINE }}>
-            <LetraEditor letra={cuerpoSel.letra} tonalidad={tonDe(cuerpoSel)} raizDefault={tonDe(cuerpoSel).raiz} onCambio={(letra) => aplicar({ letra })} />
+            <LetraEditor letra={cuerpoSel.letra} tonalidad={tonDe(cuerpoSel)} acordesCancion={acordesCancion} esCover={ficha.esCover} raizDefault={tonDe(cuerpoSel).raiz} onCambio={(letra) => aplicar({ letra })} />
           </div>
         </section>
       )}

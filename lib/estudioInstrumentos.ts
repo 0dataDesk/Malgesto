@@ -149,7 +149,7 @@ export function variantesDeAcorde(
   };
   if (personalizada && personalizada.length === afinacion.cuerdas.length) agregar(conDedos(personalizada, "hoja"));
   if (instrumento === "bajo") {
-    formasBajo(afinacion, bajoReal ?? raiz, calidad).forEach(agregar);
+    formasBajo(afinacion, raiz, calidad, bajoReal).forEach(agregar);
     cacheVariantes.set(clave, lista);
     return lista;
   }
@@ -168,32 +168,64 @@ export function variantesDeAcorde(
   return res;
 }
 
-// Bajo: la raíz en las tres cuerdas graves, con su quinta una cuerda arriba y su octava dos cuerdas arriba.
-function formasBajo(afinacion: Afinacion, raiz: Nota, calidad: Calidad): Forma[] {
-  // Bajo: las notas del acorde (raíz, tercera, quinta…) en una ventana de 5 trastes, una por cuerda;
-  // la raíz es la que se toca y se resalta en el dibujo.
+// Bajo: el acorde como se toca en las cuerdas (E A D G, o D A D G en Drop D): la nota más grave es la raíz
+// (o el bajo del acorde con barra) y arriba van las demás notas del acorde, una por cuerda y sin repetir
+// ninguna (así no aparece la octava). Se omite la quinta solo en acordes de cuatro notas. Cada forma cabe en una ventana de 5 trastes.
+function formasBajo(afinacion: Afinacion, raiz: Nota, calidad: Calidad, bajo: Nota | null): Forma[] {
+  // Si el acorde no cabe en 5 trastes en ninguna parte (algunos con cuatro notas distintas), se abre la mano hasta 7.
+  const compacta = formasBajoConAbertura(afinacion, raiz, calidad, bajo, 5);
+  return compacta.length ? compacta : formasBajoConAbertura(afinacion, raiz, calidad, bajo, 7);
+}
+
+function formasBajoConAbertura(afinacion: Afinacion, raiz: Nota, calidad: Calidad, bajo: Nota | null, abertura: number): Forma[] {
   const cuerdas = afinacion.cuerdas;
-  const r = NOTAS.indexOf(raiz);
-  const clase = semitonosDeCalidad(calidad).map((s) => (r + s) % 12);
-  const vistas = new Set<string>();
-  const formas: Forma[] = [];
-  for (let w = 0; w <= 9; w++) {
-    const trastes: (number | null)[] = cuerdas.map((m) => {
-      for (let t = w; t <= w + 4; t++) if (clase.includes((m + t) % 12)) return t;
-      return null;
-    });
-    const puestas = trastes.filter((t): t is number => t !== null);
-    if (puestas.length < 3 || !trastes.some((t, i) => t !== null && (cuerdas[i] + t) % 12 === r)) continue;
-    if (!puestas.includes(w) && w > 0) continue;
-    const clave = trastes.join(",");
-    if (vistas.has(clave)) continue;
-    vistas.add(clave);
-    const pisados = puestas.filter((t) => t > 0);
-    const min = pisados.length ? Math.min(...pisados) : 0;
-    const dedos = trastes.map((t) => (t === null || t === 0 ? null : Math.min(4, 1 + (t - min))));
-    formas.push({ trastes, dedos, barre: null, origen: "calculada" });
+  const n = cuerdas.length;
+  const clase = notasDelAcorde(raiz, calidad);
+  const bajoPc = NOTAS.indexOf(bajo ?? raiz);
+  const permitidas = bajo ? [...clase, bajoPc] : clase;
+  const quintaPc = (clase[0] + 7) % 12;
+  const formas: { forma: Forma; t0: number; s0: number; span: number }[] = [];
+  for (let s0 = 0; s0 < n - 1; s0++) {
+    for (let t0 = 0; t0 <= 12; t0++) {
+      if ((cuerdas[s0] + t0) % 12 !== bajoPc) continue;
+      // De todas las formas posibles con esta nota grave se queda la más compacta.
+      let mejor: { trastes: (number | null)[]; span: number } | null = null;
+      const actual: (number | null)[] = cuerdas.map(() => null);
+      actual[s0] = t0;
+      const evaluar = (usadas: Set<number>) => {
+        if (!clase.every((pc) => usadas.has(pc) || (clase.length >= 4 && pc === quintaPc))) return;
+        const puestos = actual.filter((t): t is number => t !== null);
+        const span = Math.max(...puestos) - Math.min(...puestos);
+        if (span > abertura) return;
+        if (!mejor || span < mejor.span) mejor = { trastes: [...actual], span };
+      };
+      const recorrer = (c: number, usadas: Set<number>) => {
+        evaluar(usadas);
+        if (c >= n) return;
+        for (let t = Math.max(0, t0 - abertura); t <= t0 + abertura; t++) {
+          const pc = (cuerdas[c] + t) % 12;
+          if (!permitidas.includes(pc) || usadas.has(pc)) continue;
+          actual[c] = t;
+          recorrer(c + 1, new Set([...usadas, pc]));
+          actual[c] = null;
+        }
+      };
+      recorrer(s0 + 1, new Set([bajoPc]));
+      if (mejor) {
+        const { trastes, span } = mejor as { trastes: (number | null)[]; span: number };
+        const pisados = trastes.filter((t): t is number => t !== null && t > 0);
+        const min = pisados.length ? Math.min(...pisados) : 0;
+        const dedos = trastes.map((t) => (t === null || t === 0 ? null : Math.min(4, 1 + (t - min))));
+        formas.push({ forma: { trastes, dedos, barre: null, origen: "calculada" }, t0, s0, span });
+      }
+    }
   }
-  return formas;
+  const vistas = new Set<string>();
+  return formas
+    .sort((x, y) => x.t0 - y.t0 || x.s0 - y.s0)
+    .filter((x) => (vistas.has(x.forma.trastes.join(",")) ? false : (vistas.add(x.forma.trastes.join(",")), true)))
+    .slice(0, 6)
+    .map((x) => x.forma);
 }
 
 export function formaDeAcorde(instrumento: NombreInstrumento, afinacion: Afinacion, raiz: Nota, calidad: Calidad, variante = 0, bajo: Nota | null = null): Forma | null {
