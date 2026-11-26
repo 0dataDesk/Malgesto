@@ -127,11 +127,76 @@ export function ubicarAcordes(texto: string, pesos: number[]): number[] {
   return out;
 }
 
-// Mueve un acorde al inicio de la palabra anterior (-1) o siguiente (+1).
+// ---- Sílabas (español): para mover un acorde sílaba por sílaba ----------------------------------------------------
+
+const VOCALES = "aeiouáéíóúü";
+const FUERTES = "aeoáéó";
+const INSEPARABLES = new Set(["pr", "br", "tr", "dr", "cr", "gr", "fr", "kr", "pl", "bl", "cl", "gl", "fl", "kl", "ch", "ll", "rr"]);
+
+// Dos vocales seguidas se separan (hiato) si ambas son fuertes o si una es una i/u acentuada; si no, forman diptongo.
+function hiato(a: string, b: string): boolean {
+  if (FUERTES.includes(a) && FUERTES.includes(b)) return true;
+  if (a === "í" || a === "ú" || b === "í" || b === "ú") return true;
+  return a === b;
+}
+
+// Posiciones (dentro de la palabra) donde empieza cada sílaba.
+export function iniciosDeSilaba(palabra: string): number[] {
+  const w = palabra.toLowerCase();
+  const n = w.length;
+  const esVocal = (i: number): boolean => {
+    const c = w[i];
+    if (!c) return false;
+    if (VOCALES.includes(c)) {
+      // La u de «que», «qui», «gue», «gui» no suena como vocal.
+      if (c === "u" && i > 0 && (w[i - 1] === "q" || (w[i - 1] === "g" && "eiéí".includes(w[i + 1] ?? "")))) return false;
+      return true;
+    }
+    return c === "y" && i === n - 1;
+  };
+  const nucleos: [number, number][] = [];
+  for (let i = 0; i < n; ) {
+    if (!esVocal(i)) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j + 1 < n && esVocal(j + 1) && !hiato(w[j], w[j + 1])) j++;
+    nucleos.push([i, j]);
+    i = j + 1;
+  }
+  const inicios = [0];
+  for (let k = 0; k + 1 < nucleos.length; k++) {
+    const desde = nucleos[k][1] + 1;
+    const hasta = nucleos[k + 1][0];
+    const cons = w.slice(desde, hasta);
+    const largo = cons.length;
+    let inicio: number;
+    if (largo <= 1) inicio = desde + (largo === 1 ? 0 : 0);
+    else if (largo === 2) inicio = INSEPARABLES.has(cons) ? desde : desde + 1;
+    else if (largo === 3) inicio = INSEPARABLES.has(cons.slice(1)) ? desde + 1 : desde + 2;
+    else inicio = desde + 2;
+    if (inicio > 0 && inicio < n) inicios.push(inicio);
+  }
+  return inicios;
+}
+
+// Lugares donde puede pararse un acorde al moverlo: el inicio de cada sílaba y los signos de puntuación (la coma, etc.).
+export function paradasDeMovimiento(texto: string): number[] {
+  const paradas = new Set<number>([0]);
+  for (const m of texto.matchAll(/[\p{L}\p{N}'’]+/gu)) {
+    const base = m.index ?? 0;
+    iniciosDeSilaba(m[0]).forEach((i) => paradas.add(base + i));
+  }
+  for (const m of texto.matchAll(/[,.;:!?¿¡…]/g)) paradas.add(m.index ?? 0);
+  return [...paradas].sort((a, b) => a - b);
+}
+
+// Mueve un acorde a la sílaba (o signo) anterior (-1) o siguiente (+1).
 export function moverPosicion(texto: string, pos: number, dir: -1 | 1): number {
-  const palabras = inicioDePalabras(texto);
-  if (dir > 0) return palabras.find((p) => p > pos) ?? pos;
-  const antes = palabras.filter((p) => p < pos);
+  const paradas = paradasDeMovimiento(texto);
+  if (dir > 0) return paradas.find((p) => p > pos) ?? pos;
+  const antes = paradas.filter((p) => p < pos);
   return antes.length ? antes[antes.length - 1] : 0;
 }
 
