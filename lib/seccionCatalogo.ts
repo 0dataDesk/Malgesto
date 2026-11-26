@@ -2,8 +2,9 @@
 // número («Verso 2») lo pone el sistema según el orden: solo se numera si la
 // parte aparece más de una vez en la canción, así que mover, agregar o quitar
 // secciones renumera solo. El check constraint de malgesto_app.secciones acepta
-// la parte con o sin número (migración 20261126000000).
+// la parte con o sin número (migraciones 20261126000000 y 20261126010000).
 export const PARTES_SECCION = [
+  "Preintro",
   "Intro",
   "Verso",
   "Precoro",
