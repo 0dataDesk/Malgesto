@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { CancionCompleta } from "@/lib/cancionesData";
 import { NOTAS, gradoDeNota, simboloAcorde, colorRaizAcorde, colorContrasteTexto, tonosDelAcorde, type Calidad, type Nota } from "@/lib/cancionTeoria";
@@ -8,6 +8,7 @@ import { formatoMMSS } from "@/lib/duracion";
 import { FichaEditor } from "./FichaEditor";
 import { compasesDeSeccion, segundosPorCompas } from "@/lib/cancionTiempo";
 import { colorPorTipoSeccion, tintaPorTipoSeccion } from "@/lib/seccionCatalogo";
+import { PaletaColor } from "./PaletaColor";
 import { ocurrencias, anclasPorTempo, ocurrenciaPorAnclas, posicionEstimada, pesosDeSeccion, type Ancla } from "@/lib/estudioSync";
 import {
   INSTRUMENTOS_ESTUDIO,
@@ -33,8 +34,10 @@ const LINE = "oklch(0.89 0.008 85)";
 const CARD = "oklch(0.99 0.006 85)";
 const BG = "oklch(0.965 0.007 85)";
 const CORAL = "oklch(0.64 0.170 28)";
+const CHIP = "oklch(0.93 0.010 85)";
 const MONO = "var(--font-space-mono), ui-monospace, monospace";
 const DISPLAY = "var(--font-fraunces), serif";
+const NUM = "var(--font-dm-sans), sans-serif";
 
 type Evento = { sec: number; linea: number | null; nota: Nota; calidad: Calidad; bajo: Nota | null; clave: string };
 
@@ -70,6 +73,14 @@ function seccionesPorTempo(cancion: CancionCompleta) {
       : pesosDeSeccion(s.letra.map((l) => ({ largo: l.tipo === "tab" ? 0 : l.texto.length, posiciones: l.acordes.map((a) => a.posicion) })), 0);
     return { vueltas: s.repiteVeces, compases: compasesDeSeccion(s), segundosPorCompas: segundosPorCompas(bpm), pesos, omitir: porDuracion ? omitir : undefined };
   });
+}
+
+// Nombres cortos de las partes para el recorrido de la ejecución: «Verso 2» → «V 2», «Precoro» → «PC».
+const CODIGO_PARTE: Record<string, string> = { Preintro: "PI", Intro: "IN", Verso: "V", Precoro: "PC", Coro: "C", Puente: "PT", Solo: "S", Outro: "OUT", "Sección Única": "SU" };
+function nombreCortoParte(nombre: string): string {
+  const m = /^(.*?)(?:\s+(\d+))?$/.exec(nombre.trim());
+  const base = m?.[1] ?? nombre;
+  return `${CODIGO_PARTE[base] ?? base}${m?.[2] ? ` ${m[2]}` : ""}`;
 }
 
 // ---- Diagrama de acorde (con dedos y cejilla) --------------------------------
@@ -334,6 +345,10 @@ const PREF = "malgesto-estudio";
 const PREF_VAR = "malgesto-estudio-variantes";
 // Anchos posibles de cada recuadro de acorde (de grande a chico); el Estudio elige el mayor con el que caben todos.
 const LADOS_ACORDE = [184, 160, 140, 122, 108, 96, 84, 74];
+// Alto aproximado de una tarjeta de acorde del panel según su lado.
+function altoTarjetaAcorde(l: number): number {
+  return 30 + ((l - 22) * 160) / 150 + (l >= 120 ? 22 : 0);
+}
 const PREF_ADELANTO = "malgesto-estudio-adelanto2-"; // v2 (30/10/26): se descartan los ajustes viejos, hechos contra tiempos que ya se recalcularon
 
 function leer<T>(clave: string, defecto: T): T {
@@ -679,26 +694,32 @@ export function VistaEstudio({
     ro.observe(el);
     return () => ro.disconnect();
   }, [actual]);
-  // Acordes de la canción: nunca menos de 3 por fila; si así no caben todas las filas a lo alto (para verlos completos sin
-  // desplazarse), se sube a más columnas y las tarjetas se achican.
-  const disposicion = useMemo(() => {
+  // Acordes de la canción: hasta 9 van en 3 columnas, hasta 16 en 4 (3×3 y 4×4); el tamaño de cada tarjeta es el mayor con el
+  // que caben TODAS las filas a lo alto del panel (sin desplazarse). Con más de 16 se elige el tamaño que quepa.
+  const nDistintos = distintos.length;
+  const anchoPanel = panelMedida.w;
+  const altoPanel = panelMedida.h;
+  const disposicion = (() => {
     const gap = 8;
-    const util = Math.max(0, panelMedida.w - 32 - 24); // menos padding del panel y de la sección
-    const alto = Math.max(0, panelMedida.h - 150); // menos el texto de arriba, el título y la nota de abajo
-    const n = distintos.length;
+    const util = Math.max(0, anchoPanel - 32 - 24); // menos padding del panel y de la sección
+    const alto = Math.max(0, altoPanel - 150); // menos el texto de arriba, el título y la nota de abajo
+    const n = nDistintos;
     const minLado = LADOS_ACORDE[LADOS_ACORDE.length - 1];
     const maxLado = LADOS_ACORDE[0];
-    if (util === 0 || alto === 0) return { lado: LADOS_ACORDE[3], cols: n <= 9 ? 3 : 4 };
-    let ultima = { lado: minLado, cols: 3 };
-    for (let c = 3; c <= 12; c++) {
-      const l = Math.min(maxLado, Math.floor((util - gap * (c - 1)) / c));
-      if (l < minLado) break;
-      ultima = { lado: l, cols: c };
-      const altoRecuadro = 30 + ((l - 22) * 160) / 150 + (l >= 120 ? 22 : 0);
-      if (Math.ceil(n / c) * (altoRecuadro + gap) <= alto) return ultima;
+    const cols = n <= 9 ? 3 : n <= 16 ? 4 : null;
+    if (util === 0 || alto === 0) return { lado: LADOS_ACORDE[3], cols };
+    if (cols) {
+      const porAncho = Math.max(minLado, Math.min(maxLado, Math.floor((util - gap * (cols - 1)) / cols)));
+      const filas = Math.ceil(n / cols);
+      for (let l = porAncho; l > minLado; l -= 4) if (filas * (altoTarjetaAcorde(l) + gap) <= alto) return { lado: l, cols };
+      return { lado: minLado, cols };
     }
-    return ultima;
-  }, [panelMedida, distintos.length]);
+    for (const l of LADOS_ACORDE) {
+      const columnas = Math.max(1, Math.floor((util + gap) / (l + gap)));
+      if (Math.ceil(n / columnas) * (altoTarjetaAcorde(l) + gap) <= alto) return { lado: l, cols };
+    }
+    return { lado: minLado, cols };
+  })();
   const lado = disposicion.lado;
   const columnasAcordes = disposicion.cols;
 
@@ -743,55 +764,22 @@ export function VistaEstudio({
     fontSize: 12, fontWeight: 700, cursor: "pointer", textDecoration: "none", whiteSpace: "nowrap",
   };
 
-  const tonCalidad = tonalidad.modo === "menor" ? "menor" : "mayor";
-  const colorTon = colorDe(tonalidad.raiz, tonCalidad);
-  const caja: React.CSSProperties = { border: `1px solid ${LINE}`, borderRadius: 11, padding: "3px 16px", background: BG, lineHeight: 1.1, textAlign: "center", minWidth: 96 };
-  const etiquetaCaja: React.CSSProperties = { fontFamily: MONO, fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase" };
 
   return (
     <div className="flex min-h-screen flex-col xl:h-screen" style={{ background: BG, color: INK }}>
       {/* Cabecera: volver y nombre | datos de la canción (centrados) | cambiar tono y editar */}
-      <header className="grid items-center gap-x-4 gap-y-2 px-5 py-2.5 xl:grid-cols-[1fr_auto_1fr]" style={{ borderBottom: `1px solid ${LINE}`, background: CARD }}>
-        <div className="flex min-w-0 items-center gap-3">
-          <Link
-            href={volverHref}
-            className="flex-none no-underline"
-            style={{ background: "oklch(0.92 0.03 262)", color: "oklch(0.33 0.09 262)", border: "1px solid oklch(0.82 0.05 262)", borderRadius: 99, padding: "5px 13px 5px 10px", fontSize: 13, fontWeight: 700 }}
-          >
-            ‹ Canciones
-          </Link>
-          <div className="min-w-0">
-            <h1 className="truncate" style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 22, lineHeight: 1.05 }}>{cancion.titulo}</h1>
-            {cancion.autor && <div className="truncate" style={{ fontSize: 12, color: MUTED }}>{cancion.autor}</div>}
-          </div>
-        </div>
-
-        <div className="flex items-center justify-center gap-2.5">
-          <div title="Tonalidad de la canción (se edita en Editar)" style={{ ...caja, background: colorTon, borderColor: "transparent", color: colorContrasteTexto(colorTon) }}>
-            <div style={{ ...etiquetaCaja, opacity: 0.85 }}>Tonalidad</div>
-            <div style={{ fontFamily: MONO, fontSize: 15, fontWeight: 800 }}>
-              {tonalidad.raiz}{tonalidad.modo === "menor" ? "m" : ""}
+      <header className="px-5 pb-1 pt-3">
+        <Link href={volverHref} className="mb-2 flex w-fit items-center no-underline" style={{ fontSize: 13, color: MUTED }}>
+          ‹ Canciones
+        </Link>
+        <section className="flex flex-wrap items-start gap-x-6 gap-y-3 rounded-2xl p-4" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+          <div className="min-w-0 flex-1" style={{ minWidth: 260 }}>
+            <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED, marginBottom: 3 }}>
+              {cancion.esCover ? "Cover" : `Propia${cancion.esBorrador ? " · borrador" : ""}`}
             </div>
-          </div>
-          <div title="Tempo de la canción (se edita en Editar)" style={caja}>
-            <div style={{ ...etiquetaCaja, color: MUTED }}>BPM</div>
-            <div style={{ fontFamily: MONO, fontSize: 15, fontWeight: 800 }}>{cancion.bpm ? cancion.bpm : "—"}</div>
-          </div>
-          {/* Foco del capo: chico, se prende solo cuando la canción lo usa */}
-          <div
-            className="flex items-center gap-1.5"
-            title={capoInstr > 0 ? `Capo en el traste ${capoInstr}: suena en ${transponerNota(tonalidad.raiz, capoInstr)}` : cancion.capo > 0 ? `El capo solo es de guitarra: aquí los acordes ya van como suenan (la guitarra lleva capo ${cancion.capo})` : "Esta canción no usa capo"}
-          >
-            <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED }}>Capo</span>
-            <span
-              style={{ width: 24, height: 24, borderRadius: 99, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontWeight: 800, fontSize: 12, background: capoInstr > 0 ? CORAL : "transparent", color: capoInstr > 0 ? "white" : MUTED, border: `1.5px solid ${capoInstr > 0 ? CORAL : LINE}`, boxShadow: cancion.capo > 0 ? `0 0 10px 2px color-mix(in srgb, ${CORAL} 55%, transparent)` : "none" }}
-            >
-              {capoInstr > 0 ? capoInstr : ""}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-end gap-2">
+            <h1 className="truncate" style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 26, lineHeight: 1.08 }}>{cancion.titulo}</h1>
+            {cancion.autor && <div className="truncate" style={{ fontSize: 14, color: MUTED }}>{cancion.autor}</div>}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
           {/* Instrumento: tres botones; la afinación solo se pregunta en el bajo (el único con dos). */}
           <div role="group" aria-label="Instrumento" className="flex items-center" style={{ marginRight: 4 }}>
             {(Object.keys(INSTRUMENTOS_ESTUDIO) as NombreInstrumento[]).map((k, n, todos) => {
@@ -849,15 +837,40 @@ export function VistaEstudio({
           <button style={boton} onClick={() => setSemi((v) => v - 1)} aria-label="Bajar medio tono" title="Bajar medio tono">−</button>
           <span style={{ fontFamily: MONO, fontSize: 12, minWidth: 22, textAlign: "center" }}>{semi > 0 ? `+${semi}` : semi}</span>
           <button style={boton} onClick={() => setSemi((v) => v + 1)} aria-label="Subir medio tono" title="Subir medio tono">+</button>
-          {puedeEditar && (
-            <button style={{ ...boton, marginLeft: 6 }} onClick={() => setEditando(true)}>Editar</button>
-          )}
-        </div>
+            </div>
+          </div>
+          <div className="ml-auto flex flex-col items-end gap-2">
+            <PaletaColor tonica={{ raiz: tonalidad.raiz, modo: tonalidad.modo }} />
+            <div className="flex flex-wrap items-center justify-end gap-1.5">
+              {([
+                [cancion.bpm ? `${cancion.bpm} BPM` : "— BPM", "Tempo (se edita en Editar)"],
+                [duracionMs > 0 ? formatoMMSS(Math.round(duracionMs / 1000)) : "—", "Duración"],
+                [`${cancion.totalCompases} compases`, "Compases"],
+              ] as [string, string][]).map(([txt, titulo]) => (
+                <span key={titulo} title={titulo} style={{ background: CHIP, borderRadius: 8, padding: "3px 9px", fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontWeight: 700, fontSize: 12, color: MUTED }}>
+                  {txt}
+                </span>
+              ))}
+              {capoInstr > 0 ? (
+                <span title={`Capo en el traste ${capoInstr}: suena en ${transponerNota(tonalidad.raiz, capoInstr)}`} style={{ background: CORAL, color: "white", borderRadius: 8, padding: "3px 9px", fontFamily: NUM, fontWeight: 700, fontSize: 12 }}>
+                  capo {capoInstr}
+                </span>
+              ) : cancion.capo > 0 ? (
+                <span title={`El capo solo es de guitarra: aquí los acordes ya van como suenan (la guitarra lleva capo ${cancion.capo})`}  style={{ border: `1px dashed ${LINE}`, borderRadius: 8, padding: "2px 8px", fontFamily: NUM, fontWeight: 600, fontSize: 11, color: MUTED }}>
+                  capo {cancion.capo} (guitarra)
+                </span>
+              ) : null}
+              {puedeEditar && (
+                <button type="button" style={{ ...boton, padding: "2px 9px", marginLeft: 4 }} onClick={() => setEditando(true)} title="Editar" aria-label="Editar">✏️</button>
+              )}
+            </div>
+          </div>
+        </section>
       </header>
 
       {/* Recorrido de la canción (el mismo modelo del editor): cada parte con su fondo, sus acordes por color y la barra que avanza */}
-      <div className="px-5 pb-1.5 pt-3" style={{ background: INK }}>
-        <div className="relative overflow-hidden rounded-xl" style={{ height: 50, background: "oklch(0.2 0.03 262)" }}>
+      <div className="px-5 pb-1.5 pt-2">
+        <div className="relative overflow-hidden rounded-2xl" style={{ height: 52, background: CARD, border: `1px solid ${LINE}` }}>
           <div className="relative flex h-full">
             {faja.partes.map((p) => {
               const s = cancion.secciones[p.si];
@@ -866,10 +879,10 @@ export function VistaEstudio({
               return (
                 <div
                   key={s.id}
-                  className="relative flex min-w-0 flex-col justify-between"
-                  style={{ flex: `${p.ancho} 1 0`, background: colorPorTipoSeccion(s.nombre), color: tinta, borderLeft: p.si === 0 ? "none" : "2px solid oklch(0.2 0.03 262)", padding: "3px 4px 4px", boxShadow: aqui ? "inset 0 0 0 2px white" : "none" }}
+                  className="relative flex min-w-0 flex-col items-stretch justify-between"
+                  style={{ flex: `${p.ancho} 1 0`, background: colorPorTipoSeccion(s.nombre), color: tinta, borderLeft: p.si === 0 ? "none" : `1px solid ${LINE}`, padding: "4px 4px 5px", boxShadow: aqui ? `inset 0 0 0 2px ${INK}` : "none" }}
                 >
-                  <span className="truncate" style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 11, lineHeight: 1 }}>{s.nombre}</span>
+                  <span className="truncate text-center" title={s.nombre} style={{ fontFamily: NUM, fontWeight: 800, fontSize: 11, lineHeight: 1, letterSpacing: "0.02em" }}>{nombreCortoParte(s.nombre)}</span>
                   <div className="flex w-full items-end gap-px" style={{ height: 22 }}>
                     {p.tiles.map((t, ti) => {
                       if (t.ev === null) return <span key={ti} style={{ flex: `${t.dur} 1 0`, minWidth: 2, height: 8, borderRadius: 2, background: "rgba(0,0,0,0.12)" }} />;
@@ -881,7 +894,7 @@ export function VistaEstudio({
                           key={ti}
                           onClick={() => elegir(t.ev as number)}
                           title={`${simboloAcorde(e.nota, e.calidad, e.bajo)} · ${gradoEnTonalidad(e.nota, e.calidad, tonalidad).romano}`}
-                          style={{ flex: `${t.dur} 1 0`, minWidth: 2, height: esActual ? 22 : 14, border: "none", padding: 0, cursor: "pointer", borderRadius: 3, background: colorDe(e.nota, e.calidad), opacity: esActual ? 1 : t.ev < actualIdx ? 0.5 : 1, boxShadow: esActual ? "0 0 0 1px black, 0 0 0 3px white" : "none" }}
+                          style={{ flex: `${t.dur} 1 0`, minWidth: 2, height: esActual ? 22 : 14, border: "none", padding: 0, cursor: "pointer", borderRadius: 3, background: colorDe(e.nota, e.calidad), opacity: esActual ? 1 : t.ev < actualIdx ? 0.5 : 1, boxShadow: esActual ? "0 0 0 1px white, 0 0 0 3px black" : "none" }}
                         />
                       );
                     })}
@@ -895,15 +908,15 @@ export function VistaEstudio({
             const x = Math.min(1, Math.max(0, xDeTiempo(Math.max(0, progresoMs) + adelanto)));
             return (
               <>
-                <div aria-hidden style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: `${x * 100}%`, background: "rgba(255,255,255,0.10)", pointerEvents: "none" }} />
-                <div aria-hidden style={{ position: "absolute", top: 0, bottom: 0, left: `calc(${x * 100}% - 1px)`, width: 2, background: "white", boxShadow: "0 0 0 1px rgba(0,0,0,0.55)", pointerEvents: "none" }} />
+                <div aria-hidden style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: `${x * 100}%`, background: "rgba(0,0,0,0.07)", pointerEvents: "none" }} />
+                <div aria-hidden style={{ position: "absolute", top: 0, bottom: 0, left: `calc(${x * 100}% - 1px)`, width: 2, background: INK, boxShadow: "0 0 0 1px rgba(255,255,255,0.85)", pointerEvents: "none" }} />
               </>
             );
           })()}
         </div>
         {/* Tiempo corrido y duración */}
-        <div className="mt-1.5 flex items-center justify-between gap-2" style={{ fontFamily: MONO, fontSize: 9, color: "oklch(0.8 0.02 262)" }}>
-          <span style={{ fontSize: 13, fontWeight: 800, color: "white", minWidth: 40 }}>{formatoMMSS(Math.floor(Math.max(0, progresoMs) / 1000))}</span>
+        <div className="mt-1 flex items-center justify-between gap-2" style={{ fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontSize: 11, color: MUTED }}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: INK, minWidth: 40 }}>{formatoMMSS(Math.floor(Math.max(0, progresoMs) / 1000))}</span>
           <span>{duracionMs > 0 ? formatoMMSS(Math.round(duracionMs / 1000)) : "—"}</span>
         </div>
       </div>
@@ -930,11 +943,16 @@ export function VistaEstudio({
               const parte = cancion.secciones[e.sec]?.nombre ?? "";
               const rotuloParte = pos === 0 || eventos[cola[pos - 1]]?.sec !== e.sec;
               return (
+                <Fragment key={pos}>
+                {rotuloParte && parte && (
+                  <div className="flex w-full items-center gap-2" style={{ marginTop: pos === 0 ? 0 : 2 }}>
+                    <span style={{ flex: 1, borderTop: `1px dotted ${MUTED}`, opacity: 0.6 }} />
+                    <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED }}>{parte}</span>
+                  </div>
+                )}
                 <div
-                  key={pos}
-                  style={{ position: "relative", overflow: "hidden", width: abierto ? "100%" : ancho + 14, background: fondo, color: ink, borderRadius: 14, padding: "7px 7px 7px 11px", outline: activo ? `3px solid ${CORAL}` : "none", outlineOffset: 1, transition: "width .25s", opacity: pos === 0 ? 1 : 1 - pos * 0.08 }}
+                  style={{ width: abierto ? "100%" : ancho + 14, background: fondo, color: ink, borderRadius: 14, padding: 7, outline: activo ? `3px solid ${CORAL}` : "none", outlineOffset: 1, transition: "width .25s", opacity: pos === 0 ? 1 : 1 - pos * 0.08 }}
                 >
-                  <span aria-hidden title={parte} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 7, background: colorPorTipoSeccion(parte), borderRight: "1px solid rgba(0,0,0,0.3)" }} />
                   <div className="relative">
                     <button
                       onClick={() => {
@@ -957,7 +975,6 @@ export function VistaEstudio({
                       <div className="flex items-baseline gap-1.5" style={{ alignSelf: "flex-start", paddingLeft: 3 }}>
                         <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: pos === 0 ? 24 : pos === 1 ? 18 : 14, lineHeight: 1 }}>{simboloAcorde(e.nota, e.calidad, e.bajo)}</span>
                         <span style={{ fontSize: pos === 0 ? 11 : 10, opacity: 0.9 }}>{g.romano}{pos === 0 ? ` · ${veces}×` : ""}</span>
-                        {rotuloParte && parte && <span style={{ marginLeft: 6, fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", background: "rgba(255,255,255,0.28)", borderRadius: 5, padding: "1px 5px" }}>{parte}</span>}
                       </div>
                     </button>
                     {pos === 0 && vs.length > 1 && (
@@ -986,6 +1003,7 @@ export function VistaEstudio({
                     </div>
                   )}
                 </div>
+                </Fragment>
               );
             })}
             {cola.length === 0 && <p style={{ fontSize: 12, color: MUTED }}>Esta canción aún no tiene acordes.</p>}
@@ -1117,7 +1135,7 @@ export function VistaEstudio({
                 <div className="flex items-center justify-between gap-2">
                   <Titulo>Acordes de la canción · {distintos.length}</Titulo>
                 </div>
-                <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${columnasAcordes}, minmax(0, 1fr))` }}>
+                <div className="grid gap-2" style={{ gridTemplateColumns: columnasAcordes ? `repeat(${columnasAcordes}, minmax(0, ${lado}px))` : `repeat(auto-fill, minmax(${lado}px, 1fr))`, justifyContent: columnasAcordes ? "center" : undefined }}>
                   {distintos.map((d) => {
                     const k = claveDe(d.nota, d.calidad, d.bajo);
                     const base = colorDe(d.nota, d.calidad);
