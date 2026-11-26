@@ -137,7 +137,7 @@ function cicloRepetido(acordes: { notaRaiz: Nota; calidad: Calidad; notaBajo: No
 }
 
 // Letra: solo texto. Cada línea toma sus acordes, en orden, de la fila de arriba (una sola captura) y los pone sobre
-// el texto según su duración; se pueden pasar acordes de una línea a otra (− / +) y mover cada uno por palabras (◂ ▸).
+// el texto según su duración; se pueden pasar acordes de una línea a otra (− / +) y mover cada uno por sílabas (◂ ▸).
 function LetraEditor({
   letra,
   progresion,
@@ -203,9 +203,9 @@ function LetraEditor({
                 const color = colorRaizAcorde(ac.notaRaiz, ac.calidad);
                 return (
                   <span key={idx} style={{ display: "flex", alignItems: "center", gap: 2, borderRadius: 5, padding: "0 3px", background: color, fontFamily: MONO, fontWeight: 700, fontSize: 10, color: colorContrasteTexto(color) }}>
-                    <button type="button" aria-label="Mover a la palabra anterior" onClick={() => mover(li, idx, -1)} style={{ opacity: 0.75 }}>◂</button>
+                    <button type="button" aria-label="Mover a la sílaba anterior" title="Una sílaba atrás (o la coma)" onClick={() => mover(li, idx, -1)} style={{ opacity: 0.75 }}>◂</button>
                     {simboloAcorde(ac.notaRaiz, ac.calidad, ac.notaBajo)}
-                    <button type="button" aria-label="Mover a la palabra siguiente" onClick={() => mover(li, idx, 1)} style={{ opacity: 0.75 }}>▸</button>
+                    <button type="button" aria-label="Mover a la sílaba siguiente" title="Una sílaba adelante (o la coma)" onClick={() => mover(li, idx, 1)} style={{ opacity: 0.75 }}>▸</button>
                   </span>
                 );
               })}

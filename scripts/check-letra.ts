@@ -1,5 +1,5 @@
 // Revisa la lógica de una sola captura de acordes (ciclos de la fila y acordes de la letra).
-import { agruparCiclos, cambiarVeces, reemplazarEnCiclo, quitarEnCiclo, repetirUltimos, ubicarAcordes, sincronizarLetra, moverFrontera, cambiarTexto, moverPosicion, type AcordeFila, type LineaLetra } from "../lib/cancionLetra";
+import { iniciosDeSilaba, paradasDeMovimiento, agruparCiclos, cambiarVeces, reemplazarEnCiclo, quitarEnCiclo, repetirUltimos, ubicarAcordes, sincronizarLetra, moverFrontera, cambiarTexto, moverPosicion, type AcordeFila, type LineaLetra } from "../lib/cancionLetra";
 import type { Nota, Calidad } from "../lib/cancionTeoria";
 
 const errores: string[] = [];
@@ -30,7 +30,13 @@ if (nombres(repetirUltimos([a("G"), a("D")], 2, 3)) !== "G D G D G D") falla("re
 // Ubicar acordes: el primero al inicio, los demás al inicio de una palabra.
 const pos = ubicarAcordes("Voy a arder braceo en espiral", [1, 1, 1, 1]);
 if (pos[0] !== 0 || pos.some((p, i) => i > 0 && p < pos[i - 1])) falla(`ubicar: ${pos}`);
-if (moverPosicion("uno dos tres", 4, 1) !== 8 || moverPosicion("uno dos tres", 4, -1) !== 0) falla("mover posición");
+if (moverPosicion("uno dos tres", 4, 1) !== 8 || moverPosicion("uno dos tres", 4, -1) !== 1) falla("mover posición");
+// Sílabas: el acorde puede entrar en «ré» de «Llegaré» o en la coma de «No, que».
+const sil = (p: string) => iniciosDeSilaba(p).join();
+const casos: [string, string][] = [["Llegaré", "0,3,5"], ["solo", "0,2"], ["hasta", "0,3"], ["umbral", "0,2"], ["cuento", "0,4"], ["atreveré", "0,1,4,6"], ["puedo", "0,3"], ["perder", "0,3"], ["soy", "0"], ["que", "0"], ["guitarra", "0,3,5"], ["país", "0,2"], ["construir", "0,4"]];
+for (const [p, esperado] of casos) if (sil(p) !== esperado) falla(`sílabas de «${p}»: ${sil(p)} (debía ser ${esperado})`);
+if (paradasDeMovimiento("No, que puedo perder").slice(0, 3).join() !== "0,2,4") falla(`paradas de «No, que»: ${paradasDeMovimiento("No, que puedo perder")}`);
+if (moverPosicion("Llegaré, solo hasta el umbral", 0, 1) !== 3) falla("de «Lle» a «ga»");
 
 // Letra: 8 acordes en 2 líneas = 4 y 4; se pasa uno de una a otra; un cambio de acorde arriba se ve en la letra.
 const prog = [a("G"), a("D"), a("A", "menor"), a("C"), a("G"), a("D"), a("A", "menor"), a("C")];
