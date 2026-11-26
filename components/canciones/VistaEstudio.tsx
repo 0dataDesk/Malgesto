@@ -679,23 +679,28 @@ export function VistaEstudio({
     ro.observe(el);
     return () => ro.disconnect();
   }, [actual]);
-  // Columnas de los recuadros: nunca menos de 3 por fila (hasta 9 acordes, 3×3, se ven grandes) y hasta 16 en 4×4;
-  // con más de 16 se elige el tamaño que quepa.
-  const columnasAcordes = distintos.length <= 9 ? 3 : distintos.length <= 16 ? 4 : null;
-  const lado = useMemo(() => {
+  // Acordes de la canción: nunca menos de 3 por fila; si así no caben todas las filas a lo alto (para verlos completos sin
+  // desplazarse), se sube a más columnas y las tarjetas se achican.
+  const disposicion = useMemo(() => {
     const gap = 8;
     const util = Math.max(0, panelMedida.w - 32 - 24); // menos padding del panel y de la sección
     const alto = Math.max(0, panelMedida.h - 150); // menos el texto de arriba, el título y la nota de abajo
-    if (util === 0 || alto === 0) return LADOS_ACORDE[3];
-    if (columnasAcordes) return Math.min(LADOS_ACORDE[0], Math.max(LADOS_ACORDE[LADOS_ACORDE.length - 1], Math.floor((util - gap * (columnasAcordes - 1)) / columnasAcordes)));
-    for (const l of LADOS_ACORDE) {
-      const columnas = Math.max(1, Math.floor((util + gap) / (l + gap)));
-      const filas = Math.ceil(distintos.length / columnas);
+    const n = distintos.length;
+    const minLado = LADOS_ACORDE[LADOS_ACORDE.length - 1];
+    const maxLado = LADOS_ACORDE[0];
+    if (util === 0 || alto === 0) return { lado: LADOS_ACORDE[3], cols: n <= 9 ? 3 : 4 };
+    let ultima = { lado: minLado, cols: 3 };
+    for (let c = 3; c <= 12; c++) {
+      const l = Math.min(maxLado, Math.floor((util - gap * (c - 1)) / c));
+      if (l < minLado) break;
+      ultima = { lado: l, cols: c };
       const altoRecuadro = 30 + ((l - 22) * 160) / 150 + (l >= 120 ? 22 : 0);
-      if (filas * (altoRecuadro + gap) <= alto) return l;
+      if (Math.ceil(n / c) * (altoRecuadro + gap) <= alto) return ultima;
     }
-    return LADOS_ACORDE[LADOS_ACORDE.length - 1];
-  }, [panelMedida, distintos.length, columnasAcordes]);
+    return ultima;
+  }, [panelMedida, distintos.length]);
+  const lado = disposicion.lado;
+  const columnasAcordes = disposicion.cols;
 
   const claveVar = (nota: Nota, calidad: Calidad, bajo?: Nota | null) => `${instrumento}|${afinacion.id}|${claveDe(nota, calidad, bajo)}`;
   // Forma tomada de la hoja de la canción (solo sin transponer: transpuesta ya no sería la misma).
@@ -1112,7 +1117,7 @@ export function VistaEstudio({
                 <div className="flex items-center justify-between gap-2">
                   <Titulo>Acordes de la canción · {distintos.length}</Titulo>
                 </div>
-                <div className="grid gap-2" style={{ gridTemplateColumns: columnasAcordes ? `repeat(${columnasAcordes}, minmax(0, 1fr))` : `repeat(auto-fill, minmax(${lado}px, 1fr))` }}>
+                <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${columnasAcordes}, minmax(0, 1fr))` }}>
                   {distintos.map((d) => {
                     const k = claveDe(d.nota, d.calidad, d.bajo);
                     const base = colorDe(d.nota, d.calidad);
