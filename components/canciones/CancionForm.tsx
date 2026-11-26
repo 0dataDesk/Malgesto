@@ -14,6 +14,8 @@ import { FichaCampos, fichaAInput, fichaDesdeCancion, type FichaEstado } from ".
 
 const MONO = "var(--font-space-mono), ui-monospace, monospace";
 const DISPLAY = "var(--font-fraunces), sans-serif";
+// Cifras (compases, tiempos, repeticiones): sans con números de ancho parejo; en la mono un 6 se confundía con un 8.
+const NUM = "var(--font-dm-sans), sans-serif";
 const BG = "oklch(0.965 0.007 85)";
 const CARD = "oklch(0.99 0.005 85)";
 const CARD2 = "oklch(0.975 0.006 85)";
@@ -107,7 +109,7 @@ function AcordeChip({
           const n = limpio === "" ? 0 : Number(limpio);
           onDuracion(enTiempos ? n / 4 : n);
         }}
-        style={{ width: "2em", textAlign: "center", borderRadius: 5, padding: "1px 0", background: "rgba(255,255,255,.85)", border: "1px solid rgba(0,0,0,.1)", fontFamily: MONO, fontSize: 10, color: INK }}
+        style={{ width: "2em", textAlign: "center", borderRadius: 5, padding: "1px 0", background: "rgba(255,255,255,.85)", border: "1px solid rgba(0,0,0,.1)", fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontWeight: 700, fontSize: 11, color: INK }}
       />
       <button
         type="button"
@@ -459,7 +461,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
   };
 
   const chip = (txt: React.ReactNode, titulo: string) => (
-    <span title={titulo} style={{ background: CHIP, borderRadius: 8, padding: "3px 9px", fontFamily: MONO, fontWeight: 700, fontSize: 11, color: MUTED }}>
+    <span title={titulo} style={{ background: CHIP, borderRadius: 8, padding: "3px 9px", fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontWeight: 700, fontSize: 12, color: MUTED }}>
       {txt}
     </span>
   );
@@ -486,7 +488,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="min-w-0 flex-1">
             <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED, marginBottom: 3 }} title={ficha.esCover ? "Cover" : "Canción propia"}>
-              {ficha.esCover ? "🎧 Cover" : `💡 Propia${ficha.esBorrador ? " · borrador" : ""}`}
+              {ficha.esCover ? "Cover" : `Propia${ficha.esBorrador ? " · borrador" : ""}`}
             </div>
             <div className="truncate" style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 24, lineHeight: 1.1 }}>{ficha.titulo || "Canción nueva"}</div>
             {ficha.autor && <div className="truncate text-sm" style={{ color: MUTED }}>{ficha.autor}</div>}
@@ -544,7 +546,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                   <span className="flex items-center gap-1.5">
                     <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: 9, opacity: 0.6 }}>{i + 1}</span>
                     <span className="truncate" style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 13 }}>{etiquetas[i]}</span>
-                    {veces > 1 && <span className="ml-auto flex-none" style={{ fontFamily: MONO, fontWeight: 800, fontSize: 10 }}>↻×{veces}</span>}
+                    {veces > 1 && <span className="ml-auto flex-none" style={{ fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontWeight: 800, fontSize: 11 }}>↻×{veces}</span>}
                   </span>
                   <span className="mt-1 flex gap-px" style={{ minHeight: 18 }}>
                     {visibles.length === 0 && <span style={{ fontFamily: MONO, fontSize: 9, opacity: 0.6 }}>sin acordes</span>}
@@ -557,7 +559,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                       );
                     })}
                   </span>
-                  <span className="mt-1 flex items-center gap-1.5" style={{ fontFamily: MONO, fontSize: 9, opacity: 0.75 }}>
+                  <span className="mt-1 flex items-center gap-1.5" style={{ fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontWeight: 600, fontSize: 10, opacity: 0.8 }}>
                     <span>{compases}c</span>
                     {bpm > 0 && <span>{mmssLocal(compases * segundosPorCompas(Number(s.bpm) || bpm))}</span>}
                     {s.letra.length > 0 && <span className="ml-auto">♪{s.letra.length}</span>}
@@ -586,7 +588,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
         <section className="rounded-2xl px-3 py-2.5" style={{ background: CARD, border: `2px solid ${ACCENT}` }}>
           <div className="flex flex-wrap items-center gap-2.5">
             <SeccionNombreSelector valor={sec.nombre} etiqueta={etiquetas[si]} onCambio={(nombre) => patchSeccion(si, { nombre })} />
-            <span style={{ fontFamily: MONO, fontSize: 10, color: FAINT }}>
+            <span style={{ fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontWeight: 600, fontSize: 12, color: MUTED }}>
               {compasesSeccionTotal(sec)} compases{bpm > 0 ? ` · ${mmssLocal(compasesSeccionTotal(sec) * segundosPorCompas(Number(cuerpoSel.bpm) || bpm))}` : ""}
             </span>
             <div className="ml-auto flex items-center gap-1">
@@ -630,7 +632,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                           () => aplicarAcordes(quitarEnCiclo(ac, it, o))
                         )
                       )}
-                      <span className="flex items-center gap-1" style={{ fontFamily: MONO, fontWeight: 800, fontSize: 11, color: ACCENT }}>
+                      <span className="flex items-center gap-1" style={{ fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontWeight: 800, fontSize: 12, color: ACCENT }}>
                         ↻
                         <button type="button" aria-label="Una repetición menos" onClick={() => aplicarAcordes(cambiarVeces(ac, it, it.veces - 1))} style={botonMini}>−</button>
                         ×{it.veces}
