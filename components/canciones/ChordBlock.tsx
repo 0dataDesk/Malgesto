@@ -1,6 +1,7 @@
 import { simboloAcorde, tonosDelAcorde, colorRaizAcorde, colorExtension, colorContrasteTexto } from "@/lib/cancionTeoria";
 import type { AcordeGuardado } from "@/lib/cancionesData";
 import { etiquetaDuracion } from "@/lib/cancionTiempo";
+import { COLOR_SILENCIO, SIMBOLO_SILENCIO } from "@/lib/acordeSilencio";
 
 export type Densidad = "grande" | "media" | "compacta";
 
@@ -51,6 +52,17 @@ export function ChordBlock({
   acorde: AcordeGuardado;
   densidad?: Densidad;
 }) {
+  if (acorde.silencio) {
+    return (
+      <div className={`rounded-xl ${TAMANOS[densidad].padding}`} style={{ background: COLOR_SILENCIO, border: "1px solid oklch(0.89 0.008 85)" }}>
+        <div className="flex items-start justify-between gap-1.5">
+          <div className={`${TAMANOS[densidad].simbolo} font-extrabold leading-tight`} style={{ color: COLOR_NOTA_PILL, fontFamily: "var(--font-fraunces), sans-serif" }}>{SIMBOLO_SILENCIO}</div>
+          <span className={`shrink-0 rounded-md px-1.5 py-0.5 font-mono ${TAMANOS[densidad].badge}`} style={{ background: "rgba(0,0,0,0.12)", color: COLOR_NOTA_PILL }}>{etiquetaDuracion(acorde.duracionCompases)}</span>
+        </div>
+        <div className="mt-1 font-mono text-[10px]" style={{ color: COLOR_NOTA_PILL }}>silencio</div>
+      </div>
+    );
+  }
   const tonos = tonosDelAcorde(acorde.notaRaiz, acorde.calidad);
   const colorRaiz = colorRaizAcorde(acorde.notaRaiz, acorde.calidad);
   const cardOscura = colorContrasteTexto(colorRaiz) === "#ffffff";

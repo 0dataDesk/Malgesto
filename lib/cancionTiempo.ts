@@ -18,7 +18,7 @@ export function compasesDeSeccion(s: {
   numeroCompases: number | null;
   acordes: { duracionCompases: number }[];
 }): number {
-  if (s.numeroCompases !== null && s.numeroCompases > 0) return s.numeroCompases;
+  // Siempre la suma de lo capturado (acordes y silencios); `numeroCompases` quedó sin uso.
   return s.acordes.reduce((total, a) => total + Number(a.duracionCompases), 0);
 }
 

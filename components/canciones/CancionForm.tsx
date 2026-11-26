@@ -1,12 +1,13 @@
 "use client";
 
 import { Fragment, useState, useTransition } from "react";
-import { NOTAS, type Nota, type Modo, type Calidad, simboloAcorde, colorRaizAcorde, colorContrasteTexto, colorExtension, tonosDelAcorde } from "@/lib/cancionTeoria";
+import { NOTAS, type Nota, type Modo, type Calidad, simboloAcorde, colorRaizAcorde, colorContrasteTexto } from "@/lib/cancionTeoria";
 import { PARTES_SECCION, colorPorTipoSeccion, tintaPorTipoSeccion, etiquetasSecciones, parteDe, type NombreSeccion } from "@/lib/seccionCatalogo";
 import { segundosPorCompas } from "@/lib/cancionTiempo";
 import type { CancionCompleta, CancionInput, SeccionInput, SeccionBaseInput, LetraLineaInput } from "@/lib/cancionesData";
 import { crearCancionAction, actualizarCancionAction, eliminarCancionAction, subirAudioAction, quitarAudioAction } from "@/app/canciones/actions";
 import { AcordeSelector, type AcordeRef } from "./AcordeSelector";
+import { colorOSilencio, simboloOSilencio, SIMBOLO_SILENCIO } from "@/lib/acordeSilencio";
 import { FichaCampos, fichaAInput, fichaDesdeCancion, type FichaEstado } from "./FichaCampos";
 
 const MONO = "var(--font-space-mono), ui-monospace, monospace";
@@ -23,18 +24,8 @@ const ACCENT = "oklch(0.64 0.170 28)";
 
 const inputStyle = { background: CARD, borderColor: LINE, color: INK } as const;
 const activoStyle = { background: ACCENT, color: "oklch(0.99 0.006 85)" } as const;
-const inactivoStyle = { background: CHIP, color: "oklch(0.4 0.044 262)" } as const;
 
-const NATURALES = NOTAS.filter((n) => !n.includes("#")) as Nota[];
-function esNota(natural: string, sostenido: boolean): Nota {
-  const c = `${natural}${sostenido ? "#" : ""}`;
-  return (NOTAS as readonly string[]).includes(c) ? (c as Nota) : (natural as Nota);
-}
-function puedeSostenido(natural: string): boolean {
-  return (NOTAS as readonly string[]).includes(`${natural}#`);
-}
-
-type AcordeFS = { notaRaiz: Nota; calidad: Calidad; notaBajo: Nota | null; duracionCompases: number };
+type AcordeFS = { notaRaiz: Nota; calidad: Calidad; notaBajo: Nota | null; duracionCompases: number; silencio?: boolean };
 type LetraFS = { texto: string; tipo: "letra" | "tab"; acordes: { posicion: number; notaRaiz: Nota; calidad: Calidad; notaBajo: Nota | null }[] };
 type CuerpoFS = {
   acordes: AcordeFS[];
@@ -94,13 +85,17 @@ function AcordeChip({
   onDuracion: (n: number) => void;
   onQuitar: () => void;
 }) {
-  const color = colorRaizAcorde(acorde.notaRaiz, acorde.calidad);
+  const color = colorOSilencio(acorde);
   const ink = colorContrasteTexto(color);
   // Si dura menos de un compás se muestra en tiempos (4 tiempos = 1 compás); la unidad se cambia tocando la letra.
   const [enTiempos, setEnTiempos] = useState(acorde.duracionCompases > 0 && acorde.duracionCompases < 1);
   return (
     <div className="flex items-center gap-1" style={{ borderRadius: 9, padding: "2px 5px 2px 2px", background: color, border: "1px solid rgba(0,0,0,.14)" }}>
-      <AcordeSelector compacto tonalidad={tonalidad} acordesCancion={acordesCancion} esCover={esCover} notaRaiz={acorde.notaRaiz} calidad={acorde.calidad} notaBajo={acorde.notaBajo} onSeleccionar={onSeleccionar} />
+      {acorde.silencio ? (
+        <span title="Silencio" style={{ padding: "1px 5px", fontFamily: MONO, fontWeight: 700, fontSize: 11, color: INK }}>{SIMBOLO_SILENCIO} silencio</span>
+      ) : (
+        <AcordeSelector compacto tonalidad={tonalidad} acordesCancion={acordesCancion} esCover={esCover} notaRaiz={acorde.notaRaiz} calidad={acorde.calidad} notaBajo={acorde.notaBajo} onSeleccionar={onSeleccionar} />
+      )}
       <input
         inputMode="decimal"
         value={enTiempos ? Number((acorde.duracionCompases * 4).toFixed(2)) : acorde.duracionCompases}
@@ -128,12 +123,12 @@ function AcordeChip({
 }
 
 // Si la lista de acordes es un ciclo que se toca varias veces seguidas (A B C D A B C D), devuelve el ciclo y cuántas veces.
-function cicloRepetido(acordes: { notaRaiz: Nota; calidad: Calidad; notaBajo: Nota | null }[]): { largo: number; veces: number } | null {
+function cicloRepetido(acordes: { notaRaiz: Nota; calidad: Calidad; notaBajo: Nota | null; silencio?: boolean }[]): { largo: number; veces: number } | null {
   const n = acordes.length;
   for (let largo = 1; largo <= n / 2; largo++) {
     if (n % largo !== 0) continue;
     let igual = true;
-    for (let i = largo; i < n && igual; i++) igual = acordes[i].notaRaiz === acordes[i % largo].notaRaiz && acordes[i].calidad === acordes[i % largo].calidad && acordes[i].notaBajo === acordes[i % largo].notaBajo;
+    for (let i = largo; i < n && igual; i++) igual = acordes[i].notaRaiz === acordes[i % largo].notaRaiz && acordes[i].calidad === acordes[i % largo].calidad && acordes[i].notaBajo === acordes[i % largo].notaBajo && !!acordes[i].silencio === !!acordes[i % largo].silencio;
     if (igual) return { largo, veces: n / largo };
   }
   return null;
@@ -233,41 +228,6 @@ function LetraEditor({
   );
 }
 
-function AjustesCuerpo({ cuerpo, onCambio }: { cuerpo: CuerpoFS; onCambio: (patch: Partial<CuerpoFS>) => void }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2" style={{ fontFamily: MONO }}>
-      <button type="button" onClick={() => onCambio({ tonalidadPropia: !cuerpo.tonalidadPropia })} className="rounded-lg px-2.5 py-1 text-xs font-bold" style={cuerpo.tonalidadPropia ? activoStyle : inactivoStyle}>
-        Tono propio
-      </button>
-      {cuerpo.tonalidadPropia && (
-        <>
-          <select className="rounded-lg border px-2 py-1 text-xs outline-none" style={inputStyle} value={cuerpo.tonRaiz.replace("#", "")} onChange={(e) => onCambio({ tonRaiz: esNota(e.target.value, cuerpo.tonRaiz.includes("#")) })}>
-            {NATURALES.map((n) => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
-          <button type="button" disabled={!puedeSostenido(cuerpo.tonRaiz.replace("#", ""))} onClick={() => onCambio({ tonRaiz: esNota(cuerpo.tonRaiz.replace("#", ""), !cuerpo.tonRaiz.includes("#")) })} className="rounded-lg px-2 py-1 text-xs font-bold disabled:opacity-30" style={cuerpo.tonRaiz.includes("#") ? activoStyle : inactivoStyle}>
-            ♯
-          </button>
-          {(["mayor", "menor"] as const).map((m) => (
-            <button key={m} type="button" onClick={() => onCambio({ tonModo: m })} className="rounded-lg px-2 py-1 text-xs font-bold" style={m === cuerpo.tonModo ? activoStyle : inactivoStyle}>
-              {m}
-            </button>
-          ))}
-        </>
-      )}
-      <label className="flex items-center gap-1 text-xs" style={{ color: MUTED }}>
-        Compases
-        <input inputMode="numeric" placeholder="auto" value={cuerpo.numeroCompases} onChange={(e) => onCambio({ numeroCompases: e.target.value.replace(/[^0-9]/g, "") })} className="rounded-lg border text-center text-xs outline-none" style={{ ...inputStyle, width: "3.5em", padding: "4px 2px" }} />
-      </label>
-      <label className="flex items-center gap-1 text-xs" style={{ color: MUTED }}>
-        BPM
-        <input inputMode="numeric" placeholder="hereda" value={cuerpo.bpm} onChange={(e) => onCambio({ bpm: e.target.value.replace(/[^0-9]/g, "") })} className="rounded-lg border text-center text-xs outline-none" style={{ ...inputStyle, width: "4em", padding: "4px 2px" }} />
-      </label>
-    </div>
-  );
-}
-
 function AudioCampo({
   cancionId,
   bandaId,
@@ -354,7 +314,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
     cancionExistente?.secciones.map((s) => ({
       nombre: parteDe(s.nombre),
       repiteVeces: s.repiteVeces,
-      acordes: s.acordes.map((a) => ({ notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo, duracionCompases: a.duracionCompases })),
+      acordes: s.acordes.map((a) => ({ notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo, duracionCompases: a.duracionCompases, silencio: a.silencio })),
       letra: s.letra.map((l) => ({ texto: l.texto, tipo: l.tipo, acordes: l.acordes.map((a) => ({ posicion: a.posicion, notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo })) })),
       tonalidadPropia: s.tonalidadNota !== null,
       tonRaiz: s.tonalidadNota ?? "C",
@@ -363,7 +323,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
       bpm: s.bpm?.toString() ?? "",
       repeticiones: s.repeticiones.map((r) => ({
         repeticionIndice: r.repeticionIndice,
-        acordes: r.acordes.map((a) => ({ notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo, duracionCompases: a.duracionCompases })),
+        acordes: r.acordes.map((a) => ({ notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo, duracionCompases: a.duracionCompases, silencio: a.silencio })),
         letra: r.letra.map((l) => ({ texto: l.texto, tipo: l.tipo, acordes: l.acordes.map((a) => ({ posicion: a.posicion, notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo })) })),
         tonalidadPropia: r.tonalidadNota !== null,
         tonRaiz: r.tonalidadNota ?? "C",
@@ -381,7 +341,8 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
   const bpm = Number(ficha.bpm) || 0;
   const tonGeneral = { raiz: ficha.raiz, modo: ficha.modo };
   const tonDe = (c: CuerpoFS) => (c.tonalidadPropia ? { raiz: c.tonRaiz, modo: c.tonModo } : tonGeneral);
-  const compasesDe = (c: CuerpoFS) => (c.numeroCompases ? Number(c.numeroCompases) : c.acordes.reduce((t, a) => t + a.duracionCompases, 0));
+  // Los compases son siempre la suma de lo capturado (acordes y silencios).
+  const compasesDe = (c: CuerpoFS) => c.acordes.reduce((t, a) => t + a.duracionCompases, 0);
   const compasesSeccionTotal = (s: SeccionFS) => {
     let sec = 0;
     for (let v = 1; v <= s.repiteVeces; v++) {
@@ -405,7 +366,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
       lista.push({ notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo });
     };
     const delCuerpo = (c: CuerpoFS) => {
-      c.acordes.forEach(agregar);
+      c.acordes.filter((a) => !a.silencio).forEach(agregar);
       c.letra.forEach((l) => l.acordes.forEach(agregar));
     };
     for (const s of secciones) {
@@ -457,7 +418,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
   const construirCuerpo = (c: CuerpoFS): Omit<SeccionBaseInput, "nombre" | "repiteVeces"> => ({
     tonalidadNota: c.tonalidadPropia ? c.tonRaiz : null,
     tonalidadModo: c.tonalidadPropia ? c.tonModo : null,
-    numeroCompases: c.numeroCompases ? Number(c.numeroCompases) : null,
+    numeroCompases: null,
     bpm: c.bpm ? Number(c.bpm) : null,
     acordes: c.acordes,
     letra: c.letra.map((l): LetraLineaInput => ({ texto: l.texto, tipo: l.tipo, acordes: l.tipo === "tab" ? [] : l.acordes })),
@@ -530,8 +491,8 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
           {chip(`${ficha.compases || totalCompases} compases`, "Compases")}
           {ficha.capo > 0 && <span style={{ background: ACCENT, color: "white", borderRadius: 8, padding: "3px 9px", fontFamily: MONO, fontWeight: 700, fontSize: 11 }}>capo {ficha.capo}</span>}
           {chip(ficha.esCover ? "Cover" : ficha.esBorrador ? "Propia · borrador" : "Propia", "Tipo")}
-          <button type="button" onClick={() => setFichaAbierta((v) => !v)} style={boton}>
-            {fichaAbierta ? "Cerrar ficha ▴" : "Editar ficha ▾"}
+          <button type="button" onClick={() => setFichaAbierta((v) => !v)} title={fichaAbierta ? "Cerrar ficha" : "Editar ficha"} aria-label={fichaAbierta ? "Cerrar ficha" : "Editar ficha"} style={{ ...boton, padding: "2px 9px" }}>
+            {fichaAbierta ? "✕" : "✏️"}
           </button>
         </div>
         {fichaAbierta && (
@@ -579,10 +540,10 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                   <span className="mt-1 flex gap-px" style={{ minHeight: 18 }}>
                     {visibles.length === 0 && <span style={{ fontFamily: MONO, fontSize: 9, opacity: 0.6 }}>sin acordes</span>}
                     {visibles.map((a, k) => {
-                      const c = colorRaizAcorde(a.notaRaiz, a.calidad);
+                      const c = colorOSilencio(a);
                       return (
                         <span key={k} style={{ flex: 1, minWidth: 0, background: c, color: colorContrasteTexto(c), borderRadius: 3, padding: "2px 0", textAlign: "center", fontFamily: MONO, fontWeight: 800, fontSize: 8.5, overflow: "hidden" }}>
-                          {simboloAcorde(a.notaRaiz, a.calidad, a.notaBajo)}
+                          {simboloOSilencio(a)}
                         </span>
                       );
                     })}
@@ -624,7 +585,6 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                 <button type="button" onClick={() => patchSeccion(si, { repiteVeces: sec.repiteVeces + 1 })} style={{ width: 20, height: 20, background: CHIP, color: MUTED, fontFamily: MONO }}>+</button>
               </div>
             </div>
-            <AjustesCuerpo cuerpo={cuerpoSel} onCambio={aplicar} />
             <span style={{ fontFamily: MONO, fontSize: 10, color: FAINT }}>
               {compasesSeccionTotal(sec)} compases{bpm > 0 ? ` · ${mmssLocal(compasesSeccionTotal(sec) * segundosPorCompas(Number(cuerpoSel.bpm) || bpm))}` : ""}
             </span>
@@ -632,7 +592,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
               <button type="button" onClick={() => moverSeccion(si, -1)} disabled={si === 0} title="Mover antes" style={{ ...boton, padding: "2px 8px", opacity: si === 0 ? 0.3 : 1 }}>←</button>
               <button type="button" onClick={() => moverSeccion(si, 1)} disabled={si === secciones.length - 1} title="Mover después" style={{ ...boton, padding: "2px 8px", opacity: si === secciones.length - 1 ? 0.3 : 1 }}>→</button>
               {secciones.length > 1 && (
-                <button type="button" onClick={() => quitarSeccion(si)} style={{ ...boton, padding: "2px 8px", color: "oklch(0.5 0.18 25)", borderColor: "oklch(0.6 0.15 25 / 0.45)" }}>Quitar parte</button>
+                <button type="button" onClick={() => quitarSeccion(si)} title="Quitar parte" aria-label="Quitar parte" style={{ ...boton, padding: "2px 8px", borderColor: "oklch(0.6 0.15 25 / 0.45)" }}>🗑️</button>
               )}
             </div>
           </div>
@@ -705,6 +665,15 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
                   style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}
                 >
                   + acorde
+                </button>
+                <button
+                  type="button"
+                  onClick={() => aplicar({ acordes: [...ac, { notaRaiz: tonDe(cuerpoSel).raiz, calidad: "mayor" as Calidad, notaBajo: null, duracionCompases: 1, silencio: true }] })}
+                  className="rounded-md px-2 py-0.5 text-[11px] font-bold"
+                  style={{ border: `1px dashed ${LINE}`, color: MUTED, fontFamily: MONO }}
+                  title="Compases o tiempos sin acorde"
+                >
+                  + silencio
                 </button>
                 {ciclo && (
                   <span style={{ fontFamily: MONO, fontSize: 10, color: ACCENT, marginLeft: 4 }}>

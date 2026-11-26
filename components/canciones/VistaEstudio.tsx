@@ -428,6 +428,7 @@ export function VistaEstudio({
       } else {
         [...s.acordes]
           .sort((a, b) => a.orden - b.orden)
+          .filter((a) => !a.silencio)
           .forEach((a) => {
             const nota = transponerNota(a.notaRaiz, semiEf);
             const bajo = a.notaBajo ? transponerNota(a.notaBajo, semiEf) : null;
@@ -619,7 +620,7 @@ export function VistaEstudio({
       const conLetra = s.letra.some((l) => l.acordes.length > 0);
       const pesosSec = conLetra
         ? pesosDeSeccion(s.letra.map((l) => ({ largo: l.tipo === "tab" ? 0 : l.texto.length, posiciones: l.acordes.map((a) => a.posicion) })), 0)
-        : [...s.acordes].sort((a, b) => a.orden - b.orden).map((a) => Math.max(Number(a.duracionCompases) || 1, 0.0001));
+        : [...s.acordes].sort((a, b) => a.orden - b.orden).filter((a) => !a.silencio).map((a) => Math.max(Number(a.duracionCompases) || 1, 0.0001));
       return { vueltas: s.repiteVeces, compases: compasesDeSeccion(s), segundosPorCompas: segundosPorCompas(bpm), pesos: pesosSec };
     });
     if (secs.some((s) => s.pesos.length > 0 && (s.compases <= 0 || s.segundosPorCompas <= 0))) {

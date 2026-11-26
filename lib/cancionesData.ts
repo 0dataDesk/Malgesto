@@ -57,6 +57,8 @@ export type AcordeGuardado = {
   // Nota del bajo cuando no es la raíz (acorde con barra: Dsus4/F#); null = el bajo es la raíz.
   notaBajo: Nota | null;
   duracionCompases: number;
+  // Silencio: ocupa compases pero no es un acorde (nota y calidad son de relleno).
+  silencio: boolean;
 };
 
 export type LetraAcordeGuardado = {
@@ -228,6 +230,7 @@ type SeccionRow = {
     calidad: string;
     nota_bajo: string | null;
     duracion_compases: number;
+    silencio?: boolean | null;
   }[];
 };
 
@@ -251,6 +254,7 @@ function armarSeccionBase(row: SeccionRow, lineasPorSeccion: Map<string, LetraLi
       calidad: a.calidad as Calidad,
       notaBajo: (a.nota_bajo as Nota | null) ?? null,
       duracionCompases: Number(a.duracion_compases),
+      silencio: !!a.silencio,
     }));
 
   const letra = (lineasPorSeccion.get(row.id) ?? [])
@@ -303,7 +307,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
   const { data: seccionesRaw } = await admin
     .from("secciones")
     .select(
-      "id, orden, nombre, tonalidad_nota, tonalidad_modo, numero_compases, repite_veces, bpm, plantilla_id, repeticion_indice, acordes(id, orden, nota_raiz, calidad, nota_bajo, duracion_compases)"
+      "id, orden, nombre, tonalidad_nota, tonalidad_modo, numero_compases, repite_veces, bpm, plantilla_id, repeticion_indice, acordes(id, orden, nota_raiz, calidad, nota_bajo, duracion_compases, silencio)"
     )
     .eq("cancion_id", cancionId)
     .order("orden", { ascending: true });
@@ -385,6 +389,7 @@ export type AcordeInput = {
   calidad: Calidad;
   notaBajo?: Nota | null;
   duracionCompases: number;
+  silencio?: boolean;
 };
 
 export type LetraAcordeInput = {
@@ -498,6 +503,7 @@ async function insertarUnaSeccion(
         calidad: a.calidad,
         nota_bajo: a.notaBajo ?? null,
         duracion_compases: a.duracionCompases,
+        silencio: a.silencio ?? false,
       }))
     );
     if (errAcordes) throw new Error(errAcordes.message);
