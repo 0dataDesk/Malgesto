@@ -1,4 +1,3 @@
-import { PaletaColor } from "@/components/canciones/PaletaColor";
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
@@ -44,7 +43,6 @@ export default async function EditarCancionPage({
             ‹ {banda.bandaNombre} · {cancion.titulo}
           </span>
         </Link>
-        <PaletaColor />
       </div>
       <CancionForm bandaId={banda.bandaId} cancionExistente={cancion} />
     </div>

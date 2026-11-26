@@ -1,4 +1,3 @@
-import { PaletaColor } from "@/components/canciones/PaletaColor";
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
@@ -40,7 +39,6 @@ export default async function NuevaCancionPage({
             ‹ {banda.bandaNombre}
           </span>
         </Link>
-        <PaletaColor />
       </div>
       <div className="mb-5 text-[32px] font-extrabold" style={{ fontFamily: "var(--font-fraunces), sans-serif" }}>
         Agregar canción
