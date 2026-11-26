@@ -109,6 +109,7 @@ export default async function CancionesPage({
     bpm: c.bpm,
     duracionSegundos: c.duracionSegundos,
     totalCompases: c.totalCompases,
+    compasesRevisados: c.compasesRevisados,
   }));
 
   return (
