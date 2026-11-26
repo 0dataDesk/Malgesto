@@ -7,6 +7,7 @@ import { NOTAS, gradoDeNota, simboloAcorde, colorRaizAcorde, colorContrasteTexto
 import { formatoMMSS } from "@/lib/duracion";
 import { FichaEditor } from "./FichaEditor";
 import { compasesDeSeccion, segundosPorCompas } from "@/lib/cancionTiempo";
+import { colorPorTipoSeccion, tintaPorTipoSeccion } from "@/lib/seccionCatalogo";
 import { ocurrencias, anclasPorTempo, ocurrenciaPorAnclas, posicionEstimada, pesosDeSeccion, type Ancla } from "@/lib/estudioSync";
 import {
   INSTRUMENTOS_ESTUDIO,
@@ -534,6 +535,7 @@ export function VistaEstudio({
           const d = e.data ?? {};
           ultimoRef.current = { ms: d.position ?? 0, rec: performance.now(), pausado: d.isPaused ?? true, uri: d.playingURI ?? null, dur: d.duration ?? 0 };
           setReproduciendo(!(d.isPaused ?? true));
+          setProgresoMs(d.position ?? 0);
           if ((d.duration ?? 0) > 0) setDurSpotifyMs(d.duration ?? 0);
         });
       });
@@ -571,9 +573,50 @@ export function VistaEstudio({
     const id = setInterval(() => {
       const u = ultimoRef.current;
       setProgresoMs(posicionEstimada(u.ms, u.rec, performance.now(), u.pausado));
-    }, 400);
+    }, 250);
     return () => clearInterval(id);
   }, [reproduciendo]);
+
+  // La faja de arriba copia el recorrido del editor: cada parte con su fondo y sus acordes del ancho de su duración (en compases).
+  const faja = useMemo(() => {
+    let k = 0;
+    let pos = 0;
+    const partes = cancion.secciones.map((s, si) => {
+      const ids = indicesPorSeccion[si] ?? [];
+      const acordes = [...s.acordes].sort((a, b) => a.orden - b.orden);
+      const reales = acordes.filter((a) => !a.silencio).length;
+      const porAcordes = acordes.length > 0 && reales === ids.length;
+      const base = porAcordes ? acordes.map((a) => ({ silencio: !!a.silencio, dur: Math.max(Number(a.duracionCompases) || 1, 0.0001) })) : ids.map(() => ({ silencio: false, dur: 1 }));
+      const inicioParte = pos;
+      const tiles: { silencio: boolean; dur: number; ev: number | null; k: number | null; x0: number }[] = [];
+      for (let v = 0; v < Math.max(1, s.repiteVeces); v++) {
+        let enVuelta = 0;
+        for (const t of base) {
+          tiles.push({ silencio: t.silencio, dur: t.dur, ev: t.silencio ? null : ids[enVuelta++] ?? null, k: t.silencio ? null : k++, x0: pos });
+          pos += t.dur;
+        }
+      }
+      return { si, ancho: Math.max(pos - inicioParte, 0.0001), tiles };
+    });
+    return { partes, total: Math.max(pos, 0.0001) };
+  }, [cancion.secciones, indicesPorSeccion]);
+
+  // Dónde va la barra que avanza (0 a 1): sigue los mismos tiempos que el seguimiento de los acordes.
+  const xDeTiempo = (ms: number): number => {
+    const T = anclasSeg;
+    const inicios = new Map<number, number>();
+    faja.partes.forEach((p) => p.tiles.forEach((t) => t.k !== null && inicios.set(t.k, t.x0)));
+    if (T.length === 0 || inicios.size === 0) return duracionMs > 0 ? Math.min(1, Math.max(0, ms / duracionMs)) : 0;
+    const puntos: [number, number][] = T.filter((a) => inicios.has(a[0])).map((a) => [a[1], inicios.get(a[0]) as number]);
+    puntos.push([Math.max(duracionMs, (puntos[puntos.length - 1]?.[0] ?? 0) + 1000), faja.total]);
+    if (ms <= puntos[0][0]) return puntos[0][0] > 0 ? Math.max(0, (ms / puntos[0][0]) * (puntos[0][1] / faja.total)) : 0;
+    for (let i = 0; i < puntos.length - 1; i++) {
+      const [t0, x0] = puntos[i];
+      const [t1, x1] = puntos[i + 1];
+      if (ms < t1) return (x0 + ((ms - t0) / Math.max(t1 - t0, 1)) * (x1 - x0)) / faja.total;
+    }
+    return 1;
+  };
 
   const posicionAhora = () => {
     const u = ultimoRef.current;
@@ -804,34 +847,53 @@ export function VistaEstudio({
         </div>
       </header>
 
-      {/* Línea de tiempo de la canción: franja oscura para distinguirla de la página */}
+      {/* Recorrido de la canción (el mismo modelo del editor): cada parte con su fondo, sus acordes por color y la barra que avanza */}
       <div className="px-5 pb-1.5 pt-3" style={{ background: INK }}>
-        <div className="relative flex" style={{ height: 38 }}>
-          {cancion.secciones.map((s, si) => {
-            const ids = indicesPorSeccion[si] ?? [];
-            const aqui = actual?.sec === si;
-            return (
-              <div key={s.id} className="relative flex items-end" style={{ flex: Math.max(ids.length, 1), borderLeft: si === 0 ? "none" : "1px dotted oklch(0.85 0.02 262 / 0.6)", paddingLeft: 3, paddingRight: 3 }}>
-                <span style={{ position: "absolute", top: -2, right: 4, fontFamily: MONO, fontSize: 9, color: aqui ? "white" : "oklch(0.8 0.02 262)", fontWeight: aqui ? 700 : 400, letterSpacing: "0.06em", textTransform: "uppercase" }}>{s.nombre}</span>
-                <div className="flex w-full items-end gap-px">
-                  {ids.map((ei) => {
-                    const e = eventos[ei];
-                    const esActual = ei === actualIdx;
-                    return (
-                      <button
-                        key={ei}
-                        onClick={() => elegir(ei)}
-                        title={`${simboloAcorde(e.nota, e.calidad, e.bajo)} · ${gradoEnTonalidad(e.nota, e.calidad, tonalidad).romano}`}
-                        style={{ flex: 1, minWidth: 2, height: esActual ? 24 : 12, border: "none", padding: 0, cursor: "pointer", borderRadius: 2, background: colorDe(e.nota, e.calidad), opacity: esActual ? 1 : ei < actualIdx ? 0.45 : 0.95, outline: esActual ? "2px solid white" : "none", outlineOffset: 1 }}
-                      />
-                    );
-                  })}
+        <div className="relative overflow-hidden rounded-xl" style={{ height: 50, background: "oklch(0.2 0.03 262)" }}>
+          <div className="relative flex h-full">
+            {faja.partes.map((p) => {
+              const s = cancion.secciones[p.si];
+              const aqui = actual?.sec === p.si;
+              const tinta = tintaPorTipoSeccion(s.nombre);
+              return (
+                <div
+                  key={s.id}
+                  className="relative flex min-w-0 flex-col justify-between"
+                  style={{ flex: `${p.ancho} 1 0`, background: colorPorTipoSeccion(s.nombre), color: tinta, borderLeft: p.si === 0 ? "none" : "2px solid oklch(0.2 0.03 262)", padding: "3px 4px 4px", boxShadow: aqui ? "inset 0 0 0 2px white" : "none" }}
+                >
+                  <span className="truncate" style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 11, lineHeight: 1 }}>{s.nombre}</span>
+                  <div className="flex w-full items-end gap-px" style={{ height: 22 }}>
+                    {p.tiles.map((t, ti) => {
+                      if (t.ev === null) return <span key={ti} style={{ flex: `${t.dur} 1 0`, minWidth: 2, height: 8, borderRadius: 2, background: "rgba(0,0,0,0.12)" }} />;
+                      const e = eventos[t.ev];
+                      if (!e) return <span key={ti} style={{ flex: `${t.dur} 1 0`, minWidth: 2 }} />;
+                      const esActual = t.ev === actualIdx;
+                      return (
+                        <button
+                          key={ti}
+                          onClick={() => elegir(t.ev as number)}
+                          title={`${simboloAcorde(e.nota, e.calidad, e.bajo)} · ${gradoEnTonalidad(e.nota, e.calidad, tonalidad).romano}`}
+                          style={{ flex: `${t.dur} 1 0`, minWidth: 2, height: esActual ? 22 : 14, border: "none", padding: 0, cursor: "pointer", borderRadius: 3, background: colorDe(e.nota, e.calidad), opacity: esActual ? 1 : t.ev < actualIdx ? 0.5 : 1, boxShadow: esActual ? "0 0 0 1px black, 0 0 0 3px white" : "none" }}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              );
+            })}
+          </div>
+          {/* Barra que avanza con la canción */}
+          {(() => {
+            const x = Math.min(1, Math.max(0, xDeTiempo(Math.max(0, progresoMs) + adelanto)));
+            return (
+              <>
+                <div aria-hidden style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: `${x * 100}%`, background: "rgba(255,255,255,0.10)", pointerEvents: "none" }} />
+                <div aria-hidden style={{ position: "absolute", top: 0, bottom: 0, left: `calc(${x * 100}% - 1px)`, width: 2, background: "white", boxShadow: "0 0 0 1px rgba(0,0,0,0.55)", pointerEvents: "none" }} />
+              </>
             );
-          })}
+          })()}
         </div>
-        {/* Tiempo: el contador avanza mientras suena (sin barra) y al final va la duración */}
+        {/* Tiempo corrido y duración */}
         <div className="mt-1.5 flex items-center justify-between gap-2" style={{ fontFamily: MONO, fontSize: 9, color: "oklch(0.8 0.02 262)" }}>
           <span style={{ fontSize: 13, fontWeight: 800, color: "white", minWidth: 40 }}>{formatoMMSS(Math.floor(Math.max(0, progresoMs) / 1000))}</span>
           <span>{duracionMs > 0 ? formatoMMSS(Math.round(duracionMs / 1000)) : "—"}</span>
