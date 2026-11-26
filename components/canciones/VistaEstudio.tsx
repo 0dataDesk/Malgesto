@@ -21,7 +21,7 @@ import {
   type Forma,
   type NombreInstrumento,
 } from "@/lib/estudioInstrumentos";
-import { transponerNota, gradoEnTonalidad, etiquetaCirculo, centroTonal, patronEnSecuencia } from "@/lib/estudioArmonia";
+import { transponerNota, gradoEnTonalidad, etiquetaCirculo, centroTonal } from "@/lib/estudioArmonia";
 
 // Modo Estudio (escritorio). Arriba: cabecera y línea de tiempo de la canción.
 // Izquierda: cada acorde con su color y sus formas. Centro: letra con la
@@ -729,7 +729,7 @@ export function VistaEstudio({
   const disposicion = (() => {
     const gap = 8;
     const util = Math.max(0, anchoPanel - 32 - 24); // menos padding del panel y de la sección
-    const alto = Math.max(0, altoPanel - 150); // menos el texto de arriba, el título y la nota de abajo
+    const alto = Math.max(0, altoPanel - 56); // solo los márgenes del panel y de la sección (ya no hay textos)
     const n = nDistintos;
     const minLado = LADOS_ACORDE[LADOS_ACORDE.length - 1];
     const maxLado = LADOS_ACORDE[0];
@@ -783,8 +783,6 @@ export function VistaEstudio({
   const duracionMs = (cancion.duracionSegundos ?? 0) * 1000 || durSpotifyMs;
 
   const grado = actual ? gradoEnTonalidad(actual.nota, actual.calidad, tonalidad) : null;
-  const rutaActual = actual ? indicesPorSeccion[actual.sec] ?? [] : [];
-  const patron = patronEnSecuencia(rutaActual.map((i) => gradoEnTonalidad(eventos[i].nota, eventos[i].calidad, tonalidad).romano));
 
   const boton: React.CSSProperties = {
     border: `1px solid ${LINE}`, background: CARD, color: INK, borderRadius: 10, padding: "5px 10px",
@@ -1157,17 +1155,7 @@ export function VistaEstudio({
           <div ref={panelRef} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
           {actual && grado ? (
             <>
-              <div style={{ fontSize: 13, lineHeight: 1.35 }}>
-                <b style={{ fontFamily: MONO, color: colorDe(actual.nota, actual.calidad) }}>{simboloAcorde(actual.nota, actual.calidad, actual.bajo)}</b>{" "}
-                es el <b>{grado.romano}</b> de {tonalidad.raiz} {tonalidad.modo}: <span style={{ color: MUTED }}>{grado.sentir}</span>
-                {siguiente && <> Sigue <b style={{ fontFamily: MONO }}>{simboloAcorde(siguiente.nota, siguiente.calidad, siguiente.bajo)}</b>.</>}
-                {patron && <span style={{ color: MUTED }}> Esta sección usa {patron.romanos.join("–")}: {patron.nombre}.</span>}
-              </div>
-
               <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "10px 12px" }}>
-                <div className="flex items-center justify-between gap-2">
-                  <Titulo>Acordes de la canción · {distintos.length}</Titulo>
-                </div>
                 <div className="grid gap-2" style={{ gridTemplateColumns: columnasAcordes ? `repeat(${columnasAcordes}, minmax(0, ${lado}px))` : `repeat(auto-fill, minmax(${lado}px, 1fr))`, justifyContent: columnasAcordes ? "center" : undefined }}>
                   {distintos.map((d) => {
                     const k = claveDe(d.nota, d.calidad, d.bajo);
@@ -1207,9 +1195,6 @@ export function VistaEstudio({
                       </button>
                     );
                   })}
-                </div>
-                <div style={{ fontSize: 10, color: MUTED, lineHeight: 1.35, marginTop: 6 }}>
-                  Cada recuadro: acorde, grado en {tonalidad.raiz} {tonalidad.modo} y cuántas veces suena. Contorno naranja: el actual; punteado: el que sigue. Tócalo para ir a donde aparece primero.
                 </div>
               </section>
             </>
