@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { NOTAS, colorRaizAcorde, type Modo, type Nota } from "@/lib/cancionTeoria";
+import { NOTAS, type Modo, type Nota } from "@/lib/cancionTeoria";
 import { formatoMMSS } from "@/lib/duracion";
+import { parseGeneros } from "@/lib/generos";
+import { PaletaColor } from "./PaletaColor";
 
 // Lista de Canciones a todo lo ancho, con filtros (tipo, género, tono, compases) y orden.
 // Un foco rojo en la tarjeta marca las canciones a las que aún no se les asignan compases.
@@ -41,7 +43,7 @@ const claveTono = (c: CancionLista) => NOTAS.indexOf(c.tonalidadNota) * 2 + (c.t
 
 const selectStyle = { background: CARD, border: `1px solid ${LINE}`, color: INK, borderRadius: 9, padding: "4px 8px", fontSize: 12, fontWeight: 600, height: 30 } as const;
 
-function Grupo({ titulo, canciones, puedeEscribir }: { titulo: string | null; canciones: CancionLista[]; puedeEscribir: boolean }) {
+function Grupo({ titulo, canciones }: { titulo: string | null; canciones: CancionLista[] }) {
   if (canciones.length === 0) return null;
   return (
     <div className="mt-5 first:mt-4">
@@ -52,16 +54,24 @@ function Grupo({ titulo, canciones, puedeEscribir }: { titulo: string | null; ca
           <span className="text-[10px]" style={{ fontFamily: MONO, color: MUTED }}>{canciones.length}</span>
         </div>
       )}
-      {/* Todas las tarjetas del mismo tamaño */}
-      <div className="mt-2.5 grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gridAutoRows: 92 }}>
-        {canciones.map((c) => (
-          <div key={c.id} className="relative">
+      {/* Todas las tarjetas del mismo tamaño; toda la tarjeta abre la canción */}
+      <div className="mt-2.5 grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gridAutoRows: 120 }}>
+        {canciones.map((c) => {
+          const generos = parseGeneros(c.genero);
+          const dato = (etiqueta: string, valor: string | null) => (
+            <div className="flex flex-col" style={{ minWidth: 0 }}>
+              <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED, opacity: 0.8, lineHeight: 1.2 }}>{etiqueta}</span>
+              <span style={{ fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontWeight: 800, fontSize: 15, color: valor ? INK : MUTED, lineHeight: 1.25 }}>{valor ?? "—"}</span>
+            </div>
+          );
+          return (
             <Link
+              key={c.id}
               href={`/canciones/${c.id}`}
               className="flex h-full min-w-0 flex-col justify-between rounded-2xl px-3.5 py-3 no-underline"
               style={{ background: c.esBorrador ? "oklch(0.975 0.006 85)" : CARD, border: c.esBorrador ? "1px dashed oklch(0.85 0.010 85)" : `1px solid ${LINE}` }}
             >
-              <div className="flex min-w-0 items-center gap-2 pr-9">
+              <div className="flex min-w-0 items-center gap-2">
                 {!c.compasesRevisados && (
                   <span aria-label="Compases por revisar" title="Aún no revisas sus compases" className="flex-none" style={{ width: 8, height: 8, borderRadius: 99, background: "oklch(0.58 0.22 25)" }} />
                 )}
@@ -74,55 +84,48 @@ function Grupo({ titulo, canciones, puedeEscribir }: { titulo: string | null; ca
                 {c.esBorrador && (
                   <span className="flex-none rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]" style={{ fontFamily: MONO, border: `1px dashed ${ACCENT}`, color: ACCENT }}>Borrador</span>
                 )}
-                {c.genero && <span className="flex-none rounded-md px-1.5 py-0.5 text-[10px] font-semibold" style={{ fontFamily: NUM, background: CHIP, color: MUTED }}>{c.genero}</span>}
+                {generos.map((g) => (
+                  <span key={g} className="flex-none rounded-md px-1.5 py-0.5 text-[10px] font-semibold" style={{ fontFamily: NUM, border: `1px solid ${LINE}`, color: MUTED }}>{g}</span>
+                ))}
               </div>
-              <div className="flex items-baseline gap-x-3 text-[12px]" style={{ fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontWeight: 600, color: MUTED }}>
-                <span className="text-[15px] font-bold" style={{ color: colorRaizAcorde(c.tonalidadNota, c.tonalidadModo) }}>{tonoEtiqueta(c)}</span>
-                {c.bpm && <span>{c.bpm} BPM</span>}
-                {c.duracionSegundos !== null && <span>{formatoMMSS(c.duracionSegundos)}</span>}
-                {c.totalCompases > 0 && <span>{c.totalCompases} compases</span>}
+              <div className="flex items-end justify-between gap-3">
+                <div className="grid gap-x-4" style={{ gridTemplateColumns: "auto auto auto" }}>
+                  {dato("BPM", c.bpm ? String(c.bpm) : null)}
+                  {dato("Duración", c.duracionSegundos !== null ? formatoMMSS(c.duracionSegundos) : null)}
+                  {dato("Compases", c.totalCompases > 0 ? String(c.totalCompases) : null)}
+                </div>
+                <PaletaColor mini tonica={{ raiz: c.tonalidadNota, modo: c.tonalidadModo }} />
               </div>
             </Link>
-            {puedeEscribir && (
-              <Link
-                href={`/canciones/${c.id}/editar`}
-                title={c.esBorrador ? "Seguir editando" : "Editar"}
-                aria-label={c.esBorrador ? "Seguir editando" : "Editar"}
-                className="absolute flex items-center justify-center rounded-lg no-underline"
-                style={{ top: 8, right: 8, width: 26, height: 26, background: CHIP, fontSize: 13 }}
-              >
-                ✏️
-              </Link>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
 }
 
-export function ListaCanciones({ canciones, puedeEscribir }: { canciones: CancionLista[]; puedeEscribir: boolean }) {
+export function ListaCanciones({ canciones }: { canciones: CancionLista[] }) {
   const [tipo, setTipo] = useState<Tipo>("todas");
   const [orden, setOrden] = useState<Orden>("titulo");
   const [genero, setGenero] = useState("");
   const [tono, setTono] = useState("");
   const [soloSinCompases, setSoloSinCompases] = useState(false);
 
-  const generos = useMemo(() => [...new Set(canciones.map((c) => c.genero).filter((g): g is string => !!g))].sort((a, b) => a.localeCompare(b, "es")), [canciones]);
+  const generos = useMemo(() => [...new Set(canciones.flatMap((c) => parseGeneros(c.genero)))].sort((a, b) => a.localeCompare(b, "es")), [canciones]);
   const tonos = useMemo(() => [...canciones].sort((a, b) => claveTono(a) - claveTono(b)).map(tonoEtiqueta).filter((t, i, todos) => todos.indexOf(t) === i), [canciones]);
 
   const lista = useMemo(() => {
     const filtradas = canciones.filter(
       (c) =>
         (tipo === "todas" || (tipo === "covers" ? c.esCover : !c.esCover)) &&
-        (!genero || (genero === "__sin" ? !c.genero : c.genero === genero)) &&
+        (!genero || (genero === "__sin" ? parseGeneros(c.genero).length === 0 : parseGeneros(c.genero).includes(genero))) &&
         (!tono || tonoEtiqueta(c) === tono) &&
         (!soloSinCompases || !c.compasesRevisados)
     );
     const porTitulo = (a: CancionLista, b: CancionLista) => a.titulo.localeCompare(b.titulo, "es");
     return [...filtradas].sort((a, b) => {
       if (orden === "tono") return claveTono(a) - claveTono(b) || porTitulo(a, b);
-      if (orden === "genero") return (a.genero ?? "￿").localeCompare(b.genero ?? "￿", "es") || porTitulo(a, b);
+      if (orden === "genero") return (parseGeneros(a.genero)[0] ?? "~~~").localeCompare(parseGeneros(b.genero)[0] ?? "~~~", "es") || porTitulo(a, b);
       if (orden === "compases") return Number(!b.compasesRevisados) - Number(!a.compasesRevisados) || porTitulo(a, b);
       return porTitulo(a, b);
     });
@@ -171,11 +174,11 @@ export function ListaCanciones({ canciones, puedeEscribir }: { canciones: Cancio
         <p className="mt-6 text-center text-sm" style={{ color: MUTED }}>Ninguna canción cumple esos filtros.</p>
       ) : tipo === "todas" ? (
         <>
-          <Grupo titulo="Propias" canciones={propias} puedeEscribir={puedeEscribir} />
-          <Grupo titulo="Covers" canciones={covers} puedeEscribir={puedeEscribir} />
+          <Grupo titulo="Propias" canciones={propias} />
+          <Grupo titulo="Covers" canciones={covers} />
         </>
       ) : (
-        <Grupo titulo={null} canciones={lista} puedeEscribir={puedeEscribir} />
+        <Grupo titulo={null} canciones={lista} />
       )}
     </div>
   );

@@ -5,6 +5,7 @@ import { NOTAS, colorRaizAcorde, colorContrasteTexto, type Nota, type Modo } fro
 import { formatoMMSS, parseMMSS } from "@/lib/duracion";
 import { uriDeSpotify } from "@/lib/estudioSync";
 import type { CancionCompleta, FichaInput } from "@/lib/cancionesData";
+import { GENEROS_BASE, MAX_GENEROS, parseGeneros, textoDeGeneros } from "@/lib/generos";
 
 // Ficha de la canción: la comparten la ventana "Editar" del modo Estudio y la
 // vista de Estructura. Arriba nombre y artista; en medio los datos sueltos;
@@ -79,7 +80,7 @@ export function fichaAInput(f: FichaEstado): FichaInput | string {
     // El borrador solo aplica a canciones propias.
     esBorrador: f.esCover ? false : f.esBorrador,
     autor: f.autor.trim() || null,
-    genero: f.genero.trim() || null,
+    genero: textoDeGeneros(parseGeneros(f.genero)),
     capo: f.capo,
     spotifyUri,
     numeroCompases: compases,
@@ -139,11 +140,29 @@ export function FichaCampos({
         <input
           value={ficha.genero}
           onChange={(e) => onCambio({ genero: e.target.value })}
-          placeholder="Género (opcional: rock, cumbia, dub…)"
-          aria-label="Género"
+          placeholder={`Géneros (de 1 a ${MAX_GENEROS}, separados por coma)`}
+          aria-label="Géneros"
           className="w-full border-b bg-transparent pb-0.5 text-sm outline-none"
           style={{ borderColor: LINE, color: MUTED }}
         />
+        <div className="flex flex-wrap gap-1" aria-label="Géneros sugeridos">
+          {GENEROS_BASE.map((g) => {
+            const actuales = parseGeneros(ficha.genero);
+            const puesto = actuales.some((x) => x.toLowerCase() === g.toLowerCase());
+            return (
+              <button
+                key={g}
+                type="button"
+                disabled={!puesto && actuales.length >= MAX_GENEROS}
+                onClick={() => onCambio({ genero: (puesto ? actuales.filter((x) => x.toLowerCase() !== g.toLowerCase()) : [...actuales, g]).join(", ") })}
+                className="rounded-md px-1.5 py-0.5 text-[10px] font-bold disabled:opacity-30"
+                style={puesto ? activoStyle : inactivoStyle}
+              >
+                {g}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Datos sueltos */}
@@ -187,6 +206,23 @@ export function FichaCampos({
           </div>
         )}
       </div>
+
+      {(() => {
+          // Si el BPM no cuadra con los compases y la duración (por ejemplo, la mitad), se sugiere el que sí cuadra.
+          const dur = parseMMSS(ficha.duracion);
+          const comp = ficha.compases.trim() ? Number(ficha.compases) : compasesCalculados;
+          const bpm = Number(ficha.bpm);
+          if (!dur || !comp || !bpm || dur <= 0) return null;
+          const sugerido = Math.round((comp * 240) / dur);
+          const razon = sugerido / bpm;
+          // Solo cuando el BPM guardado parece la mitad o el doble del que cuadra (el caso típico); si los compases están incompletos no se avisa.
+          if (sugerido < 20 || sugerido > 300 || !((razon >= 1.7 && razon <= 2.3) || (razon >= 0.43 && razon <= 0.6))) return null;
+          return (
+            <button type="button" onClick={() => onCambio({ bpm: String(sugerido) })} title={`Con ${comp} compases y ${ficha.duracion} de duración, el tempo sería cerca de ${sugerido}`} className="w-fit rounded-md px-2 py-0.5 text-[11px] font-bold" style={{ background: "oklch(0.96 0.05 85)", color: "oklch(0.4 0.1 70)", border: "1px solid oklch(0.85 0.08 85)" }}>
+              ¿BPM ≈ {sugerido}? Con tus compases y la duración sale ese. Usar {sugerido}
+            </button>
+          );
+      })()}
 
       {/* Donde empieza la canción: tono y compases */}
       <div className="rounded-xl p-3" style={{ border: `1px solid ${LINE}`, background: "oklch(0.975 0.006 85)" }}>

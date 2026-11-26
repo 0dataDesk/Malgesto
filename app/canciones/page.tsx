@@ -149,7 +149,7 @@ export default async function CancionesPage({
             Todavía no hay canciones para {nombreBandaActiva}.
           </p>
         ) : (
-          <ListaCanciones canciones={paraLista} puedeEscribir={puedeEscribir} />
+          <ListaCanciones canciones={paraLista} />
         )}
       </EspacioSuperior>
 
