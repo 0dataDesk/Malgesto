@@ -76,14 +76,6 @@ function seccionesPorTempo(cancion: CancionCompleta) {
   });
 }
 
-// Nombres cortos de las partes para el recorrido de la ejecución: «Verso 2» → «V 2», «Precoro» → «PC».
-const CODIGO_PARTE: Record<string, string> = { Preintro: "PI", Intro: "IN", Verso: "V", Precoro: "PC", Coro: "C", Puente: "PT", Solo: "S", Outro: "OUT", "Sección Única": "SU" };
-function nombreCortoParte(nombre: string): string {
-  const m = /^(.*?)(?:\s+(\d+))?$/.exec(nombre.trim());
-  const base = m?.[1] ?? nombre;
-  return `${CODIGO_PARTE[base] ?? base}${m?.[2] ? ` ${m[2]}` : ""}`;
-}
-
 // ---- Diagrama de acorde (con dedos y cejilla) --------------------------------
 function Diagrama({
   forma,
@@ -900,7 +892,7 @@ export function VistaEstudio({
 
       {/* Recorrido de la canción (el mismo modelo del editor): cada parte con su fondo, sus acordes por color y una barra que crece */}
       <div className="px-5 pb-1.5 pt-2">
-        <div className="relative overflow-hidden" style={{ height: 52, background: CARD, border: `1px solid ${LINE}` }}>
+        <div className="relative overflow-hidden" style={{ height: 34, background: CARD, border: `1px solid ${LINE}` }}>
           <div className="relative flex h-full">
             {faja.partes.map((p) => {
               const s = cancion.secciones[p.si];
@@ -910,18 +902,18 @@ export function VistaEstudio({
                 <div
                   key={s.id}
                   className="relative flex min-w-0 flex-col items-stretch justify-between"
-                  style={{ flex: `${p.ancho} 1 0`, background: colorPorTipoSeccion(s.nombre), color: tinta, borderLeft: p.si === 0 ? "none" : `1px solid ${LINE}`, padding: "4px 4px 7px", boxShadow: aqui ? `inset 0 0 0 2px ${INK}` : "none" }}
+                  style={{ flex: `${p.ancho} 1 0`, background: colorPorTipoSeccion(s.nombre), color: tinta, borderLeft: p.si === 0 ? "none" : `1px solid ${LINE}`, padding: "3px 4px 5px", boxShadow: aqui ? `inset 0 0 0 2px ${INK}` : "none" }}
                 >
-                  <span className="truncate text-center" title={s.nombre} style={{ fontFamily: NUM, fontWeight: 800, fontSize: 11, lineHeight: 1, letterSpacing: "0.02em" }}>{nombreCortoParte(s.nombre)}</span>
-                  <div className="flex w-full items-end gap-1" style={{ height: 22 }}>
+                  <span className="truncate text-center" title={s.nombre} style={{ fontFamily: NUM, fontWeight: 800, fontSize: 9, lineHeight: 1 }}>{s.nombre}</span>
+                  <div className="flex w-full items-end gap-1" style={{ height: 14 }}>
                     {p.items.map((it, ii) => (
                       <div key={ii} className="relative flex items-end gap-px" style={{ flex: `${it.ancho} 1 0`, minWidth: 0 }}>
                         {it.veces > 1 && (
-                          <span aria-hidden style={{ position: "absolute", right: 0, top: -11, fontFamily: NUM, fontWeight: 800, fontSize: 8, lineHeight: 1, color: tinta, opacity: 0.85 }}>×{it.veces}</span>
+                          <span aria-hidden style={{ position: "absolute", right: 0, top: -10, fontFamily: NUM, fontWeight: 800, fontSize: 8, lineHeight: 1, color: tinta, opacity: 0.85 }}>×{it.veces}</span>
                         )}
                         {it.tiles.map((t, ti) => {
                           const evsReales = t.evs.filter((x): x is number => x !== null);
-                          if (evsReales.length === 0) return <span key={ti} style={{ flex: `${t.dur} 1 0`, minWidth: 2, height: 8, borderRadius: 2, background: "rgba(0,0,0,0.12)" }} />;
+                          if (evsReales.length === 0) return <span key={ti} style={{ flex: `${t.dur} 1 0`, minWidth: 2, height: 6, borderRadius: 2, background: "rgba(0,0,0,0.12)" }} />;
                           const e = eventos[evsReales[0]];
                           if (!e) return <span key={ti} style={{ flex: `${t.dur} 1 0`, minWidth: 2 }} />;
                           const esActual = evsReales.includes(actualIdx);
@@ -931,7 +923,7 @@ export function VistaEstudio({
                               key={ti}
                               onClick={() => elegir(evsReales.find((x) => x >= actualIdx) ?? evsReales[0])}
                               title={`${simboloAcorde(e.nota, e.calidad, e.bajo)} · ${gradoEnTonalidad(e.nota, e.calidad, tonalidad).romano}`}
-                              style={{ flex: `${t.dur} 1 0`, minWidth: 2, height: esActual ? 22 : 14, border: "none", padding: 0, cursor: "pointer", borderRadius: 2, background: colorDe(e.nota, e.calidad), opacity: esActual ? 1 : pasado ? 0.5 : 1, boxShadow: esActual ? "0 0 0 1px white, 0 0 0 3px black" : "none" }}
+                              style={{ flex: `${t.dur} 1 0`, minWidth: 2, height: 14, border: "none", padding: 0, cursor: "pointer", borderRadius: 2, background: colorDe(e.nota, e.calidad), opacity: esActual ? 1 : pasado ? 0.5 : 1, boxShadow: esActual ? "0 0 0 1px white, 0 0 0 2px black" : "none" }}
                             />
                           );
                         })}
