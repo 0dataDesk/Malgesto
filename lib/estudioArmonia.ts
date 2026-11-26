@@ -7,7 +7,7 @@ export function transponerNota(nota: Nota, semitonos: number): Nota {
 }
 
 export function esMenorFamilia(calidad: Calidad): boolean {
-  return calidad === "menor" || calidad === "m7" || calidad === "disminuido" || calidad === "dim7" || calidad === "m7b5";
+  return calidad === "menor" || calidad === "madd9" || calidad === "m7" || calidad === "disminuido" || calidad === "dim7" || calidad === "m7b5";
 }
 
 const ROMANOS_MAYOR = ["I", "ii", "iii", "IV", "V", "vi", "vii°"];
