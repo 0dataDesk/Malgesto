@@ -66,7 +66,7 @@ function SeccionNombreSelector({ valor, etiqueta, onCambio }: { valor: NombreSec
       {abierto && (
         <div className="absolute z-20 mt-1 flex w-56 flex-wrap gap-1.5 rounded-xl p-2.5" style={{ background: CARD, border: `1px solid ${LINE}`, boxShadow: "0 16px 32px -16px rgba(0,0,0,0.25)" }}>
           {PARTES_SECCION.map((n) => (
-            <button key={n} type="button" onClick={() => { onCambio(n); setAbierto(false); }} className="rounded-lg px-2.5 py-1.5 text-xs font-bold" style={n === valor ? { background: colorPorTipoSeccion(n), color: tintaPorTipoSeccion(n), outline: "2px solid oklch(0.64 0.17 28)", outlineOffset: 1 } : inactivoStyle}>
+            <button key={n} type="button" onClick={() => { onCambio(n); setAbierto(false); }} className="rounded-lg px-2.5 py-1.5 text-xs font-bold" style={{ background: colorPorTipoSeccion(n), color: tintaPorTipoSeccion(n), border: "1px solid oklch(0.8 0.01 85)", outline: n === valor ? "2px solid oklch(0.64 0.17 28)" : "none", outlineOffset: 1 }}>
               {n}
             </button>
           ))}

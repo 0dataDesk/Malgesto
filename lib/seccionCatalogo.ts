@@ -35,29 +35,28 @@ export function etiquetasSecciones(partes: string[]): string[] {
   });
 }
 
-// Color de cada parte, en escala de blancos, grises y negro (sin color: así las partes se distinguen
-// de un vistazo y los colores de los acordes resaltan). Las más usadas llevan los grises más separados;
-// Preintro, Precoro y Sección Única son degradados ligeros entre vecinos, de menor prioridad.
-// Orden de claro a oscuro: Verso, Intro, Solo, Outro, Puente, Coro.
+// Fondo de cada parte, en blancos, grises y negro, más dos texturas para las partes que se parecen:
+// Intro = blanco con rayas diagonales que entran (/), Outro = blanco con rayas que salen (\), Sección Única = puntos.
+// Preintro y Precoro son degradados que terminan en el fondo de la parte que les sigue, para que conecten:
+// Preintro acaba en el blanco de Intro; Precoro empieza en el gris de Verso y acaba en el negro de Coro.
 const gris = (l: number) => `oklch(${l} 0 0)`;
-const GRIS_POR_PARTE: Record<string, number> = { Verso: 0.93, Intro: 0.8, Solo: 0.68, Outro: 0.55, Puente: 0.4, Coro: 0.2 };
-const DEGRADADO_POR_PARTE: Record<string, [number, number]> = {
-  Preintro: [0.8, 0.98], // de Intro a casi blanco
-  Precoro: [0.93, 0.2], // de Verso a Coro: va subiendo hacia el coro
-  "Sección Única": [0.68, 0.93], // de Solo a Verso
-};
+const GRIS_POR_PARTE: Record<string, number> = { Verso: 0.94, Solo: 0.74, Puente: 0.54, Coro: 0.32 };
+const rayas = (grados: number, alfa: number) => `repeating-linear-gradient(${grados}deg, transparent 0 6px, rgba(0,0,0,${alfa}) 6px 8px)`;
 
-// Fondo de la parte: un gris o un degradado ligero (CSS `background`).
+// Fondo de la parte (valor de CSS `background`, puede traer varias capas).
 export function colorPorTipoSeccion(nombre: NombreSeccion): string {
-  const parte = parteDe(nombre);
-  const d = DEGRADADO_POR_PARTE[parte];
-  if (d) return `linear-gradient(135deg, ${gris(d[0])}, ${gris(d[1])})`;
-  return gris(GRIS_POR_PARTE[parte] ?? 0.8);
+  switch (parteDe(nombre)) {
+    case "Intro": return `${gris(1)} ${rayas(135, 0.28)}`;
+    case "Outro": return `${gris(1)} ${rayas(45, 0.45)}`;
+    case "Sección Única": return `${gris(0.8)} radial-gradient(rgba(0,0,0,0.45) 1.4px, transparent 1.6px) 0 0 / 7px 7px`;
+    case "Preintro": return `linear-gradient(90deg, ${gris(0.62)}, ${gris(1)})`;
+    case "Precoro": return `linear-gradient(90deg, ${gris(GRIS_POR_PARTE.Verso)}, ${gris(GRIS_POR_PARTE.Coro)})`;
+    default: return gris(GRIS_POR_PARTE[parteDe(nombre)] ?? 0.8);
+  }
 }
 
-// Tinta que se lee sobre ese fondo: clara sobre los grises oscuros, oscura sobre los claros.
+// Tinta que se lee sobre ese fondo: clara solo sobre Coro y Puente (los grises oscuros), oscura en el resto.
 export function tintaPorTipoSeccion(nombre: NombreSeccion): string {
   const parte = parteDe(nombre);
-  const oscuro = parte === "Coro" || parte === "Puente" || parte === "Outro";
-  return oscuro ? "oklch(0.99 0 0)" : "oklch(0.2 0 0)";
+  return parte === "Coro" || parte === "Puente" ? "oklch(0.99 0 0)" : "oklch(0.2 0 0)";
 }
