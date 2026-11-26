@@ -785,11 +785,18 @@ export function VistaEstudio({
   return (
     <div className="flex min-h-screen flex-col xl:h-screen" style={{ background: BG, color: INK }}>
       {/* Cabecera: volver y nombre | datos de la canción (centrados) | cambiar tono y editar */}
-      <header className="px-5 pb-1 pt-2">
-        <Link href={volverHref} className="mb-1 flex w-fit items-center no-underline" style={{ fontSize: 12, color: MUTED }}>
-          ‹ Canciones
+      <header className="px-5 pb-1 pt-3">
+        <div className="flex items-stretch gap-1.5">
+        <Link
+          href={volverHref}
+          title="Volver a Canciones"
+          aria-label="Volver a Canciones"
+          className="flex w-7 flex-none items-center justify-center rounded-2xl no-underline"
+          style={{ background: CORAL, color: "white", fontSize: 22, fontWeight: 800, lineHeight: 1 }}
+        >
+          ‹
         </Link>
-        <section className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl px-4 py-2.5" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+        <section className="flex min-w-0 flex-1 flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl px-4 py-2.5" style={{ background: CARD, border: `1px solid ${LINE}` }}>
           <div className="min-w-0 flex-1" style={{ minWidth: 240 }}>
             <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED, marginBottom: 1 }}>
               {cancion.esCover ? "Cover" : `Propia${cancion.esBorrador ? " · borrador" : ""}`}
@@ -888,6 +895,7 @@ export function VistaEstudio({
             </div>
           </div>
         </section>
+        </div>
       </header>
 
       {/* Recorrido de la canción (el mismo modelo del editor): cada parte con su fondo, sus acordes por color y una barra que crece */}
