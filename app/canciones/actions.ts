@@ -28,12 +28,13 @@ export async function crearCancionAction(input: CancionInput) {
   redirect(`/canciones/${cancionId}`);
 }
 
-export async function actualizarCancionAction(cancionId: string, input: CancionInput) {
+// `quedarse`: guarda y no saca de la pantalla de edición (así no se pierde lo que se está capturando).
+export async function actualizarCancionAction(cancionId: string, input: CancionInput, quedarse = false) {
   await requerirAccesoBloque(input.bandaId, "canciones");
   await actualizarCancion(cancionId, input);
   revalidatePath("/canciones");
   revalidatePath(`/canciones/${cancionId}`);
-  redirect(`/canciones/${cancionId}`);
+  if (!quedarse) redirect(`/canciones/${cancionId}`);
 }
 
 // Ventana "Editar" del modo Estudio: guarda solo la ficha y se queda en la canción.
