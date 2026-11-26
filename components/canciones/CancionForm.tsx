@@ -495,14 +495,14 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
               <Fragment key={i}>
                 {i > 0 && (
                   <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden style={{ alignSelf: "center", flex: "none", margin: "0 -3px", zIndex: 1 }}>
-                    <path d="M4 2l5 5-5 5" fill="none" stroke={FAINT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M4 2l5 5-5 5" fill="none" stroke={ACCENT} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 )}
                 <button
                   type="button"
                   onClick={() => setSeccionAbierta(i)}
                   className="flex min-w-[104px] flex-col text-left"
-                  style={{ flex: `${Math.max(1, Math.min(compases, 20))} 1 0`, background: color, color: tinta, boxShadow: activa ? "inset 0 0 0 3px oklch(0.64 0.17 28)" : "none", padding: "8px 8px 6px", borderRight: i < secciones.length - 1 ? `1px solid ${LINE}` : "none" }}
+                  style={{ flex: `${Math.max(1, Math.min(compases, 20))} 1 0`, background: color, color: tinta, boxShadow: activa ? "inset 0 0 0 3px oklch(0.08 0 0)" : "none", padding: "8px 8px 6px", borderRight: i < secciones.length - 1 ? `1px solid ${LINE}` : "none" }}
                 >
                   <span className="flex items-center gap-1.5">
                     <span style={{ fontFamily: MONO, fontWeight: 800, fontSize: 9, opacity: 0.6 }}>{i + 1}</span>
