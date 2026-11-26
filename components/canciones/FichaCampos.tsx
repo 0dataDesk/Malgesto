@@ -29,6 +29,7 @@ const NATURALES = NOTAS.filter((n) => !n.includes("#")) as Nota[];
 export type FichaEstado = {
   titulo: string;
   autor: string;
+  genero: string;
   bpm: string;
   duracion: string;
   spotify: string;
@@ -44,6 +45,7 @@ export function fichaDesdeCancion(c?: CancionCompleta): FichaEstado {
   return {
     titulo: c?.titulo ?? "",
     autor: c?.autor ?? "",
+    genero: c?.genero ?? "",
     bpm: c?.bpm ? String(c.bpm) : "",
     duracion: formatoMMSS(c?.duracionSegundos ?? null) ?? "",
     spotify: c?.spotifyUri ? `https://open.spotify.com/track/${c.spotifyUri.split(":").pop()}` : "",
@@ -77,6 +79,7 @@ export function fichaAInput(f: FichaEstado): FichaInput | string {
     // El borrador solo aplica a canciones propias.
     esBorrador: f.esCover ? false : f.esBorrador,
     autor: f.autor.trim() || null,
+    genero: f.genero.trim() || null,
     capo: f.capo,
     spotifyUri,
     numeroCompases: compases,
@@ -130,6 +133,14 @@ export function FichaCampos({
           onChange={(e) => onCambio({ autor: e.target.value })}
           placeholder={ficha.esCover ? "Artista o banda original" : "Artista o banda"}
           aria-label="Artista o banda"
+          className="w-full border-b bg-transparent pb-0.5 text-sm outline-none"
+          style={{ borderColor: LINE, color: MUTED }}
+        />
+        <input
+          value={ficha.genero}
+          onChange={(e) => onCambio({ genero: e.target.value })}
+          placeholder="Género (opcional: rock, cumbia, dub…)"
+          aria-label="Género"
           className="w-full border-b bg-transparent pb-0.5 text-sm outline-none"
           style={{ borderColor: LINE, color: MUTED }}
         />
