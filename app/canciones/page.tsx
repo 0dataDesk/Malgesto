@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { supabaseServerAuth } from "@/lib/supabase/serverClient";
 import { obtenerMembresias, esSuperadminDeMembresias, algunaBandaConBloque, membresiasConBloque } from "@/lib/malgestoEventos";
 import { puedeVerBorradores } from "@/lib/bloques";
-import { obtenerCanciones, type Cancion } from "@/lib/cancionesData";
+import { obtenerCanciones } from "@/lib/cancionesData";
 import { ListaCanciones } from "@/components/canciones/ListaCanciones";
 import { TabBar } from "@/components/shell/TabBar";
 import { CopiarInstruccion } from "@/components/canciones/CopiarInstruccion";
@@ -25,7 +25,6 @@ import { TarjetaSeleccionarBanda } from "@/components/ui/TarjetaSeleccionarBanda
 // "Borrador" (borde punteado acento) o chip de autor en covers; fila de
 // datos en mono con la tonalidad coloreada. Los borradores usan fondo y
 // borde punteados para leerse "en obra" antes de abrirlos.
-const MONO = "var(--font-space-mono), ui-monospace, monospace";
 
 export default async function CancionesPage({
   searchParams,
