@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState, useTransition } from "react";
-import { NOTAS, type Nota, type Modo, type Calidad, simboloAcorde, colorRaizAcorde, colorContrasteTexto } from "@/lib/cancionTeoria";
+import { type Nota, type Modo, type Calidad, simboloAcorde, colorRaizAcorde, colorContrasteTexto } from "@/lib/cancionTeoria";
 import { PARTES_SECCION, colorPorTipoSeccion, tintaPorTipoSeccion, etiquetasSecciones, parteDe, type NombreSeccion } from "@/lib/seccionCatalogo";
 import { segundosPorCompas } from "@/lib/cancionTiempo";
 import type { CancionCompleta, CancionInput, SeccionInput, SeccionBaseInput, LetraLineaInput } from "@/lib/cancionesData";
@@ -322,20 +322,10 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
       tonModo: s.tonalidadModo ?? "mayor",
       numeroCompases: s.numeroCompases?.toString() ?? "",
       bpm: s.bpm?.toString() ?? "",
-      repeticiones: s.repeticiones.map((r) => ({
-        repeticionIndice: r.repeticionIndice,
-        acordes: r.acordes.map((a) => ({ notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo, duracionCompases: a.duracionCompases, silencio: a.silencio })),
-        letra: r.letra.map((l) => ({ texto: l.texto, tipo: l.tipo, acordes: l.acordes.map((a) => ({ posicion: a.posicion, notaRaiz: a.notaRaiz, calidad: a.calidad, notaBajo: a.notaBajo })) })),
-        tonalidadPropia: r.tonalidadNota !== null,
-        tonRaiz: r.tonalidadNota ?? "C",
-        tonModo: r.tonalidadModo ?? "mayor",
-        numeroCompases: r.numeroCompases?.toString() ?? "",
-        bpm: r.bpm?.toString() ?? "",
-      })),
+      repeticiones: [],
     })) ?? [nuevaSeccion()]
   );
   const [seccionAbierta, setSeccionAbierta] = useState(0);
-  const [vueltaSel, setVueltaSel] = useState<Record<number, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [guardado, setGuardado] = useState(false);
@@ -395,28 +385,6 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
     setSeccionAbierta(Math.max(0, i - 1));
   };
 
-  const toggleDesprender = (si: number, vuelta: number) =>
-    setSecciones((prev) =>
-      prev.map((s, idx) => {
-        if (idx !== si) return s;
-        const existe = s.repeticiones.some((r) => r.repeticionIndice === vuelta);
-        if (existe) return { ...s, repeticiones: s.repeticiones.filter((r) => r.repeticionIndice !== vuelta) };
-        const clon: RepeticionFS = {
-          repeticionIndice: vuelta,
-          acordes: s.acordes.map((a) => ({ ...a })),
-          letra: s.letra.map((l) => ({ texto: l.texto, tipo: l.tipo, acordes: l.acordes.map((a) => ({ ...a })) })),
-          tonalidadPropia: s.tonalidadPropia,
-          tonRaiz: s.tonRaiz,
-          tonModo: s.tonModo,
-          numeroCompases: s.numeroCompases,
-          bpm: s.bpm,
-        };
-        return { ...s, repeticiones: [...s.repeticiones, clon].sort((a, b) => a.repeticionIndice - b.repeticionIndice) };
-      })
-    );
-  const patchRepeticion = (si: number, vuelta: number, patch: Partial<CuerpoFS>) =>
-    setSecciones((prev) => prev.map((s, idx) => (idx === si ? { ...s, repeticiones: s.repeticiones.map((r) => (r.repeticionIndice === vuelta ? { ...r, ...patch } : r)) } : s)));
-
   const construirCuerpo = (c: CuerpoFS): Omit<SeccionBaseInput, "nombre" | "repiteVeces"> => ({
     tonalidadNota: c.tonalidadPropia ? c.tonRaiz : null,
     tonalidadModo: c.tonalidadPropia ? c.tonModo : null,
@@ -438,9 +406,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
       nombre: etiquetas[i],
       repiteVeces: Math.max(1, s.repiteVeces),
       ...construirCuerpo(s),
-      repeticiones: s.repeticiones
-        .filter((r) => r.repeticionIndice >= 1 && r.repeticionIndice <= Math.max(1, s.repiteVeces))
-        .map((r) => ({ nombre: etiquetas[i], repiteVeces: 1, repeticionIndice: r.repeticionIndice, ...construirCuerpo(r) })),
+      repeticiones: [],
     }));
     const input: CancionInput = { bandaId, ...base, esBorrador: marcarLista ? false : base.esBorrador, secciones: seccionesInput };
     startTransition(async () => {
@@ -469,14 +435,9 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
   // Parada elegida
   const si = Math.min(seccionAbierta, secciones.length - 1);
   const sec = secciones[si];
-  const sel = sec ? Math.min(vueltaSel[si] ?? 1, sec.repiteVeces) : 1;
-  const esVariante = !!sec && sec.repeticiones.some((r) => r.repeticionIndice === sel);
-  const cuerpoSel: CuerpoFS | null = sec ? sec.repeticiones.find((r) => r.repeticionIndice === sel) ?? sec : null;
-  // Aplica un cambio al cuerpo activo: la plantilla, o la vuelta desprendida si la elegida lo es.
-  const aplicar = (patch: Partial<CuerpoFS>) => {
-    if (esVariante) patchRepeticion(si, sel, patch);
-    else patchSeccion(si, patch as Partial<SeccionFS>);
-  };
+  // Una parte que se repite es la misma: se captura una sola vez y las vueltas suenan igual.
+  const cuerpoSel: CuerpoFS | null = sec ?? null;
+  const aplicar = (patch: Partial<CuerpoFS>) => patchSeccion(si, patch as Partial<SeccionFS>);
 
   const boton = { border: `1px solid ${LINE}`, background: CARD, color: INK, borderRadius: 9, padding: "4px 10px", fontFamily: MONO, fontWeight: 700, fontSize: 11 } as const;
 
@@ -607,46 +568,6 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
               )}
             </div>
           </div>
-
-          {sec.repiteVeces > 1 && (
-            <div className="mt-2 flex items-center gap-1">
-              {Array.from({ length: sec.repiteVeces }).map((_, idx) => {
-                const n = idx + 1;
-                const variante = sec.repeticiones.some((r) => r.repeticionIndice === n);
-                const activo = n === sel;
-                return (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setVueltaSel((p) => ({ ...p, [si]: n }))}
-                    title={variante ? "Vuelta desprendida" : "Igual que la plantilla"}
-                    style={{
-                      border: `1px solid ${variante ? ACCENT : LINE}`,
-                      background: activo ? (variante ? ACCENT : CHIP) : "transparent",
-                      color: activo ? (variante ? "oklch(0.99 0.006 85)" : INK) : MUTED,
-                      borderRadius: 7,
-                      padding: "2px 9px",
-                      fontFamily: MONO,
-                      fontWeight: 700,
-                      fontSize: 10,
-                    }}
-                  >
-                    Vuelta {n}{variante ? " · aparte" : ""}
-                  </button>
-                );
-              })}
-              {!esVariante && (
-                <button type="button" onClick={() => toggleDesprender(si, sel)} className="rounded-md border border-dashed px-2 py-0.5 text-[10px] font-bold" style={{ borderColor: LINE, color: MUTED, fontFamily: MONO }}>
-                  Editar vuelta {sel} aparte
-                </button>
-              )}
-              {esVariante && (
-                <button type="button" onClick={() => toggleDesprender(si, sel)} className="rounded-md px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: CHIP, color: ACCENT, fontFamily: MONO }}>
-                  Reunir con las demás
-                </button>
-              )}
-            </div>
-          )}
 
           {/* Acordes de la parte (cuentan los compases); si un ciclo se toca varias veces seguidas, una raya los separa */}
           {(() => {
