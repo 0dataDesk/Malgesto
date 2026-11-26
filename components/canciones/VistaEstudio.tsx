@@ -51,6 +51,19 @@ function tono(base: string, nivel: number): string {
   return `hsl(${h} ${Math.max(s - 8 * nivel, 18)}% ${Math.min(l + 13 * nivel, 86)}%)`;
 }
 
+// Secciones listas para calcular tiempos por tempo: compases de una vuelta, segundos por compás y peso de cada acorde
+// (su duración en compases; en secciones con letra, el texto que cubre).
+function seccionesPorTempo(cancion: CancionCompleta) {
+  return cancion.secciones.map((s) => {
+    const bpm = s.bpm ?? cancion.bpm ?? 0;
+    const conLetra = s.letra.some((l) => l.acordes.length > 0);
+    const pesos = conLetra
+      ? pesosDeSeccion(s.letra.map((l) => ({ largo: l.tipo === "tab" ? 0 : l.texto.length, posiciones: l.acordes.map((a) => a.posicion) })), 0)
+      : [...s.acordes].sort((a, b) => a.orden - b.orden).filter((a) => !a.silencio).map((a) => Math.max(Number(a.duracionCompases) || 1, 0.0001));
+    return { vueltas: s.repiteVeces, compases: compasesDeSeccion(s), segundosPorCompas: segundosPorCompas(bpm), pesos };
+  });
+}
+
 // ---- Diagrama de acorde (con dedos y cejilla) --------------------------------
 function Diagrama({
   forma,
@@ -457,6 +470,20 @@ export function VistaEstudio({
       return porSeccion[o.seccion][idxEnSeccion] ?? 24;
     });
   }, [ocurr, indicesPorSeccion, cancion.secciones]);
+  // Sin tiempos guardados el seguimiento sale solo del tempo y los compases capturados (no del texto):
+  // la canción arranca después de lo que sobra entre su duración y la suma de compases, y un clic en el acorde
+  // que se oye mueve todo (ver `afinar`).
+  const anclasAuto = useMemo<Ancla[]>(() => {
+    if ((cancion.bpm ?? 0) <= 0 || ocurr.length === 0) return [];
+    const secs = seccionesPorTempo(cancion);
+    if (secs.some((x) => x.pesos.length > 0 && (x.compases <= 0 || x.segundosPorCompas <= 0))) return [];
+    const estructura = secs.reduce((t, x) => t + x.vueltas * x.compases * x.segundosPorCompas, 0);
+    const duracion = cancion.duracionSegundos ?? 0;
+    const entrada = duracion > 0 ? Math.min(15, Math.max(0, duracion - estructura)) : 0;
+    const auto = anclasPorTempo(Math.round(entrada * 1000), secs);
+    return auto.length === ocurr.length ? auto : [];
+  }, [cancion, ocurr]);
+  const anclasSeg = anclas.length > 0 ? anclas : anclasAuto;
   const actualIdx = Math.min(idx, Math.max(total - 1, 0));
   const actual = eventos[actualIdx] ?? null;
   const siguiente = eventos[actualIdx + 1] ?? null;
@@ -566,7 +593,7 @@ export function VistaEstudio({
     const id = setInterval(() => {
       const u = ultimoRef.current;
       if (u.pausado || !suenaEsta()) return;
-      const k = ocurrenciaPorAnclas(anclas, posicionAhora() + adelanto, ocurr.length, u.dur, pesos);
+      const k = ocurrenciaPorAnclas(anclasSeg, posicionAhora() + adelanto, ocurr.length, u.dur, pesos);
       if (k < 0 || k === ocurrRef.current) return;
       ocurrRef.current = k;
       const ev = ocurr[k].evento;
@@ -577,7 +604,7 @@ export function VistaEstudio({
     }, 120);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anclas, ocurr, eventos, pesos, grabando, adelanto]);
+  }, [anclasSeg, ocurr, eventos, pesos, grabando, adelanto]);
 
   // Al tocar un acorde mientras suena la canción: "este es el que oigo ahora".
   const afinar = (evento: number) => {
@@ -588,10 +615,10 @@ export function VistaEstudio({
     const ref = ocurrRef.current >= 0 ? ocurrRef.current : 0;
     const k = candidatas.reduce((m, x) => (Math.abs(x.k - ref) < Math.abs(m.k - ref) ? x : m)).k;
     const ahora = Math.max(0, Math.round(posicionAhora()));
-    const propia = anclas.find((a) => a[0] === k);
+    const propia = anclasSeg.find((a) => a[0] === k);
     // Con una grabación (casi) completa, el desfase es parejo: un clic mueve TODA la grabación.
-    const grabacionCompleta = anclas.length >= 2 && anclas.length >= ocurr.length * 0.5;
-    const nuevas = grabacionCompleta && propia ? desplazarAnclas(anclas, ahora - propia[1]) : agregarAncla(anclas, [k, ahora]);
+    const grabacionCompleta = anclasSeg.length >= 2 && anclasSeg.length >= ocurr.length * 0.5;
+    const nuevas = grabacionCompleta && propia ? desplazarAnclas(anclasSeg, ahora - propia[1]) : agregarAncla(anclasSeg, [k, ahora]);
     ocurrRef.current = k;
     setAnclas(nuevas);
     if (puedeEditar) void guardarTiemposAction(cancion.id, cancion.bandaId, nuevas).catch(() => setAviso("No se pudo guardar el ajuste."));
@@ -615,14 +642,7 @@ export function VistaEstudio({
       setAviso("Escribe en qué segundo empieza el primer acorde (ej. 4.9).");
       return;
     }
-    const secs = cancion.secciones.map((s) => {
-      const bpm = s.bpm ?? cancion.bpm ?? 0;
-      const conLetra = s.letra.some((l) => l.acordes.length > 0);
-      const pesosSec = conLetra
-        ? pesosDeSeccion(s.letra.map((l) => ({ largo: l.tipo === "tab" ? 0 : l.texto.length, posiciones: l.acordes.map((a) => a.posicion) })), 0)
-        : [...s.acordes].sort((a, b) => a.orden - b.orden).filter((a) => !a.silencio).map((a) => Math.max(Number(a.duracionCompases) || 1, 0.0001));
-      return { vueltas: s.repiteVeces, compases: compasesDeSeccion(s), segundosPorCompas: segundosPorCompas(bpm), pesos: pesosSec };
-    });
+    const secs = seccionesPorTempo(cancion);
     if (secs.some((s) => s.pesos.length > 0 && (s.compases <= 0 || s.segundosPorCompas <= 0))) {
       setAviso("Faltan el BPM o los compases de alguna sección: complétalos en Editar.");
       return;
