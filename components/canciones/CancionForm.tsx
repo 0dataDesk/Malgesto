@@ -7,6 +7,7 @@ import { segundosPorCompas } from "@/lib/cancionTiempo";
 import type { CancionCompleta, CancionInput, SeccionInput, SeccionBaseInput, LetraLineaInput } from "@/lib/cancionesData";
 import { crearCancionAction, actualizarCancionAction, eliminarCancionAction, subirAudioAction, quitarAudioAction } from "@/app/canciones/actions";
 import { AcordeSelector, type AcordeRef } from "./AcordeSelector";
+import Link from "next/link";
 import { PaletaColor } from "./PaletaColor";
 import { filaDesdeAcordes, expandirFila, agruparUltimos, deshacerCiclo, sincronizarLetra, moverFrontera, cambiarTexto, moverPosicion, sinSilencios, type AcordeFila, type ItemEdicion, type LineaLetra } from "@/lib/cancionLetra";
 import { colorOSilencio, simboloOSilencio, SIMBOLO_SILENCIO } from "@/lib/acordeSilencio";
@@ -338,7 +339,7 @@ function AudioCampo({
 // Vista de Estructura: arriba la ficha de la canción; en medio el recorrido
 // (cada sección es una parada, de izquierda a derecha, en el orden en que suena);
 // abajo el detalle de la parada elegida: sus acordes y su letra.
-export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; cancionExistente?: CancionCompleta }) {
+export function CancionForm({ bandaId, cancionExistente, volverHref }: { bandaId: string; cancionExistente?: CancionCompleta; volverHref?: string }) {
   const [ficha, setFicha] = useState<FichaEstado>(() => fichaDesdeCancion(cancionExistente));
   const [fichaAbierta, setFichaAbierta] = useState(!cancionExistente);
   const [secciones, setSecciones] = useState<SeccionFS[]>(
@@ -486,8 +487,20 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
   return (
     <div className="flex items-start gap-4" style={{ fontFamily: "var(--font-dm-sans), sans-serif", color: INK }}>
     <div className="flex min-w-0 flex-1 flex-col gap-3">
-      {/* Ficha */}
-      <section className="rounded-2xl p-4" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+      {/* Ficha, con el botón naranja angosto para volver a su izquierda (el mismo de la ejecución) */}
+      <div className="flex items-stretch gap-1.5">
+      {volverHref && (
+        <Link
+          href={volverHref}
+          title="Volver"
+          aria-label="Volver"
+          className="flex w-7 flex-none items-center justify-center rounded-2xl no-underline"
+          style={{ background: ACCENT, color: "white", fontSize: 22, fontWeight: 800, lineHeight: 1 }}
+        >
+          ‹
+        </Link>
+      )}
+      <section className="min-w-0 flex-1 rounded-2xl p-4" style={{ background: CARD, border: `1px solid ${LINE}` }}>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="min-w-0 flex-1">
             <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED, marginBottom: 3 }} title={ficha.esCover ? "Cover" : "Canción propia"}>
@@ -515,6 +528,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
           </div>
         )}
       </section>
+      </div>
 
       {/* Recorrido: una sola pieza, de izquierda a derecha, en el orden en que suena */}
       <section>
@@ -523,7 +537,7 @@ export function CancionForm({ bandaId, cancionExistente }: { bandaId: string; ca
           <div className="h-px flex-1" style={{ background: LINE }} />
           <span style={{ fontFamily: MONO, fontSize: 10, color: MUTED }}>{secciones.length} partes · {totalVueltas} vueltas</span>
         </div>
-        <div className="mt-2 flex items-stretch overflow-x-auto rounded-2xl" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+        <div className="mt-2 flex items-stretch overflow-x-auto" style={{ background: CARD, border: `1px solid ${LINE}` }}>
           {secciones.map((s, i) => {
             const color = colorPorTipoSeccion(s.nombre);
             const tinta = tintaPorTipoSeccion(s.nombre);
