@@ -3,6 +3,7 @@ import { supabaseMalgesto } from "@/lib/supabase/malgesto";
 import type { Nota, Modo, Calidad } from "@/lib/cancionTeoria";
 import type { NombreSeccion } from "@/lib/seccionCatalogo";
 import { compasesDeSeccion } from "@/lib/cancionTiempo";
+import { anclasValidas } from "@/lib/estudioSync";
 
 export { compasesDeSeccion };
 
@@ -47,6 +48,7 @@ export type Cancion = {
   // ('spotify:track:ID') y milisegundo de cada acorde en el orden en que suenan.
   capo: number;
   spotifyUri: string | null;
+  tiemposMs: [number, number][] | null;
   // Formas de acorde tomadas de la hoja de cada canción: { "guitarra|Dsus4/F#": [2,null,0,2,3,3] } (traste por cuerda, de la más grave a la más aguda).
   formas: Record<string, (number | null)[]> | null;
 };
@@ -174,7 +176,7 @@ export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
   const { data } = await admin
     .from("canciones")
     .select(
-      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, genero, compases_revisados, capo, spotify_uri, formas, numero_compases, secciones(plantilla_id, repite_veces, numero_compases, acordes(duracion_compases))"
+      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, genero, compases_revisados, capo, spotify_uri, tiempos_ms, formas, numero_compases, secciones(plantilla_id, repite_veces, numero_compases, acordes(duracion_compases))"
     )
     .in("banda_id", bandaIds)
     .order("titulo", { ascending: true });
@@ -210,6 +212,7 @@ export async function obtenerCanciones(bandaIds: string[]): Promise<Cancion[]> {
       compasesRevisados: !!c.compases_revisados,
       capo: Number(c.capo) || 0,
       spotifyUri: c.spotify_uri ?? null,
+      tiemposMs: Array.isArray(c.tiempos_ms) ? anclasValidas(c.tiempos_ms) : null,
       formas: formasValidas(c.formas),
     };
   });
@@ -300,7 +303,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
   const { data: cancion } = await admin
     .from("canciones")
     .select(
-      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, genero, compases_revisados, capo, spotify_uri, formas, numero_compases, audio_referencia_path, audio_secuencia_path"
+      "id, banda_id, titulo, tonalidad_nota, tonalidad_modo, bpm, duracion_segundos, es_cover, es_borrador, autor, genero, compases_revisados, capo, spotify_uri, tiempos_ms, formas, numero_compases, audio_referencia_path, audio_secuencia_path"
     )
     .eq("id", cancionId)
     .single();
@@ -377,6 +380,7 @@ export async function obtenerCancionCompleta(cancionId: string): Promise<Cancion
     compasesRevisados: !!cancion.compases_revisados,
     capo: Number(cancion.capo) || 0,
     spotifyUri: cancion.spotify_uri ?? null,
+    tiemposMs: Array.isArray(cancion.tiempos_ms) ? anclasValidas(cancion.tiempos_ms) : null,
     formas: formasValidas(cancion.formas),
     audioReferenciaPath: cancion.audio_referencia_path,
     audioSecuenciaPath: cancion.audio_secuencia_path,
@@ -623,6 +627,13 @@ export async function actualizarFicha(cancionId: string, f: FichaInput) {
       numero_compases: f.numeroCompases,
     })
     .eq("id", cancionId);
+  if (error) throw new Error(error.message);
+}
+
+// Tiempos marcados en el modo Estudio (null = borrar las marcas).
+export async function guardarTiempos(cancionId: string, tiemposMs: [number, number][] | null) {
+  const admin = supabaseMalgesto();
+  const { error } = await admin.from("canciones").update({ tiempos_ms: tiemposMs }).eq("id", cancionId);
   if (error) throw new Error(error.message);
 }
 
