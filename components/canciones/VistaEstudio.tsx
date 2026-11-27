@@ -6,11 +6,9 @@ import type { CancionCompleta } from "@/lib/cancionesData";
 import { NOTAS, gradoDeNota, simboloAcorde, colorRaizAcorde, colorContrasteTexto, tonosDelAcorde, type Calidad, type Nota } from "@/lib/cancionTeoria";
 import { formatoMMSS } from "@/lib/duracion";
 import { FichaEditor } from "./FichaEditor";
-import { compasesDeSeccion, segundosPorCompas } from "@/lib/cancionTiempo";
 import { colorPorTipoSeccion, tintaPorTipoSeccion } from "@/lib/seccionCatalogo";
 import { PaletaColor } from "./PaletaColor";
 import { agruparCiclos } from "@/lib/cancionLetra";
-import { ocurrencias, anclasPorTempo, ocurrenciaPorAnclas, posicionEstimada, pesosDeSeccion, type Ancla } from "@/lib/estudioSync";
 import {
   INSTRUMENTOS_ESTUDIO,
   variantesDeAcorde,
@@ -53,27 +51,6 @@ function tono(base: string, nivel: number): string {
   const [h, s, l] = [Number(m[1]), Number(m[2]), Number(m[3])];
   if (nivel === 0) return base;
   return `hsl(${h} ${Math.max(s - 8 * nivel, 18)}% ${Math.min(l + 13 * nivel, 86)}%)`;
-}
-
-// Secciones listas para calcular tiempos por tempo: compases de una vuelta, segundos por compás y peso de cada acorde
-// (su duración en compases; en secciones con letra, el texto que cubre).
-function seccionesPorTempo(cancion: CancionCompleta) {
-  return cancion.secciones.map((s) => {
-    const bpm = s.bpm ?? cancion.bpm ?? 0;
-    const acordes = [...s.acordes].sort((a, b) => a.orden - b.orden);
-    const delTiempo = acordes.map((a) => Math.max(Number(a.duracionCompases) || 1, 0.0001));
-    const omitir = acordes.map((a) => !!a.silencio);
-    const reales = omitir.filter((x) => !x).length;
-    const conLetra = s.letra.some((l) => l.acordes.length > 0);
-    const enLetra = s.letra.reduce((n, l) => n + l.acordes.length, 0);
-    // Con letra, si los acordes de la parte coinciden uno a uno con los de la letra, cada acorde dura lo que se
-    // capturó (compases); si no coinciden, se reparte por el texto que cubre cada acorde.
-    const porDuracion = !conLetra || (reales === enLetra && reales > 0);
-    const pesos = porDuracion
-      ? delTiempo
-      : pesosDeSeccion(s.letra.map((l) => ({ largo: l.tipo === "tab" ? 0 : l.texto.length, posiciones: l.acordes.map((a) => a.posicion) })), 0);
-    return { vueltas: s.repiteVeces, compases: compasesDeSeccion(s), segundosPorCompas: segundosPorCompas(bpm), pesos, omitir: porDuracion ? omitir : undefined };
-  });
 }
 
 // ---- Diagrama de acorde (con dedos y cejilla) --------------------------------
@@ -342,7 +319,6 @@ const LADOS_ACORDE = [184, 160, 140, 122, 108, 96, 84, 74];
 function altoTarjetaAcorde(l: number): number {
   return 30 + ((l - 22) * 160) / 150 + (l >= 120 ? 22 : 0);
 }
-const PREF_ADELANTO = "malgesto-estudio-adelanto2-"; // v2 (30/10/26): se descartan los ajustes viejos, hechos contra tiempos que ya se recalcularon
 
 function leer<T>(clave: string, defecto: T): T {
   try {
@@ -388,17 +364,9 @@ export function VistaEstudio({
   const [variantes, setVariantes] = useState<Record<string, number>>({});
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
   const [filtro, setFiltro] = useState<string[]>([]);
-  const [reproduciendo, setReproduciendo] = useState(false);
-  // Adelanto (ms): el acorde se marca un poco antes de lo grabado, para compensar lo que tardas en tocar.
-  const [adelanto, setAdelanto] = useState(400);
-  const [adelantoTxt, setAdelantoTxt] = useState<string | null>(null);
   const contRef = useRef<HTMLDivElement>(null);
   const ctrlRef = useRef<ControladorSpotify | null>(null);
-  const ultimoRef = useRef<{ ms: number; rec: number; pausado: boolean; uri: string | null; dur: number }>({ ms: 0, rec: 0, pausado: true, uri: null, dur: 0 });
-  const ocurrRef = useRef(-1);
   const [editando, setEditando] = useState(false);
-  const [progresoMs, setProgresoMs] = useState(0);
-  const [durSpotifyMs, setDurSpotifyMs] = useState(0);
   const prefsLeidas = useRef(false);
 
   useEffect(() => {
@@ -410,7 +378,6 @@ export function VistaEstudio({
         if (INSTRUMENTOS_ESTUDIO[g.instrumento].afinaciones.some((a) => a.id === g.afinId)) setAfinId(g.afinId as string);
       }
       setVariantes(leer(PREF_VAR, {}));
-      setAdelanto(leer<number>(PREF_ADELANTO + cancion.id, 400));
       prefsLeidas.current = true;
     }, 0);
     return () => clearTimeout(t);
@@ -463,38 +430,7 @@ export function VistaEstudio({
   }, [cancion.secciones, semiEf]);
 
   const total = eventos.length;
-  const ocurr = useMemo(() => ocurrencias(indicesPorSeccion, cancion.secciones.map((x) => x.repiteVeces)), [indicesPorSeccion, cancion.secciones]);
   const uriInicialRef = useRef(cancion.spotifyUri);
-  // Peso de cada ocurrencia: cuánto texto cubre su acorde (ver pesosDeSeccion).
-  const pesos = useMemo(() => {
-    const porSeccion = cancion.secciones.map((s) => {
-      const conLetra = s.letra.some((l) => l.acordes.length > 0);
-      return pesosDeSeccion(
-        conLetra ? s.letra.map((l) => ({ largo: l.tipo === "tab" ? 0 : l.texto.length, posiciones: l.acordes.map((a) => a.posicion) })) : [],
-        s.acordes.length
-      );
-    });
-    return ocurr.map((o) => {
-      const idxEnSeccion = indicesPorSeccion[o.seccion].indexOf(o.evento);
-      return porSeccion[o.seccion][idxEnSeccion] ?? 24;
-    });
-  }, [ocurr, indicesPorSeccion, cancion.secciones]);
-  // El seguimiento sale solo del tempo y los compases capturados: la canción arranca después de lo que sobra
-  // entre su duración y la suma de compases, y la Sincronía desplaza todo parejo.
-  const anclasAuto = useMemo<Ancla[]>(() => {
-    if ((cancion.bpm ?? 0) <= 0 || ocurr.length === 0) return [];
-    const secs = seccionesPorTempo(cancion);
-    if (secs.some((x) => x.pesos.length > 0 && (x.compases <= 0 || x.segundosPorCompas <= 0))) return [];
-    const estructura = secs.reduce((t, x) => t + x.vueltas * x.compases * x.segundosPorCompas, 0);
-    const duracion = cancion.duracionSegundos ?? 0;
-    const entrada = duracion > 0 ? Math.min(15, Math.max(0, duracion - estructura)) : 0;
-    // Si la canción ya tenía tiempos guardados, solo se conserva de ellos el momento en que entra el primer acorde
-    // (ya estaba afinado a oído); todo lo demás sale del tempo y los compases.
-    const guardada = cancion.tiemposMs?.find((x) => x[0] === 0)?.[1];
-    const auto = anclasPorTempo(guardada ?? Math.round(entrada * 1000), secs);
-    return auto.length === ocurr.length ? auto : [];
-  }, [cancion, ocurr]);
-  const anclasSeg = anclasAuto;
   const actualIdx = Math.min(idx, Math.max(total - 1, 0));
   const actual = eventos[actualIdx] ?? null;
   const siguiente = eventos[actualIdx + 1] ?? null;
@@ -539,13 +475,6 @@ export function VistaEstudio({
           return;
         }
         ctrlRef.current = c;
-        c.addListener("playback_update", (e) => {
-          const d = e.data ?? {};
-          ultimoRef.current = { ms: d.position ?? 0, rec: performance.now(), pausado: d.isPaused ?? true, uri: d.playingURI ?? null, dur: d.duration ?? 0 };
-          setReproduciendo(!(d.isPaused ?? true));
-          setProgresoMs(d.position ?? 0);
-          if ((d.duration ?? 0) > 0) setDurSpotifyMs(d.duration ?? 0);
-        });
       });
     };
     const w = window as unknown as { __spotifyApi?: ApiSpotify; onSpotifyIframeApiReady?: (api: ApiSpotify) => void };
@@ -576,15 +505,6 @@ export function VistaEstudio({
     };
   }, []);
 
-  useEffect(() => {
-    if (!reproduciendo) return;
-    const id = setInterval(() => {
-      const u = ultimoRef.current;
-      setProgresoMs(posicionEstimada(u.ms, u.rec, performance.now(), u.pausado));
-    }, 250);
-    return () => clearInterval(id);
-  }, [reproduciendo]);
-
   // La faja de arriba copia el recorrido del editor: cada parte con su fondo y sus acordes del ancho de su duración (en compases).
   // Lo que se repite seguido se muestra una sola vez con su «×N» (así el recorrido no se alarga).
   const faja = useMemo(() => {
@@ -592,7 +512,6 @@ export function VistaEstudio({
     type Item = { ancho: number; veces: number; x0: number; tiles: Tile[] };
     let k = 0;
     let pos = 0;
-    const inicios = new Map<number, number>();
     const partes: { si: number; ancho: number; items: Item[] }[] = [];
     for (let si = 0; si < cancion.secciones.length; si++) {
       const s = cancion.secciones[si];
@@ -623,74 +542,13 @@ export function VistaEstudio({
           tiles.push({ silencio: ocurr[0].silencio, dur: ocurr[0].dur, evs: ocurr.map((x) => x.ev), ks: ocurr.map((x) => x.k) });
         }
         const ancho = tiles.reduce((n, t) => n + t.dur, 0);
-        const unCiclo = ancho;
-        let antes = 0;
-        for (const t of tiles) {
-          t.ks.forEach((kk, r) => {
-            if (kk !== null) inicios.set(kk, pos + ((r * unCiclo + antes) / (veces * unCiclo)) * ancho);
-          });
-          antes += t.dur;
-        }
         items.push({ ancho, veces, x0: pos, tiles });
         pos += ancho;
       }
       partes.push({ si, ancho: Math.max(pos - inicioParte, 0.0001), items });
     }
-    return { partes, total: Math.max(pos, 0.0001), inicios };
+    return { partes, total: Math.max(pos, 0.0001) };
   }, [cancion.secciones, indicesPorSeccion, eventos]);
-
-  // Dónde va la barra que crece (0 a 1): sigue los mismos tiempos que el seguimiento de los acordes.
-  const xDeTiempo = (ms: number): number => {
-    const T = anclasSeg;
-    const inicios = faja.inicios;
-    if (T.length === 0 || inicios.size === 0) return duracionMs > 0 ? Math.min(1, Math.max(0, ms / duracionMs)) : 0;
-    const puntos: [number, number][] = T.filter((a) => inicios.has(a[0])).map((a) => [a[1], inicios.get(a[0]) as number]);
-    puntos.push([Math.max(duracionMs, (puntos[puntos.length - 1]?.[0] ?? 0) + 1000), faja.total]);
-    if (ms <= puntos[0][0]) return puntos[0][0] > 0 ? Math.max(0, (ms / puntos[0][0]) * (puntos[0][1] / faja.total)) : 0;
-    for (let i = 0; i < puntos.length - 1; i++) {
-      const [t0, x0] = puntos[i];
-      const [t1, x1] = puntos[i + 1];
-      if (ms < t1) return (x0 + ((ms - t0) / Math.max(t1 - t0, 1)) * (x1 - x0)) / faja.total;
-    }
-    return 1;
-  };
-
-  const posicionAhora = () => {
-    const u = ultimoRef.current;
-    return posicionEstimada(u.ms, u.rec, performance.now(), u.pausado);
-  };
-  // ¿Lo que suena es esta canción? Si Spotify no dice cuál suena, se asume que sí cuando se cargó "esta canción".
-  const suenaEsta = () => {
-    const u = ultimoRef.current;
-    return u.uri ? u.uri === cancion.spotifyUri : !!cancion.spotifyUri;
-  };
-
-  // Seguir la canción: arranca solo cuando le das play en Spotify. Sin ajustes, el
-  // reparto es parejo de 0 a la duración; cada clic sobre el acorde que estás
-  // oyendo agrega un ancla y lo afina.
-  useEffect(() => {
-    if (ocurr.length === 0) return;
-    const id = setInterval(() => {
-      const u = ultimoRef.current;
-      if (u.pausado || !suenaEsta()) return;
-      const k = ocurrenciaPorAnclas(anclasSeg, posicionAhora() + adelanto, ocurr.length, u.dur, pesos);
-      if (k < 0 || k === ocurrRef.current) return;
-      ocurrRef.current = k;
-      const ev = ocurr[k].evento;
-      if (!eventos[ev]) return;
-      setIdx(ev);
-      setFiltro([eventos[ev].clave]);
-      document.querySelector(`[data-ev="${ev}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
-    }, 120);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anclasSeg, ocurr, eventos, pesos, adelanto]);
-
-  const cambiarAdelanto = (ms: number) => {
-    const n = Math.min(15000, Math.max(-15000, ms));
-    setAdelanto(n);
-    guardar(PREF_ADELANTO + cancion.id, n);
-  };
 
   const distintos = useMemo(() => {
     const m = new Map<string, { nota: Nota; calidad: Calidad; bajo: Nota | null; veces: number; primero: number }>();
@@ -772,7 +630,7 @@ export function VistaEstudio({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const duracionMs = (cancion.duracionSegundos ?? 0) * 1000 || durSpotifyMs;
+  const duracionMs = (cancion.duracionSegundos ?? 0) * 1000;
 
   const grado = actual ? gradoEnTonalidad(actual.nota, actual.calidad, tonalidad) : null;
 
@@ -942,14 +800,8 @@ export function VistaEstudio({
               );
             })}
           </div>
-          {/* Barra horizontal que crece hacia la derecha con la canción */}
-          <div aria-hidden style={{ position: "absolute", left: 0, bottom: 0, height: 4, width: `${Math.min(1, Math.max(0, xDeTiempo(Math.max(0, progresoMs) + adelanto))) * 100}%`, background: INK, pointerEvents: "none" }} />
         </div>
-        {/* Tiempo corrido y duración, del mismo tamaño */}
-        <div className="mt-1 flex items-center justify-between gap-2" style={{ fontFamily: NUM, fontVariantNumeric: "tabular-nums", fontSize: 11, fontWeight: 700, color: MUTED }}>
-          <span style={{ color: INK }}>{formatoMMSS(Math.floor(Math.max(0, progresoMs) / 1000))}</span>
-          <span>{duracionMs > 0 ? formatoMMSS(Math.round(duracionMs / 1000)) : "—"}</span>
-        </div>
+
       </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[290px_minmax(0,1fr)_560px]">
@@ -1208,32 +1060,7 @@ export function VistaEstudio({
           {/* Spotify de esta canción */}
           <section style={{ border: `1px solid ${LINE}`, background: CARD, borderRadius: 16, padding: "8px 10px" }}>
             <div ref={contRef} style={{ display: cancion.spotifyUri ? "block" : "none", minHeight: 152 }} />
-            {cancion.spotifyUri ? (
-              <div className="flex flex-wrap items-center gap-2" style={{ marginTop: 8, fontSize: 11, color: MUTED }}>
-                <span className="ml-auto flex items-center gap-1.5">
-                  <span title="Si la letra va atrás de la canción, sube el adelanto">Sincronía</span>
-                  <button onClick={() => cambiarAdelanto(adelanto - 1000)} style={{ ...boton, padding: "2px 9px" }} aria-label="Bajar 1 segundo">−</button>
-                  <input
-                    inputMode="decimal"
-                    aria-label="Sincronía en segundos"
-                    value={adelantoTxt ?? (adelanto / 1000).toFixed(1)}
-                    onFocus={(e) => {
-                      setAdelantoTxt((adelanto / 1000).toFixed(1));
-                      e.currentTarget.select();
-                    }}
-                    onChange={(e) => {
-                      const txt = e.target.value;
-                      setAdelantoTxt(txt);
-                      const n = parseFloat(txt.replace(",", "."));
-                      if (Number.isFinite(n)) cambiarAdelanto(Math.round(n * 1000));
-                    }}
-                    onBlur={() => setAdelantoTxt(null)}
-                    style={{ ...boton, width: 60, textAlign: "center", fontFamily: MONO, cursor: "text", padding: "3px 4px" }}
-                  />
-                  <button onClick={() => cambiarAdelanto(adelanto + 1000)} style={{ ...boton, padding: "2px 9px" }} aria-label="Subir 1 segundo">+</button>
-                </span>
-              </div>
-            ) : (
+            {!cancion.spotifyUri && (
               <p style={{ fontSize: 12, color: MUTED }}>
                 Esta canción aún no tiene liga de Spotify.{" "}
                 {puedeEditar && (
