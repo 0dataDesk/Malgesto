@@ -57,6 +57,7 @@ function Grupo({ titulo, canciones }: { titulo: string | null; canciones: Cancio
       {/* Todas las tarjetas del mismo tamaño; toda la tarjeta abre la canción */}
       <div className="mt-2.5 grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gridAutoRows: 120 }}>
         {canciones.map((c) => {
+          const generos = parseGeneros(c.genero);
           const dato = (etiqueta: string, valor: string | null) => (
             <div className="flex flex-col" style={{ minWidth: 0 }}>
               <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: MUTED, opacity: 0.8, lineHeight: 1.2 }}>{etiqueta}</span>
@@ -83,6 +84,9 @@ function Grupo({ titulo, canciones }: { titulo: string | null; canciones: Cancio
                 {c.esBorrador && (
                   <span className="flex-none rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]" style={{ fontFamily: MONO, border: `1px dashed ${ACCENT}`, color: ACCENT }}>Borrador</span>
                 )}
+                {generos.map((g) => (
+                  <span key={g} className="flex-none rounded-md px-1.5 py-0.5 text-[10px] font-semibold" style={{ fontFamily: NUM, border: `1px solid ${LINE}`, color: MUTED }}>{g}</span>
+                ))}
               </div>
               <div className="flex items-end justify-between gap-3">
                 <div className="grid gap-x-4" style={{ gridTemplateColumns: "auto auto auto" }}>

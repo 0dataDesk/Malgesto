@@ -5,7 +5,7 @@ import { NOTAS, colorRaizAcorde, colorContrasteTexto, type Nota, type Modo } fro
 import { formatoMMSS, parseMMSS } from "@/lib/duracion";
 import { uriDeSpotify } from "@/lib/estudioSync";
 import type { CancionCompleta, FichaInput } from "@/lib/cancionesData";
-import { parseGeneros, textoDeGeneros } from "@/lib/generos";
+import { MAX_GENEROS, parseGeneros, textoDeGeneros } from "@/lib/generos";
 
 // Ficha de la canción: la comparten la ventana "Editar" del modo Estudio y la
 // vista de Estructura. Arriba nombre y artista; en medio los datos sueltos;
@@ -134,6 +134,14 @@ export function FichaCampos({
           onChange={(e) => onCambio({ autor: e.target.value })}
           placeholder={ficha.esCover ? "Artista o banda original" : "Artista o banda"}
           aria-label="Artista o banda"
+          className="w-full border-b bg-transparent pb-0.5 text-sm outline-none"
+          style={{ borderColor: LINE, color: MUTED }}
+        />
+        <input
+          value={ficha.genero}
+          onChange={(e) => onCambio({ genero: e.target.value })}
+          placeholder={`Géneros (de 1 a ${MAX_GENEROS}, separados por coma)`}
+          aria-label="Géneros"
           className="w-full border-b bg-transparent pb-0.5 text-sm outline-none"
           style={{ borderColor: LINE, color: MUTED }}
         />
