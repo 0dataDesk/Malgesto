@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requerirAccesoBloque } from "@/lib/malgestoAccess";
+import { anclasValidas } from "@/lib/estudioSync";
 import {
   crearCancion,
   actualizarCancion,
@@ -10,6 +11,7 @@ import {
   actualizarEstadoBorrador,
   actualizarFicha,
   type FichaInput,
+  guardarTiempos,
   reemplazarAudio,
   quitarAudio,
   type CancionInput,
@@ -48,6 +50,14 @@ export async function eliminarCancionAction(cancionId: string, bandaId: string) 
   await eliminarCancion(cancionId);
   revalidatePath("/canciones");
   redirect(`/canciones?banda=${bandaId}`);
+}
+
+// Modo Estudio: anclas [acorde, milisegundo] que afinan el seguimiento. Quien puede editar la canción puede marcar.
+export async function guardarTiemposAction(cancionId: string, bandaId: string, tiemposMs: [number, number][] | null) {
+  await requerirAccesoBloque(bandaId, "canciones");
+  if (tiemposMs && (!Array.isArray(tiemposMs) || tiemposMs.length > 500 || anclasValidas(tiemposMs).length !== tiemposMs.length)) throw new Error("Tiempos inválidos.");
+  await guardarTiempos(cancionId, tiemposMs);
+  revalidatePath(`/canciones/${cancionId}`);
 }
 
 // Brief "Fase 3: nueva vista de Canción" (Fase 1 §1 y §6): pasar de borrador
