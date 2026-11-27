@@ -32,38 +32,3 @@ export function segundosPorCompas(bpm: number): number {
   if (!bpm || bpm <= 0) return 0;
   return (TIEMPOS_POR_COMPAS * 60) / bpm;
 }
-
-// Una "vuelta" concreta de una sección ya expandida: qué sección es, en qué
-// número de repetición va, cuántos compases dura esa vuelta y con qué BPM
-// efectivo (el de la sección si tiene, si no el de la canción).
-export type VueltaExpandida = {
-  seccionId: string;
-  nombre: string;
-  indiceRepeticion: number; // 1-based
-  totalRepeticiones: number;
-  compases: number;
-  bpmEfectivo: number;
-  esRepeticionDesprendida: boolean;
-};
-
-export type VueltaConTiempo = VueltaExpandida & {
-  inicioSegundos: number;
-  duracionSegundos: number;
-};
-
-// Recorre las vueltas en orden y les asigna inicio/duración acumulados.
-export function calcularTiempos(vueltas: VueltaExpandida[]): VueltaConTiempo[] {
-  let acumulado = 0;
-  return vueltas.map((v) => {
-    const duracionSegundos = v.compases * segundosPorCompas(v.bpmEfectivo);
-    const conTiempo: VueltaConTiempo = { ...v, inicioSegundos: acumulado, duracionSegundos };
-    acumulado += duracionSegundos;
-    return conTiempo;
-  });
-}
-
-export function duracionTotalSegundos(vueltas: VueltaConTiempo[]): number {
-  if (vueltas.length === 0) return 0;
-  const ultima = vueltas[vueltas.length - 1];
-  return ultima.inicioSegundos + ultima.duracionSegundos;
-}

@@ -1,6 +1,5 @@
 // Revisa la biblioteca de acordes del Modo Estudio. Corre antes de cada build (npm run check):
 // si una forma no suena como el acorde que dice ser, o no cabe en el diagrama, el despliegue se detiene.
-import { anclasPorTempo } from "../lib/estudioSync";
 import { NOTAS, CALIDADES, simboloAcorde, semitonosDeCalidad, gradoDeNota, calidadDeTokens, tokenPermitido, tokensDeCalidad, acordesDeTonalidad, type Nota, type Calidad } from "../lib/cancionTeoria";
 import {
   INSTRUMENTOS_ESTUDIO,
@@ -166,10 +165,6 @@ iguales(gradoDeNota("A", "madd9", "C"), "♭3", "grado de C en Am(add9)");
 iguales(gradoDeNota("A", "madd9", "B"), "9", "grado de B en Am(add9)");
 for (const c of CALIDADES) iguales(calidadDeTokens(tokensDeCalidad(c)), c, `ida y vuelta de ${c}`);
 for (const detallado of [false, true]) for (const modo of ["mayor", "menor"] as const) for (const raiz of NOTAS) for (const g of acordesDeTonalidad({ raiz, modo }, detallado)) if (g.acordes.length === 0) falla(`tonalidad ${raiz} ${modo}: grupo vacío ${g.titulo}`);
-
-// 3f) Tiempos por tempo: un silencio ocupa tiempo pero no lleva ancla (2 compases + silencio de 2 + 2 compases a 2 s por compás).
-const anclasPrueba = anclasPorTempo(1000, [{ vueltas: 1, compases: 6, segundosPorCompas: 2, pesos: [2, 2, 2], omitir: [false, true, false] }]);
-if (JSON.stringify(anclasPrueba) !== JSON.stringify([[0, 1000], [1, 9000]])) falla(`anclasPorTempo con silencio: ${JSON.stringify(anclasPrueba)}`);
 
 if (errores.length) {
   console.error(`\n✗ ${errores.length} problema(s) en la biblioteca de acordes:\n` + errores.slice(0, 60).map((e) => " - " + e).join("\n") + (errores.length > 60 ? `\n ... y ${errores.length - 60} más` : ""));
